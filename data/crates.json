@@ -1,0 +1,49 @@
+[
+  {
+    "id": "crate_salvage",
+    "name": "Salvage Crate",
+    "text": "Scrap hauled out of the yard and sorted. Mostly common stock.",
+    "cost_currency": "scrap",
+    "cost_amount": 450,
+    "pulls": 1,
+    "_rates": "Weights are out of 1000 and MUST be shown to the player. Several jurisdictions require published gacha odds, and every store's policy does.",
+    "rates": [
+      { "rarity": 1, "weight": 760 },
+      { "rarity": 2, "weight": 210 },
+      { "rarity": 3, "weight": 30 }
+    ],
+    "pity_rarity": 3,
+    "pity_after": 25
+  },
+  {
+    "id": "crate_foundry",
+    "name": "Foundry Crate",
+    "text": "Pulled from a working line rather than a scrap heap. Better stock, real cost.",
+    "cost_currency": "alloy",
+    "cost_amount": 260,
+    "pulls": 1,
+    "rates": [
+      { "rarity": 1, "weight": 450 },
+      { "rarity": 2, "weight": 430 },
+      { "rarity": 3, "weight": 120 }
+    ],
+    "pity_rarity": 3,
+    "pity_after": 12
+  },
+  {
+    "id": "crate_reclaimer",
+    "name": "Reclaimer Cache",
+    "text": "Ten pulls at once, with one rarity 2 or better guaranteed.",
+    "cost_currency": "cores",
+    "cost_amount": 150,
+    "pulls": 10,
+    "guarantee_rarity": 2,
+    "rates": [
+      { "rarity": 1, "weight": 400 },
+      { "rarity": 2, "weight": 440 },
+      { "rarity": 3, "weight": 160 }
+    ],
+    "pity_rarity": 3,
+    "pity_after": 8
+  }
+]

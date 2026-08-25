@@ -1,0 +1,18 @@
+{
+  "_comment": "Every cost curve. Same rule as sim/: no economy number is hardcoded, because a live F2P game retunes prices without shipping a client.",
+
+  "_levels": "Scrap cost compounds per level, so a wide shallow collection stays a real alternative to one maxed part.",
+  "level_base_cost": 60,
+  "level_growth_pct": 135,
+  "level_rarity_pct": 45,
+
+  "_refit": "Duplicates are the gate; alloy is the tax. This is the sink that makes pulling a duplicate feel like progress instead of a wasted crate.",
+  "refit_base_copies": 2,
+  "refit_copies_growth": 1,
+  "refit_base_alloy": 120,
+  "refit_alloy_growth_pct": 180,
+
+  "_faucets": "Kept next to the sinks on purpose, so the two can be read against each other.",
+  "salvage_scrap_per_battle": 45,
+  "salvage_alloy_per_battle": 4
+}

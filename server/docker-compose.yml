@@ -1,0 +1,65 @@
+# Nakama + Postgres for Scrapline.
+#
+#   cd server && docker compose up -d
+#   open http://127.0.0.1:7351      (console, admin/password)
+#
+# Everything here runs on one small VPS: Nakama is a single Go binary and Postgres is
+# Postgres. The plan budgets ~$12/month for this, and nothing about it is per-player.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: nakama
+      POSTGRES_PASSWORD: localdev
+    volumes:
+      - data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    expose:
+      - "5432"
+
+  nakama:
+    image: heroiclabs/nakama:3.40.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # SCRAPLINE_ALLOW_DEV_PURCHASES honours receipts from the development billing stub.
+    # LOCAL ONLY: with it set, anyone can mint premium currency from a made-up order id.
+    # It is absent from any production compose file rather than set to false, so that
+    # forgetting to change it cannot leave it on.
+    #
+    # Two traps, both of which cost a debugging pass here:
+    #   - it must be `--runtime.env`, NOT a container environment variable. `ctx.env` in
+    #     the JS runtime reads Nakama's runtime env and nothing else.
+    #   - the entrypoint below is a FOLDED scalar, so it becomes one shell line. A `#`
+    #     comment inside it comments out every flag that follows.
+    entrypoint:
+      - "/bin/sh"
+      - "-ecx"
+      - >
+        /nakama/nakama migrate up --database.address postgres:localdev@postgres:5432/nakama &&
+        exec /nakama/nakama
+        --database.address postgres:localdev@postgres:5432/nakama
+        --logger.level INFO
+        --session.token_expiry_sec 7200
+        --runtime.js_entrypoint "build/index.js"
+        --runtime.env "SCRAPLINE_ALLOW_DEV_PURCHASES=true"
+    volumes:
+      # Built modules are mounted, not baked in, so a rebuild is a file copy and a
+      # container restart rather than an image build.
+      - ./modules/build:/nakama/data/modules/build
+    ports:
+      - "7350:7350"   # client API
+      - "7351:7351"   # admin console
+    healthcheck:
+      test: ["CMD", "/nakama/nakama", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  data:

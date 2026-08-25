@@ -1,0 +1,121 @@
+[
+  {
+    "id": "mo_governor",
+    "name": "Heat Governor",
+    "slot": "module",
+    "rarity": 1,
+    "hp": 60,
+    "armor": 2,
+    "vent_rate": 3,
+    "can_overdrive": false,
+    "mesh": "res://art/parts/mo_governor.glb",
+    "flavour": "Never seizes. Never spikes either. The safe hands."
+  },
+  {
+    "id": "mo_bypass",
+    "name": "Governor Bypass",
+    "slot": "module",
+    "rarity": 2,
+    "attack": 4,
+    "speed": 10,
+    "vent_rate": -1,
+    "can_overdrive": true,
+    "mesh": "res://art/parts/mo_bypass.glb",
+    "flavour": "Turns the seize into an overdrive. Runs hot to get there."
+  },
+  {
+    "id": "mo_ablative",
+    "name": "Ablative Plating",
+    "slot": "module",
+    "rarity": 1,
+    "hp": 140,
+    "armor": 5,
+    "speed": -8,
+    "can_overdrive": false,
+    "mesh": "res://art/parts/mo_ablative.glb",
+    "flavour": "Bolted-on scrap. Every plate is something that used to be a wall."
+  },
+  {
+    "id": "mo_capacitor",
+    "name": "Surge Capacitor",
+    "slot": "module",
+    "rarity": 3,
+    "attack": 2,
+    "heat_max": 45,
+    "vent_rate": -2,
+    "can_overdrive": true,
+    "mesh": "res://art/parts/mo_capacitor.glb",
+    "flavour": "A long climb to the threshold, and a very loud arrival."
+  },
+  {
+    "id": "mo_servo",
+    "name": "Servo Cluster",
+    "slot": "module",
+    "rarity": 2,
+    "attack": 6,
+    "speed": 25,
+    "vent_rate": -1,
+    "can_overdrive": false,
+    "mesh": "res://art/parts/mo_servo.glb",
+    "flavour": "Acts sooner and more often. Pays for it in cooling."
+  },
+  {
+    "id": "mo_coolant",
+    "name": "Coolant Loop",
+    "slot": "module",
+    "rarity": 2,
+    "vent_rate": 6,
+    "heat_max": 20,
+    "can_overdrive": false,
+    "mesh": "res://art/parts/mo_coolant.glb",
+    "flavour": "Sheds heat faster than any frame can build it. Nothing else."
+  },
+  {
+    "id": "mo_reactive",
+    "name": "Reactive Slab",
+    "slot": "module",
+    "rarity": 2,
+    "hp": 220,
+    "armor": 8,
+    "speed": -14,
+    "can_overdrive": false,
+    "mesh": "res://art/parts/mo_reactive.glb",
+    "flavour": "Enormous protection bolted on at the cost of every bit of tempo."
+  },
+  {
+    "id": "mo_targeting",
+    "name": "Targeting Rig",
+    "slot": "module",
+    "rarity": 3,
+    "attack": 3,
+    "range_bonus": 140,
+    "can_overdrive": false,
+    "mesh": "res://art/parts/mo_targeting.glb",
+    "flavour": "Extends the reach of whatever arms the frame is carrying."
+  },
+  {
+    "id": "mo_overclock",
+    "name": "Overclock Bank",
+    "slot": "module",
+    "rarity": 3,
+    "attack": 6,
+    "speed": 14,
+    "vent_rate": -5,
+    "heat_max": -32,
+    "can_overdrive": true,
+    "mesh": "res://art/parts/mo_overclock.glb",
+    "flavour": "Everything faster and hotter. Overdrives early, seizes if it misses."
+  },
+  {
+    "id": "mo_scavenger",
+    "name": "Scavenger Rig",
+    "slot": "module",
+    "rarity": 1,
+    "hp": 90,
+    "armor": 3,
+    "vent_rate": 1,
+    "can_overdrive": false,
+    "mesh": "res://art/parts/mo_scavenger.glb",
+    "flavour": "Welded-on plate off three different machines. Cheap, and it works."
+  }
+]

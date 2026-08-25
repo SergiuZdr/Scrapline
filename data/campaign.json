@@ -1,0 +1,2180 @@
+[
+  {
+    "id": "z1_01",
+    "zone": 0,
+    "zone_name": "The Outer Heaps",
+    "zone_text": "Picked-over scrap on the edge of the yard. Whatever is still walking out here is barely holding together.",
+    "name": "Scrapjaw",
+    "step": 0,
+    "is_boss": false,
+    "map": "map_open_flats",
+    "condition": "",
+    "charge_cost": 6,
+    "requires": [],
+    "reward": {
+      "scrap": 120,
+      "alloy": 0
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Scrapjaw",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Rustling 1",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z1_02",
+    "zone": 0,
+    "zone_name": "The Outer Heaps",
+    "zone_text": "",
+    "name": "Tinhead",
+    "step": 1,
+    "is_boss": false,
+    "map": "map_open_flats",
+    "condition": "",
+    "charge_cost": 6,
+    "requires": [
+      "z1_01"
+    ],
+    "reward": {
+      "scrap": 155,
+      "alloy": 0
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Tinhead",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Rustling 1",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Rustling 2",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z1_03",
+    "zone": 0,
+    "zone_name": "The Outer Heaps",
+    "zone_text": "",
+    "name": "Ratchet",
+    "step": 2,
+    "is_boss": false,
+    "map": "map_open_flats",
+    "condition": "",
+    "charge_cost": 6,
+    "requires": [
+      "z1_02"
+    ],
+    "reward": {
+      "scrap": 190,
+      "alloy": 0
+    },
+    "first_clear_part": "ar_lance",
+    "enemy": [
+      {
+        "name": "Ratchet",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Rustling 1",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Rustling 2",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z1_04",
+    "zone": 0,
+    "zone_name": "The Outer Heaps",
+    "zone_text": "",
+    "name": "Cinderbite",
+    "step": 3,
+    "is_boss": false,
+    "map": "map_open_flats",
+    "condition": "",
+    "charge_cost": 6,
+    "requires": [
+      "z1_03"
+    ],
+    "reward": {
+      "scrap": 225,
+      "alloy": 0
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Cinderbite",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_pulse",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Rustling 1",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_pulse",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Rustling 2",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_slug",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_scanner",
+          "module": "mo_ablative"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z1_05",
+    "zone": 0,
+    "zone_name": "The Outer Heaps",
+    "zone_text": "",
+    "name": "Halfmast",
+    "step": 4,
+    "is_boss": true,
+    "map": "map_foundry_yard",
+    "condition": "",
+    "charge_cost": 10,
+    "requires": [
+      "z1_04"
+    ],
+    "reward": {
+      "scrap": 260,
+      "alloy": 20
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Halfmast",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_pulse",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Rustling 1",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_arc",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_scanner",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Rustling 2",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_scanner",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Rustling Guard 3",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_scanner",
+          "module": "mo_governor"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z1_06",
+    "zone": 0,
+    "zone_name": "The Outer Heaps",
+    "zone_text": "",
+    "name": "Ledger",
+    "step": 5,
+    "is_boss": false,
+    "map": "map_open_flats",
+    "condition": "",
+    "charge_cost": 6,
+    "requires": [
+      "z1_05"
+    ],
+    "reward": {
+      "scrap": 295,
+      "alloy": 0
+    },
+    "first_clear_part": "mo_governor",
+    "enemy": [
+      {
+        "name": "Ledger",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_arc",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_pulse",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Rustling 1",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_scanner",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Rustling 2",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_arc",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_scanner",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Rustling 3",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_arc",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_scanner",
+          "module": "mo_servo"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z1_07",
+    "zone": 0,
+    "zone_name": "The Outer Heaps",
+    "zone_text": "",
+    "name": "Gutter",
+    "step": 6,
+    "is_boss": false,
+    "map": "map_foundry_yard",
+    "condition": "",
+    "charge_cost": 6,
+    "requires": [
+      "z1_06"
+    ],
+    "reward": {
+      "scrap": 330,
+      "alloy": 0
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Gutter",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_scanner",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Rustling 1",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_dynamo",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_scanner",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Rustling 2",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Rustling 3",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_arc",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z1_08",
+    "zone": 0,
+    "zone_name": "The Outer Heaps",
+    "zone_text": "",
+    "name": "Pinion",
+    "step": 7,
+    "is_boss": false,
+    "map": "map_open_flats",
+    "condition": "",
+    "charge_cost": 6,
+    "requires": [
+      "z1_07"
+    ],
+    "reward": {
+      "scrap": 365,
+      "alloy": 0
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Pinion",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_slug",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Rustling 1",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_dynamo",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Rustling 2",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_slug",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_scanner",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Rustling 3",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_arc",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_scanner",
+          "module": "mo_ablative"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z1_09",
+    "zone": 0,
+    "zone_name": "The Outer Heaps",
+    "zone_text": "",
+    "name": "Slagfoot",
+    "step": 8,
+    "is_boss": false,
+    "map": "map_foundry_yard",
+    "condition": "",
+    "charge_cost": 6,
+    "requires": [
+      "z1_08"
+    ],
+    "reward": {
+      "scrap": 400,
+      "alloy": 0
+    },
+    "first_clear_part": "mo_ablative",
+    "enemy": [
+      {
+        "name": "Slagfoot",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_pulse",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Rustling 1",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_dynamo",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_pulse",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Rustling 2",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_slug",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Rustling 3",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_arc",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_ripper",
+          "module": "mo_servo"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z1_10",
+    "zone": 0,
+    "zone_name": "The Outer Heaps",
+    "zone_text": "",
+    "name": "Warden",
+    "step": 9,
+    "is_boss": true,
+    "map": "map_open_flats",
+    "condition": "",
+    "charge_cost": 10,
+    "requires": [
+      "z1_09"
+    ],
+    "reward": {
+      "scrap": 435,
+      "alloy": 35
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Warden",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_furnace",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_scanner",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Rustling 1",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_furnace",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_hammer",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Rustling 2",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_arc",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_pulse",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Rustling 3",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_hammer",
+          "module": "mo_ablative"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z2_01",
+    "zone": 1,
+    "zone_name": "The Slag Channel",
+    "zone_text": "Closer to the foundries, where the heat never leaves the ground and the salvage fights back.",
+    "name": "Emberjaw",
+    "step": 0,
+    "is_boss": false,
+    "map": "map_foundry_yard",
+    "condition": "",
+    "charge_cost": 6,
+    "requires": [
+      "z1_10"
+    ],
+    "reward": {
+      "scrap": 470,
+      "alloy": 0
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Emberjaw",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_furnace",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_scanner",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Channel 1",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Channel 2",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_slug",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_pulse",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Channel 3",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_dynamo",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Channel 4",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_hammer",
+          "module": "mo_ablative"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z2_02",
+    "zone": 1,
+    "zone_name": "The Slag Channel",
+    "zone_text": "",
+    "name": "Fluxrat",
+    "step": 1,
+    "is_boss": false,
+    "map": "map_open_flats",
+    "condition": "",
+    "charge_cost": 6,
+    "requires": [
+      "z2_01"
+    ],
+    "reward": {
+      "scrap": 505,
+      "alloy": 0
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Fluxrat",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_arc",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_pulse",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Channel 1",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_furnace",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_scanner",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Channel 2",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_slug",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Channel 3",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_dynamo",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_scanner",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Channel 4",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_governor"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z2_03",
+    "zone": 1,
+    "zone_name": "The Slag Channel",
+    "zone_text": "",
+    "name": "Crucible",
+    "step": 2,
+    "is_boss": false,
+    "map": "map_foundry_yard",
+    "condition": "cond_ashfall",
+    "charge_cost": 6,
+    "requires": [
+      "z2_02"
+    ],
+    "reward": {
+      "scrap": 540,
+      "alloy": 0
+    },
+    "first_clear_part": "ch_strider",
+    "enemy": [
+      {
+        "name": "Crucible",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_dynamo",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_scanner",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Channel 1",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_slug",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_lance",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Channel 2",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Channel 3",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_slug",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_hammer",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Channel 4",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_slug",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_scanner",
+          "module": "mo_governor"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z2_04",
+    "zone": 1,
+    "zone_name": "The Slag Channel",
+    "zone_text": "",
+    "name": "Bellows",
+    "step": 3,
+    "is_boss": false,
+    "map": "map_open_flats",
+    "condition": "cond_ashfall",
+    "charge_cost": 6,
+    "requires": [
+      "z2_03"
+    ],
+    "reward": {
+      "scrap": 575,
+      "alloy": 0
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Bellows",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_bile",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_pulse",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Channel 1",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_bile",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_hammer",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Channel 2",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_furnace",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_hammer",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Channel 3",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_furnace",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Channel 4",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_furnace",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_pulse",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Channel 5",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_slug",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_scanner",
+          "module": "mo_governor"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z2_05",
+    "zone": 1,
+    "zone_name": "The Slag Channel",
+    "zone_text": "",
+    "name": "Tapline",
+    "step": 4,
+    "is_boss": true,
+    "map": "map_foundry_yard",
+    "condition": "cond_ashfall",
+    "charge_cost": 10,
+    "requires": [
+      "z2_04"
+    ],
+    "reward": {
+      "scrap": 610,
+      "alloy": 50
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Tapline",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Channel 1",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_dynamo",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_pulse",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Channel 2",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_bile",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_capacitor"
+        }
+      },
+      {
+        "name": "Channel 3",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_arc",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_lance",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Channel 4",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_bile",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_capacitor"
+        }
+      },
+      {
+        "name": "Channel 5",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_furnace",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_hammer",
+          "module": "mo_ablative"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z2_06",
+    "zone": 1,
+    "zone_name": "The Slag Channel",
+    "zone_text": "",
+    "name": "Quench",
+    "step": 5,
+    "is_boss": false,
+    "map": "map_open_flats",
+    "condition": "cond_ashfall",
+    "charge_cost": 6,
+    "requires": [
+      "z2_05"
+    ],
+    "reward": {
+      "scrap": 645,
+      "alloy": 0
+    },
+    "first_clear_part": "co_dynamo",
+    "enemy": [
+      {
+        "name": "Quench",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_arc",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_pulse",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Channel 1",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_bile",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_ripper",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Channel 2",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_lance",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Channel 3",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_furnace",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_lance",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Channel 4",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Channel 5",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z2_07",
+    "zone": 1,
+    "zone_name": "The Slag Channel",
+    "zone_text": "",
+    "name": "Rethread",
+    "step": 6,
+    "is_boss": false,
+    "map": "map_foundry_yard",
+    "condition": "cond_ashfall",
+    "charge_cost": 6,
+    "requires": [
+      "z2_06"
+    ],
+    "reward": {
+      "scrap": 680,
+      "alloy": 0
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Rethread",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_slug",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Channel 1",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_bile",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_pulse",
+          "module": "mo_capacitor"
+        }
+      },
+      {
+        "name": "Channel 2",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_slug",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Channel 3",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_slug",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_pulse",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Channel 4",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_dynamo",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Channel 5",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_ripper",
+          "module": "mo_capacitor"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z2_08",
+    "zone": 1,
+    "zone_name": "The Slag Channel",
+    "zone_text": "",
+    "name": "Blastgate",
+    "step": 7,
+    "is_boss": false,
+    "map": "map_open_flats",
+    "condition": "cond_ashfall",
+    "charge_cost": 6,
+    "requires": [
+      "z2_07"
+    ],
+    "reward": {
+      "scrap": 715,
+      "alloy": 0
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Blastgate",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_furnace",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_pulse",
+          "module": "mo_capacitor"
+        }
+      },
+      {
+        "name": "Channel 1",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_furnace",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_pulse",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Channel 2",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_slug",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_scanner",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Channel 3",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_arc",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_scanner",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Channel 4",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_dynamo",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_ripper",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Channel 5",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_scanner",
+          "module": "mo_ablative"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z2_09",
+    "zone": 1,
+    "zone_name": "The Slag Channel",
+    "zone_text": "",
+    "name": "Cokebreaker",
+    "step": 8,
+    "is_boss": false,
+    "map": "map_foundry_yard",
+    "condition": "cond_ion_storm",
+    "charge_cost": 6,
+    "requires": [
+      "z2_08"
+    ],
+    "reward": {
+      "scrap": 750,
+      "alloy": 0
+    },
+    "first_clear_part": "co_slug",
+    "enemy": [
+      {
+        "name": "Cokebreaker",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_slug",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_ripper",
+          "module": "mo_capacitor"
+        }
+      },
+      {
+        "name": "Channel 1",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_hammer",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Channel 2",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_bile",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Channel 3",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_arc",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_pulse",
+          "module": "mo_capacitor"
+        }
+      },
+      {
+        "name": "Channel 4",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_arc",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_hammer",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Channel 5",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_slug",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_pulse",
+          "module": "mo_governor"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z2_10",
+    "zone": 1,
+    "zone_name": "The Slag Channel",
+    "zone_text": "",
+    "name": "Foreman",
+    "step": 9,
+    "is_boss": true,
+    "map": "map_open_flats",
+    "condition": "cond_ion_storm",
+    "charge_cost": 10,
+    "requires": [
+      "z2_09"
+    ],
+    "reward": {
+      "scrap": 785,
+      "alloy": 65
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Foreman",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_arc",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_hammer",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Channel 1",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_furnace",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_ripper",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Channel 2",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_dynamo",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Channel 3",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_slug",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_scanner",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Channel 4",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_furnace",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_lance",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Channel 5",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_dynamo",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_hammer",
+          "module": "mo_ablative"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z3_01",
+    "zone": 2,
+    "zone_name": "The Working Line",
+    "zone_text": "Machines that still have a foundry behind them, and know what they are defending.",
+    "name": "Overseer",
+    "step": 0,
+    "is_boss": false,
+    "map": "map_foundry_yard",
+    "condition": "cond_ion_storm",
+    "charge_cost": 6,
+    "requires": [
+      "z2_10"
+    ],
+    "reward": {
+      "scrap": 820,
+      "alloy": 0
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Overseer",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_arc",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_lance",
+          "module": "mo_capacitor"
+        }
+      },
+      {
+        "name": "Line 1",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_bile",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_pulse",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Line 2",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_furnace",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_ripper",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Line 3",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_arc",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_lance",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Line 4",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_slug",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_scanner",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Line 5",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_bile",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_pulse",
+          "module": "mo_servo"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z3_02",
+    "zone": 2,
+    "zone_name": "The Working Line",
+    "zone_text": "",
+    "name": "Regulator",
+    "step": 1,
+    "is_boss": false,
+    "map": "map_open_flats",
+    "condition": "cond_ion_storm",
+    "charge_cost": 6,
+    "requires": [
+      "z3_01"
+    ],
+    "reward": {
+      "scrap": 855,
+      "alloy": 0
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Regulator",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_slug",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Line 1",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_slug",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Line 2",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_dynamo",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_scanner",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Line 3",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_dynamo",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_hammer",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Line 4",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_dynamo",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_lance",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Line 5",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_furnace",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_lance",
+          "module": "mo_governor"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z3_03",
+    "zone": 2,
+    "zone_name": "The Working Line",
+    "zone_text": "",
+    "name": "Coldfront",
+    "step": 2,
+    "is_boss": false,
+    "map": "map_foundry_yard",
+    "condition": "cond_ion_storm",
+    "charge_cost": 6,
+    "requires": [
+      "z3_02"
+    ],
+    "reward": {
+      "scrap": 890,
+      "alloy": 0
+    },
+    "first_clear_part": "ar_lance",
+    "enemy": [
+      {
+        "name": "Coldfront",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_dynamo",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_lance",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Line 1",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_arc",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_scanner",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Line 2",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_bile",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_lance",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Line 3",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_arc",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_pulse",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Line 4",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_arc",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_ripper",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Line 5",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_bile",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z3_04",
+    "zone": 2,
+    "zone_name": "The Working Line",
+    "zone_text": "",
+    "name": "Pressline",
+    "step": 3,
+    "is_boss": false,
+    "map": "map_open_flats",
+    "condition": "cond_ion_storm",
+    "charge_cost": 6,
+    "requires": [
+      "z3_03"
+    ],
+    "reward": {
+      "scrap": 925,
+      "alloy": 0
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Pressline",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_bile",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_pulse",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Line 1",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_bile",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_ripper",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Line 2",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Line 3",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_arc",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_scanner",
+          "module": "mo_capacitor"
+        }
+      },
+      {
+        "name": "Line 4",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_furnace",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_lance",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Line 5",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_lance",
+          "module": "mo_ablative"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z3_05",
+    "zone": 2,
+    "zone_name": "The Working Line",
+    "zone_text": "",
+    "name": "Anvilhead",
+    "step": 4,
+    "is_boss": true,
+    "map": "map_foundry_yard",
+    "condition": "cond_null_field",
+    "charge_cost": 10,
+    "requires": [
+      "z3_04"
+    ],
+    "reward": {
+      "scrap": 960,
+      "alloy": 80
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Anvilhead",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_slug",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Line 1",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_arc",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_pulse",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Line 2",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_dynamo",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_hammer",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Line 3",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_scanner",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Line 4",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_arc",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_ripper",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Line 5",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_furnace",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_hammer",
+          "module": "mo_ablative"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z3_06",
+    "zone": 2,
+    "zone_name": "The Working Line",
+    "zone_text": "",
+    "name": "Deadbolt",
+    "step": 5,
+    "is_boss": false,
+    "map": "map_open_flats",
+    "condition": "cond_null_field",
+    "charge_cost": 6,
+    "requires": [
+      "z3_05"
+    ],
+    "reward": {
+      "scrap": 995,
+      "alloy": 0
+    },
+    "first_clear_part": "mo_governor",
+    "enemy": [
+      {
+        "name": "Deadbolt",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_dynamo",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_hammer",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Line 1",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_arc",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_scanner",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Line 2",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_arc",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_scanner",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Line 3",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_bile",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_lance",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Line 4",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_arc",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_pulse",
+          "module": "mo_capacitor"
+        }
+      },
+      {
+        "name": "Line 5",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_slug",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_pulse",
+          "module": "mo_servo"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z3_07",
+    "zone": 2,
+    "zone_name": "The Working Line",
+    "zone_text": "",
+    "name": "Nullwright",
+    "step": 6,
+    "is_boss": false,
+    "map": "map_foundry_yard",
+    "condition": "cond_null_field",
+    "charge_cost": 6,
+    "requires": [
+      "z3_06"
+    ],
+    "reward": {
+      "scrap": 1030,
+      "alloy": 0
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Nullwright",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_bile",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_lance",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Line 1",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_hammer",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Line 2",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_bile",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Line 3",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_scanner",
+          "module": "mo_capacitor"
+        }
+      },
+      {
+        "name": "Line 4",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_furnace",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_pulse",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Line 5",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_arc",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_governor"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z3_08",
+    "zone": 2,
+    "zone_name": "The Working Line",
+    "zone_text": "",
+    "name": "Ironclause",
+    "step": 7,
+    "is_boss": false,
+    "map": "map_open_flats",
+    "condition": "cond_null_field",
+    "charge_cost": 6,
+    "requires": [
+      "z3_07"
+    ],
+    "reward": {
+      "scrap": 1065,
+      "alloy": 0
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "Ironclause",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_arc",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Line 1",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_scanner",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Line 2",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_arc",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_scanner",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Line 3",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_furnace",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_scanner",
+          "module": "mo_capacitor"
+        }
+      },
+      {
+        "name": "Line 4",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_arc",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_scanner",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Line 5",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_arc",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_pulse",
+          "module": "mo_bypass"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z3_09",
+    "zone": 2,
+    "zone_name": "The Working Line",
+    "zone_text": "",
+    "name": "Lastcast",
+    "step": 8,
+    "is_boss": false,
+    "map": "map_foundry_yard",
+    "condition": "cond_null_field",
+    "charge_cost": 6,
+    "requires": [
+      "z3_08"
+    ],
+    "reward": {
+      "scrap": 1100,
+      "alloy": 0
+    },
+    "first_clear_part": "mo_ablative",
+    "enemy": [
+      {
+        "name": "Lastcast",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_arc",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_scanner",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Line 1",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_furnace",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_ripper",
+          "module": "mo_capacitor"
+        }
+      },
+      {
+        "name": "Line 2",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_bile",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_scanner",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Line 3",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_arc",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Line 4",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_dynamo",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_lance",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Line 5",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_scanner",
+          "module": "mo_bypass"
+        }
+      }
+    ]
+  },
+  {
+    "id": "z3_10",
+    "zone": 2,
+    "zone_name": "The Working Line",
+    "zone_text": "",
+    "name": "The Kiln",
+    "step": 9,
+    "is_boss": true,
+    "map": "map_open_flats",
+    "condition": "cond_null_field",
+    "charge_cost": 10,
+    "requires": [
+      "z3_09"
+    ],
+    "reward": {
+      "scrap": 1135,
+      "alloy": 95
+    },
+    "first_clear_part": "",
+    "enemy": [
+      {
+        "name": "The Kiln",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_arc",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_lance",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Line 1",
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_arc",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_pulse",
+          "module": "mo_capacitor"
+        }
+      },
+      {
+        "name": "Line 2",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_bile",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_pulse",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Line 3",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_bile",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_lance",
+          "module": "mo_servo"
+        }
+      },
+      {
+        "name": "Line 4",
+        "parts": {
+          "chassis": "ch_hauler",
+          "core": "co_dynamo",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_pulse",
+          "module": "mo_ablative"
+        }
+      },
+      {
+        "name": "Line 5",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_dynamo",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_ripper",
+          "module": "mo_capacitor"
+        }
+      }
+    ]
+  }
+]

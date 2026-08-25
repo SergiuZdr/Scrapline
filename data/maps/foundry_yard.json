@@ -1,0 +1,233 @@
+[
+  {
+    "id": "map_foundry_yard",
+    "name": "Foundry Yard",
+    "text": "Two ridges overlook a slag channel. Whoever takes the high ground shoots further; whoever crosses the middle pays for it in heat.",
+    "_legend": ". open   r rubble   s scrap   l slag   ^ ridge",
+    "_note": "Row 0 is the team A baseline (z=0) and the last row is team B's. Each glyph is one tile of 100 sim units.",
+    "rows": [
+      "............",
+      "..r......r..",
+      "....^..^....",
+      "...ss..ss...",
+      "............",
+      "..r..ll..r..",
+      ".^..llll..^.",
+      ".^..llll..^.",
+      "..r..ll..r..",
+      "............",
+      "...ss..ss...",
+      "....^..^....",
+      "..r......r..",
+      "............"
+    ],
+    "deploy": {
+      "columns_x": [
+        430,
+        770
+      ],
+      "team_a_z": [
+        380,
+        220,
+        60
+      ],
+      "team_b_z": [
+        1020,
+        1180,
+        1340
+      ],
+      "slot_x": [
+        180,
+        1020,
+        480,
+        720,
+        320,
+        880
+      ]
+    },
+    "default": true
+  },
+  {
+    "id": "map_open_flats",
+    "name": "Open Flats",
+    "text": "Almost nothing to hide behind. Reach decides everything here.",
+    "rows": [
+      "............",
+      "............",
+      ".....rr.....",
+      "............",
+      "...r....r...",
+      "............",
+      "............",
+      "...r....r...",
+      "............",
+      ".....rr.....",
+      "............",
+      "............"
+    ],
+    "deploy": {
+      "columns_x": [
+        430,
+        770
+      ],
+      "team_a_z": [
+        360,
+        210,
+        70
+      ],
+      "team_b_z": [
+        840,
+        990,
+        1130
+      ],
+      "slot_x": [
+        150,
+        1050,
+        420,
+        780,
+        280,
+        920
+      ]
+    },
+    "default": false
+  },
+  {
+    "id": "map_cooling_yard",
+    "name": "The Cooling Yard",
+    "text": "Stacked plate and raised gantries, no open ground worth crossing. Reach and position decide it; a brawler has to work for every metre.",
+    "_design": "Deliberately the OPPOSITE of Foundry Yard. No slag at all, so heat is the player's own problem; heavy cover and ridges down both flanks, so marksmen on high ground are genuinely hard to dislodge and a brawler must pick a lane and commit.",
+    "rows": [
+      "............",
+      ".^^......^^.",
+      ".^ss....ss^.",
+      "...s....s...",
+      "..r......r..",
+      "....ssss....",
+      "...s....s...",
+      "...s....s...",
+      "....ssss....",
+      "..r......r..",
+      "...s....s...",
+      ".^ss....ss^.",
+      ".^^......^^.",
+      "............"
+    ],
+    "deploy": {
+      "columns_x": [
+        430,
+        770
+      ],
+      "team_a_z": [
+        380,
+        220,
+        60
+      ],
+      "team_b_z": [
+        1020,
+        1180,
+        1340
+      ],
+      "slot_x": [
+        200,
+        1000,
+        460,
+        740,
+        340,
+        860
+      ]
+    },
+    "default": false
+  },
+  {
+    "id": "map_blank",
+    "name": "Blank Test Plate",
+    "text": "Diagnostic map: no terrain at all. Any mirror bias measured here is movement logic, not terrain.",
+    "rows": [
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............"
+    ],
+    "deploy": {
+      "columns_x": [
+        430,
+        770
+      ],
+      "team_a_z": [
+        380,
+        220,
+        60
+      ],
+      "team_b_z": [
+        1020,
+        1180,
+        1340
+      ],
+      "slot_x": [
+        180,
+        1020,
+        480,
+        720,
+        320,
+        880
+      ]
+    },
+    "default": false
+  },
+  {
+    "id": "map_swapped",
+    "name": "Blank Plate, Sides Swapped",
+    "text": "Diagnostic: identical to map_blank but team A deploys on the FAR side. If the bias follows the map side it is geometry; if it follows the team index it is code.",
+    "rows": [
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............"
+    ],
+    "deploy": {
+      "columns_x": [
+        430,
+        770
+      ],
+      "team_a_z": [
+        1020,
+        1180,
+        1340
+      ],
+      "team_b_z": [
+        380,
+        220,
+        60
+      ],
+      "slot_x": [
+        180,
+        1020,
+        480,
+        720,
+        320,
+        880
+      ]
+    },
+    "default": false
+  }
+]

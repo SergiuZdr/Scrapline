@@ -1,0 +1,112 @@
+[
+  {
+    "id": "co_slug",
+    "name": "Slug Core",
+    "slot": "core",
+    "rarity": 1,
+    "damage_type": "kinetic",
+    "attack": 14,
+    "heat_per_attack": 7,
+    "mesh": "res://art/parts/co_slug.glb",
+    "flavour": "Mass, and the will to move it."
+  },
+  {
+    "id": "co_furnace",
+    "name": "Furnace Core",
+    "slot": "core",
+    "rarity": 1,
+    "damage_type": "thermal",
+    "attack": 16,
+    "heat_per_attack": 11,
+    "mesh": "res://art/parts/co_furnace.glb",
+    "flavour": "Hits harder than it can afford to."
+  },
+  {
+    "id": "co_arc",
+    "name": "Arc Core",
+    "slot": "core",
+    "rarity": 1,
+    "damage_type": "emp",
+    "attack": 12,
+    "heat_per_attack": 9,
+    "mesh": "res://art/parts/co_arc.glb",
+    "flavour": "Shielding was a mistake, and this core knows it."
+  },
+  {
+    "id": "co_bile",
+    "name": "Bile Core",
+    "slot": "core",
+    "rarity": 2,
+    "damage_type": "corrosive",
+    "attack": 15,
+    "heat_per_attack": 8,
+    "mesh": "res://art/parts/co_bile.glb",
+    "flavour": "Plate is only armour until it starts dissolving."
+  },
+  {
+    "id": "co_dynamo",
+    "name": "Dynamo Core",
+    "slot": "core",
+    "rarity": 1,
+    "damage_type": "kinetic",
+    "attack": 10,
+    "heat_per_attack": 3,
+    "mesh": "res://art/parts/co_dynamo.glb",
+    "flavour": "Hits softly and never stops. The core that outlasts the fight."
+  },
+  {
+    "id": "co_ember",
+    "name": "Ember Core",
+    "slot": "core",
+    "rarity": 2,
+    "damage_type": "thermal",
+    "attack": 12,
+    "heat_per_attack": 5,
+    "mesh": "res://art/parts/co_ember.glb",
+    "flavour": "Burns cool. Everything a Furnace does, for longer and less of it."
+  },
+  {
+    "id": "co_tesla",
+    "name": "Tesla Core",
+    "slot": "core",
+    "rarity": 3,
+    "damage_type": "emp",
+    "attack": 19,
+    "heat_per_attack": 14,
+    "mesh": "res://art/parts/co_tesla.glb",
+    "flavour": "Enormous output against shielding, and it cooks the frame carrying it."
+  },
+  {
+    "id": "co_solvent",
+    "name": "Solvent Core",
+    "slot": "core",
+    "rarity": 2,
+    "damage_type": "corrosive",
+    "attack": 11,
+    "heat_per_attack": 4,
+    "mesh": "res://art/parts/co_solvent.glb",
+    "flavour": "Barely warms up. Made for frames that intend to be there at the end."
+  },
+  {
+    "id": "co_mag",
+    "name": "Mag Core",
+    "slot": "core",
+    "rarity": 3,
+    "damage_type": "kinetic",
+    "attack": 20,
+    "heat_per_attack": 13,
+    "mesh": "res://art/parts/co_mag.glb",
+    "flavour": "The hardest hitting core in the yard, and it will seize you for it."
+  },
+  {
+    "id": "co_null",
+    "name": "Null Core",
+    "slot": "core",
+    "rarity": 2,
+    "damage_type": "emp",
+    "attack": 9,
+    "heat_per_attack": 2,
+    "mesh": "res://art/parts/co_null.glb",
+    "flavour": "Almost no output and almost no heat. A frame that never stops."
+  }
+]

@@ -1,0 +1,118 @@
+[
+  {
+    "id": "ab_crush",
+    "name": "Crush",
+    "power": 130,
+    "heat": 18,
+    "cast_ticks": 26,
+    "reach": "front",
+    "target": "enemy",
+    "applies": "fractured",
+    "state_ticks": 80,
+    "text": "Heavy blow that strips armour. Sets up a Pierce."
+  },
+  {
+    "id": "ab_pierce",
+    "name": "Pierce",
+    "power": 120,
+    "heat": 16,
+    "cast_ticks": 24,
+    "reach": "any",
+    "target": "enemy",
+    "detonates": "fractured",
+    "text": "Reaches the weakest enemy anywhere on the board. Detonates Fractured."
+  },
+  {
+    "id": "ab_mark",
+    "name": "Mark",
+    "power": 40,
+    "heat": 10,
+    "cast_ticks": 16,
+    "reach": "front",
+    "target": "enemy",
+    "applies": "exposed",
+    "state_ticks": 90,
+    "text": "Barely scratches. Everything that follows hits far harder."
+  },
+  {
+    "id": "ab_shred",
+    "name": "Shred",
+    "power": 140,
+    "heat": 20,
+    "cast_ticks": 28,
+    "reach": "front",
+    "target": "enemy",
+    "detonates": "exposed",
+    "text": "Cashes in a Mark. The other half of the squad's best combo."
+  },
+  {
+    "id": "ab_jolt",
+    "name": "Jolt",
+    "power": 90,
+    "heat": 14,
+    "cast_ticks": 20,
+    "reach": "front",
+    "target": "enemy",
+    "applies": "grounded",
+    "state_ticks": 70,
+    "text": "Drags a fast frame down to a pace you can answer."
+  },
+  {
+    "id": "ab_sunder",
+    "name": "Sunder",
+    "power": 160,
+    "heat": 24,
+    "cast_ticks": 34,
+    "reach": "front",
+    "target": "enemy",
+    "applies": "fractured",
+    "state_ticks": 90,
+    "text": "A single enormous blow that opens armour. Slow to wind up."
+  },
+  {
+    "id": "ab_rend",
+    "name": "Rend",
+    "power": 135,
+    "heat": 16,
+    "cast_ticks": 22,
+    "reach": "front",
+    "target": "enemy",
+    "detonates": "fractured",
+    "text": "Cuts into an opening. Detonates Fractured."
+  },
+  {
+    "id": "ab_stagger",
+    "name": "Stagger",
+    "power": 105,
+    "heat": 12,
+    "cast_ticks": 20,
+    "reach": "front",
+    "target": "enemy",
+    "applies": "grounded",
+    "state_ticks": 75,
+    "text": "A close burst that knocks a frame off its pace."
+  },
+  {
+    "id": "ab_scald",
+    "name": "Scald",
+    "power": 85,
+    "heat": 15,
+    "cast_ticks": 26,
+    "reach": "front",
+    "target": "enemy",
+    "applies": "overheated",
+    "state_ticks": 95,
+    "text": "Burning slag that makes the target cook itself."
+  },
+  {
+    "id": "ab_snipe",
+    "name": "Snipe",
+    "power": 170,
+    "heat": 30,
+    "cast_ticks": 52,
+    "reach": "any",
+    "target": "enemy",
+    "detonates": "exposed",
+    "text": "Reaches anywhere on the map. Detonates Exposed, and takes its time."
+  }
+]

@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "version": 2,
+  "notes": "Season two: Rust Squall arrives, overdrive costs more than it pays.",
+  "balance": {
+    "overdrive_multiplier": 185
+  },
+  "conditions": {
+    "cond_rust_squall": {
+      "id": "cond_rust_squall",
+      "name": "Rust Squall",
+      "text": "Corrosive dust eats armour plate; nothing shielded holds for long.",
+      "effects": { "corrosive_damage_pct": 125, "shield_pct": 60 }
+    }
+  }
+}

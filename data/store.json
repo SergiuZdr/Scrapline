@@ -1,0 +1,92 @@
+[
+  {
+    "_comment": "Real-money products. Prices here are display only -- the STORE is the source of truth for what a player is actually charged, in their own currency. Showing a hardcoded '$4.99' to someone paying in zloty is how a store listing gets rejected.",
+    "id": "cores_small",
+    "kind": "iap",
+    "name": "Handful of Cores",
+    "text": "A pocket of intact power cores.",
+    "display_price": "2.99",
+    "grants": {
+      "cores": 300
+    },
+    "sort": 10
+  },
+  {
+    "id": "cores_medium",
+    "kind": "iap",
+    "name": "Case of Cores",
+    "text": "Sealed and stable. The usual way to fund a rebuild.",
+    "display_price": "9.99",
+    "grants": {
+      "cores": 1100
+    },
+    "bonus_percent": 10,
+    "sort": 20
+  },
+  {
+    "id": "cores_large",
+    "kind": "iap",
+    "name": "Crate of Cores",
+    "text": "Enough to keep a foundry running for a season.",
+    "display_price": "24.99",
+    "grants": {
+      "cores": 3000
+    },
+    "bonus_percent": 20,
+    "sort": 30
+  },
+  {
+    "id": "starter_rig",
+    "kind": "iap",
+    "name": "Reclaimer's Kit",
+    "text": "A working loadout and the cores to improve it. One purchase per account.",
+    "display_price": "4.99",
+    "grants": {
+      "cores": 400,
+      "alloy": 300,
+      "part_ids": [
+        "ch_citadel",
+        "ar_railgun"
+      ]
+    },
+    "once_only": true,
+    "sort": 5
+  },
+  {
+    "id": "pass_premium",
+    "kind": "iap",
+    "name": "Foundry Pass",
+    "text": "Unlocks the premium track of the current season. Everything already earned is paid out immediately.",
+    "display_price": "9.99",
+    "grants": {
+      "pass_premium": 1
+    },
+    "season_scoped": true,
+    "sort": 1
+  },
+  {
+    "_comment2": "Cores buy these. NOTHING random is ever sold for real money directly -- crates cost currency, which is both the platform-safe structure and the one that keeps published odds meaningful.",
+    "id": "offer_alloy",
+    "kind": "currency",
+    "name": "Alloy Shipment",
+    "text": "Refined alloy, for refitting parts you already own.",
+    "cost_currency": "cores",
+    "cost_amount": 250,
+    "grants": {
+      "alloy": 600
+    },
+    "sort": 100
+  },
+  {
+    "id": "offer_scrap",
+    "kind": "currency",
+    "name": "Scrap Haul",
+    "text": "Raw scrap, for levelling.",
+    "cost_currency": "cores",
+    "cost_amount": 120,
+    "grants": {
+      "scrap": 9000
+    },
+    "sort": 110
+  }
+]

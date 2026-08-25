@@ -1,0 +1,21 @@
+# Godot 4+ specific ignores
+.godot/
+.godot_user/
+/android/
+
+# macOS
+.DS_Store
+
+# Exports and generated artifacts
+export_presets.cfg
+/build/
+/out/
+*.translation
+
+# Balance simulator output
+/tools/out/
+*.csv
+
+# Nakama module build output and deps
+server/modules/node_modules/
+server/modules/build/

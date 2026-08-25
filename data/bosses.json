@@ -1,0 +1,89 @@
+[
+  {
+    "id": "boss_kiln_walker",
+    "name": "Kiln Walker",
+    "text": "A foundry crane that never stopped working. It still carries the ladle.",
+    "brief": "Its core is armoured while any limb stands. Break the arms first, or waste the fight.",
+    "map": "map_cooling_yard",
+    "condition": "cond_ashfall",
+    "hp_pool": 900000,
+    "instance_hp": 26000,
+    "duration_hours": 168,
+    "power": 260,
+    "parts": [
+      {
+        "slot": 0,
+        "name": "Ladle Arm",
+        "role": "limb",
+        "hp_share": 22,
+        "parts": {
+          "chassis": "ch_citadel",
+          "core": "co_furnace",
+          "arm_l": "ar_maul",
+          "arm_r": "ar_maul",
+          "module": "mo_overclock"
+        }
+      },
+      {
+        "slot": 1,
+        "name": "Scrap Claw",
+        "role": "limb",
+        "hp_share": 22,
+        "parts": {
+          "chassis": "ch_dredge",
+          "core": "co_solvent",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_saw",
+          "module": "mo_reactive"
+        }
+      },
+      {
+        "slot": 2,
+        "name": "Slag Vents",
+        "role": "limb",
+        "hp_share": 14,
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_ember",
+          "arm_l": "ar_scatter",
+          "arm_r": "ar_scatter",
+          "module": "mo_coolant"
+        }
+      },
+      {
+        "slot": 3,
+        "name": "Sighting Mast",
+        "role": "limb",
+        "hp_share": 14,
+        "parts": {
+          "chassis": "ch_strider",
+          "core": "co_mag",
+          "arm_l": "ar_railgun",
+          "arm_r": "ar_scanner",
+          "module": "mo_targeting"
+        }
+      },
+      {
+        "slot": 4,
+        "name": "Kiln Core",
+        "role": "core",
+        "vital": true,
+        "hp_share": 28,
+        "guarded_by": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "guarded_reduction": 82,
+        "parts": {
+          "chassis": "ch_citadel",
+          "core": "co_null",
+          "arm_l": "ar_mortar",
+          "arm_r": "ar_pulse",
+          "module": "mo_ablative"
+        }
+      }
+    ]
+  }
+]

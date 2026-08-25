@@ -1,0 +1,191 @@
+{
+  "_comment": "Phase 0 gate fixture: a scripted 6v6 across the full cycle budget. Team A runs explicit orders for the first three cycles and falls through to its doctrine afterwards; team B is doctrine-driven throughout. Both paths must produce identical results on every run and on every machine.",
+  "seed": 12345,
+  "condition": "cond_ion_storm",
+  "teams": [
+    [
+      {
+        "name": "Anvil",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_slug",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Grinder",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_bile",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Cinder",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_furnace",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Sparrow",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_arc",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Spotter",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_slug",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_lance",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Longshot",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_arc",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_lance",
+          "module": "mo_governor"
+        }
+      }
+    ],
+    [
+      {
+        "name": "Slagjaw",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_furnace",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Kettle",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_slug",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Rustmaw",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_bile",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Ember",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_furnace",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Needle",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_arc",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_lance",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Bore",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_slug",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_lance",
+          "module": "mo_governor"
+        }
+      }
+    ]
+  ],
+  "_orders_note": "Keyed by unit_ref (team * 10 + original slot). A unit omitted from a cycle is on Auto and is played by its team's doctrine.",
+  "orders": [
+    {
+      "_cycle": "0 - Spotter marks, Grinder cashes it in, Anvil sets up a Riposte, Cinder proves the Purge Cycle linkage.",
+      "4": [
+        "ability:0",
+        "attack"
+      ],
+      "1": [
+        "ability:0",
+        "attack"
+      ],
+      "0": [
+        "brace",
+        "attack"
+      ],
+      "2": [
+        "vent",
+        "ability:0"
+      ]
+    },
+    {
+      "_cycle": "1 - press the advantage; Longshot reaches past the front rank.",
+      "4": [
+        "ability:0",
+        "attack",
+        "attack"
+      ],
+      "1": [
+        "ability:0",
+        "ability:1"
+      ],
+      "5": [
+        "ability:0",
+        "attack"
+      ],
+      "3": [
+        "ability:0",
+        "attack"
+      ]
+    },
+    {
+      "_cycle": "2 - Sparrow pulls out of the front, Anvil holds the line.",
+      "3": [
+        "fall_back",
+        "brace"
+      ],
+      "0": [
+        "brace",
+        "attack",
+        "attack"
+      ],
+      "2": [
+        "vent",
+        "ability:0",
+        "attack"
+      ]
+    }
+  ],
+  "map": "map_foundry_yard"
+}

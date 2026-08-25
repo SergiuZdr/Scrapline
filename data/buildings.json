@@ -1,0 +1,83 @@
+[
+  {
+    "id": "salvage_yard",
+    "name": "Salvage Yard",
+    "text": "Crews pull usable scrap out of the heaps whether you are watching or not.",
+    "produces": "scrap",
+    "rate_per_hour": 90,
+    "rate_growth_pct": 138,
+    "storage_hours": 8,
+    "upgrade_currency": "scrap",
+    "upgrade_base_cost": 400,
+    "upgrade_growth_pct": 165,
+    "max_level": 10,
+    "unlocked": true
+  },
+  {
+    "id": "smelter",
+    "name": "Smelter",
+    "text": "Cooks scrap down into alloy. Slower, and alloy is what Refits eat.",
+    "produces": "alloy",
+    "rate_per_hour": 7,
+    "rate_growth_pct": 132,
+    "storage_hours": 12,
+    "upgrade_currency": "scrap",
+    "upgrade_base_cost": 900,
+    "upgrade_growth_pct": 172,
+    "max_level": 10,
+    "unlocked": true
+  },
+  {
+    "id": "reactor",
+    "name": "Reactor",
+    "text": "Charge spent to launch a sortie. Refills whether you play or not.",
+    "produces": "charge",
+    "rate_per_hour": 12,
+    "rate_growth_pct": 118,
+    "storage_hours": 6,
+    "upgrade_currency": "alloy",
+    "upgrade_base_cost": 150,
+    "upgrade_growth_pct": 158,
+    "max_level": 8,
+    "unlocked": true
+  },
+  {
+    "id": "assembly_bay",
+    "name": "Assembly Bay",
+    "text": "Every level adds a squad slot you can save a loadout into.",
+    "produces": "",
+    "rate_per_hour": 0,
+    "storage_hours": 0,
+    "upgrade_currency": "scrap",
+    "upgrade_base_cost": 1200,
+    "upgrade_growth_pct": 190,
+    "max_level": 5,
+    "unlocked": true
+  },
+  {
+    "id": "archive",
+    "name": "Archive",
+    "text": "The parts codex. Each level raises the level ceiling of everything you own.",
+    "produces": "",
+    "rate_per_hour": 0,
+    "storage_hours": 0,
+    "upgrade_currency": "alloy",
+    "upgrade_base_cost": 300,
+    "upgrade_growth_pct": 180,
+    "max_level": 6,
+    "unlocked": true
+  },
+  {
+    "id": "beacon",
+    "name": "Beacon",
+    "text": "Reaches other Reclaimers. Dark until there is anyone out there to answer.",
+    "produces": "",
+    "rate_per_hour": 0,
+    "storage_hours": 0,
+    "upgrade_currency": "cores",
+    "upgrade_base_cost": 50,
+    "upgrade_growth_pct": 200,
+    "max_level": 3,
+    "unlocked": false
+  }
+]

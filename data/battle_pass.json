@@ -1,0 +1,570 @@
+{
+  "id": "pass_season_one",
+  "name": "Foundry Pass",
+  "text": "A season's worth of work, paid out as you go.",
+  "_comment": "XP is per-tier, not cumulative. Everything here is data so a season is a file, not a build.",
+  "_free_track": "The free track alone pays out more than a season of campaign replays. A pass whose free half is decorative reads as a paywall.",
+  "_pacing": "124000 XP over 28 days against a 6000/day cap: a player at the cap finishes on day 21, one averaging 4000 finishes on day 28, and a casual player at 1500 reaches roughly tier 18. A pass that CANNOT be finished is a broken promise and a refund queue -- the first draft of this file was one, at 197000 against a 3000 cap.",
+  "duration_days": 28,
+  "xp_per_battle": 120,
+  "xp_per_win": 180,
+  "xp_daily_cap": 6000,
+  "premium_product": "pass_premium",
+  "tiers": [
+    {
+      "tier": 1,
+      "xp": 1500,
+      "free": {
+        "scrap": 320
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 530
+      }
+    },
+    {
+      "tier": 2,
+      "xp": 1540,
+      "free": {
+        "scrap": 340
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 560
+      }
+    },
+    {
+      "tier": 3,
+      "xp": 1580,
+      "free": {
+        "scrap": 360
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 590
+      }
+    },
+    {
+      "tier": 4,
+      "xp": 1620,
+      "free": {
+        "scrap": 380
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 620
+      }
+    },
+    {
+      "tier": 5,
+      "xp": 1660,
+      "free": {
+        "alloy": 60
+      },
+      "premium": {
+        "cores": 60,
+        "alloy": 120
+      }
+    },
+    {
+      "tier": 6,
+      "xp": 1700,
+      "free": {
+        "scrap": 420
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 680
+      }
+    },
+    {
+      "tier": 7,
+      "xp": 1740,
+      "free": {
+        "scrap": 440
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 710
+      }
+    },
+    {
+      "tier": 8,
+      "xp": 1780,
+      "free": {
+        "scrap": 460
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 740
+      }
+    },
+    {
+      "tier": 9,
+      "xp": 1820,
+      "free": {
+        "scrap": 480
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 770
+      }
+    },
+    {
+      "tier": 10,
+      "xp": 1860,
+      "free": {
+        "parts": 1,
+        "alloy": 150
+      },
+      "premium": {
+        "parts": 2,
+        "cores": 120
+      }
+    },
+    {
+      "tier": 11,
+      "xp": 1900,
+      "free": {
+        "scrap": 520
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 830
+      }
+    },
+    {
+      "tier": 12,
+      "xp": 1940,
+      "free": {
+        "scrap": 540
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 860
+      }
+    },
+    {
+      "tier": 13,
+      "xp": 1980,
+      "free": {
+        "scrap": 560
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 890
+      }
+    },
+    {
+      "tier": 14,
+      "xp": 2020,
+      "free": {
+        "scrap": 580
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 920
+      }
+    },
+    {
+      "tier": 15,
+      "xp": 2060,
+      "free": {
+        "alloy": 60
+      },
+      "premium": {
+        "cores": 60,
+        "alloy": 120
+      }
+    },
+    {
+      "tier": 16,
+      "xp": 2100,
+      "free": {
+        "scrap": 620
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 980
+      }
+    },
+    {
+      "tier": 17,
+      "xp": 2140,
+      "free": {
+        "scrap": 640
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1010
+      }
+    },
+    {
+      "tier": 18,
+      "xp": 2180,
+      "free": {
+        "scrap": 660
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1040
+      }
+    },
+    {
+      "tier": 19,
+      "xp": 2220,
+      "free": {
+        "scrap": 680
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1070
+      }
+    },
+    {
+      "tier": 20,
+      "xp": 2260,
+      "free": {
+        "parts": 1,
+        "alloy": 150
+      },
+      "premium": {
+        "parts": 2,
+        "cores": 120
+      }
+    },
+    {
+      "tier": 21,
+      "xp": 2300,
+      "free": {
+        "scrap": 720
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1130
+      }
+    },
+    {
+      "tier": 22,
+      "xp": 2340,
+      "free": {
+        "scrap": 740
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1160
+      }
+    },
+    {
+      "tier": 23,
+      "xp": 2380,
+      "free": {
+        "scrap": 760
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1190
+      }
+    },
+    {
+      "tier": 24,
+      "xp": 2420,
+      "free": {
+        "scrap": 780
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1220
+      }
+    },
+    {
+      "tier": 25,
+      "xp": 2460,
+      "free": {
+        "alloy": 60
+      },
+      "premium": {
+        "cores": 60,
+        "alloy": 120
+      }
+    },
+    {
+      "tier": 26,
+      "xp": 2500,
+      "free": {
+        "scrap": 820
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1280
+      }
+    },
+    {
+      "tier": 27,
+      "xp": 2540,
+      "free": {
+        "scrap": 840
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1310
+      }
+    },
+    {
+      "tier": 28,
+      "xp": 2580,
+      "free": {
+        "scrap": 860
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1340
+      }
+    },
+    {
+      "tier": 29,
+      "xp": 2620,
+      "free": {
+        "scrap": 880
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1370
+      }
+    },
+    {
+      "tier": 30,
+      "xp": 2660,
+      "free": {
+        "parts": 1,
+        "alloy": 150
+      },
+      "premium": {
+        "parts": 2,
+        "cores": 120
+      }
+    },
+    {
+      "tier": 31,
+      "xp": 2700,
+      "free": {
+        "scrap": 920
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1430
+      }
+    },
+    {
+      "tier": 32,
+      "xp": 2740,
+      "free": {
+        "scrap": 940
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1460
+      }
+    },
+    {
+      "tier": 33,
+      "xp": 2780,
+      "free": {
+        "scrap": 960
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1490
+      }
+    },
+    {
+      "tier": 34,
+      "xp": 2820,
+      "free": {
+        "scrap": 980
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1520
+      }
+    },
+    {
+      "tier": 35,
+      "xp": 2860,
+      "free": {
+        "alloy": 60
+      },
+      "premium": {
+        "cores": 60,
+        "alloy": 120
+      }
+    },
+    {
+      "tier": 36,
+      "xp": 2900,
+      "free": {
+        "scrap": 1020
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1580
+      }
+    },
+    {
+      "tier": 37,
+      "xp": 2940,
+      "free": {
+        "scrap": 1040
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1610
+      }
+    },
+    {
+      "tier": 38,
+      "xp": 2980,
+      "free": {
+        "scrap": 1060
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1640
+      }
+    },
+    {
+      "tier": 39,
+      "xp": 3020,
+      "free": {
+        "scrap": 1080
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1670
+      }
+    },
+    {
+      "tier": 40,
+      "xp": 3060,
+      "free": {
+        "parts": 1,
+        "alloy": 150
+      },
+      "premium": {
+        "parts": 2,
+        "cores": 120
+      }
+    },
+    {
+      "tier": 41,
+      "xp": 3100,
+      "free": {
+        "scrap": 1120
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1730
+      }
+    },
+    {
+      "tier": 42,
+      "xp": 3140,
+      "free": {
+        "scrap": 1140
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1760
+      }
+    },
+    {
+      "tier": 43,
+      "xp": 3180,
+      "free": {
+        "scrap": 1160
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1790
+      }
+    },
+    {
+      "tier": 44,
+      "xp": 3220,
+      "free": {
+        "scrap": 1180
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1820
+      }
+    },
+    {
+      "tier": 45,
+      "xp": 3260,
+      "free": {
+        "alloy": 60
+      },
+      "premium": {
+        "cores": 60,
+        "alloy": 120
+      }
+    },
+    {
+      "tier": 46,
+      "xp": 3300,
+      "free": {
+        "scrap": 1220
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1880
+      }
+    },
+    {
+      "tier": 47,
+      "xp": 3340,
+      "free": {
+        "scrap": 1240
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1910
+      }
+    },
+    {
+      "tier": 48,
+      "xp": 3380,
+      "free": {
+        "scrap": 1260
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1940
+      }
+    },
+    {
+      "tier": 49,
+      "xp": 3420,
+      "free": {
+        "scrap": 1280
+      },
+      "premium": {
+        "cores": 25,
+        "scrap": 1970
+      }
+    },
+    {
+      "tier": 50,
+      "xp": 3460,
+      "free": {
+        "parts": 1,
+        "alloy": 150
+      },
+      "premium": {
+        "parts": 2,
+        "cores": 120
+      }
+    }
+  ]
+}

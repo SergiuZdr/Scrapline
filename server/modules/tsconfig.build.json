@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "es2017",
+    "lib": ["es2017"],
+    "strict": true,
+    "noImplicitReturns": true,
+    "types": [],
+    "outFile": "build/index.js"
+  },
+  "include": ["main.ts", "nkruntime.d.ts"]
+}

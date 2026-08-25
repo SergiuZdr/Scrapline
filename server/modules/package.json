@@ -1,0 +1,13 @@
+{
+  "name": "scrapline-nakama",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Nakama runtime modules for Scrapline",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}

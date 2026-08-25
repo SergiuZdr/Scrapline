@@ -1,0 +1,29 @@
+[
+  {
+    "id": "cond_ion_storm",
+    "name": "Ion Storm",
+    "text": "EMP weapons tear through the interference. Cooling systems choke on the charge.",
+    "modifiers": {
+      "damage_type_pct": { "emp": 130 },
+      "vent_rate_add": -1
+    }
+  },
+  {
+    "id": "cond_ashfall",
+    "name": "Ashfall",
+    "text": "Heat hangs in the air and nothing moves quickly through it.",
+    "modifiers": {
+      "damage_type_pct": { "thermal": 125 },
+      "speed_pct": 90
+    }
+  },
+  {
+    "id": "cond_null_field",
+    "name": "Null Field",
+    "text": "Every action costs more heat, but the field bleeds it away as fast as you make it.",
+    "modifiers": {
+      "heat_per_attack_pct": 140,
+      "vent_rate_add": 3
+    }
+  }
+]

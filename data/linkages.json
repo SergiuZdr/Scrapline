@@ -1,0 +1,20 @@
+[
+  {
+    "id": "lk_purge_cycle",
+    "name": "Purge Cycle",
+    "from": "vent",
+    "to": "ability",
+    "effect": "free_heat",
+    "value": 0,
+    "text": "Vent immediately before an ability and the ability generates no heat. The engine is already open."
+  },
+  {
+    "id": "lk_riposte",
+    "name": "Riposte",
+    "from": "brace",
+    "to": "attack",
+    "effect": "damage_pct",
+    "value": 160,
+    "text": "Brace, then strike. Absorbing the blow first buys a heavier answer."
+  }
+]

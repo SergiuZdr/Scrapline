@@ -1,0 +1,133 @@
+{
+  "_comment": "Diagnostic: both sides field IDENTICAL squads with no Condition. Any bias here is a bug in the simulation itself, not in squad composition. Should sit near 50/50 across seeds.",
+  "seed": 1,
+  "condition": "",
+  "map": "map_foundry_yard",
+  "teams": [
+    [
+      {
+        "name": "Anvil",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_slug",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Grinder",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_bile",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Cinder",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_furnace",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Sparrow",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_arc",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Spotter",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_slug",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_lance",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Longshot",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_arc",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_lance",
+          "module": "mo_governor"
+        }
+      }
+    ],
+    [
+      {
+        "name": "Anvil",
+        "parts": {
+          "chassis": "ch_bulwark",
+          "core": "co_slug",
+          "arm_l": "ar_hammer",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Grinder",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_bile",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_hammer",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Cinder",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_furnace",
+          "arm_l": "ar_ripper",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Sparrow",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_arc",
+          "arm_l": "ar_pulse",
+          "arm_r": "ar_ripper",
+          "module": "mo_bypass"
+        }
+      },
+      {
+        "name": "Spotter",
+        "parts": {
+          "chassis": "ch_skirmisher",
+          "core": "co_slug",
+          "arm_l": "ar_scanner",
+          "arm_r": "ar_lance",
+          "module": "mo_governor"
+        }
+      },
+      {
+        "name": "Longshot",
+        "parts": {
+          "chassis": "ch_brute",
+          "core": "co_arc",
+          "arm_l": "ar_lance",
+          "arm_r": "ar_lance",
+          "module": "mo_governor"
+        }
+      }
+    ]
+  ],
+  "orders": []
+}

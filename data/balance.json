@@ -1,0 +1,59 @@
+{
+  "_comment": "Every tunable the simulation reads. No balance number may be hardcoded in sim/. This file is designed to be server-delivered later, so a balance patch does not require a client update.",
+  "tick_hz": 20,
+  "cycle_ticks": 120,
+  "max_cycles": 12,
+  "base_attack_ticks": 24,
+  "engage_stagger_ticks": 4,
+  "min_damage": 1,
+  "brace_reduction": 40,
+  "brace_ticks": 8,
+  "vent_amount": 35,
+  "vent_ticks": 8,
+  "fall_back_ticks": 16,
+  "passive_vent_interval": 20,
+  "seize_ticks": 40,
+  "seize_heat_after": 50,
+  "overdrive_multiplier": 200,
+  "exposed_damage_bonus": 130,
+  "fractured_armor": 40,
+  "overheated_heat_gain": 150,
+  "grounded_speed": 65,
+  "detonation_bonus": 150,
+  "_effectiveness": "Rows are damage types (kinetic, thermal, emp, corrosive); columns are armour types (plate, composite, reactive, shielded). Each damage type beats exactly one armour and is blunted by exactly one, so no single squad answers everything.",
+  "effectiveness": [
+    [
+      100,
+      130,
+      70,
+      100
+    ],
+    [
+      70,
+      100,
+      130,
+      100
+    ],
+    [
+      100,
+      70,
+      100,
+      130
+    ],
+    [
+      130,
+      100,
+      100,
+      70
+    ]
+  ],
+  "reposition_ticks": 6,
+  "move_report_distance": 18,
+  "damage_variance_pct": 8,
+  "movement_interval": 2,
+  "brawler_charge_reduction": 32,
+  "lane_weight": 320,
+  "lane_lock_distance": 300,
+  "separation_radius": 105,
+  "separation_push": 85
+}

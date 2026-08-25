@@ -1,0 +1,62 @@
+[
+  {
+    "id": "open",
+    "name": "Open Ground",
+    "glyph": ".",
+    "move_pct": 100,
+    "cover": 0,
+    "range_bonus": 0,
+    "heat_per_tick": 0,
+    "colour": "1a1e26",
+    "height": 0.0,
+    "text": "Nothing to hide behind and nothing in the way."
+  },
+  {
+    "id": "rubble",
+    "name": "Rubble",
+    "glyph": "r",
+    "move_pct": 62,
+    "cover": 20,
+    "range_bonus": 0,
+    "heat_per_tick": 0,
+    "colour": "2b2a25",
+    "height": 0.12,
+    "text": "Slow to cross, but it stops a lot of what is aimed at you."
+  },
+  {
+    "id": "scrap",
+    "name": "Scrap Heap",
+    "glyph": "s",
+    "move_pct": 42,
+    "cover": 38,
+    "range_bonus": 0,
+    "heat_per_tick": 0,
+    "colour": "3a3128",
+    "height": 0.28,
+    "text": "The best cover on the field. Wading into it is a commitment."
+  },
+  {
+    "id": "slag",
+    "name": "Slag Pool",
+    "glyph": "l",
+    "move_pct": 82,
+    "cover": 0,
+    "range_bonus": 0,
+    "heat_per_tick": 7,
+    "colour": "6b2c14",
+    "height": -0.06,
+    "text": "Crossable, and it cooks you the whole way. Brawlers seize in here."
+  },
+  {
+    "id": "ridge",
+    "name": "Ridge",
+    "glyph": "^",
+    "move_pct": 70,
+    "cover": 10,
+    "range_bonus": 170,
+    "heat_per_tick": 0,
+    "colour": "232c33",
+    "height": 0.42,
+    "text": "High ground. Everything you carry reaches further from up here."
+  }
+]
