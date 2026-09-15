@@ -25,9 +25,14 @@ const MUZZLE_LIFETIME: float = 0.09
 ## hitstop plus a shake. Small hits must NOT shake, or the screen never settles.
 const HEAVY_FRACTION: float = 0.12
 
+## The shortest gap between two freezes. Long enough that a hit-stop is an event rather
+## than a texture.
+const HITSTOP_COOLDOWN: float = 0.62
+
 var _shake_strength: float = 0.0
 var _shake_time: float = 0.0
 var _hitstop_remaining: float = 0.0
+var _hitstop_cooldown: float = 0.0
 var _camera_rig: Node3D
 
 ## Reused mesh and material resources. One sphere and one quad serve every effect.
@@ -51,6 +56,8 @@ func setup(camera_rig: Node3D) -> void:
 func _process(delta: float) -> void:
 	if _hitstop_remaining > 0.0:
 		_hitstop_remaining = maxf(0.0, _hitstop_remaining - delta)
+	if _hitstop_cooldown > 0.0:
+		_hitstop_cooldown = maxf(0.0, _hitstop_cooldown - delta)
 
 	if _shake_time > 0.0 and _camera_rig != null:
 		_shake_time = maxf(0.0, _shake_time - delta)
@@ -208,8 +215,19 @@ func shake(strength: float) -> void:
 	_shake_time = 0.22
 
 
+## Freezes playback briefly so a heavy blow lands instead of sliding past.
+##
+## Rate limited, and that limit is the feature. Twelve constructs trade blows inside one
+## cycle, several of them heavy, and freezing on each turned emphasis into a permanent
+## stutter -- the whole battle read as a game struggling to keep up rather than as hits
+## with weight behind them. Hit-stop only means "that one hurt" if most hits do not get
+## it, so a freeze claims the next HITSTOP_COOLDOWN seconds and every other hit in that
+## window plays through at full speed.
 func hitstop(duration: float) -> void:
+	if _hitstop_cooldown > 0.0:
+		return
 	_hitstop_remaining = maxf(_hitstop_remaining, duration)
+	_hitstop_cooldown = HITSTOP_COOLDOWN
 
 
 # --- Helpers -----------------------------------------------------------------

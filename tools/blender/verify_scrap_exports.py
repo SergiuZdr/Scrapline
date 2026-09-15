@@ -14,7 +14,7 @@ ask when it loads the file:
 * is there a node named exactly `HeadSocket`, or did Blender's per-file unique naming turn
   it into `HeadSocket.003` on the way out?
 * is that node where the socket contract says, **in glTF's coordinate system**? Blender is
-  Z-up and glTF is Y-up, so a correct component has its head mount at y=0.78, not z=0.78.
+  Z-up and glTF is Y-up, so a correct component has its head mount at y=0.655, not z=0.655.
   Getting `export_yup` wrong produces files that import, assemble, and lie down.
 * is the socket a CHILD of the mesh node, so a runtime that parents to it inherits the
   right frame?
@@ -43,7 +43,12 @@ CONTRACT = {
     "torsos": {
         "prefix": "Torso",
         "sockets": {
-            "HeadSocket":       (0.0, 0.78, 0.0),
+            # 0.655, not 0.78: the head was deliberately sunk to sit BETWEEN the
+            # shoulders (`config.TORSO_HEAD_Z`). This number is restated here rather
+            # than imported on purpose -- a checker that reads the contract it is
+            # checking agrees with it by construction -- so a deliberate contract move
+            # has to be made here too, by hand, as a second person signing it off.
+            "HeadSocket":       (0.0, 0.655, 0.0),
             "ShoulderSocket_L": (0.34, 0.60, 0.0),
             "ShoulderSocket_R": (-0.34, 0.60, 0.0),
             "HipSocket_L":      (0.17, 0.0, 0.0),

@@ -38,3 +38,45 @@ def asymmetry(rng, magnitude=1.0):
         "strength": rng.span(0.4, 1.0) * magnitude,
         "swap_plates": rng.maybe(0.55),
     }
+
+
+def repair_history(component, rng, near_points, strength=1.0):
+    """Evidence the machine has been fixed, many times, by somebody in a hurry.
+
+    Called by every category after its archetype has run, so the repairs land on real
+    geometry rather than at computed coordinates that are only correct for the shape
+    they were tuned against -- the same reason `snapped_patch` exists.
+
+    Three rules keep this from becoming noise:
+
+    * **Every repair does a job.** A patch is bolted AND welded. A brace spans two
+      points that would need bracing. Nothing is placed because a surface looked empty.
+    * **Repairs are in the WRONG metal.** A plate in the same paint as the panel under
+      it is a feature; the mismatch is the entire read.
+    * **Few and large.** Two or three repairs per component, at a size that survives
+      being forty pixels tall. A hundred small ones is a texture, and a bad one.
+    """
+    from .. import greeble as gr
+
+    pieces = list(component.pieces)
+    if not pieces or not near_points:
+        return
+
+    count = max(1, min(len(near_points), int(round(rng.span(1.6, 2.6) * strength))))
+    for index in range(count):
+        near = near_points[index % len(near_points)]
+        size = (rng.span(0.075, 0.135), rng.span(0.065, 0.115))
+        component.add(gr.repair_patch("%s_repair_%d" % (component.name, index), size,
+                                      near, rng, pieces=pieces))
+
+    # One improvised brace, on the side the asymmetry roll already favoured, spanning
+    # between two of the points the caller nominated as real structure.
+    if len(near_points) >= 2 and rng.maybe(0.55 * strength):
+        a = prim_nearest(pieces, near_points[0])
+        b = prim_nearest(pieces, near_points[-1])
+        component.add(gr.improvised_brace(component.name + "_brace", a, b, rng))
+
+
+def prim_nearest(pieces, point):
+    from .. import primitives as prim
+    return prim.nearest_surface_point(pieces, point)

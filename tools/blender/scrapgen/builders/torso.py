@@ -16,13 +16,19 @@ attached to it floats. It looks fine as a part, and wrong on every robot built f
 
 import math
 
+AXIS_Y = (math.pi / 2, 0.0, 0.0)
+
 from .. import config
 from .. import greeble as gr
 from .. import primitives as prim
-from . import pick_archetype, asymmetry
+from . import pick_archetype, asymmetry, repair_history
 
 
-ARCHETYPES = ["boiler", "plated_box", "engine_block", "cage_frame"]
+## The three REDESIGNED base torsos come first: each one is a recognisable piece of
+## industrial plant rather than a shape. The four originals stay behind them so nothing
+## that references them breaks while the new ones are being judged.
+ARCHETYPES = ["generator_can", "engine_bay", "furnace_vessel",
+              "boiler", "plated_box", "engine_block", "cage_frame"]
 
 ## The vertical band an archetype owns. Below it is the pelvis, above it the neck.
 CHEST_BOTTOM = 0.14
@@ -37,12 +43,18 @@ def build(component):
 
     # Half-width of the body proper. The archetype gets to choose this; it does NOT
     # get to choose where the shoulders are.
-    half_width = rng.span(0.15, 0.23)
+    # Wider. The reference torso is a broad, deep box carrying a large chest feature --
+    # a radiator grille or a lit power core -- and the shoulders sit outboard of it. A
+    # narrow body under big pauldrons reads as a head on a coat hanger.
+    half_width = rng.span(0.21, 0.30)
     component.recipe = {"archetype": component.archetype, "half_width": half_width,
                         "asym_side": asym["side"]}
 
     _hip_yoke(component, rng, half_width)
     builder = {
+        "generator_can":  _generator_can,
+        "engine_bay":     _engine_bay,
+        "furnace_vessel": _furnace_vessel,
         "boiler":       _boiler,
         "plated_box":   _plated_box,
         "engine_block": _engine_block,
@@ -52,7 +64,14 @@ def build(component):
     _shoulder_boss(component, rng, half_width, 1.0)
     _shoulder_boss(component, rng, half_width, -1.0)
     _neck_mount(component, rng, half_width)
+    _chest_feature(component, rng, half_width)
+    _backpack(component, rng, half_width)
     _shared_dressing(component, rng, asym, half_width)
+    repair_history(component, rng, [
+        (asym["side"] * half_width * 0.85, half_width * 0.55, CHEST_BOTTOM + 0.16),
+        (-asym["side"] * half_width * 0.80, -half_width * 0.60, CHEST_TOP - 0.16),
+        (asym["side"] * half_width * 0.60, half_width * 0.50, CHEST_TOP - 0.26),
+    ])
     return component
 
 
@@ -107,18 +126,250 @@ def _hip_yoke(component, rng, half_width):
 
 def _neck_mount(component, rng, half_width):
     """The collar under the HeadSocket."""
+    # Derived from the contract, never hardcoded. These three sat at 0.700/0.755/0.735
+    # against a socket at 0.780, so moving the head meant finding four numbers in two
+    # files and the collar would have been left behind in the air.
+    base = config.TORSO_HEAD_Z
     component.add(prim.taper_box(component.name + "_yoke",
                                  (half_width * 1.5, rng.span(0.17, 0.22), 0.10),
-                                 top_scale=(0.62, 0.70), location=(0, 0, 0.700),
+                                 top_scale=(0.62, 0.70), location=(0, 0, base - 0.080),
                                  material="OldSteel", bevel_width=0.010, segments=2))
     component.add(prim.cylinder(component.name + "_neck_ring", 0.070, 0.070,
-                                location=(0, 0, 0.755), vertices=12,
+                                location=(0, 0, base - 0.025), vertices=12,
                                 material="DarkMetal"))
-    component.add(gr.bolt_ring(component.name + "_neckbolt", 6, (0, 0, 0.735), 0.066,
-                               axis="z", bolt_radius=0.012))
+    component.add(gr.bolt_ring(component.name + "_neckbolt", 6, (0, 0, base - 0.045),
+                               0.066, axis="z", bolt_radius=0.012))
+
+
+def _chest_feature(component, rng, half_width):
+    """The big thing on the front of the chest: a rad core in a recessed frame.
+
+    Every machine on the reference sheets carries one large feature centred on its
+    chest -- a radiator grille, a power unit, an armoured plate with a number on it --
+    and it is the first thing the eye lands on. Without it the torso is a bare box, and
+    a bare box is what a placeholder looks like.
+
+    Mechanical rather than emissive on purpose: the GAME mounts a lit core on this face
+    through `socket_core`, and two glowing things on one chest means neither is the
+    damage-type signal any more."""
+    if component.recipe.get("owns_chest"):
+        # The redesigned archetypes build their own front -- a control panel, an engine
+        # bank, a firebox door. Stacking a generic rad core on top of one made the chest
+        # a pile rather than a machine.
+        return
+    face = rng.span(0.030, 0.055)
+    width = min(half_width * 1.35, 0.30)
+    centre_z = rng.span(0.40, 0.48)
+
+    component.add(prim.box(component.name + "_chestframe",
+                           (width, 0.055, rng.span(0.20, 0.26)),
+                           (0, half_width * 0.55 + face, centre_z),
+                           bevel_width=0.012, material="OldSteel"))
+    component.add(gr.radiator(component.name + "_rad",
+                              (0, half_width * 0.55 + face + 0.020, centre_z),
+                              size=(width * 0.82, 0.05, rng.span(0.15, 0.20)),
+                              rng=rng, fins=rng.count(5, 8)))
+    component.add(gr.bolt_ring(component.name + "_chestbolt", 4,
+                               (0, half_width * 0.55 + face, centre_z),
+                               width * 0.46, axis="y", bolt_radius=0.013))
+
+
+def _backpack(component, rng, half_width):
+    """What the machine carries on its back: a tank, and stacks that vent it.
+
+    The reference calls this out as its own component category -- fuel tank, battery
+    pack, exhaust -- and it does two jobs. It gives the back of a construct something to
+    be, which matters in a game where half the units on screen are facing away, and it
+    breaks the torso's profile so the machine is not a slab from the side."""
+    back = -(half_width * 0.55 + rng.span(0.045, 0.075))
+    component.add(gr.tank(component.name + "_pack",
+                          (0, back, rng.span(0.42, 0.50)),
+                          radius=rng.span(0.070, 0.092), length=half_width * 1.5,
+                          axis="x", rng=rng))
+    for sign in (1.0, -1.0):
+        component.add(gr.exhaust_stack(
+            "%s_stack_%d" % (component.name, sign > 0),
+            (sign * half_width * rng.span(0.45, 0.65), back + 0.015,
+             rng.span(0.56, 0.62)),
+            height=rng.span(0.16, 0.24), radius=rng.span(0.030, 0.040), rng=rng))
+    component.add(gr.cable_bundle(component.name + "_packhose",
+                                  (half_width * 0.30, back, 0.40),
+                                  (half_width * 0.55, back + 0.030, 0.20), rng,
+                                  count=rng.count(2, 3), radius=0.012, sag=0.05))
 
 
 # --- Archetypes --------------------------------------------------------------
+
+def _generator_can(component, rng, asym, half_width):
+    """A portable generator laid across the chest: finned can, control panel, frame.
+
+    The primary shape is the CAN -- a horizontal cylinder, which immediately separates
+    this torso from anything box-shaped -- and everything else is what a generator
+    carries: cooling fins down its flanks, an instrument panel on the operator side, a
+    tubular carry frame around it, a fuel tank on top."""
+    component.recipe["owns_chest"] = True
+    centre_z = (CHEST_BOTTOM + CHEST_TOP) * 0.5
+    radius = half_width * rng.span(0.82, 0.95)
+    length = half_width * 1.85
+
+    component.add(prim.cylinder(component.name + "_can", radius, length,
+                                location=(0, 0, centre_z), rotation=(0, math.pi / 2, 0),
+                                vertices=16, material="DirtyMetal"))
+    for sign in (1.0, -1.0):
+        component.add(prim.cylinder("%s_endcap_%d" % (component.name, sign > 0),
+                                    radius * 1.04, 0.030,
+                                    location=(sign * length * 0.5, 0, centre_z),
+                                    rotation=(0, math.pi / 2, 0), vertices=16,
+                                    material="OldSteel"))
+        component.add(gr.bolt_ring("%s_endbolt_%d" % (component.name, sign > 0), 6,
+                                   (sign * (length * 0.5 + 0.012), 0, centre_z),
+                                   radius * 0.72, axis="x", bolt_radius=0.013))
+        component.add(gr.cooling_fins("%s_fin_%d" % (component.name, sign > 0),
+                                      rng.count(4, 6),
+                                      (sign * length * 0.28, 0, centre_z),
+                                      span=length * 0.34, depth=radius * 1.55,
+                                      axis="x"))
+
+    # The operator side: panel, and the pull-start it was scavenged with.
+    component.add(gr.control_panel(component.name + "_panel",
+                                   (0, radius * 0.98, centre_z + 0.020),
+                                   size=(half_width * 0.95, 0.14), rng=rng))
+    component.add(prim.cylinder(component.name + "_starter", 0.052, 0.036,
+                                location=(half_width * 0.62, radius * 0.92,
+                                          centre_z - 0.10),
+                                rotation=AXIS_Y, vertices=12, material="RustyMetal"))
+
+    # A tubular carry frame, which is what makes it read as portable plant.
+    top = centre_z + radius * 1.08
+    for sign in (1.0, -1.0):
+        component.add(gr.pipe_run("%s_frame_%d" % (component.name, sign > 0), [
+            (sign * length * 0.42, radius * 0.75, CHEST_BOTTOM + 0.02),
+            (sign * length * 0.48, radius * 0.55, top),
+            (sign * length * 0.48, -radius * 0.55, top),
+            (sign * length * 0.42, -radius * 0.75, CHEST_BOTTOM + 0.02),
+        ], radius=0.020, material="OldSteel", flanges=False))
+    component.add(gr.pipe_run(component.name + "_framebar", [
+        (-length * 0.48, 0.0, top), (length * 0.48, 0.0, top),
+    ], radius=0.020, material="OldSteel", flanges=False))
+    component.add(gr.tank(component.name + "_fuel", (0, 0.0, top - 0.045),
+                          radius=rng.span(0.058, 0.074), length=length * 0.66,
+                          axis="x", rng=rng))
+    return component
+
+
+def _engine_bay(component, rng, asym, half_width):
+    """A vehicle engine compartment worn as a chest: block, head, pulleys, battery.
+
+    The most literal "this came off a truck" torso in the kit. The block is the primary
+    mass; the bank of cylinder heads, the belt run and the battery box are the secondary
+    structures that make it an engine rather than a cube."""
+    component.recipe["owns_chest"] = True
+    centre_z = (CHEST_BOTTOM + CHEST_TOP) * 0.5
+
+    component.add(gr.engine_block(component.name + "_block",
+                                  (0, -0.010, centre_z + 0.020),
+                                  size=(half_width * 1.75, half_width * 1.15,
+                                        (CHEST_TOP - CHEST_BOTTOM) * 0.62),
+                                  rng=rng, cylinders=rng.count(4, 6)))
+    # Sump below, head above: an engine has a top and a bottom and it should read.
+    component.add(prim.taper_box(component.name + "_sump",
+                                 (half_width * 1.45, half_width * 0.95, 0.13),
+                                 top_scale=(1.10, 1.05),
+                                 location=(0, 0, CHEST_BOTTOM + 0.055),
+                                 material="DarkMetal", bevel_width=0.012, segments=2))
+    component.add(prim.box(component.name + "_head",
+                           (half_width * 1.55, half_width * 0.85, 0.085),
+                           location=(0, -0.010, CHEST_TOP - 0.085),
+                           material="OldSteel", bevel_width=0.012, segments=2))
+    component.add(gr.bolt_row(component.name + "_headbolt", rng.count(4, 6),
+                              (-half_width * 0.62, half_width * 0.34,
+                               CHEST_TOP - 0.038),
+                              (half_width * 0.31, 0, 0), axis="z", rng=rng,
+                              radius=0.014))
+
+    # Belt run on one flank -- asymmetric, because an engine's accessory drive is.
+    side = asym["side"]
+    for index, height in enumerate((0.10, -0.05)):
+        component.add(gr.pulley("%s_pulley_%d" % (component.name, index),
+                                (side * half_width * 1.02, half_width * 0.30,
+                                 centre_z + height),
+                                radius=rng.span(0.048, 0.066), axis="x"))
+    component.add(gr.cable(component.name + "_belt",
+                           (side * half_width * 1.02, half_width * 0.30,
+                            centre_z + 0.10),
+                           (side * half_width * 1.02, half_width * 0.30,
+                            centre_z - 0.05), rng, radius=0.012, sag=0.05,
+                           material="Rubber"))
+    # Battery box on the other, and the manifold that feeds the pack on the back.
+    component.add(prim.box(component.name + "_battery",
+                           (half_width * 0.52, half_width * 0.62, 0.15),
+                           location=(-side * half_width * 0.92, half_width * 0.22,
+                                     centre_z + 0.075),
+                           material="DirtyMetal", bevel_width=0.010, segments=2))
+    component.add(gr.pipe_run(component.name + "_manifold", [
+        (-half_width * 0.55, -half_width * 0.62, centre_z + 0.10),
+        (0.0, -half_width * 0.78, centre_z + 0.16),
+        (half_width * 0.55, -half_width * 0.62, centre_z + 0.10),
+    ], radius=0.026, material="RustyMetal"))
+    return component
+
+
+def _furnace_vessel(component, rng, asym, half_width):
+    """A riveted furnace: tapered vessel, firebox door, hoop bands, flue.
+
+    Tapered rather than straight-sided, which gives it the only genuinely conical
+    silhouette in the set, and the firebox door gives the chest a single large feature
+    that reads from any distance."""
+    component.recipe["owns_chest"] = True
+    height = CHEST_TOP - CHEST_BOTTOM
+    centre_z = (CHEST_BOTTOM + CHEST_TOP) * 0.5
+
+    component.add(prim.taper_box(component.name + "_vessel",
+                                 (half_width * 2.0, half_width * 1.5, height),
+                                 top_scale=(rng.span(0.66, 0.78),
+                                            rng.span(0.70, 0.82)),
+                                 location=(0, 0, centre_z),
+                                 material="DirtyMetal", bevel_width=0.020, segments=3))
+    component.add(prim.cylinder(component.name + "_crown", half_width * 0.74, 0.070,
+                                location=(0, 0, CHEST_TOP - 0.030), vertices=16,
+                                material="OldSteel"))
+
+    bands = rng.count(3, 4)
+    for index in range(bands):
+        z = CHEST_BOTTOM + height * (index + 0.6) / bands
+        shrink = 1.0 - 0.30 * (z - CHEST_BOTTOM) / height
+        component.add(gr.rib("%s_band_%d" % (component.name, index),
+                             half_width * 2.02 * shrink, (0, 0, z),
+                             thickness=half_width * 1.52 * shrink, height=0.034,
+                             axis="x", material="RustyMetal"))
+
+    # The firebox: a hinged door with a latch, low and central.
+    door_z = CHEST_BOTTOM + height * 0.30
+    face = half_width * 0.76
+    component.add(prim.box(component.name + "_doorframe",
+                           (half_width * 0.98, 0.050, height * 0.40),
+                           location=(0, face, door_z), material="OldSteel",
+                           bevel_width=0.012, segments=2))
+    component.add(prim.box(component.name + "_door",
+                           (half_width * 0.80, 0.045, height * 0.32),
+                           location=(0, face + 0.030, door_z), material="DarkMetal",
+                           bevel_width=0.010, segments=2))
+    component.add(prim.cylinder(component.name + "_doorlatch", 0.030, 0.075,
+                                location=(half_width * 0.36, face + 0.052, door_z),
+                                rotation=AXIS_Y, vertices=10, material="Copper"))
+    for sign in (1.0, -1.0):
+        component.add(prim.cylinder("%s_hinge_%d" % (component.name, sign > 0), 0.020,
+                                    height * 0.10,
+                                    location=(-half_width * 0.40, face + 0.030,
+                                              door_z + sign * height * 0.12),
+                                    vertices=8, material="OldSteel"))
+    # Flue off the shoulder, on one side only.
+    component.add(gr.pipe_run(component.name + "_flue", [
+        (asym["side"] * half_width * 0.55, -half_width * 0.40, CHEST_TOP - 0.10),
+        (asym["side"] * half_width * 0.85, -half_width * 0.70, CHEST_TOP + 0.02),
+    ], radius=0.034, material="RustyMetal"))
+    return component
+
 
 def _boiler(component, rng, asym, half_width):
     """A pressure boiler stood on end: round, ribbed, riveted.

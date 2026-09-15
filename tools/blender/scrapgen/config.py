@@ -57,12 +57,16 @@ NAME_PATTERN = r"^(Head|Torso|Arm|Weapon|Leg)_\d{3}$"
 ## than `make_parts.py` allows itself, and deliberately so: these are scrap machines
 ## whose whole read is accumulated junk, and the greeble IS the art direction.
 ## Anything past the budget still builds -- the number is a tripwire, not a gate.
+## Raised deliberately after the redesign. The old numbers were set when a torso was a
+## box with hoops on it; these components carry real mechanism -- flanged joints, rams,
+## plumbing, repair history -- and a tripwire that fires on every single part is not
+## telling anyone anything. Still a tripwire, not a gate.
 TRI_BUDGET = {
-    "head":   1800,
-    "torso":  4200,
-    "arm":    2200,
-    "weapon": 2200,
-    "leg":    2400,
+    "head":   2200,
+    "torso":  5400,
+    "arm":    4000,
+    "weapon": 2400,
+    "leg":    3000,
 }
 
 
@@ -74,6 +78,13 @@ TRI_BUDGET = {
 
 TORSO_HEIGHT = 0.80      # pelvis plane (z=0) to the crown of the chest
 TORSO_SHOULDER_Z = 0.60  # height of the shoulder mount plane
+
+## Where the head mounts. Deliberately only a little above the shoulder plane: the
+## reference machines carry a small head SUNK between their shoulders, and this sat at
+## TORSO_HEIGHT - 0.02, which is 0.18 above the shoulders before the neck post is even
+## added. A box on a stalk above the shoulder line is one of the strongest cues a
+## silhouette can give that it is looking at a PERSON.
+TORSO_HEAD_Z = 0.655
 TORSO_SHOULDER_X = 0.34  # how far out the shoulder boss must reach
 TORSO_HIP_X = 0.17       # hip spacing, half-width
 
@@ -85,6 +96,16 @@ ARM_FORWARD_CANT = 0.10  # how far the wrist sits ahead of the shoulder
 
 LEG_LENGTH = 0.86        # hip to sole
 LEG_KNEE_Z = -0.44
+
+## How far outboard of its hip a foot plants, and how far forward the knee breaks.
+##
+## Every archetype used to put its ankle at x=0 -- directly under the hip -- with a knee
+## that was straight to within 2 cm. Feet together and legs straight is a HUMAN standing
+## at attention, and that is exactly what the roster read as: people, not machinery
+## planted in a yard. A machine stands with its feet apart and its knees loaded, because
+## that is what carries weight.
+STANCE_WIDTH = 0.085
+KNEE_FORWARD = 0.055
 
 ## Blender +Y is the direction a construct faces. `export_yup=True` maps Blender +Y
 ## onto glTF -Z, which is Godot's forward -- so a barrel modelled along +Y points

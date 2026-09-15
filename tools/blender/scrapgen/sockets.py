@@ -69,7 +69,7 @@ CONTRACT = {
     # consume them. Its own origin is the pelvis centre at z=0, which is also the
     # plane the legs hang from.
     "torso": [
-        SocketSpec("HeadSocket", (0.0, 0.0, config.TORSO_HEIGHT - 0.02),
+        SocketSpec("HeadSocket", (0.0, 0.0, config.TORSO_HEAD_Z),
                    note="crown of the chest; the head's NeckSocket lands here"),
         SocketSpec("ShoulderSocket_L", (config.TORSO_SHOULDER_X, 0.0,
                                         config.TORSO_SHOULDER_Z),

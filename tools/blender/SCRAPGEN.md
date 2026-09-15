@@ -94,11 +94,18 @@ being a head — and layers detail inside it:
 
 | Category | Archetypes |
 |---|---|
-| Head | `visor_box`, `cyclops_drum`, `wedge_sensor`, `cage_lamp` |
-| Torso | `boiler`, `plated_box`, `engine_block`, `cage_frame` |
-| Arm | `piston_arm`, `girder_arm`, `pipe_arm`, `armour_arm` |
+| Head | `camera_housing`, `welder_hood`, `control_box`, then `visor_box`, `cyclops_drum`, `wedge_sensor`, `cage_lamp` |
+| Torso | `generator_can`, `engine_bay`, `furnace_vessel`, then `boiler`, `plated_box`, `engine_block`, `cage_frame` |
+| Arm | `excavator_arm`, `manipulator_arm`, `suspension_arm`, then `piston_arm`, `girder_arm`, `pipe_arm`, `armour_arm` |
 | Weapon | `slug_cannon`, `rivet_gun`, `saw_blade`, `sledge`, `flamer`, `rail_lance`, `gatling`, `grapple_claw` |
-| Leg | `digitigrade`, `piston_column`, `hoof_strut`, `caged_leg` |
+| Leg | `hydraulic_ram`, `strut_leg`, `gantry_leg`, then `digitigrade`, `piston_column`, `hoof_strut`, `caged_leg` |
+
+**The first three of each are the REDESIGNED base set.** Each one answers "what real
+industrial object was this before it became a robot part" -- a portable generator, a
+vehicle engine bay, a riveted furnace; an industrial camera, a welding hood, an
+electrical enclosure; a digger boom, a factory manipulator, a suspension strut; a
+hydraulic ram, a coil-over strut, a latticed gantry. The four originals stay behind them
+so nothing referencing them breaks.
 
 Seeds 1..N map onto the N archetypes deterministically, so the first generation pass
 shows what the kit can actually do rather than three boiler shells and a wedge by
@@ -129,6 +136,26 @@ blender --background --python tools/blender/scrap_robot_generator.py -- --out ex
 Without it the game cannot tint these components, and two teams of six render
 identically. `DirtyMetal` → `paint` is the only team-tinted zone, so a component with
 no `DirtyMetal` on it reads as neutral on both teams.
+
+## Repair history is part of the identity
+
+A scrapyard machine has been fixed many times, and that history is the visual identity
+rather than damage laid on top of it. `builders.repair_history` runs for every category
+after its archetype, and three rules keep it from becoming noise:
+
+- **Every repair does a job.** `greeble.repair_patch` is bolted AND welded, because a
+  plate with neither is a sticker and a plate with only one reads as unfinished. An
+  `improvised_brace` spans two points that would need bracing. Nothing is placed because
+  a surface looked empty.
+- **Repairs are in the WRONG metal** (`greeble.REPAIR_METALS`, which deliberately
+  excludes `DirtyMetal`). A patch in the same paint as the panel under it is a feature.
+- **Few and large.** Two or three per component, at a size that survives being forty
+  pixels tall. A hundred small ones is a texture, and a bad one.
+
+The same principle governs plumbing: `greeble.hose_between` places a union at BOTH ends
+and the hose between them, so a hose is a connection rather than a rubber band lying on
+a model. A bare `cable` between two arbitrary coordinates is the single most common way
+a hand-built machine starts looking procedurally generated.
 
 ## Adding a category
 

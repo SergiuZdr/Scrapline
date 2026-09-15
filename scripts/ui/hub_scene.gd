@@ -60,8 +60,10 @@ const NAV: Array = [
 	 "help": "You fight a SNAPSHOT of another player's squad, run by the doctrine they wrote — nobody has to be online. Winning against someone rated above you is worth far more than beating someone below, so farming the bottom of the ladder gets you nowhere. Your own squad defends against other players while you are away, so keep it and your doctrine current. Every season the Battlefield Condition changes, and the squad that answered last season usually is not the answer to this one."},
 	{"id": "tournament", "icon": "◆", "name": "TOURNAMENT", "purpose": "everyone fights one fight",
 	 "help": "A scheduled event where every entrant faces the SAME generated squad on the same map under the same Condition — so the table ranks how well you built and commanded, not who drew the kinder opponent. You get a handful of attempts and your best one counts. Losing still scores: damage counts, and winning with constructs still standing counts for much more."},
-	{"id": "parts", "icon": "⚙", "name": "PARTS", "purpose": "make your constructs stronger",
-	 "help": "Scrap raises a part's LEVEL. Its level ceiling comes from its TIER, and only a REFIT raises the tier — which costs duplicates of that part. So duplicates are not waste; they are the only way past a cap."},
+	{"id": "parts", "icon": "⚙", "name": "PARTS", "purpose": "build your constructs",
+	 "help": "Fit a part into a socket and the construct beside it updates immediately. A part is a blueprint, not an object — fitting the same chassis to two constructs costs nothing and takes nothing away from either. Spending scrap and alloy on those parts happens in UPGRADE."},
+	{"id": "upgrade", "icon": "↑", "name": "UPGRADE", "purpose": "spend scrap and alloy on parts",
+	 "help": "Scrap raises a part's LEVEL. Its level ceiling comes from its TIER, and only a REFIT raises the tier — which costs duplicates of that part. So duplicates are not waste; they are the only way past a cap. Levelling a part raises it for every construct that carries it, because parts are blueprints."},
 	{"id": "pass", "icon": "◈", "name": "SEASON", "purpose": "a track that pays as you play",
 	 "help": "Every battle you fight — campaign, gauntlet, ranked, colossus — earns season XP up to a daily limit, and every tier pays out. The free track runs the whole way; the Foundry Pass adds a second reward at every tier and pays out everything you have ALREADY earned the moment you buy it, so buying late costs you nothing. The season resets on its own clock, and anything left unclaimed when it ends is gone."},
 	{"id": "store", "icon": "◇", "name": "STORE", "purpose": "cores, and what they buy",
@@ -72,12 +74,25 @@ const NAV: Array = [
 	 "help": "Rules are checked top to bottom and the first one that matches wins, so ORDER is the whole thing. A unit set to Auto in battle plays by these rules, and later they will run your defence when other players attack you."},
 ]
 
+## How much of the screen the yard keeps for itself. With the sidebar gone the yard
+## runs the full width, so the band can be a little shorter and still give the squad
+## more room than it had.
+const HERO_HEIGHT: int = 400
+
+var _yard: HubYard
+var _hero: Control
 var _current: String = "campaign"
 var _content_pane: VBoxContainer
+## One Button per section: a sub-tab, or the bottom tab of a one-section tab.
 var _nav_buttons: Dictionary = {}
 ## Held directly rather than looked up by path: Godot auto-names unnamed containers
 ## (@HBoxContainer@11), so any hardcoded node path into them is guaranteed to break.
 var _nav_badges: Dictionary = {}
+## Bottom tabs that open a row of sub-tabs rather than a section of their own.
+var _tab_buttons: Dictionary = {}
+var _tab_badges: Dictionary = {}
+var _subtab_row: HBoxContainer
+var _last_section: Dictionary = {}
 var _currency_row: HBoxContainer
 var _next_card: PanelContainer
 var _toast: Label
@@ -146,11 +161,13 @@ func _build() -> void:
 	# rather than Godot's default theme.
 	UIKit.apply(self)
 
-	var background := ColorRect.new()
-	background.color = COL_BG
-	background.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(background)
+	# The yard, behind everything. Not a background image -- the game's own scene, with
+	# the game's own sodium key on it, which is where the warmth and the depth in this
+	# interface now come from. A flat fill here is what made 78% of the Upgrade screen
+	# one hue.
+	_yard = HubYard.new()
+	add_child(_yard)
+	add_child(UIKit.scrim(HERO_HEIGHT))
 
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -159,37 +176,52 @@ func _build() -> void:
 
 	root.add_child(_build_top_bar())
 
-	_next_card = PanelContainer.new()
-	root.add_child(_next_card)
-
-	var body := HBoxContainer.new()
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 0)
-	root.add_child(body)
-
-	body.add_child(_build_nav())
-
-	var right := VBoxContainer.new()
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.add_theme_constant_override("separation", 0)
-	body.add_child(right)
-
 	_help_panel = PanelContainer.new()
 	_help_panel.visible = false
-	right.add_child(_help_panel)
+	root.add_child(_help_panel)
+
+	# A band the interface deliberately does NOT paint, so the squad standing in the yard
+	# is the first thing on the screen. The mission card stands in it, bottom right,
+	# the way a game's home screen puts the next thing to do beside the characters
+	# rather than in a banner across the top of a document.
+	_hero = Control.new()
+	_hero.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hero.custom_minimum_size = Vector2(0, HERO_HEIGHT)
+	root.add_child(_hero)
+
+	_next_card = PanelContainer.new()
+	_next_card.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_next_card.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_next_card.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_next_card.offset_right = -48
+	_next_card.offset_bottom = -18
+	_next_card.custom_minimum_size = Vector2(540, 0)
+	_hero.add_child(_next_card)
+
+	var content := MarginContainer.new()
+	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("margin_left", 40)
+	content.add_theme_constant_override("margin_right", 40)
+	root.add_child(content)
+
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	content.add_child(column)
+
+	_subtab_row = HBoxContainer.new()
+	_subtab_row.add_theme_constant_override("separation", 10)
+	column.add_child(_subtab_row)
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.add_child(scroll)
+	column.add_child(scroll)
 
-	# A right margin so action buttons never sit flush against the screen edge, which
-	# on a phone is also where the thumb rest and system gestures live.
+	# A right margin so action buttons never sit flush against the scrollbar.
 	var margin := MarginContainer.new()
 	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	margin.add_theme_constant_override("margin_right", 18)
-	margin.add_theme_constant_override("margin_top", 6)
-	margin.add_theme_constant_override("margin_bottom", 18)
+	margin.add_theme_constant_override("margin_bottom", 12)
 	scroll.add_child(margin)
 
 	_content_pane = VBoxContainer.new()
@@ -197,159 +229,295 @@ func _build() -> void:
 	_content_pane.add_theme_constant_override("separation", 6)
 	margin.add_child(_content_pane)
 
+	root.add_child(_build_tab_bar())
+	_build_subtabs()
+
 	_refresh_all()
 
 
 func _build_top_bar() -> PanelContainer:
 	var bar := PanelContainer.new()
-	bar.add_theme_stylebox_override("panel", _flat(COL_PANEL, 0, 18, 12))
+	var style := _flat(UIKit.BG, 0, 22, 10)
+	style.border_width_bottom = 1
+	style.border_color = UIKit.HAIRLINE
+	bar.add_theme_stylebox_override("panel", style)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 26)
+	row.add_theme_constant_override("separation", 34)
 	bar.add_child(row)
 
-	var title := _label("SCRAPLINE", UIKit.SIZE_DISPLAY, COL_TEXT)
-	# Letterspacing a wordmark is the cheapest thing that separates a title from a label,
-	# and Godot has no tracking setting -- so it is spelled out.
-	title.text = "S C R A P L I N E"
-	title.add_theme_color_override("font_color", UIKit.AMBER)
+	# The wordmark is set in the stencil face and left in aluminium. Amber on the title
+	# spent the screen's action colour on something that cannot be pressed.
+	var title := _label("SCRAPLINE", 46, COL_TEXT)
+	title.add_theme_font_override("font", UIKit.font_display())
+	title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(title)
 
 	_currency_row = HBoxContainer.new()
-	_currency_row.add_theme_constant_override("separation", 22)
+	_currency_row.add_theme_constant_override("separation", 0)
 	_currency_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_currency_row.alignment = BoxContainer.ALIGNMENT_BEGIN
 	row.add_child(_currency_row)
 
 	_toast = _label("", 15, COL_GOOD)
+	_toast.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_toast)
 
+	# The 3D yard, which is where the hub is going. Reachable from here because a scene
+	# nobody can open is a scene nobody can judge.
+	var yard := Button.new()
+	yard.text = "Yard view"
+	yard.custom_minimum_size = Vector2(118, 38)
+	yard.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	yard.pressed.connect(_on_open_yard)
+	row.add_child(yard)
+
 	var help := Button.new()
-	help.text = "?  WHAT IS THIS"
-	help.custom_minimum_size = Vector2(160, 34)
+	help.text = "How it works"
+	help.custom_minimum_size = Vector2(132, 38)
+	help.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	help.pressed.connect(_on_toggle_help)
 	row.add_child(help)
 
 	return bar
 
 
-## Currencies with their purpose attached. A bare number teaches nothing; "scrap —
-## levels parts" tells a new player what it is for the moment they look at it.
+## The ledger: what the player holds, read like a weighbridge ticket -- name over number,
+## columns split by a rule. The purpose of each currency lives in its tooltip and in How
+## it works; printing "levels parts" under every number on every screen was a tutorial
+## that never went away.
 func _refresh_currencies() -> void:
 	for child: Node in _currency_row.get_children():
 		child.queue_free()
 
 	var p: PlayerProfile = Session.profile()
-	var entries: Array = [
-		["⬢", p.currency(PlayerProfile.SCRAP), "scrap", "levels parts", COL_GOLD],
-		["◆", p.currency(PlayerProfile.ALLOY), "alloy", "refits parts", COL_ACCENT],
-		["✦", p.currency(PlayerProfile.CORES), "cores", "premium", COL_GOOD],
-	]
-	for entry: Variant in entries:
-		var e: Array = entry as Array
-		_currency_row.add_child(_currency_chip(
-			String(e[0]), "%d" % int(e[1]), String(e[2]), String(e[3]), e[4] as Color))
-
 	var progress: Dictionary = Campaign.progress(p, Session.content)
-	_currency_row.add_child(_currency_chip("▤",
-		"%d / %d" % [int(progress["cleared"]), int(progress["total"])],
-		"nodes", "campaign", COL_TEXT))
+	var entries: Array = [
+		["Scrap", _thousands(p.currency(PlayerProfile.SCRAP)), COL_TEXT, "Levels parts up."],
+		["Alloy", _thousands(p.currency(PlayerProfile.ALLOY)), COL_TEXT, "Refits parts to a higher tier."],
+		["Cores", _thousands(p.currency(PlayerProfile.CORES)), COL_GOLD, "Premium currency."],
+		["Campaign", "%d/%d" % [int(progress["cleared"]), int(progress["total"])], COL_TEXT,
+			"Campaign nodes cleared."],
+	]
+	for index: int in entries.size():
+		var e: Array = entries[index] as Array
+		if index > 0:
+			var rule := VSeparator.new()
+			rule.add_theme_constant_override("separation", 28)
+			_currency_row.add_child(rule)
+		_currency_row.add_child(_ledger_entry(String(e[0]), String(e[1]), e[2] as Color, String(e[3])))
 
 
-## A currency as a chip rather than as loose text.
-##
-## The glyph is tinted and the amount is the largest thing in the chip, because the amount
-## is what the player is checking. The purpose line stays -- a bare number teaches a new
-## player nothing, and "scrap / levels parts" teaches them the whole economy in two words.
-func _currency_chip(glyph: String, amount: String, unit: String, purpose: String,
-		tint: Color) -> PanelContainer:
-	var chip := PanelContainer.new()
-	chip.add_theme_stylebox_override("panel",
-		UIKit.inset(UIKit.SURFACE_SUNK, UIKit.RADIUS_CONTROL, UIKit.SPACE_MD, UIKit.SPACE_SM))
-
-	var line := HBoxContainer.new()
-	line.add_theme_constant_override("separation", UIKit.SPACE_SM)
-	chip.add_child(line)
-
-	var mark := _label(glyph, UIKit.SIZE_TITLE, tint)
-	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	line.add_child(mark)
-
-	var text := VBoxContainer.new()
-	text.add_theme_constant_override("separation", 0)
-	line.add_child(text)
-
-	var value := HBoxContainer.new()
-	value.add_theme_constant_override("separation", UIKit.SPACE_XS)
-	text.add_child(value)
-	value.add_child(_label(amount, UIKit.SIZE_TITLE, COL_TEXT))
-	var unit_label := _label(unit, UIKit.SIZE_LABEL, tint)
-	unit_label.size_flags_vertical = Control.SIZE_SHRINK_END
-	value.add_child(unit_label)
-
-	text.add_child(_label(purpose, UIKit.SIZE_MICRO, COL_DIM))
-	return chip
-
-
-func _build_nav() -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(310, 0)
-	panel.add_theme_stylebox_override("panel", _flat(COL_NAV, 0, 8, 10))
-
+func _ledger_entry(name: String, amount: String, tint: Color, purpose: String) -> VBoxContainer:
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 4)
-	panel.add_child(column)
+	column.add_theme_constant_override("separation", -2)
+	column.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	column.tooltip_text = purpose
+	column.mouse_filter = Control.MOUSE_FILTER_PASS
+	column.add_child(_label(name.to_upper(), UIKit.SIZE_MICRO, COL_DIM))
+	var value := _label(amount, UIKit.SIZE_TITLE, tint)
+	value.add_theme_font_override("font", UIKit.font_numbers())
+	column.add_child(value)
+	return column
 
+
+## 138800 -> "138,800". A six-digit number without grouping has to be counted, not read.
+func _thousands(value: int) -> String:
+	var digits: String = str(absi(value))
+	var out: String = ""
+	while digits.length() > 3:
+		out = "," + digits.right(3) + out
+		digits = digits.left(digits.length() - 3)
+	return ("-" if value < 0 else "") + digits + out
+
+
+## The bottom bar: five tabs, laid out the way a game's home screen is. The thing a
+## player came to do sits in the middle, raised and painted; the places they prepare for
+## it sit either side. The sidebar it replaced was a file manager's tree -- twelve rows
+## of equal weight, no pictures, nothing sized for a thumb -- and it is most of why the
+## hub read as a desktop rather than as a game.
+##
+## A tab with several sections opens a row of sub-tabs above the content.
+const TABS: Array = [
+	{"id": "garage", "name": "Garage", "icon": "garage", "sections": ["parts", "upgrade", "doctrine"]},
+	{"id": "yard", "name": "Yard", "icon": "yard", "sections": ["foundry", "crates"]},
+	{"id": "fight", "name": "Fight", "icon": "fight",
+	 "sections": ["campaign", "gauntlet", "colossus", "ranked", "tournament"]},
+	{"id": "season", "name": "Season", "icon": "season", "sections": ["pass"]},
+	{"id": "store", "name": "Store", "icon": "store", "sections": ["store"]},
+]
+
+
+func _nav_entry(id: String) -> Dictionary:
 	for entry: Variant in NAV:
 		var e: Dictionary = entry as Dictionary
-		var button := Button.new()
-		button.custom_minimum_size = Vector2(0, 60)
-		button.toggle_mode = true
-		button.text = ""
-		button.pressed.connect(_on_nav.bind(String(e["id"])))
-		# Unselected nav items are TRANSPARENT, not cards. Styling all eleven as raised
-		# panels made the list read as eleven equally important buttons and the selected
-		# one was almost invisible among them -- the amber bar below is the whole point,
-		# and it only reads if everything around it is quiet.
-		button.add_theme_stylebox_override("normal",
-			UIKit.plain(Color(0, 0, 0, 0), UIKit.RADIUS_CONTROL, 12, 8))
-		button.add_theme_stylebox_override("hover",
-			UIKit.plain(UIKit.SURFACE, UIKit.RADIUS_CONTROL, 12, 8))
-		button.add_theme_stylebox_override("pressed", _nav_selected())
+		if String(e["id"]) == id:
+			return e
+	return {}
 
-		# The label sits inside the button rather than as its text so the name and its
-		# purpose line can be styled differently.
-		var inner := HBoxContainer.new()
-		inner.set_anchors_preset(Control.PRESET_FULL_RECT)
-		inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		inner.add_theme_constant_override("separation", 10)
-		inner.offset_left = 12
-		inner.offset_right = -12
-		button.add_child(inner)
 
-		inner.add_child(_label(String(e["icon"]), 20, COL_ACCENT))
+func _tab_of(section: String) -> Dictionary:
+	for entry: Variant in TABS:
+		var t: Dictionary = entry as Dictionary
+		if (t["sections"] as Array).has(section):
+			return t
+	return TABS[2]
 
-		var text := VBoxContainer.new()
-		text.add_theme_constant_override("separation", 0)
-		text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		inner.add_child(text)
-		text.add_child(_label(String(e["name"]), 16, COL_TEXT))
-		text.add_child(_label(String(e["purpose"]), 12, COL_DIM))
 
-		var badge := _label("", 18, COL_GOLD)
-		inner.add_child(badge)
+func _build_tab_bar() -> PanelContainer:
+	var bar := PanelContainer.new()
+	var style := _flat(UIKit.BG, 0, 0, 10)
+	style.border_width_top = 1
+	style.border_color = UIKit.HAIRLINE
+	bar.add_theme_stylebox_override("panel", style)
 
-		column.add_child(button)
-		_nav_buttons[String(e["id"])] = button
-		_nav_badges[String(e["id"])] = badge
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 18)
+	bar.add_child(row)
+	for entry: Variant in TABS:
+		row.add_child(_tab_button(entry as Dictionary))
+	return bar
 
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	column.add_child(spacer)
-	column.add_child(_label("  parts are blueprints —\n  one part can equip\n  several constructs.", 11, COL_DIM))
 
-	return panel
+func _tab_button(t: Dictionary) -> Button:
+	var id: String = String(t["id"])
+	var sections: Array = t["sections"] as Array
+	# The one painted tab. It is the game's PLAY button, so it stays yellow whether or not
+	# it is selected -- the bar always shows where the fighting is.
+	var raised: bool = id == "fight"
+	var button := Button.new()
+	button.toggle_mode = true
+	button.text = ""
+	button.custom_minimum_size = Vector2(260 if raised else 176, 88)
+	var fill: Color = UIKit.AMBER if raised else Color(0, 0, 0, 0)
+	var lit: Color = UIKit.AMBER.lightened(0.12) if raised else UIKit.SURFACE
+	var picked: Color = UIKit.AMBER if raised else UIKit.SURFACE_HIGH
+	var lip: Color = UIKit.AMBER_DEEP.darkened(0.35) if raised else UIKit.AMBER
+	button.add_theme_stylebox_override("normal", UIKit.slant(fill, 0, 0))
+	button.add_theme_stylebox_override("hover", UIKit.slant(lit, 0, 0))
+	button.add_theme_stylebox_override("pressed", _tab_lip(picked, lip))
+	button.add_theme_stylebox_override("hover_pressed", _tab_lip(lit if raised else picked, lip))
+
+	var ink: Color = UIKit.BG if raised else COL_TEXT
+	var stack := VBoxContainer.new()
+	stack.set_anchors_preset(Control.PRESET_FULL_RECT)
+	stack.alignment = BoxContainer.ALIGNMENT_CENTER
+	stack.add_theme_constant_override("separation", 0)
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(stack)
+	var glyph := UIKit.icon(String(t["icon"]), 42 if raised else 32, ink)
+	glyph.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	stack.add_child(glyph)
+	var name := _label(String(t["name"]).to_upper(), 28 if raised else 17, ink)
+	name.add_theme_font_override("font", UIKit.font_display() if raised else UIKit.font_strong())
+	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stack.add_child(name)
+
+	# Pinned to the tab's corner, over the art rather than in the flow.
+	var badge := _badge()
+	badge.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	badge.offset_left = -62
+	badge.offset_right = -14
+	badge.offset_top = 6
+	button.add_child(badge)
+	_tab_badges[id] = badge
+
+	if sections.size() == 1:
+		# A tab that IS a single section registers as that section's nav button.
+		button.pressed.connect(_on_nav.bind(String(sections[0])))
+		_nav_buttons[String(sections[0])] = button
+	else:
+		button.pressed.connect(_on_tab.bind(id))
+		_tab_buttons[id] = button
+	_hover_lift(button)
+	return button
+
+
+## The selected tab: its plate with a thick painted lip along the bottom edge.
+func _tab_lip(fill: Color, lip: Color) -> StyleBoxFlat:
+	var style := UIKit.slant(fill, 0, 0)
+	style.border_width_bottom = 5
+	style.border_color = lip
+	return style
+
+
+## Sub-tabs for every tab with more than one section, built once and shown per tab.
+## Building them all up front keeps exactly one Button per section for the life of the
+## hub, which is what `_nav_buttons` -- and `tools/verify_ui.gd` -- rely on.
+func _build_subtabs() -> void:
+	for entry: Variant in TABS:
+		var sections: Array = (entry as Dictionary)["sections"] as Array
+		if sections.size() < 2:
+			continue
+		for section: Variant in sections:
+			_subtab_row.add_child(_subtab_button(_nav_entry(String(section))))
+
+
+func _subtab_button(e: Dictionary) -> Button:
+	var id: String = String(e["id"])
+	var button := Button.new()
+	button.toggle_mode = true
+	button.text = String(e["name"])
+	button.icon = load("res://art/icons/%s.svg" % id)
+	button.custom_minimum_size = Vector2(0, 44)
+	button.tooltip_text = String(e["purpose"]).capitalize()
+	button.pressed.connect(_on_nav.bind(id))
+	button.add_theme_constant_override("icon_max_width", 22)
+	button.add_theme_constant_override("h_separation", 10)
+	button.add_theme_font_size_override("font_size", 17)
+	# Unselected chips are dark glass over the yard; the selected one is a plate of bare
+	# aluminium with dark ink -- the brightest thing in the row without spending yellow.
+	var glass := Color(UIKit.BG.r, UIKit.BG.g, UIKit.BG.b, 0.78)
+	button.add_theme_stylebox_override("normal", UIKit.slant(glass, 22, 6))
+	button.add_theme_stylebox_override("hover", UIKit.slant(UIKit.SURFACE_HIGH, 22, 6))
+	button.add_theme_stylebox_override("pressed", UIKit.slant(UIKit.TEXT, 22, 6))
+	button.add_theme_stylebox_override("hover_pressed", UIKit.slant(UIKit.TEXT, 22, 6))
+	for state: String in ["font_color", "icon_normal_color"]:
+		button.add_theme_color_override(state, UIKit.TEXT_DIM)
+	for state: String in ["font_hover_color", "icon_hover_color"]:
+		button.add_theme_color_override(state, COL_TEXT)
+	for state: String in ["font_pressed_color", "font_hover_pressed_color",
+			"icon_pressed_color", "icon_hover_pressed_color"]:
+		button.add_theme_color_override(state, UIKit.BG)
+
+	var badge := _badge()
+	badge.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	badge.offset_left = -40
+	badge.offset_right = 6
+	badge.offset_top = -10
+	button.add_child(badge)
+	_nav_buttons[id] = button
+	_nav_badges[id] = badge
+	return button
+
+
+func _badge() -> Label:
+	var badge := _label("READY", 11, UIKit.BG)
+	badge.add_theme_font_override("font", UIKit.font_strong())
+	badge.add_theme_stylebox_override("normal", UIKit.slant(UIKit.AMBER, 5, 1))
+	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	badge.visible = false
+	return badge
+
+
+## Opens a tab on the section it last showed, so leaving Garage on Upgrade and coming
+## back lands on Upgrade rather than on the first sub-tab.
+func _on_tab(tab_id: String) -> void:
+	for entry: Variant in TABS:
+		var t: Dictionary = entry as Dictionary
+		if String(t["id"]) == tab_id:
+			_on_nav(String(_last_section.get(tab_id, (t["sections"] as Array)[0])))
+			return
+
+
+## A small lift on hover. Game controls answer the pointer; a settings dialog does not.
+func _hover_lift(control: Control) -> void:
+	control.resized.connect(func() -> void: control.pivot_offset = control.size * 0.5)
+	control.mouse_entered.connect(func() -> void:
+		control.create_tween().tween_property(control, "scale", Vector2(1.05, 1.05), 0.08))
+	control.mouse_exited.connect(func() -> void:
+		control.create_tween().tween_property(control, "scale", Vector2.ONE, 0.12))
 
 
 ## A dot on a section that has something waiting. This is how a player discovers the
@@ -358,7 +526,11 @@ func _refresh_badges() -> void:
 	var p: PlayerProfile = Session.profile()
 	var flags: Dictionary = {
 		"foundry": not Foundry.pending(p, Session.content, Session.now()).is_empty(),
-		"parts": _any_part_affordable(),
+		# The dot follows the ACTION, not the noun. Affording an upgrade is something to
+		# do on the Upgrade screen; Parts is where a squad gets built and has nothing
+		# waiting on it.
+		"parts": false,
+		"upgrade": _any_part_affordable(),
 		"crates": _any_crate_affordable(),
 		"campaign": false,
 		"doctrine": false,
@@ -369,8 +541,17 @@ func _refresh_badges() -> void:
 		"pass": false,
 		"store": false,
 	}
+	# A painted tag rather than a gold dot: the dot was the notification badge of every
+	# app, and it said "something" without saying what. READY says it.
 	for id: Variant in _nav_badges.keys():
-		(_nav_badges[id] as Label).text = "●" if bool(flags.get(id, false)) else ""
+		(_nav_badges[id] as Label).visible = bool(flags.get(id, false))
+	# A tab carries the tag if any section under it would, so it can be seen from the bar.
+	for entry: Variant in TABS:
+		var t: Dictionary = entry as Dictionary
+		var waiting: bool = false
+		for section: Variant in (t["sections"] as Array):
+			waiting = waiting or bool(flags.get(String(section), false))
+		(_tab_badges[String(t["id"])] as Label).visible = waiting
 
 
 func _any_part_affordable() -> bool:
@@ -397,17 +578,22 @@ func _any_crate_affordable() -> bool:
 func _refresh_next_card() -> void:
 	for child: Node in _next_card.get_children():
 		child.queue_free()
-	_next_card.add_theme_stylebox_override("panel", _flat(Color("18222e"), 0, 18, 12))
+	# A leaning plate of dark glass standing in the yard with a painted edge: the mission
+	# card, not a status bar across the top of a page.
+	var plate := UIKit.slant(Color(UIKit.BG.r, UIKit.BG.g, UIKit.BG.b, 0.88), 30, 18,
+		UIKit.SLANT * 0.5)
+	plate.border_width_left = 5
+	plate.border_color = UIKit.AMBER
+	_next_card.add_theme_stylebox_override("panel", plate)
 
 	var p: PlayerProfile = Session.profile()
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
-	_next_card.add_child(row)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 12)
+	_next_card.add_child(column)
 
 	var text := VBoxContainer.new()
-	text.add_theme_constant_override("separation", 1)
-	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(text)
+	text.add_theme_constant_override("separation", 0)
+	column.add_child(text)
 
 	var pending: Dictionary = Foundry.pending(p, Session.content, Session.now())
 	var next: Dictionary = Campaign.next_node(p, Session.content)
@@ -419,31 +605,41 @@ func _refresh_next_card() -> void:
 		var keys: Array = pending.keys()
 		keys.sort()
 		for key: Variant in keys:
-			bits.append("%d %s" % [int(pending[key]), String(key)])
-		text.add_child(_label("NEXT  ·  collect from your yard", 12, COL_ACCENT))
-		text.add_child(_label(" ".join(bits) + " is waiting", 20, COL_TEXT))
-		text.add_child(_label("Your buildings produced this while you were away.", 12, COL_DIM))
-		row.add_child(_big_button("COLLECT", _on_collect))
+			bits.append("%s %s" % [_thousands(int(pending[key])), String(key)])
+		text.add_child(_label("FOUNDRY OUTPUT READY", UIKit.SIZE_LABEL, COL_DIM))
+		var haul := _label(", ".join(bits), 30, COL_TEXT)
+		haul.add_theme_font_override("font", UIKit.font_numbers())
+		text.add_child(haul)
+		# Green, not yellow. Collecting is a GAIN, and green is what the palette reserves
+		# for gains; yellow stays the one colour that means "the way forward".
+		var collect := _big_button("COLLECT", _on_collect, UIKit.GREEN)
+		collect.size_flags_horizontal = Control.SIZE_SHRINK_END
+		column.add_child(collect)
 		return
 
 	if next.is_empty():
-		text.add_child(_label("CAMPAIGN COMPLETE", 12, COL_GOOD))
-		text.add_child(_label("Every node cleared.", 20, COL_TEXT))
-		text.add_child(_label("Replay any node for scrap while the next zone is built.", 12, COL_DIM))
+		text.add_child(_label("CAMPAIGN COMPLETE", UIKit.SIZE_LABEL, COL_GOOD))
+		text.add_child(_label("Every node cleared.", 30, COL_TEXT))
+		text.add_child(_label("Replay any node for scrap while the next zone is built.",
+			UIKit.SIZE_LABEL, COL_DIM))
 		return
 
 	var enemies: int = (next["enemy"] as Array).size()
 	var reward: Dictionary = next.get("reward", {})
-	var detail: String = "%s  ·  %d enemies  ·  +%d scrap" % [
-		String(next["zone_name"]), enemies, int(reward.get("scrap", 0))]
+	var detail: String = "%s, %d enemies, pays %s scrap" % [
+		String(next["zone_name"]), enemies, _thousands(int(reward.get("scrap", 0)))]
 	var part_reward: Variant = next.get("first_clear_part", "")
 	if part_reward != null and not String(part_reward).is_empty():
-		detail += "  ·  new part"
+		detail += " and a new part"
 
-	text.add_child(_label("NEXT  ·  campaign", 12, COL_ACCENT))
-	text.add_child(_label("Fight %s" % String(next["name"]), 20, COL_TEXT))
-	text.add_child(_label(detail, 12, COL_DIM))
-	row.add_child(_big_button("FIGHT", _on_fight.bind(String(next["id"]))))
+	text.add_child(_label("NEXT FIGHT", UIKit.SIZE_LABEL, COL_DIM))
+	var name := _label(String(next["name"]).to_upper(), 42, COL_TEXT)
+	name.add_theme_font_override("font", UIKit.font_display())
+	text.add_child(name)
+	text.add_child(_label(detail, UIKit.SIZE_BODY, COL_DIM))
+	var fight := _big_button("FIGHT", _on_fight.bind(String(next["id"])))
+	fight.size_flags_horizontal = Control.SIZE_SHRINK_END
+	column.add_child(fight)
 
 
 ## The primary action on a screen: COLLECT, FIGHT, CLIMB.
@@ -452,14 +648,29 @@ func _refresh_next_card() -> void:
 ## styled identically to REPLAY and every other secondary control, so a hub full of
 ## buttons offered no clue which one moved the player forward -- the thing a hub exists
 ## to answer.
-func _big_button(text: String, handler: Callable) -> Button:
+## One of several equal actions -- OPEN a crate, BUY a pack. See `UIKit.choice`.
+func _choice_button(text: String, handler: Callable, tint: Color = UIKit.AMBER) -> Button:
+	var button := _big_button(text, handler, tint)
+	button.add_theme_stylebox_override("normal", UIKit.choice(tint))
+	button.add_theme_stylebox_override("hover",
+		UIKit.choice(tint.lightened(0.18)))
+	button.add_theme_stylebox_override("pressed", UIKit.choice(tint.darkened(0.25)))
+	button.add_theme_color_override("font_color", tint)
+	button.add_theme_color_override("font_hover_color", Color.WHITE)
+	button.add_theme_color_override("font_pressed_color", tint)
+	return button
+
+
+func _big_button(text: String, handler: Callable, tint: Color = UIKit.AMBER) -> Button:
 	var button := Button.new()
 	button.text = text
-	button.custom_minimum_size = Vector2(190, 52)
-	button.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
-	button.add_theme_stylebox_override("normal", UIKit.primary())
-	button.add_theme_stylebox_override("hover", UIKit.primary(UIKit.AMBER.lightened(0.12)))
-	button.add_theme_stylebox_override("pressed", UIKit.primary(UIKit.AMBER_DEEP))
+	button.custom_minimum_size = Vector2(210, 56)
+	button.add_theme_font_size_override("font_size", 22)
+	button.add_theme_font_override("font", UIKit.font_display())
+	_hover_lift(button)
+	button.add_theme_stylebox_override("normal", UIKit.primary(tint))
+	button.add_theme_stylebox_override("hover", UIKit.primary(tint.lightened(0.12)))
+	button.add_theme_stylebox_override("pressed", UIKit.primary(tint.darkened(0.22)))
 	button.add_theme_stylebox_override("disabled",
 		UIKit.plain(UIKit.SURFACE_HIGH, UIKit.RADIUS_CONTROL, UIKit.SPACE_LG, UIKit.SPACE_MD))
 	# Dark ink on amber. White on amber fails contrast at this size and reads as a
@@ -483,6 +694,12 @@ func _on_nav(id: String) -> void:
 	_maybe_show_section_tip(id)
 
 
+## Opens the 3D yard. Still a work in progress with one station built, so it is a door
+## the player chooses rather than the way the hub opens.
+func _on_open_yard() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/yard.tscn")
+
+
 func _on_toggle_help() -> void:
 	_help_visible = not _help_visible
 	_refresh_help()
@@ -494,7 +711,10 @@ func _refresh_help() -> void:
 	_help_panel.visible = _help_visible
 	if not _help_visible:
 		return
-	_help_panel.add_theme_stylebox_override("panel", _flat(Color("1d2836"), 0, 18, 12))
+	var plate := _flat(UIKit.SURFACE_HIGH, 0, 22, 14)
+	plate.border_width_left = 3
+	plate.border_color = UIKit.BLUE
+	_help_panel.add_theme_stylebox_override("panel", plate)
 	for entry: Variant in NAV:
 		var e: Dictionary = entry as Dictionary
 		if String(e["id"]) != _current:
@@ -502,21 +722,34 @@ func _refresh_help() -> void:
 		var box := VBoxContainer.new()
 		box.add_theme_constant_override("separation", 4)
 		_help_panel.add_child(box)
-		box.add_child(_label("%s %s" % [String(e["icon"]), String(e["name"])], 15, COL_ACCENT))
-		var body := _label(String(e["help"]), 13, COL_TEXT)
+		box.add_child(_label("How %s works" % String(e["name"]).capitalize(), UIKit.SIZE_HEADING, COL_ACCENT))
+		var body := _label(String(e["help"]), UIKit.SIZE_BODY, COL_TEXT)
 		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		body.custom_minimum_size = Vector2(900, 0)
 		box.add_child(body)
 
 
 func _refresh_all() -> void:
+	if _yard != null:
+		_yard.refresh(Session.profile().squad("main"))
+		_yard.focus(_current)
 	_refresh_currencies()
 	_refresh_next_card()
 	_refresh_badges()
 	_refresh_help()
 
+	var tab: Dictionary = _tab_of(_current)
+	var tab_id: String = String(tab["id"])
+	_last_section[tab_id] = _current
 	for id: Variant in _nav_buttons.keys():
 		(_nav_buttons[id] as Button).button_pressed = String(id) == _current
+	for id: Variant in _tab_buttons.keys():
+		(_tab_buttons[id] as Button).button_pressed = String(id) == tab_id
+	# Only the open tab's sub-tabs show, and a one-section tab shows no row at all.
+	var sections: Array = tab["sections"] as Array
+	_subtab_row.visible = sections.size() > 1
+	for id: Variant in _nav_badges.keys():
+		(_nav_buttons[id] as Button).visible = sections.has(id)
 
 	for child: Node in _content_pane.get_children():
 		child.queue_free()
@@ -531,15 +764,29 @@ func _refresh_all() -> void:
 		"pass": _fill_pass()
 		"store": _fill_store()
 		"parts": _fill_parts()
+		"upgrade": _fill_upgrade()
 		"crates": _fill_crates()
 		"doctrine": _fill_doctrine()
 
 
+## The screen's opening line.
+##
+## Under a row of sub-tabs the chip the player just pressed already names the screen,
+## so there the header is only the one-line hint -- a big title repeating the chip was
+## the document heading this hub is moving away from. Season and Store have no chips,
+## so they keep a stencil title.
 func _section_header(title: String, subtitle: String) -> VBoxContainer:
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 1)
-	box.add_child(_label("  " + title, 19, COL_TEXT))
-	box.add_child(_label("  " + subtitle, 12, COL_DIM))
+	box.add_theme_constant_override("separation", 2)
+	if ((_tab_of(_current)["sections"]) as Array).size() == 1:
+		var heading := _label(title.to_upper(), UIKit.SIZE_DISPLAY, COL_TEXT)
+		heading.add_theme_font_override("font", UIKit.font_display())
+		heading.add_theme_constant_override("line_spacing", 0)
+		box.add_child(heading)
+	box.add_child(_label(subtitle, UIKit.SIZE_BODY, COL_DIM))
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, UIKit.SPACE_SM)
+	box.add_child(gap)
 	return box
 
 
@@ -550,6 +797,22 @@ func _fill_campaign() -> void:
 	_content_pane.add_child(_section_header(
 		"Campaign", "Cleared nodes can be replayed for reduced scrap. New nodes unlock in order."))
 
+	# Nodes left, the squad you would take right.
+	#
+	# Stacked, the node list ran the full 1300 px with its text crammed against the left
+	# edge and a REPLAY button marooned at the right, and the squad sat below the fold
+	# under a band of dead space. Side by side, the list gets the width a list actually
+	# needs and the answer to "am I strong enough for this one" is beside the question
+	# rather than under it.
+	# One column of nodes, not two. The right column used to carry a card per construct
+	# -- which the yard above now shows as the actual machines, lit, at a size where the
+	# chassis is recognisable. Keeping both would be the same information twice, once as
+	# art and once as a table, and the table is the half worth dropping.
+	var columns := _two_columns(1.0, 0.62)
+	_content_pane.add_child(columns)
+	var nodes: VBoxContainer = columns.get_child(0)
+	var side: VBoxContainer = columns.get_child(1)
+
 	var zone: int = -1
 	for definition: Variant in Campaign.ordered_nodes(Session.content):
 		var d: Dictionary = definition as Dictionary
@@ -558,21 +821,103 @@ func _fill_campaign() -> void:
 		var cleared: bool = p.has_cleared(id)
 
 		if not unlocked and not cleared:
-			var locked := PanelContainer.new()
-			locked.add_theme_stylebox_override("panel", _flat(Color("12161d"), 5))
-			var line := HBoxContainer.new()
-			locked.add_child(line)
-			line.add_child(_label("locked — clear the node above to open the rest of the yard", 13, COL_DIM))
-			_content_pane.add_child(locked)
+			# The road ahead, dimmed, rather than a single "locked" line and then
+			# nothing. The screen used to stop at the first locked node -- which at
+			# 7 of 30 cleared is a quarter of the way down the page, with the rest of
+			# the campaign invisible and the space below it empty. A player deciding
+			# whether to grind for the next part is asking what is COMING, and a list
+			# that ends at the boundary cannot answer.
+			nodes.add_child(_label(
+				"  Locked. Clear the node above to open the rest of the yard.",
+				UIKit.SIZE_LABEL, UIKit.TEXT_FAINT))
+			var shown: int = 0
+			for ahead: Variant in Campaign.ordered_nodes(Session.content):
+				var a: Dictionary = ahead as Dictionary
+				if p.has_cleared(String(a["id"])) \
+						or Campaign.is_unlocked(p, Session.content, String(a["id"])):
+					continue
+				if int(a["zone"]) != zone:
+					zone = int(a["zone"])
+					nodes.add_child(_label("  " + String(a["zone_name"]).to_upper(),
+						15, UIKit.TEXT_FAINT))
+				nodes.add_child(_locked_row(a))
+				shown += 1
+				if shown >= LOCKED_PREVIEW:
+					break
+			var left: int = Campaign.ordered_nodes(Session.content).size() \
+				- _cleared_count(p) - shown - 1
+			if left > 0:
+				nodes.add_child(_label("  + %d more beyond that" % left,
+					12, UIKit.TEXT_FAINT))
 			break
 
 		if int(d["zone"]) != zone:
 			zone = int(d["zone"])
-			_content_pane.add_child(_label("  " + String(d["zone_name"]).to_upper(), 15, COL_ACCENT))
+			nodes.add_child(_label("  " + String(d["zone_name"]).to_upper(), 15, COL_ACCENT))
 
-		_content_pane.add_child(_campaign_row(d, cleared))
+		nodes.add_child(_campaign_row(d, cleared))
 
-	_content_pane.add_child(_squad_panel())
+	side.add_child(_next_up_panel(p))
+
+
+## What the next node actually IS: the fight you are about to take, beside the list you
+## picked it from.
+##
+## The right column used to repeat the squad as four text cards. The yard above renders
+## those same four machines lit and at a readable size, so the column was free -- and the
+## question the campaign screen provokes has two halves. "What have I got" is answered by
+## the art. "What am I walking into" was answered nowhere.
+func _next_up_panel(p: PlayerProfile) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UIKit.card())
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	panel.add_child(column)
+
+	var next: Dictionary = {}
+	for definition: Variant in Campaign.ordered_nodes(Session.content):
+		var d: Dictionary = definition as Dictionary
+		if p.has_cleared(String(d["id"])):
+			continue
+		if Campaign.is_unlocked(p, Session.content, String(d["id"])):
+			next = d
+		break
+
+	column.add_child(_label("NEXT BATTLE", UIKit.SIZE_MICRO, COL_DIM))
+	if next.is_empty():
+		column.add_child(_label("the yard is clear", UIKit.SIZE_BODY, COL_GOOD))
+		return panel
+
+	column.add_child(_label(String(next["name"]), UIKit.SIZE_TITLE, COL_TEXT))
+
+	var condition_id: String = String(next.get("condition", ""))
+	if not condition_id.is_empty():
+		var condition: Dictionary = Session.content.conditions.get(condition_id, {})
+		column.add_child(_label(String(condition.get("name", condition_id)),
+			UIKit.SIZE_LABEL, COL_ACCENT))
+		column.add_child(_label(String(condition.get("text", "")), UIKit.SIZE_MICRO, COL_DIM))
+
+	column.add_child(_stat_line("enemies", "%d" % (next["enemy"] as Array).size(), COL_TEXT))
+	column.add_child(_stat_line("your power",
+		"%d" % Economy.squad_power(p, Session.content), COL_GOLD))
+	column.add_child(_stat_line("pays",
+		"+%d scrap" % int((next.get("reward", {}) as Dictionary).get("scrap", 0)), COL_GOOD))
+	var part_reward: Variant = next.get("first_clear_part", "")
+	if part_reward != null and not String(part_reward).is_empty():
+		column.add_child(_stat_line("first clear", String(
+			(Session.content.parts.get(String(part_reward), {}) as Dictionary).get(
+				"name", part_reward)), COL_GOOD))
+	return panel
+
+
+## A label and its value on one line, value right-aligned. The shape a readout takes.
+func _stat_line(name: String, value: String, tint: Color) -> HBoxContainer:
+	var line := HBoxContainer.new()
+	var left := _label(name, UIKit.SIZE_LABEL, COL_DIM)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.add_child(left)
+	line.add_child(_label(value, UIKit.SIZE_LABEL, tint))
+	return line
 
 
 ## The squad the player will actually take into the next node, shown under the campaign
@@ -583,7 +928,7 @@ func _fill_campaign() -> void:
 ## usefully, it answers the question the campaign screen provokes and never addressed:
 ## "am I strong enough for this one?" The squad was previously invisible from here, so
 ## checking it meant leaving for the Parts screen and coming back.
-func _squad_panel() -> PanelContainer:
+func _squad_panel(vertical: bool = false) -> PanelContainer:
 	var profile: PlayerProfile = Session.profile()
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", UIKit.card())
@@ -606,11 +951,13 @@ func _squad_panel() -> PanelContainer:
 		column.add_child(_label("no squad built yet — open PARTS", UIKit.SIZE_BODY, COL_WARN))
 		return panel
 
-	var row := HBoxContainer.new()
+	# In a side column the constructs stack; across the bottom of a page they sit in a
+	# row. Same chips either way -- only the axis changes.
+	var row: BoxContainer = VBoxContainer.new() if vertical else HBoxContainer.new()
 	row.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	column.add_child(row)
 	for index: int in squad.size():
-		row.add_child(_squad_chip(squad[index] as Dictionary))
+		row.add_child(_squad_chip(squad[index] as Dictionary, vertical))
 
 	if not profile.squad_is_valid("main"):
 		# A squad can go invalid when a Refit consumes a part, and the campaign screen is
@@ -623,20 +970,28 @@ func _squad_panel() -> PanelContainer:
 
 
 ## One construct: its chassis picture, its name, and what it is carrying.
-func _squad_chip(spec: Dictionary) -> PanelContainer:
+func _squad_chip(spec: Dictionary, vertical: bool = false) -> PanelContainer:
 	var chip := PanelContainer.new()
 	chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	chip.add_theme_stylebox_override("panel",
 		UIKit.inset(UIKit.SURFACE_HIGH, UIKit.RADIUS_CONTROL, UIKit.SPACE_SM, UIKit.SPACE_SM))
 
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 1)
+	# Stacked in a side column the chip lies on its side: picture left, name right. A tall
+	# portrait card repeated six times down a narrow column runs off the bottom of the
+	# page, and the picture stops being the thing being compared.
+	var box: BoxContainer = HBoxContainer.new() if vertical else VBoxContainer.new()
+	box.add_theme_constant_override("separation", UIKit.SPACE_SM if vertical else 1)
 	chip.add_child(box)
 
 	var parts: Dictionary = spec.get("parts", {}) as Dictionary
 	var chassis_id: String = String(parts.get("chassis", ""))
 	var picture := TextureRect.new()
-	picture.custom_minimum_size = Vector2(0, 58)
+	# Big enough to actually recognise the machine. The campaign screen asks "am I strong
+	# enough for this one" and this panel is the answer, so it is worth the space.
+	if vertical:
+		picture.custom_minimum_size = Vector2(92, 92)
+	else:
+		picture.custom_minimum_size = Vector2(0, 158)
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	var path: String = "res://art/thumbs/%s.png" % chassis_id
@@ -644,10 +999,20 @@ func _squad_chip(spec: Dictionary) -> PanelContainer:
 		picture.texture = load(path)
 	box.add_child(picture)
 
+	var names := VBoxContainer.new()
+	names.add_theme_constant_override("separation", 1)
+	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	names.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	box.add_child(names)
+
 	var chassis: Dictionary = Session.content.parts.get(chassis_id, {})
-	box.add_child(_label(String(chassis.get("name", "—")), UIKit.SIZE_MICRO, COL_TEXT))
+	names.add_child(_label(String(chassis.get("name", "—")),
+		UIKit.SIZE_LABEL if vertical else UIKit.SIZE_MICRO, COL_TEXT))
 	var arm: Dictionary = Session.content.parts.get(String(parts.get("arm_r", "")), {})
-	box.add_child(_label(String(arm.get("name", "unarmed")), UIKit.SIZE_MICRO, COL_DIM))
+	names.add_child(_label(String(arm.get("name", "unarmed")), UIKit.SIZE_MICRO, COL_DIM))
+	if vertical:
+		names.add_child(_label("%d HP · %s" % [int(chassis.get("hp", 0)),
+			String(chassis.get("role", ""))], UIKit.SIZE_MICRO, COL_ACCENT))
 	return chip
 
 
@@ -675,14 +1040,57 @@ func _thumb_strip(squad: Array, size: int) -> HBoxContainer:
 	return strip
 
 
+## How many locked nodes to show past the boundary. Enough to see where the campaign is
+## going; not so many that the page becomes a table of contents.
+const LOCKED_PREVIEW: int = 7
+
+
+func _cleared_count(p: PlayerProfile) -> int:
+	var total: int = 0
+	for definition: Variant in Campaign.ordered_nodes(Session.content):
+		if p.has_cleared(String((definition as Dictionary)["id"])):
+			total += 1
+	return total
+
+
+## A node the player cannot take yet: name and what waits there, no button.
+func _locked_row(d: Dictionary) -> PanelContainer:
+	var row := PanelContainer.new()
+	row.add_theme_stylebox_override("panel", UIKit.plain(
+		UIKit.SURFACE.darkened(0.55), UIKit.RADIUS_CONTROL, UIKit.SPACE_MD, 2))
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 14)
+	row.add_child(line)
+	line.add_child(_label("★" if bool(d.get("is_boss", false)) else "·", 14, UIKit.TEXT_FAINT))
+	var name := _label(String(d["name"]), 13, UIKit.TEXT_FAINT)
+	name.custom_minimum_size = Vector2(180, 0)
+	line.add_child(name)
+	var detail: String = "%d enemies   ·   +%d scrap" % [
+		(d["enemy"] as Array).size(),
+		int((d.get("reward", {}) as Dictionary).get("scrap", 0))]
+	var part_reward: Variant = d.get("first_clear_part", "")
+	if part_reward != null and not String(part_reward).is_empty():
+		detail += "   ·   + %s" % String(
+			(Session.content.parts.get(String(part_reward), {}) as Dictionary).get(
+				"name", part_reward))
+	var detail_label := _label(detail, 11, UIKit.TEXT_FAINT)
+	detail_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.add_child(detail_label)
+	return row
+
+
 func _campaign_row(d: Dictionary, cleared: bool) -> PanelContainer:
 	var row := PanelContainer.new()
 	# A cleared node is history and recedes; the one node the player can actually take is
 	# raised and edged in amber. Rendering all thirty identically turned the campaign into
 	# a spreadsheet the player had to read top to bottom to find their place in.
 	if cleared:
+		# Compact, not merely dimmer. Seven finished nodes at full row height outweighed
+		# the one node the player can actually take by seven to one in sheet area, so the
+		# live row lost the screen however it was coloured -- mass beats colour. Halving
+		# their height is what lets the live node dominate.
 		row.add_theme_stylebox_override("panel", UIKit.plain(UIKit.SURFACE.darkened(0.35),
-			UIKit.RADIUS_CONTROL, UIKit.SPACE_MD, UIKit.SPACE_SM))
+			UIKit.RADIUS_CONTROL, UIKit.SPACE_MD, 2))
 	else:
 		var live := UIKit.card(UIKit.SURFACE_HIGH, UIKit.RADIUS_CONTROL,
 			UIKit.SPACE_MD, UIKit.SPACE_MD)
@@ -693,9 +1101,10 @@ func _campaign_row(d: Dictionary, cleared: bool) -> PanelContainer:
 	row.add_child(line)
 
 	line.add_child(_label("✓" if cleared else ("★" if bool(d.get("is_boss", false)) else "•"),
-		16, COL_GOOD if cleared else COL_GOLD))
+		14 if cleared else 18, COL_GOOD if cleared else COL_GOLD))
 
-	var name := _label(String(d["name"]), 15, COL_TEXT)
+	var name := _label(String(d["name"]), 13 if cleared else 17,
+		COL_DIM if cleared else COL_TEXT)
 	name.custom_minimum_size = Vector2(180, 0)
 	line.add_child(name)
 
@@ -709,7 +1118,8 @@ func _campaign_row(d: Dictionary, cleared: bool) -> PanelContainer:
 	if part_reward != null and not String(part_reward).is_empty() and not cleared:
 		detail += "   ·   + %s" % String(
 			(Session.content.parts.get(String(part_reward), {}) as Dictionary).get("name", part_reward))
-	var detail_label := _label(detail, 12, COL_DIM)
+	var detail_label := _label(detail, 11 if cleared else 13,
+		UIKit.TEXT_FAINT if cleared else COL_DIM)
 	detail_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(detail_label)
 
@@ -717,10 +1127,17 @@ func _campaign_row(d: Dictionary, cleared: bool) -> PanelContainer:
 	if cleared:
 		fight = Button.new()
 		fight.text = "REPLAY"
+		fight.add_theme_font_size_override("font_size", UIKit.SIZE_LABEL)
+		fight.add_theme_color_override("font_color", UIKit.TEXT_DIM)
+		fight.add_theme_stylebox_override("normal",
+			UIKit.plain(Color(0, 0, 0, 0), UIKit.RADIUS_CONTROL, UIKit.SPACE_MD, 4))
+		fight.add_theme_stylebox_override("hover",
+			UIKit.plain(UIKit.SURFACE_HIGH, UIKit.RADIUS_CONTROL, UIKit.SPACE_MD, 4))
 		fight.pressed.connect(_on_fight.bind(String(d["id"])))
+		fight.custom_minimum_size = Vector2(100, 26)
 	else:
 		fight = _big_button("FIGHT", _on_fight.bind(String(d["id"])))
-	fight.custom_minimum_size = Vector2(120, 36)
+		fight.custom_minimum_size = Vector2(140, 44)
 	line.add_child(fight)
 	return row
 
@@ -1185,7 +1602,7 @@ func _store_card(product: Dictionary, service: StoreService, real_money: bool) -
 			String(product.get("cost_currency", PlayerProfile.CORES)),
 			int(product.get("cost_amount", 0)))
 		if affordable:
-			button = _big_button(price, _on_buy.bind(id) if real_money
+			button = _choice_button(price, _on_buy.bind(id) if real_money
 				else _on_spend_cores.bind(id))
 		else:
 			button = Button.new()
@@ -1855,37 +2272,89 @@ func _on_climb(floor_number: int) -> void:
 func _fill_parts() -> void:
 	var p: PlayerProfile = Session.profile()
 	_content_pane.add_child(_section_header(
-		"Parts", "Fit parts to a construct and see it. Scrap raises LEVEL; only a REFIT raises TIER, and tier is what raises the level cap."))
+		"Parts", "Fit a part into a socket and the construct updates immediately. Spending on those parts is in UPGRADE."))
 	if p.inventory().is_empty():
 		_content_pane.add_child(_label("  no parts yet", 14, COL_DIM))
 		return
 
-	# The loadout editor is the screen; the upgrade list below it is the bookkeeping.
-	# Equipping used to be impossible here, which made the whole modular part system
-	# something the player could read about but never actually use.
+	# The loadout editor IS this screen now.
+	#
+	# The upgrade list used to sit underneath it, which put two unrelated jobs on one
+	# page: choosing what a construct is made of, and deciding where to spend scrap. They
+	# read as one undifferentiated wall of controls, and the second one pushed the first
+	# off the top of the screen the moment a player owned a few parts. They are separate
+	# sections now and each one gets the whole page.
 	var loadout := LoadoutScreen.new()
-	loadout.custom_minimum_size = Vector2(0, 520)
+	loadout.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	loadout.custom_minimum_size = Vector2(0, 560)
 	loadout.changed.connect(_refresh_currencies)
 	_content_pane.add_child(loadout)
 
-	_content_pane.add_child(_label("  UPGRADE", 13, COL_DIM))
-	for part_id: String in p.owned_part_ids():
-		_content_pane.add_child(_part_row(part_id, p))
+
+# --- Upgrade -----------------------------------------------------------------
+
+## Spending scrap and alloy on owned parts. Two columns, because an upgrade row is a
+## line of text and two buttons -- at full width every one of them wasted most of the
+## screen on empty space between the name and the price.
+func _fill_upgrade() -> void:
+	var p: PlayerProfile = Session.profile()
+	_content_pane.add_child(_section_header(
+		"Upgrade", "Scrap raises LEVEL. Only a REFIT raises TIER, and tier is what raises the level cap."))
+
+	var owned: Array = p.owned_part_ids()
+	if owned.is_empty():
+		_content_pane.add_child(_label("  no parts yet — open a crate", 14, COL_DIM))
+		return
+
+	var columns := _two_columns()
+	_content_pane.add_child(columns)
+	var left: VBoxContainer = columns.get_child(0)
+	var right: VBoxContainer = columns.get_child(1)
+	for index: int in owned.size():
+		# Down the left column then down the right, NOT alternating. A player scanning
+		# for one part reads a column top to bottom; alternating rows makes the eye
+		# zig-zag across the page and turns an ordered list into a puzzle.
+		var half: int = int(ceil(owned.size() / 2.0))
+		var target: VBoxContainer = left if index < half else right
+		target.add_child(_part_row(String(owned[index]), p))
+
+
+## Two equal columns with the house gap between them. Screens here are 1600 px wide and
+## a single column of full-width rows spends most of that on nothing.
+func _two_columns(left_ratio: float = 1.0, right_ratio: float = 1.0) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for ratio: float in [left_ratio, right_ratio]:
+		var column := VBoxContainer.new()
+		column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		column.size_flags_stretch_ratio = ratio
+		column.add_theme_constant_override("separation", 4)
+		row.add_child(column)
+	return row
 
 
 func _part_row(part_id: String, p: PlayerProfile) -> PanelContainer:
 	var definition: Dictionary = Session.content.parts.get(part_id, {})
 
+	# Text above, actions below -- NOT one wide line.
+	#
+	# On one line the two controls carry fixed widths of 190 and 210 px and the price
+	# strings are long ("REFIT 5 dupes + 1012 alloy"), which forces a minimum row width
+	# wider than half the content pane. In two columns that overflowed: the right column
+	# ran off the edge of the screen and took a horizontal scrollbar with it. Stacking
+	# them makes the row fit ANY column width, which is what a two-column layout needs
+	# from the thing inside it.
 	var row := PanelContainer.new()
-	row.add_theme_stylebox_override("panel", _flat(COL_ROW, 5))
-	var line := HBoxContainer.new()
-	line.add_theme_constant_override("separation", 12)
-	row.add_child(line)
+	row.add_theme_stylebox_override("panel", _flat(COL_ROW, 5, 12, 6))
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	row.add_child(stack)
 
 	var text := VBoxContainer.new()
 	text.add_theme_constant_override("separation", 1)
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	line.add_child(text)
+	stack.add_child(text)
 	text.add_child(_label("%s   ·   %s" % [
 		String(definition.get("name", part_id)), String(definition.get("slot", ""))], 15, COL_TEXT))
 
@@ -1897,31 +2366,51 @@ func _part_row(part_id: String, p: PlayerProfile) -> PanelContainer:
 		stat_line += "   ·   at its cap — refit to go further"
 	text.add_child(_label(stat_line, 12, COL_GOLD if capped else COL_DIM))
 
-	var level_button := Button.new()
-	level_button.custom_minimum_size = Vector2(190, 34)
+	# A state that can never be pressed is a LABEL, not a disabled button.
+	#
+	# "AT CAP" and "MAX TIER" were rendered as buttons, so a screen listing forty parts
+	# offered up to eighty controls of which most could not be clicked -- the exact
+	# dead-buttoning this project forbids everywhere else, and most of the reason the
+	# Parts screen read as an undifferentiated wall of things to press. Saying it in
+	# text costs nothing and leaves only the rows that can actually act.
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	line.alignment = BoxContainer.ALIGNMENT_END
+	stack.add_child(line)
+
 	if capped:
-		level_button.text = "AT CAP"
-		level_button.disabled = true
+		line.add_child(_state_chip("AT CAP", 120))
 	else:
+		var level_button := Button.new()
+		level_button.custom_minimum_size = Vector2(150, 32)
 		level_button.text = "LEVEL   %d scrap" % Economy.level_cost(p, part_id, Session.content)
 		level_button.disabled = Session.store.can_execute(
 			ProfileCommands.LevelPart.new(part_id)) != ProfileCommand.Result.OK
 		level_button.pressed.connect(_on_level_part.bind(part_id))
-	line.add_child(level_button)
+		line.add_child(level_button)
 
-	var refit_button := Button.new()
-	refit_button.custom_minimum_size = Vector2(210, 34)
 	if p.part_tier(part_id) >= PlayerProfile.MAX_TIER:
-		refit_button.text = "MAX TIER"
-		refit_button.disabled = true
+		line.add_child(_state_chip("MAX TIER", 140))
 	else:
+		var refit_button := Button.new()
+		refit_button.custom_minimum_size = Vector2(190, 32)
 		refit_button.text = "REFIT   %d dupes + %d alloy" % [
 			Economy.refit_copies(p, part_id), Economy.refit_alloy(p, part_id, Session.content)]
 		refit_button.disabled = Session.store.can_execute(
 			ProfileCommands.RefitPart.new(part_id)) != ProfileCommand.Result.OK
 		refit_button.pressed.connect(_on_refit_part.bind(part_id))
-	line.add_child(refit_button)
+		line.add_child(refit_button)
 	return row
+
+
+## A terminal state where a control would otherwise sit: reads as information, and
+## occupies the same width so the column of real buttons stays aligned.
+func _state_chip(text: String, width: int) -> Label:
+	var chip := _label(text, UIKit.SIZE_LABEL, UIKit.TEXT_FAINT)
+	chip.custom_minimum_size = Vector2(width, 34)
+	chip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	chip.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	return chip
 
 
 func _on_level_part(part_id: String) -> void:
@@ -1959,9 +2448,12 @@ func _fill_crates() -> void:
 		text.add_child(_label(String(crate["name"]), 16, COL_TEXT))
 		text.add_child(_label(String(crate.get("text", "")), 12, COL_DIM))
 
-		# Primary, like FIGHT and COLLECT. Three crates are three equivalent choices
-		# rather than competing priorities, so they can all carry the action colour.
-		var open: Button = _big_button(
+		# Outlined, not filled. Three crates ARE three equivalent choices -- which is
+		# exactly why none of them is the screen's primary action, and why filling all
+		# three amber put the game's "this is the way forward" colour on every row of a
+		# screen that has no way forward. The outline keeps them obviously pressable
+		# while leaving the filled block to mean what it means everywhere else.
+		var open: Button = _choice_button(
 			"OPEN   %d %s" % [int(crate["cost_amount"]), String(crate["cost_currency"])],
 			_on_open_crate.bind(String(crate_id)))
 		open.custom_minimum_size = Vector2(210, 40)
@@ -2242,22 +2734,6 @@ func _flat(colour: Color, radius: int, margin_x: int = 12, margin_y: int = 9) ->
 	if radius <= 0:
 		return UIKit.plain(colour, 0, margin_x, margin_y)
 	return UIKit.inset(colour, maxi(radius, UIKit.RADIUS_CONTROL), margin_x, margin_y)
-
-
-## The selected nav item: a raised surface with a solid amber bar down its leading edge.
-##
-## A bar rather than a fill, because "which screen am I on" has to survive being glanced
-## at. A slightly-lighter background does not -- it was the previous treatment and it read
-## as a hover state at best.
-func _nav_selected() -> StyleBoxFlat:
-	var style := UIKit.plain(UIKit.SURFACE_HIGH, UIKit.RADIUS_CONTROL, 12, 8)
-	style.border_width_left = 3
-	style.border_color = UIKit.AMBER
-	# Square off the leading corners so the bar reads as an edge marker rather than as a
-	# stripe floating inside a rounded box.
-	style.corner_radius_top_left = 0
-	style.corner_radius_bottom_left = 0
-	return style
 
 
 ## Dev-only: `--shot <path> [--section id] [--after <frames>]` renders the hub and exits.

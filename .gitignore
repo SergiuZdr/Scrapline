@@ -19,3 +19,11 @@ export_presets.cfg
 # Nakama module build output and deps
 server/modules/node_modules/
 server/modules/build/
+
+# Screenshots and render output
+/shots/
+/art/preview/
+
+# Python bytecode from the Blender tools
+__pycache__/
+*.pyc

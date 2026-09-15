@@ -17,10 +17,16 @@ from mathutils import Vector
 from .. import config
 from .. import greeble as gr
 from .. import primitives as prim
-from . import pick_archetype, asymmetry
+from . import pick_archetype, asymmetry, repair_history
 
 
-ARCHETYPES = ["piston_arm", "girder_arm", "pipe_arm", "armour_arm"]
+## The three REDESIGNED base arms first: a digger boom, a factory manipulator and a
+## suspension strut. Angular-and-pinned, round-and-flanged, and sprung -- three
+## different kinds of machine rather than three thicknesses of tube.
+ARCHETYPES = ["excavator_arm", "manipulator_arm", "suspension_arm",
+              "piston_arm", "girder_arm", "pipe_arm", "armour_arm"]
+
+AXIS_X = (0.0, math.pi / 2, 0.0)
 
 SHOULDER = (0.0, 0.0, 0.0)
 WRIST = (0.0, config.ARM_FORWARD_CANT, -config.ARM_LENGTH)
@@ -36,6 +42,9 @@ WRIST = (0.0, config.ARM_FORWARD_CANT, -config.ARM_LENGTH)
 ## pipe bundle, and a genuine slab pauldron only on the armoured one, where it is the
 ## point.
 SHOULDER_STYLE = {
+    "excavator_arm":   (1.05, "bracket"),
+    "manipulator_arm": (0.88, "ring"),
+    "suspension_arm":  (0.92, "collar"),
     "piston_arm": (0.80, "collar"),
     "girder_arm": (0.92, "bracket"),
     "pipe_arm":   (0.74, "ring"),
@@ -51,12 +60,19 @@ def build(component):
 
     # The elbow sits slightly BEHIND the shoulder-wrist line, so the forearm swings
     # forward into the weapon. A straight arm reads as a pipe with a gun on the end.
-    elbow = (rng.jitter(0.015), rng.span(-0.06, -0.02), config.ARM_ELBOW_Z)
+    # Pushed well behind the shoulder-wrist line so the limb visibly BREAKS at the
+    # elbow. At 2-6 cm the bend was inside the width of the arm itself, so every
+    # archetype read as one straight pole with a bearing stuck on the middle of it --
+    # and a straight limb is most of what makes a machine read as a mannequin.
+    elbow = (rng.jitter(0.015), rng.span(-0.15, -0.10), config.ARM_ELBOW_Z)
     component.recipe = {"archetype": component.archetype, "elbow": elbow}
 
     scale, style = SHOULDER_STYLE[component.archetype]
     _shoulder(component, rng, asym, scale, style)
     builder = {
+        "excavator_arm":   _excavator_arm,
+        "manipulator_arm": _manipulator_arm,
+        "suspension_arm":  _suspension_arm,
         "piston_arm":  _piston_arm,
         "girder_arm":  _girder_arm,
         "pipe_arm":    _pipe_arm,
@@ -66,71 +82,111 @@ def build(component):
     _elbow_joint(component, rng, elbow)
     _wrist(component, rng, asym)
     _shared_dressing(component, rng, asym, elbow)
+    repair_history(component, rng, [
+        (asym["side"] * 0.070, -0.045, config.ARM_ELBOW_Z * 0.55),
+        (-asym["side"] * 0.060, 0.040, config.ARM_ELBOW_Z * 1.35),
+    ], strength=0.8)
     return component
 
 
 # --- Contract-bearing structure ----------------------------------------------
 
 def _shoulder(component, rng, asym, scale, style):
-    """The ball at the origin, plus whatever this archetype covers it with.
+    """An articulated shoulder ASSEMBLY, not a plate on a ball.
 
-    The ball is what the torso's shoulder bearing closes around; without geometry at
-    the origin the arm hangs off its own mount. Something has to cover it -- an exposed
-    ball joint at the top of a limb reads as a broken arm -- but WHAT covers it is the
-    archetype's decision, not a shared default."""
-    component.add(prim.sphere(component.name + "_ball", rng.span(0.062, 0.076),
-                              (0, 0, -0.010), segments=12, rings=7,
+    Four things, and the spec is the reference sheets: a large circular joint, a
+    structural bracket carrying the load into the limb, a shaped armour cowl over the
+    top, and a hydraulic or cable connection feeding it. The previous version was a
+    sphere with a flat slab balanced on it -- which is what "flat block shoulders" means
+    and why it dominated every arm it was attached to.
+
+    `style` still varies the cowl and the bracing, so the archetypes stay distinct; what
+    no longer varies is whether the shoulder is a mechanism at all."""
+    size = rng.span(0.24, 0.31) * scale
+
+    # 1. The large circular joint. Flanged and bolted, so it reads as something that
+    #    was assembled and can be unbolted -- a bare race reads as a doll's pin.
+    joint_r = rng.span(0.082, 0.098)
+    # The BALL goes in first, and the order matters more than it looks: `prim.join`
+    # makes the first piece the active object and the joined mesh inherits ITS
+    # transform, so a first piece carrying the 90-degree rotation an x-axis cylinder
+    # needs turns the whole component -- and every socket on it -- a quarter turn. The
+    # arm's WeaponSocket landed at (0.62, 0.10, 0.00) instead of (0.00, 0.10, -0.62),
+    # which `validate_components` caught exactly as it is meant to.
+    component.add(prim.sphere(component.name + "_ball", joint_r * 0.62,
+                              (0, 0, -0.012), segments=12, rings=7,
                               material="DarkMetal"))
-    component.add(gr.bearing(component.name + "_shoulder_race", (0, 0, -0.010),
-                             radius=rng.span(0.070, 0.086), axis="x"))
-    size = rng.span(0.16, 0.21) * scale
+    component.add(gr.flange_joint(component.name + "_shoulderjoint", (0, 0, -0.012),
+                                  radius=joint_r, axis="x", thickness=0.075, bolts=6))
 
+    # 2. The structural bracket: a fork straddling the joint and reaching down into the
+    #    limb, which is what actually carries the arm's weight.
+    for sign in (1.0, -1.0):
+        component.add(gr.plate("%s_fork_%d" % (component.name, sign > 0),
+                               (size * 0.62, size * 0.72),
+                               location=(sign * joint_r * 0.92, -0.010, -size * 0.30),
+                               rotation=(0, 0, math.pi / 2), thickness=0.020,
+                               material="DirtyMetal"))
+    component.add(gr.rib(component.name + "_forkspine", joint_r * 1.85,
+                         (0, -size * 0.26, -size * 0.44), thickness=0.034,
+                         height=0.046, axis="x", material="OldSteel"))
+    component.add(gr.bolt_row(component.name + "_forkbolt", rng.count(2, 3),
+                              (-joint_r * 0.92, -size * 0.20, -size * 0.24),
+                              (joint_r * 0.92, 0, 0), axis="x", rng=rng, radius=0.012))
+
+    # 3. The cowl. Tapered hard and canted outward so it sits OVER the joint like a
+    #    fitted shell rather than lying flat on top of it. Style decides its shape.
+    # A shoulder PAD: wider than it is tall, hugging the joint, canted outward. Tall and
+    # hard-tapered it came out a pale pyramid sitting on top of the arm -- a lampshade,
+    # and the single loudest object on the limb. Armour over a joint is low and broad.
     if style == "pauldron":
-        component.add(prim.taper_box(component.name + "_pauldron",
-                                     (size, size * rng.span(0.90, 1.15), 0.13),
-                                     top_scale=(rng.span(0.68, 0.90),
-                                                rng.span(0.68, 0.90)),
-                                     location=(rng.jitter(0.012), rng.jitter(0.015),
-                                               0.020),
-                                     rotation=(rng.jitter(0.10), 0, 0),
-                                     material="DirtyMetal", bevel_width=0.014,
-                                     segments=2))
-        component.add(gr.bolt_row(component.name + "_pauldronbolt", rng.count(3, 4),
-                                  (-size * 0.30, -size * 0.40, 0.068),
-                                  (size * 0.22, size * 0.28, 0), axis="z", rng=rng,
-                                  radius=0.014))
+        cowl = (size * 0.90, size * 0.84, size * 0.38)
+        top_scale = (0.82, 0.86)
+        cant = rng.span(0.20, 0.30)
     elif style == "bracket":
-        # Two flat cheeks with the joint visible between them.
-        for sign in (1.0, -1.0):
-            component.add(gr.plate("%s_cheek_%d" % (component.name, sign > 0),
-                                   (size * 0.85, size * 0.80),
-                                   location=(sign * size * 0.44, rng.jitter(0.012),
-                                             -0.010),
-                                   rotation=(0, 0, math.pi / 2), thickness=0.026,
-                                   material="DirtyMetal"))
-        component.add(gr.rib(component.name + "_yoke", size * 0.98,
-                             (0, -size * 0.30, 0.030), thickness=0.038, height=0.055,
-                             axis="x"))
+        cowl = (size * 0.74, size * 0.92, size * 0.32)
+        top_scale = (0.76, 0.90)
+        cant = rng.span(0.14, 0.22)
     elif style == "ring":
-        component.add(prim.cylinder(component.name + "_clamp", size * 0.52, 0.11,
-                                    location=(0, 0, 0.012), vertices=12,
-                                    material="DirtyMetal"))
-        component.add(prim.torus(component.name + "_clamp_band", size * 0.55, 0.016,
-                                 location=(0, 0, 0.040), major_segments=12,
-                                 minor_segments=4, material="DarkMetal"))
-        component.add(gr.bolt_ring(component.name + "_clampbolt", 4, (0, 0, 0.040),
-                                   size * 0.55, axis="z", bolt_radius=0.012))
+        cowl = (size * 0.70, size * 0.70, size * 0.34)
+        top_scale = (0.88, 0.88)
+        cant = rng.span(0.06, 0.12)
     else:  # collar
-        component.add(prim.taper_box(component.name + "_collar",
-                                     (size * 0.92, size * 0.86, 0.085),
-                                     top_scale=(0.72, 0.72),
-                                     location=(0, rng.jitter(0.012), 0.008),
-                                     material="DirtyMetal", bevel_width=0.012,
-                                     segments=2))
-        component.add(gr.plate(component.name + "_scapula",
-                               (size * 0.70, size * 0.80),
-                               location=(0, -size * 0.42, -0.045),
-                               thickness=0.022, material="DirtyMetal"))
+        cowl = (size * 0.80, size * 0.74, size * 0.30)
+        top_scale = (0.84, 0.88)
+        cant = rng.span(0.16, 0.24)
+
+    component.add(prim.taper_box(component.name + "_cowl", cowl,
+                                 top_scale=top_scale,
+                                 location=(asym["side"] * size * 0.10, rng.jitter(0.012),
+                                           joint_r * 0.18),
+                                 rotation=(rng.jitter(0.05), 0, cant * asym["side"]),
+                                 material="DirtyMetal", bevel_width=0.030, segments=4))
+    # A skirt under the cowl's outer lip: the overlap that makes armour read as plates
+    # rather than as one moulded lump.
+    component.add(gr.plate(component.name + "_cowlskirt",
+                           (cowl[0] * 0.78, size * 0.44),
+                           location=(asym["side"] * size * 0.30, 0.0, -size * 0.10),
+                           rotation=(0, 0, math.pi / 2 + cant * 0.5), thickness=0.018,
+                           material="DirtyMetal"))
+    component.add(gr.bolt_row(component.name + "_cowlbolt", rng.count(3, 4),
+                              (-cowl[0] * 0.28, -cowl[1] * 0.30,
+                               joint_r * 0.18 + cowl[2] * 0.42),
+                              (cowl[0] * 0.19, cowl[1] * 0.20, 0), axis="z", rng=rng,
+                              radius=0.012))
+
+    # 4. The connection: a short ram working the joint, and a hose feeding it.
+    ram_top = (asym["side"] * size * 0.34, -size * 0.30, joint_r * 0.30)
+    ram_foot = (asym["side"] * size * 0.16, -size * 0.10, -size * 0.56)
+    component.add(gr.piston(component.name + "_shoulderram", ram_top, ram_foot, rng,
+                            barrel_radius=rng.span(0.022, 0.029), rod_radius=0.011,
+                            extension=0.5))
+    component.add(gr.hose_between(component.name + "_shoulderhose",
+                                  (-asym["side"] * size * 0.30, -size * 0.34,
+                                   joint_r * 0.20),
+                                  (-asym["side"] * size * 0.12, -size * 0.16,
+                                   -size * 0.62), rng,
+                                  radius=0.011, sag=0.05, axis="x"))
 
 
 def _elbow_joint(component, rng, elbow):
@@ -138,6 +194,17 @@ def _elbow_joint(component, rng, elbow):
     structure ran through it, rather than being buried by a later plate."""
     component.add(gr.bearing(component.name + "_elbow", elbow,
                              radius=rng.span(0.052, 0.068), axis="x"))
+    # The ram that works it. Every arm on the reference sheets has a cylinder bridging
+    # the elbow, and it is what says the joint is DRIVEN rather than merely articulated.
+    # Anchored on the OUTSIDE of the break so it reads from the front rather than being
+    # tucked into the crook.
+    side = rng.sign() * rng.span(0.035, 0.055)
+    component.add(gr.piston(component.name + "_elbow_ram",
+                            (side, elbow[1] - 0.055, elbow[2] + rng.span(0.16, 0.22)),
+                            (side * 0.6, elbow[1] + 0.020,
+                             elbow[2] - rng.span(0.10, 0.15)),
+                            rng, barrel_radius=rng.span(0.026, 0.034),
+                            rod_radius=0.013, extension=0.5))
 
 
 def _wrist(component, rng, asym):
@@ -159,6 +226,160 @@ def _wrist(component, rng, asym):
 
 
 # --- Archetypes --------------------------------------------------------------
+
+
+def _excavator_arm(component, rng, asym, elbow):
+    """A digger boom and stick: box sections, pinned joints, a ram on top of each.
+
+    The most recognisable industrial arm there is. The two ram cylinders sitting ON TOP
+    of the members -- not hidden inside them -- are the whole read: that is what plant
+    equipment looks like and what a plain tube can never say."""
+    boom_size = (rng.span(0.075, 0.090), rng.span(0.090, 0.110))
+    stick_size = (rng.span(0.062, 0.074), rng.span(0.076, 0.092))
+
+    # Boom: shoulder to elbow, a tapered box section.
+    component.add(gr.strut(component.name + "_boom", SHOULDER, elbow, boom_size,
+                           material="DirtyMetal", taper=(0.86, 0.82), bevel_width=0.012))
+    component.add(gr.rib(component.name + "_boomrib", boom_size[0] * 1.10,
+                         (elbow[0] * 0.4, elbow[1] * 0.4 + 0.030,
+                          config.ARM_ELBOW_Z * 0.45),
+                         thickness=0.024, height=0.030, axis="x"))
+    # Stick: elbow to wrist.
+    component.add(gr.strut(component.name + "_stick", elbow, WRIST, stick_size,
+                           material="DirtyMetal", taper=(0.80, 0.76), bevel_width=0.012))
+
+    # The boom ram, mounted proud on the outer face and pinned at both ends.
+    side = asym["side"] * rng.span(0.055, 0.072)
+    boom_top = (side, elbow[1] * 0.25 - 0.070, -0.055)
+    boom_foot = (side * 0.7, elbow[1] + 0.010, elbow[2] + 0.055)
+    component.add(gr.clevis(component.name + "_boomclevis_a", boom_top, axis="x",
+                            gap=0.050, depth=0.070))
+    component.add(gr.piston(component.name + "_boomram", boom_top, boom_foot, rng,
+                            barrel_radius=rng.span(0.030, 0.038), rod_radius=0.014,
+                            extension=0.52))
+    component.add(gr.clevis(component.name + "_boomclevis_b", boom_foot, axis="x",
+                            gap=0.046, depth=0.062))
+
+    # The stick ram, on the opposite face so the arm is not symmetric about its own axis.
+    stick_top = (-side * 0.8, elbow[1] - 0.055, elbow[2] + 0.070)
+    stick_foot = (-side * 0.5, WRIST[1] - 0.020, WRIST[2] + 0.135)
+    component.add(gr.piston(component.name + "_stickram", stick_top, stick_foot, rng,
+                            barrel_radius=rng.span(0.024, 0.031), rod_radius=0.012,
+                            extension=0.48))
+    component.add(gr.clevis(component.name + "_stickclevis", stick_foot, axis="x",
+                            gap=0.040, depth=0.052))
+
+    # Hose runs following the members, which is what fills the space between them.
+    component.add(gr.hose_between(component.name + "_hose",
+                                  (side * 0.5, elbow[1] * 0.3 - 0.045, -0.10),
+                                  (side * 0.4, WRIST[1] - 0.030, WRIST[2] + 0.16),
+                                  rng, radius=0.012, sag=0.06, axis="x"))
+    component.add(gr.bolt_row(component.name + "_boompin", 3,
+                              (0, elbow[1] - 0.050, -0.11),
+                              (0, 0, -0.075), axis="x", rng=rng, radius=0.012))
+    return component
+
+
+def _manipulator_arm(component, rng, asym, elbow):
+    """A factory robot arm: cylindrical housings joined by bolted flange joints.
+
+    Where the excavator is angular and pinned, this is round and flanged -- the two
+    read as different KINDS of machine at a glance. Every joint is a `flange_joint`,
+    which is the detail that says each section unbolts from the next."""
+    upper_r = rng.span(0.062, 0.074)
+    fore_r = upper_r * rng.span(0.78, 0.88)
+
+    component.add(gr.flange_joint(component.name + "_j1", (0, 0, -0.045),
+                                  radius=upper_r * 1.22, axis="x", thickness=0.060,
+                                  bolts=6))
+    component.add(gr.strut(component.name + "_upper", (0, 0, -0.070), elbow,
+                           (upper_r, upper_r), material="DirtyMetal", shape="cyl",
+                           vertices=14))
+    # A cast rib along the housing: the giveaway that it is a moulded casing, not a pipe.
+    component.add(gr.rib(component.name + "_upperrib", upper_r * 2.05,
+                         (0, elbow[1] * 0.5 - upper_r * 0.92,
+                          config.ARM_ELBOW_Z * 0.5),
+                         thickness=0.022, height=0.026, axis="z", material="OldSteel"))
+
+    component.add(gr.flange_joint(component.name + "_elbowjoint", elbow,
+                                  radius=fore_r * 1.35, axis="x", thickness=0.070,
+                                  bolts=6))
+    component.add(gr.strut(component.name + "_fore", elbow, WRIST, (fore_r, fore_r),
+                           material="DirtyMetal", shape="cyl", vertices=14))
+    component.add(gr.flange_joint(component.name + "_wristjoint",
+                                  (WRIST[0], WRIST[1], WRIST[2] + 0.055),
+                                  radius=fore_r * 1.20, axis="z", thickness=0.052,
+                                  bolts=5))
+
+    # Servo cans bolted to the outside of each joint, and the conduit that feeds them.
+    for index, (at, radius) in enumerate((((0, 0, -0.045), upper_r), (elbow, fore_r))):
+        component.add(prim.cylinder("%s_servo_%d" % (component.name, index),
+                                    radius * 0.62, radius * 1.30,
+                                    location=(asym["side"] * (radius * 1.35), at[1],
+                                              at[2]),
+                                    rotation=AXIS_X, vertices=12, material="DarkMetal"))
+    component.add(gr.pipe_run(component.name + "_conduit", [
+        (asym["side"] * upper_r * 1.30, -upper_r * 0.55, -0.10),
+        (asym["side"] * fore_r * 1.20, elbow[1] - fore_r * 0.60, elbow[2] + 0.030),
+        (asym["side"] * fore_r * 0.80, WRIST[1] - fore_r * 0.50, WRIST[2] + 0.12),
+    ], radius=0.016, material="OldSteel"))
+    return component
+
+
+def _suspension_arm(component, rng, asym, elbow):
+    """Vehicle suspension worn as a limb: a coil-over strut, an A-arm and a leaf pack.
+
+    The only archetype whose main member is SPRUNG. A visible coil is a shape none of
+    the others have, and it says the arm absorbs load rather than merely holding it."""
+    # The coil-over is the upper member.
+    component.add(gr.strut(component.name + "_strutbody", SHOULDER,
+                           (elbow[0] * 0.6, elbow[1] * 0.6, elbow[2] + 0.060),
+                           (0.040, 0.040), material="DarkMetal", shape="cyl",
+                           vertices=12))
+    component.add(gr.coil_spring(component.name + "_coil", (0, 0, -0.055),
+                                 (elbow[0] * 0.7, elbow[1] * 0.7, elbow[2] + 0.030),
+                                 turns=rng.count(5, 7),
+                                 radius=rng.span(0.058, 0.070), wire=0.013))
+    for at in ((0, 0, -0.040), (elbow[0] * 0.7, elbow[1] * 0.7, elbow[2] + 0.020)):
+        component.add(prim.cylinder(component.name + "_seat%d" % int(at[2] * 1000),
+                                    rng.span(0.070, 0.082), 0.020, location=at,
+                                    vertices=14, material="OldSteel"))
+
+    # An A-arm bracing back to the shoulder: two legs to one pin.
+    for sign in (1.0, -1.0):
+        component.add(gr.strut("%s_aarm_%d" % (component.name, sign > 0),
+                               (sign * 0.075, -0.050, -0.020), elbow, (0.026, 0.032),
+                               material="OldSteel"))
+    component.add(gr.clevis(component.name + "_aarmpin", elbow, axis="x", gap=0.052,
+                            depth=0.068))
+    component.add(gr.bearing(component.name + "_knuckle", elbow, radius=0.052,
+                             axis="x"))
+
+    # Leaf pack forearm: stacked plates of decreasing length, bound by a centre clamp.
+    leaves = rng.count(3, 4)
+    for index in range(leaves):
+        shrink = 1.0 - 0.16 * index
+        component.add(gr.plate("%s_leaf_%d" % (component.name, index),
+                               (0.052, (config.ARM_LENGTH * 0.42) * shrink),
+                               location=(elbow[0] * 0.4 + asym["side"] * 0.008 * index,
+                                         elbow[1] * 0.4 + 0.014 * index,
+                                         (elbow[2] + WRIST[2]) * 0.5),
+                               rotation=(rng.span(0.10, 0.20), 0, 0),
+                               thickness=0.016, material="OldSteel"))
+    component.add(gr.rib(component.name + "_leafclamp", 0.086,
+                         (elbow[0] * 0.4, elbow[1] * 0.4 + 0.020,
+                          (elbow[2] + WRIST[2]) * 0.5),
+                         thickness=0.038, height=0.030, axis="x", material="DarkMetal"))
+    component.add(gr.strut(component.name + "_hubarm",
+                           (elbow[0] * 0.4, elbow[1] * 0.4, (elbow[2] + WRIST[2]) * 0.5),
+                           WRIST, (0.046, 0.046), material="DirtyMetal", shape="cyl",
+                           vertices=10))
+    component.add(gr.cable(component.name + "_brakeline",
+                           (asym["side"] * 0.050, -0.045, -0.070),
+                           (elbow[0] * 0.4, WRIST[1] - 0.030, WRIST[2] + 0.10), rng,
+                           radius=0.010, sag=0.07))
+    return component
+
 
 def _piston_arm(component, rng, asym, elbow):
     """Hydraulic: an OPEN twin-rail frame with the ram working inside it.

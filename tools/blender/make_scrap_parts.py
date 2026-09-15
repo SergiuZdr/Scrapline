@@ -50,6 +50,7 @@ import os
 import sys
 
 import bpy
+from bpy_extras.object_utils import world_to_camera_view
 from mathutils import Matrix, Vector
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -152,7 +153,17 @@ TO_GAME = Matrix.Rotation(math.pi, 4, "Z")
 
 
 def game_matrix(lift, bulk=1.0):
-    return Matrix.Scale(SCALE * bulk, 4) @ TO_GAME @ Matrix.Translation((0.0, 0.0, lift))
+    """Generator space to game space, with `bulk` either a scalar or a per-axis triple.
+
+    A per-axis scale is safe here only because `TO_GAME` is a 180 deg turn about Z,
+    which maps x to -x and y to -y: a diagonal scale commutes with it exactly. Any
+    other rotation would shear the mesh and the shoulder sockets with it."""
+    try:
+        sx, sy, sz = bulk
+    except TypeError:
+        sx = sy = sz = float(bulk)
+    scale = Matrix.Diagonal((SCALE * sx, SCALE * sy, SCALE * sz, 1.0))
+    return scale @ TO_GAME @ Matrix.Translation((0.0, 0.0, lift))
 
 
 def to_game_point(point, lift, bulk=1.0):
@@ -172,6 +183,39 @@ def bulk_of(part):
     by 40% would leave the biggest one holding visibly toy-sized weapons."""
     hp = float(part.get("hp", 800))
     return min(1.12, max(0.90, 0.90 + (hp - 470.0) / 3400.0))
+
+
+## Role to the PROPORTION its frame is built at: (width, depth, height).
+##
+## Uniform scale was doing nothing for the read. A scaled copy has the same outline as
+## its original, so a 1320 HP Citadel and a 470 HP Strider came out as the same thin
+## humanoid at slightly different sizes -- the roster's ten frames read as one machine,
+## and role, which is the thing a player must judge across a battlefield in a glance,
+## was not on the model at all. Silhouette is the only cue that survives being 40 px
+## tall; detail underneath it does not.
+##
+## So role drives shape, not size: an anchor is a squat wide wall, a marksman is lean
+## and tall, and the two are told apart from the outline alone.
+ROLE_PROPORTION = {
+    #             wide,  deep,  tall
+    "anchor":   (1.24, 1.20, 0.88),
+    "brawler":  (1.13, 1.11, 0.95),
+    "line":     (1.00, 1.00, 1.00),
+    "marksman": (0.85, 0.88, 1.13),
+}
+
+
+def proportion_of(part):
+    """The per-axis scale for a chassis: role decides the shape, HP decides the mass.
+
+    HP is deliberately weighted almost entirely into WIDTH and DEPTH. Letting it drive
+    height too made the two cancel out -- a heavy anchor is shortened by its role and
+    lengthened by its health, and the whole roster came back the same height again.
+    Mass reads as girth; role reads as stature."""
+    bulk = bulk_of(part)
+    wide, deep, tall = ROLE_PROPORTION.get(str(part.get("role", "line")),
+                                           ROLE_PROPORTION["line"])
+    return (wide * bulk, deep * bulk, tall * (1.0 + (bulk - 1.0) * 0.35))
 
 
 def recolour(obj, from_material, to_material):
@@ -236,13 +280,13 @@ def build_chassis(part_id, part):
     # Lift so the soles land on z=0. The legs hang LEG_LENGTH below their hips, and the
     # hips are at the torso's own origin height, so that one number is the whole answer.
     lift = config.LEG_LENGTH
-    matrix = game_matrix(lift, bulk_of(part))
+    matrix = game_matrix(lift, proportion_of(part))
     apply_matrix([body, leg_l, leg_r], matrix)
 
     for limb in (leg_l, leg_r):
         prim.parent_keeping_transform(limb, body)
 
-    bulk = bulk_of(part)
+    bulk = proportion_of(part)
     half_width = 0.22
     add_socket(body, "socket_core",
                to_game_point((0.0, half_width * CORE_FRONT * 3.0,
@@ -259,6 +303,24 @@ def build_chassis(part_id, part):
     return body
 
 
+## How much larger a weapon is than the generator built it. Applied about the mount, so
+## the arm it bolts to is untouched. Oversized weapons are also the genre's own
+## shorthand for a machine built out of whatever would bolt on.
+WEAPON_SCALE = 1.28
+
+## How far a weapon droops at the wrist, in radians, by whether it is a gun.
+##
+## The arm hangs straight down and the weapon is modelled along +Y, so at rest the two
+## formed an L: a vertical limb with a horizontal bar stuck out of the bottom of it. That
+## is not how a machine stands with a tool in its hand -- it is how a person holds their
+## arm out -- and it was most of why the roster read as people rather than as machinery.
+##
+## Guns droop less than melee: a barrel angled at the floor reads as unloaded, and the
+## muzzle flash spawns off the weapon's own tip. A hammer or a saw hangs, because that is
+## what weight does.
+WEAPON_REST_PITCH = {"gun": -0.42, "melee": -0.78}
+
+
 def build_arm(part_id, part):
     """A limb with its weapon fused on, mounted at the shoulder."""
     weapon_class = str(part.get("weapon_class", "rifle"))
@@ -268,6 +330,21 @@ def build_arm(part_id, part):
     arm = registry.generate("arm", 1, seed=seed).object
     weapon = registry.generate("weapon", 2, seed=seed + 1, archetype=look).object
 
+    # The weapon is grown about its own mount before it is fused on.
+    #
+    # `weapon_class` is the single most important thing a player reads off an enemy --
+    # it decides range, damage type and what the attack animation will do -- and at
+    # battlefield distance the business end was a small dark tip on a long limb, so the
+    # arm read as "a stick" and every construct looked identically armed. Scaling about
+    # the mount rather than the centroid is what keeps it seated: the generator authors
+    # every weapon with its mount at the origin.
+    weapon.scale = (WEAPON_SCALE, WEAPON_SCALE, WEAPON_SCALE)
+    # Rotated about X at the mount, so the droop pivots on the wrist rather than sliding
+    # the weapon off it. The generator authors every weapon with its mount at the origin,
+    # which is exactly what makes this one line safe.
+    from scrapgen.builders.weapon import MELEE  # noqa: PLC0415
+    weapon.rotation_euler = (
+        WEAPON_REST_PITCH["melee" if look in MELEE else "gun"], 0.0, 0.0)
     weapon.location = socket_table(arm)["WeaponSocket"]
     strip_sockets(arm)
     strip_sockets(weapon)
@@ -509,6 +586,47 @@ def export_part(obj, path):
         materials.zone_restore(renames)
 
 
+## --- Triangle budget --------------------------------------------------------
+##
+## `config.TRI_BUDGET` is PER GENERATOR COMPONENT, and every slot here is a FUSION of
+## several. Comparing a fused torso+head against the torso's own 4200 is a category
+## error: it flagged five chassis that were nothing of the kind -- every torso, head
+## and leg in the roster sits inside its own budget -- while saying nothing about the
+## four that were equally "over". The five were simply the ones whose head pushed the
+## sum past a number that was never about the sum.
+##
+## The legs made it worse. They export as child objects (`limb_leg_l` / `limb_leg_r`),
+## so `triangle_count(obj)` never saw them and roughly HALF of every chassis was
+## missing from the figure being checked -- a chassis reported as 4516 is really 8412.
+## A budget that measures half the part is not a loose budget, it is a wrong one.
+SLOT_BUDGET = {
+    # torso + head + two legs
+    "chassis": (config.TRI_BUDGET["torso"] + config.TRI_BUDGET["head"]
+                + 2 * config.TRI_BUDGET["leg"]),
+    # arm + weapon, fused: the game's "arm" IS the weapon
+    "arm": config.TRI_BUDGET["arm"] + config.TRI_BUDGET["weapon"],
+    # No generator equivalent for either, so these are set from what they actually
+    # build -- greeble assemblies that measure 640-1044, with room to grow.
+    "core": 1200,
+    "module": 1200,
+}
+
+## Slots per construct, for the per-machine total that is the number a phone
+## actually pays. A construct is one chassis, one core, TWO arms and one module --
+## note two arms, where the generator's own robot carries a single weapon, which is
+## why its per-robot figure does not transfer here either.
+SLOTS_PER_MACHINE = {"chassis": 1, "core": 1, "arm": 2, "module": 1}
+
+## Constructs on the field at once: two teams of six.
+MACHINES_ON_FIELD = 12
+
+
+def part_triangles(obj):
+    """Every triangle the game will draw for this part, limbs included."""
+    return prim.triangle_count(obj) + sum(
+        prim.triangle_count(child) for child in obj.children if child.type == "MESH")
+
+
 BUILDERS = {
     "chassis": build_chassis,
     "arm": build_arm,
@@ -520,7 +638,10 @@ BUILDERS = {
 ## Thumbnail size, matching the existing `art/thumbs/` set. RGBA on a transparent
 ## background, because the cards sit on a lighter well in the battle HUD and a baked-in
 ## backdrop would show as a rectangle behind every part.
-THUMB_SIZE = 224
+## 224 was sized for the small card the loadout screen used to draw. Both the loadout
+## cards and the Order Phase part strip now show these bigger, and an upscaled 224 px
+## render is visibly soft next to crisp vector UI -- which reads as a placeholder.
+THUMB_SIZE = 384
 
 
 def setup_thumb_render():
@@ -533,8 +654,222 @@ def setup_thumb_render():
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGBA"
 
+    # A 0.88-metallic zone shows almost nothing but what it REFLECTS, and against no
+    # world there is nothing to reflect -- `metal` is most of every construct here, so
+    # without this the roster renders as a black void with lit edges. Same failure the
+    # gait preview had against BG_COLOR, same fix. `film_transparent` keeps it out of
+    # the alpha, so this is reflection only and the card still has no backdrop.
+    world = scene.world
+    if world is None:
+        world = bpy.data.worlds.new("thumb_world")
+        scene.world = world
+    world.use_nodes = True
+    background = world.node_tree.nodes.get("Background")
+    if background is not None:
+        background.inputs["Color"].default_value = (0.055, 0.062, 0.078, 1.0)
+        background.inputs["Strength"].default_value = 1.0
 
-def render_thumbnail(obj, path):
+
+# --- The game's own materials, mirrored for the render -----------------------
+#
+# A card is meant to be a picture of the part the player will meet in the yard. Rendered
+# in the generator's scrapyard PALETTE it is a picture of something else: pale grey-green
+# plate with orange trim, no team paint, under three white lamps -- while the same
+# machine, three inches above it on the hub screen, is dark steel and team blue under a
+# sodium key. One directory, two different rosters, which is the exact drift the shared
+# `art/thumbs/` exists to prevent.
+#
+# Mirrors ZONE_ALBEDO / ZONE_SURFACE in `scripts/presentation/part_materials.gd`.
+# `hero_render.py` already keeps the same mirror for the same reason: the GAME is the
+# source of truth, and Blender's PALETTE is a placeholder that never reaches a player.
+# If the palette changes, change it there and mirror it in both.
+GAME_ALBEDO = {
+    "metal": "8a8074",
+    "rust": "8c4a26",
+    "dark": "3c3c45",
+    "tread": "2a2825",
+    "hazard": "d9a02b",
+    "rock": "342d24",
+    "scrapmetal": "4a4036",
+}
+
+## roughness, metallic.
+GAME_SURFACE = {
+    "paint": (0.62, 0.05),
+    "metal": (0.52, 0.88),
+    "rust": (0.92, 0.10),
+    "dark": (0.58, 0.70),
+    "tread": (0.95, 0.00),
+    "hazard": (0.60, 0.10),
+    "rock": (0.98, 0.00),
+    "scrapmetal": (0.78, 0.45),
+}
+
+## The worn liveries, mirroring `PartMaterials.LIVERY`. A thumbnail has to be a picture
+## of the SAME machine the game draws, so the two lists and the two hashes have to agree
+## exactly -- a card a shade off the model is the failure this whole path exists to
+## prevent.
+##
+## Paint stopped carrying the team when the reference sheets went in: the machines are
+## salvage wearing whatever they were built in, and team identity moved to the eyes and
+## the ground ring, which do nothing else.
+LIVERY = ["b08a2c", "8e3a28", "55603c", "7d7266", "9a5a24"]
+
+
+def livery_of(part_id):
+    """FNV-1a over the part id, exactly as `PartMaterials.livery_of` does it."""
+    h = 2166136261
+    for character in part_id:
+        h = ((h ^ ord(character)) * 16777619) & 0xffffffff
+    return LIVERY[h % len(LIVERY)]
+
+
+def _paint_colour(livery_hex):
+    """`part_materials.gd`: `livery.darkened(0.12).lerp(Color("6b6259"), 0.10)`.
+
+    Reproduced in sRGB because that is the space Godot's Color arithmetic runs in.
+    Doing it in linear gives a visibly different, chalkier result -- which would put the
+    card a shade off the machine again."""
+    livery = [int(livery_hex[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
+    steel = [int("6b6259"[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
+    out = ""
+    for index in range(3):
+        value = livery[index] * (1.0 - 0.12)
+        value = value + (steel[index] - value) * 0.10
+        out += "%02x" % max(0, min(255, int(round(value * 255.0))))
+    return out
+
+
+def push_game_materials(livery_hex):
+    """Repaints the scrapyard palette with the game's values, returning the undo list.
+
+    Pushed AFTER the `.glb` is written and popped straight after the render, so the
+    exported meshes still carry the generator's own materials and this stays a
+    render-time change. Glow zones are left alone: `Glass` is already authored at the
+    game's `glow_visor` colour and emissive, so overriding it would only dim it."""
+    saved = []
+    paint_hex = _paint_colour(livery_hex)
+    for name in materials.PALETTE:
+        material = bpy.data.materials.get(name)
+        if material is None or material.node_tree is None:
+            continue
+        bsdf = material.node_tree.nodes.get("Principled BSDF")
+        if bsdf is None:
+            continue
+        zone = materials.ZONE_OF.get(name, "metal")
+        if zone.startswith("glow"):
+            continue
+        saved.append((bsdf,
+                      tuple(bsdf.inputs["Base Color"].default_value),
+                      bsdf.inputs["Roughness"].default_value,
+                      bsdf.inputs["Metallic"].default_value))
+        if zone == "paint":
+            colour = materials.srgb(paint_hex)
+        else:
+            colour = materials.srgb(GAME_ALBEDO.get(zone, "8a8074"))
+        roughness, metallic = GAME_SURFACE.get(zone, (0.5, 0.6))
+        bsdf.inputs["Base Color"].default_value = colour
+        bsdf.inputs["Roughness"].default_value = roughness
+        bsdf.inputs["Metallic"].default_value = metallic
+    return saved
+
+
+def pop_game_materials(saved):
+    for bsdf, colour, roughness, metallic in saved:
+        bsdf.inputs["Base Color"].default_value = colour
+        bsdf.inputs["Roughness"].default_value = roughness
+        bsdf.inputs["Metallic"].default_value = metallic
+
+
+## Sodium key, cold fill, cold back rim -- the battlefield's own rig, at card exposure.
+## Matching the game's LIGHT as well as its pigment is what makes the card and the yard
+## behind it read as the same machine; warmth comes from the key, never the albedo.
+##
+## Brighter than the battlefield on purpose. A 112 px picture on a dark panel has none
+## of the surrounding context a full screen gives, so a moody thumbnail is an
+## unreadable one. Key:fill sits near 2.5:1 -- at 7:1 the fill is too weak to tint
+## anything and blue paint under a pure sodium key comes back desaturated mint.
+##
+## But "brighter" has a ceiling, and the first pass sailed past it. At double these
+## energies the team paint measured #4f7f92 against the same machine's #1f446c in the
+## yard: twice the luma and washed to cyan, because an over-lit surface drives every
+## channel toward clipping and clipping IS desaturation. The card stopped being a
+## picture of the construct in exactly the respect this change exists to fix. Measure
+## the paint against the yard after touching these, do not judge it by eye -- both
+## values look plausibly blue in isolation.
+THUMB_LIGHTS = (
+    ((2.6, -2.4, 2.6), 165.0, (1.00, 0.82, 0.56)),
+    ((-2.8, -1.6, 1.2), 66.0, (0.48, 0.64, 1.00)),
+    ((0.2, 2.8, 2.2), 72.0, (0.72, 0.82, 1.00)),
+)
+
+## How much of the frame's limiting dimension the part should occupy.
+THUMB_FILL = 0.94
+
+
+def _silhouette_bounds(scene, camera, meshes):
+    """The part's extent in FRAME coordinates: 0..1 across the render, per axis."""
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    lo_x = lo_y = 1.0e9
+    hi_x = hi_y = -1.0e9
+    for mesh_obj in meshes:
+        evaluated = mesh_obj.evaluated_get(depsgraph)
+        mesh = evaluated.to_mesh()
+        matrix = mesh_obj.matrix_world
+        for vertex in mesh.vertices:
+            projected = world_to_camera_view(scene, camera, matrix @ vertex.co)
+            lo_x = min(lo_x, projected.x)
+            hi_x = max(hi_x, projected.x)
+            lo_y = min(lo_y, projected.y)
+            hi_y = max(hi_y, projected.y)
+        evaluated.to_mesh_clear()
+    return lo_x, lo_y, hi_x, hi_y
+
+
+def _frame_camera(scene, camera, meshes, direction, centre):
+    """Solve the camera from the SILHOUETTE, not from the bounding box.
+
+    A bounding-box solve answers "how far back must I be for the box to fit", which is
+    the wrong question twice over. It cannot know how much of the frame the part
+    actually covers -- a forward-projecting lance makes the box enormous while adding
+    almost nothing to screen width -- and on a humanoid it leaves the frame short of
+    full even when nothing is clipped. Projecting the real vertices measures what the
+    lens sees, which is the only thing the card cares about.
+
+    Centring is done with `shift_x`/`shift_y` rather than by re-aiming, so the camera
+    never leaves the three-quarter angle the whole roster is judged at: re-aiming to
+    centre a part would give each part its own viewpoint and the sheet would stop being
+    a comparison."""
+    distance = (camera.location - centre).length
+    shift = [0.0, 0.0]
+    for _ in range(7):
+        camera.location = centre + direction * distance
+        camera.rotation_euler = \
+            (centre - camera.location).to_track_quat("-Z", "Y").to_euler()
+        camera.data.shift_x = shift[0]
+        camera.data.shift_y = shift[1]
+        bpy.context.view_layer.update()
+
+        lo_x, lo_y, hi_x, hi_y = _silhouette_bounds(scene, camera, meshes)
+        if hi_x < lo_x:
+            return
+        fill = max(hi_x - lo_x, hi_y - lo_y)
+        shift[0] += (lo_x + hi_x) * 0.5 - 0.5
+        shift[1] += (lo_y + hi_y) * 0.5 - 0.5
+        if fill > 1.0e-4 and abs(fill - THUMB_FILL) > 0.01:
+            # Clamped: a degenerate projection must not fling the camera to infinity
+            # and leave a blank card that still writes a file.
+            distance *= max(0.25, min(4.0, fill / THUMB_FILL))
+
+    camera.location = centre + direction * distance
+    camera.rotation_euler = \
+        (centre - camera.location).to_track_quat("-Z", "Y").to_euler()
+    camera.data.shift_x = shift[0]
+    camera.data.shift_y = shift[1]
+    bpy.context.view_layer.update()
+
+
+def render_thumbnail(obj, path, part_id):
     """One card image per part, rendered from the SAME mesh that was just exported.
 
     Regenerating these is not optional when the roster changes. The loadout screen and
@@ -547,6 +882,7 @@ def render_thumbnail(obj, path):
         bpy.data.objects.remove(stale, do_unlink=True)
 
     bpy.context.view_layer.update()
+    scene = bpy.context.scene
     meshes = [obj] + [c for c in obj.children if c.type == "MESH"]
     lo = None
     hi = None
@@ -556,30 +892,39 @@ def render_thumbnail(obj, path):
         hi = list(mesh_hi) if hi is None else [max(hi[i], mesh_hi[i]) for i in range(3)]
     centre = Vector([(lo[i] + hi[i]) * 0.5 for i in range(3)])
     extent = max(hi[0] - lo[0], hi[2] - lo[2], (hi[1] - lo[1]) * 0.6, 0.12)
-    distance = extent * 2.5
 
-    bpy.ops.object.camera_add(location=(centre.x + distance * 0.62,
-                                        centre.y - distance * 0.78,
-                                        centre.z + distance * 0.42))
+    # A starting guess only -- `_frame_camera` measures and corrects it. The direction
+    # is what must stay fixed: it is the angle the whole roster is compared at.
+    direction = Vector((0.62, -0.78, 0.42)).normalized()
+    bpy.ops.object.camera_add(location=centre + direction * (extent * 2.2))
     camera = bpy.context.active_object
     camera.data.lens = 62
-    bpy.context.scene.camera = camera
-    direction = centre - camera.location
-    camera.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
+    camera.data.clip_start = 0.01
+    camera.data.clip_end = 200.0
+    scene.camera = camera
 
-    for location, energy in (((2.4, -2.6, 2.8), 260.0), ((-2.6, -1.4, 1.4), 130.0),
-                             ((0.4, 2.6, 2.0), 150.0)):
-        bpy.ops.object.light_add(type="AREA", location=(centre.x + location[0],
-                                                        centre.y + location[1],
-                                                        centre.z + location[2]))
+    for location, energy, colour in THUMB_LIGHTS:
+        scale = max(extent, 0.35)
+        bpy.ops.object.light_add(type="AREA",
+                                 location=(centre.x + location[0] * scale,
+                                           centre.y + location[1] * scale,
+                                           centre.z + location[2] * scale))
         light = bpy.context.active_object
-        light.data.energy = energy
-        light.data.size = 3.0
-        light.rotation_euler = (centre - light.location).to_track_quat("-Z", "Y").to_euler()
+        light.data.energy = energy * scale * scale
+        light.data.size = 3.0 * scale
+        light.data.color = colour
+        light.rotation_euler = \
+            (centre - light.location).to_track_quat("-Z", "Y").to_euler()
 
+    _frame_camera(scene, camera, meshes, direction, centre)
+
+    saved = push_game_materials(livery_of(part_id))
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    bpy.context.scene.render.filepath = path
-    bpy.ops.render.render(write_still=True)
+    scene.render.filepath = path
+    try:
+        bpy.ops.render.render(write_still=True)
+    finally:
+        pop_game_materials(saved)
 
 
 def main():
@@ -613,6 +958,8 @@ def main():
 
     written = 0
     over_budget = []
+    worst = {}
+    totals = {}
     for part_id in sorted(parts):
         part = parts[part_id]
         slot = str(part.get("slot", ""))
@@ -622,18 +969,21 @@ def main():
             continue
 
         obj = BUILDERS[slot](part_id, part)
-        triangles = prim.triangle_count(obj)
+        triangles = part_triangles(obj)
         path = os.path.join(out, part_id + ".glb")
         export_part(obj, path)
         written += 1
         if thumbs:
-            render_thumbnail(obj, os.path.join(thumbs, part_id + ".png"))
+            render_thumbnail(obj, os.path.join(thumbs, part_id + ".png"), part_id)
         limbs = len([c for c in obj.children if c.type == "MESH"])
         empties = len([c for c in obj.children if c.type == "EMPTY"])
         print("  %-14s %-8s %5d tris  %d limb(s) %d socket(s)"
               % (part_id, slot, triangles, limbs, empties))
-        if triangles > 4200:
-            over_budget.append((part_id, triangles))
+        worst[slot] = max(worst.get(slot, 0), triangles)
+        totals.setdefault(slot, []).append(triangles)
+        budget = SLOT_BUDGET.get(slot)
+        if budget is not None and triangles > budget:
+            over_budget.append((part_id, triangles, budget))
 
         # Wiped between parts. Forty parts' worth of geometry accumulating in one scene
         # makes every later export slower than the last and the final ones minutes long.
@@ -646,8 +996,27 @@ def main():
 
     print("")
     print("  %d part(s) written to %s/" % (written, out))
-    for part_id, triangles in over_budget:
-        print("  over budget: %s at %d triangles" % (part_id, triangles))
+    for part_id, triangles, budget in over_budget:
+        print("  over budget: %s at %d triangles, budget %d"
+              % (part_id, triangles, budget))
+
+    # The per-part number is not the one that costs anything. Twelve constructs stand
+    # on the field at once, and that total is what a phone draws -- so report it, or
+    # the roster can creep past what the renderer can carry while every individual
+    # part still passes.
+    if totals and not only:
+        machine_worst = sum(worst.get(slot, 0) * count
+                            for slot, count in SLOTS_PER_MACHINE.items())
+        machine_mean = sum((sum(totals.get(slot, [0])) // max(len(totals.get(slot, [1])), 1))
+                           * count for slot, count in SLOTS_PER_MACHINE.items())
+        ceiling = sum(SLOT_BUDGET[slot] * count
+                      for slot, count in SLOTS_PER_MACHINE.items())
+        print("")
+        print("  construct: %5d tris mean, %5d worst, budget %5d"
+              % (machine_mean, machine_worst, ceiling))
+        print("  field(%d):  %5d tris mean, %5d worst, budget %5d"
+              % (MACHINES_ON_FIELD, machine_mean * MACHINES_ON_FIELD,
+                 machine_worst * MACHINES_ON_FIELD, ceiling * MACHINES_ON_FIELD))
 
 
 if __name__ == "__main__":

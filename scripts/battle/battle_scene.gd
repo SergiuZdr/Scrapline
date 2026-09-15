@@ -683,6 +683,39 @@ func _terrain_material(look: String) -> StandardMaterial3D:
 	return material
 
 
+## The team ring: a flat lit disc on the ground under a construct.
+##
+## The SECOND team channel, and it exists because the first one has a blind spot. Lit
+## eyes are the strongest read on the field, but a machine turned away, or buried in a
+## six-on-six melee with something standing in front of its head, shows none. A ring on
+## the floor is visible from every angle, is never occluded by the unit it belongs to,
+## and sits in the one part of the frame nothing else competes for.
+##
+## Unshaded on purpose: this is a signal, not a surface, and it must read identically in
+## the lit half of the yard and the shadowed half.
+func _team_ring(team_colour: Color) -> MeshInstance3D:
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.30
+	torus.outer_radius = 0.38
+	torus.rings = 20
+	torus.ring_segments = 4
+	ring.mesh = torus
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color(team_colour.r, team_colour.g, team_colour.b, 0.85)
+	material.emission_enabled = true
+	material.emission = team_colour
+	material.emission_energy_multiplier = 1.3
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	# Drawn on top of the ground rather than fighting it for depth. A ring that
+	# z-fights with terrain flickers, and a flickering signal is worse than none.
+	material.no_depth_test = false
+	ring.mesh.material = material
+	ring.position = Vector3(0.0, 0.035, 0.0)
+	return ring
+
+
 func _spawn_units(units: Array[SimUnit]) -> void:
 	for u: SimUnit in units:
 		var root := Node3D.new()
@@ -694,6 +727,7 @@ func _spawn_units(units: Array[SimUnit]) -> void:
 		# visible on the battlefield without any extra wiring.
 		var model: Node3D = ConstructView.build(u, _db, team_colour)
 		root.add_child(model)
+		root.add_child(_team_ring(team_colour))
 
 		# One rig per construct, bound after the model is in the tree so the limb and
 		# socket lookups resolve.
@@ -979,9 +1013,16 @@ func _apply_event(e: Array) -> void:
 			_on_damage(target, e[SimEv.F_V1])
 			_stagger(actor, target, e[SimEv.F_V1])
 			Audio.play("hit_light", -14.0)
-			_set_hp(target, e[SimEv.F_V1])
+			# F_V2, not F_V1. The DAMAGE event carries (amount, remaining hp) and this
+			# passed the AMOUNT as the new health, so every name tag on the field showed
+			# the size of the last hit a unit took instead of what it had left -- the
+			# one number the tag exists to answer.
+			_set_hp(target, e[SimEv.F_V2])
 		SimEv.HEAL:
 			_float_text(target, "+%d" % e[SimEv.F_V1], Color("6bd97a"))
+			# Healing never updated the tag at all, so a repaired construct kept showing
+			# whatever it was left on until something hit it again.
+			_set_hp(target, e[SimEv.F_V2])
 		SimEv.DETONATION:
 			_float_text(target, String(e[SimEv.F_SID]).to_upper() + "!", Color("ffd452"))
 			var detonated: Node3D = _visuals.get(target)
@@ -1110,7 +1151,10 @@ func _on_damage(unit_ref: int, amount: int) -> void:
 		return
 	var severity: float = clampf(float(amount) / maxf(1.0, float(u.hp_max) * BattleVFX.HEAVY_FRACTION), 0.0, 1.0)
 	_vfx.impact(node.position, DAMAGE_COLOURS.get(u.damage_type, Color("ff8a7a")), severity)
-	if severity >= 0.85:
+	# Only a hit at the very top of the severity curve. At 0.85 the trigger was a blow
+	# worth 10% of max health, which for a 580 HP scout is an ordinary exchange -- so the
+	# light units froze the screen every time anything connected with them.
+	if severity >= 0.97:
 		_vfx.shake(0.6 * severity)
 		_vfx.hitstop(0.05)
 

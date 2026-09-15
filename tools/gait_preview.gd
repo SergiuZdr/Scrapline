@@ -106,11 +106,29 @@ func _loadout(db: ContentDB, chassis_id: String) -> Array[String]:
 func _build_world() -> void:
 	var env := WorldEnvironment.new()
 	var environment := Environment.new()
-	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color("2b2f36")
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	# A SKY, not a flat colour, and for a reason that is not decoration: a 0.9-metallic
+	# surface is lit almost entirely by what it reflects, so against BG_COLOR -- which
+	# has no radiance map -- every metal zone on the roster rendered pure black. This
+	# scene existed to judge the models and was hiding two thirds of each one. The
+	# battle uses a sky, so a preview that does not is a preview that lies.
+	environment.background_mode = Environment.BG_SKY
+	var sky := Sky.new()
+	var sky_material := ProceduralSkyMaterial.new()
+	sky_material.sky_top_color = Color("2a3040")
+	sky_material.sky_horizon_color = Color("6b6055")
+	sky_material.sky_curve = 0.2
+	sky_material.ground_bottom_color = Color("23201c")
+	sky_material.ground_horizon_color = Color("574636")
+	sky_material.energy_multiplier = 1.0
+	sky.sky_material = sky_material
+	environment.sky = sky
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	environment.ambient_light_sky_contribution = 0.6
 	environment.ambient_light_color = Color("8a93a6")
-	environment.ambient_light_energy = 1.4
+	environment.ambient_light_energy = 1.0
+	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	environment.tonemap_exposure = 1.05
+	environment.tonemap_white = 3.0
 	env.environment = environment
 	add_child(env)
 

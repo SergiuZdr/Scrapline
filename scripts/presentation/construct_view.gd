@@ -30,9 +30,16 @@ const SOCKETS: Dictionary = {
 static var _scene_cache: Dictionary = {}
 
 
-## Builds the model for one unit and returns its root. `team_colour` tints the frame;
-## the core keeps its own damage-type colour, because that is the fastest read on the
-## battlefield for what a construct actually does.
+## Builds the model for one unit and returns its root.
+##
+## `team_colour` no longer paints the frame. It lights the EYES and nothing else, because
+## paint is livery and livery is per-part: a chassis wears whatever colour it was built
+## in, chipped, exactly as the reference sheets do. Team identity has to survive a
+## machine being turned away, buried in a melee or eighty pixels tall, and a lit lens at
+## the top of the silhouette does that where a painted flank does not.
+##
+## The core keeps its own damage-type colour, because that is the fastest read for what
+## a construct actually does.
 static func build(unit: SimUnit, content: ContentDB, team_colour: Color) -> Node3D:
 	var root := Node3D.new()
 
@@ -43,7 +50,7 @@ static func build(unit: SimUnit, content: ContentDB, team_colour: Color) -> Node
 		return root
 
 	root.add_child(chassis)
-	_tint(chassis, team_colour)
+	_tint(chassis, team_colour, PartMaterials.livery_of(chassis_id))
 
 	var sockets: Dictionary = _find_sockets(chassis)
 	var loadout: Dictionary = {
@@ -82,7 +89,7 @@ static func build(unit: SimUnit, content: ContentDB, team_colour: Color) -> Node
 		# The core goes through the palette like everything else. Its damage-type colour
 		# now lives on the LENS zone alone, so the housing around it can be plain metal
 		# instead of the whole reactor glowing and washing the signal out.
-		_tint(piece, team_colour)
+		_tint(piece, team_colour, PartMaterials.livery_of(part_id))
 
 	return root
 
@@ -152,12 +159,13 @@ static func _meshes(node: Node) -> Array[MeshInstance3D]:
 ## This is deliberately a per-SURFACE override, not `material_override`. An override
 ## replaces the whole mesh's material and was flattening every part to one colour,
 ## discarding the bevels, ribs, pistons and vents the generator exists to produce.
-static func _tint(node: Node, colour: Color) -> void:
+static func _tint(node: Node, colour: Color, livery: Color) -> void:
 	for mesh: MeshInstance3D in _meshes(node):
 		var surfaces: int = mesh.mesh.get_surface_count() if mesh.mesh != null else 0
 		for surface: int in surfaces:
 			var zone: String = PartMaterials.zone_of(mesh.mesh.surface_get_material(surface))
-			mesh.set_surface_override_material(surface, PartMaterials.for_zone(zone, colour))
+			mesh.set_surface_override_material(surface,
+				PartMaterials.for_zone(zone, colour, livery))
 
 
 static func _fallback_body(colour: Color) -> MeshInstance3D:

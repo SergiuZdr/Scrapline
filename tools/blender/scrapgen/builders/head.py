@@ -12,14 +12,21 @@ import math
 from .. import config
 from .. import greeble as gr
 from .. import primitives as prim
-from . import pick_archetype, asymmetry
+from . import pick_archetype, asymmetry, repair_history
 
 
-ARCHETYPES = ["visor_box", "cyclops_drum", "wedge_sensor", "cage_lamp"]
+## The three REDESIGNED base heads first. Each is a real piece of equipment somebody
+## bolted on where a head goes -- a camera, a welding hood, a control enclosure -- which
+## is the whole difference between a machine and a mannequin with a box for a face.
+ARCHETYPES = ["camera_housing", "welder_hood", "control_box",
+              "visor_box", "cyclops_drum", "wedge_sensor", "cage_lamp"]
 
 ## Blender +Y is forward, so a face is on the +Y side. Getting this backwards builds a
 ## perfectly good head that stares at its own back armour.
 FRONT = 1.0
+
+AXIS_X = (0.0, math.pi / 2, 0.0)
+AXIS_Y = (math.pi / 2, 0.0, 0.0)
 
 
 def build(component):
@@ -31,6 +38,9 @@ def build(component):
 
     top = _neck(component, rng)
     builder = {
+        "camera_housing": _camera_housing,
+        "welder_hood":    _welder_hood,
+        "control_box":    _control_box,
         "visor_box":    _visor_box,
         "cyclops_drum": _cyclops_drum,
         "wedge_sensor": _wedge_sensor,
@@ -38,6 +48,10 @@ def build(component):
     }[component.archetype]
     builder(component, rng, asym, top)
     _shared_dressing(component, rng, asym)
+    repair_history(component, rng, [
+        (asym["side"] * 0.085, -0.020, top + 0.075),
+        (-asym["side"] * 0.075, 0.060, top + 0.130),
+    ], strength=0.7)
     return component
 
 
@@ -51,8 +65,10 @@ def _neck(component, rng):
     its keep."""
     collar = prim.cylinder(component.name + "_collar", 0.064, 0.048,
                            location=(0, 0, 0.022), vertices=12, material="DarkMetal")
-    post = prim.cylinder(component.name + "_neck", 0.046, 0.070,
-                         location=(0, 0, 0.050), vertices=10, material="OldSteel")
+    # Short. A long post is a neck, and these machines do not have one -- the head is
+    # bolted down between the shoulder yokes.
+    post = prim.cylinder(component.name + "_neck", 0.052, 0.034,
+                         location=(0, 0, 0.036), vertices=10, material="OldSteel")
     component.add(collar, post)
     component.add(gr.bolt_ring(component.name + "_collarbolt", 5, (0, 0, 0.020), 0.062,
                                axis="z", bolt_radius=0.011))
@@ -64,6 +80,169 @@ def _neck(component, rng):
 
 
 # --- Archetypes --------------------------------------------------------------
+
+def _camera_housing(component, rng, asym, base_z):
+    """An old industrial camera on a yoke: barrel lens, sun hood, body, cable gland.
+
+    The primary shape is the BARREL projecting forward, which gives the head a profile
+    nothing box-shaped has, and the yoke underneath says it was clamped onto a mount
+    rather than grown there."""
+    body_w = rng.span(0.15, 0.19)
+    body_d = rng.span(0.16, 0.20)
+    body_h = rng.span(0.11, 0.14)
+    centre = base_z + body_h * 0.5
+
+    # The yoke it swivels in: a cheek and a trunnion each side.
+    for sign in (1.0, -1.0):
+        component.add(prim.box("%s_yoke_%d" % (component.name, sign > 0),
+                               (0.022, body_d * 0.72, body_h * 1.25),
+                               location=(sign * (body_w * 0.5 + 0.020), -0.010,
+                                         centre - 0.010),
+                               material="OldSteel", bevel_width=0.006, segments=1))
+        component.add(prim.cylinder("%s_trunnion_%d" % (component.name, sign > 0),
+                                    0.018, 0.030,
+                                    location=(sign * (body_w * 0.5 + 0.026), -0.010,
+                                              centre),
+                                    rotation=AXIS_X, vertices=8, material="DarkMetal"))
+
+    component.add(prim.box(component.name + "_body", (body_w, body_d, body_h),
+                           location=(0, -0.012, centre), material="DirtyMetal",
+                           bevel_width=0.010, segments=2))
+    component.add(gr.bolt_row(component.name + "_bodybolt", 3,
+                              (-body_w * 0.30, -body_d * 0.52, centre + body_h * 0.22),
+                              (body_w * 0.30, 0, 0), axis="y", rng=rng, radius=0.010))
+
+    # The barrel and its hood -- the read.
+    barrel_r = rng.span(0.042, 0.054)
+    barrel_y = body_d * 0.5 + 0.048
+    component.add(prim.cylinder(component.name + "_barrel", barrel_r, 0.110,
+                                location=(0, barrel_y, centre), rotation=AXIS_Y,
+                                vertices=14, material="DarkMetal"))
+    component.add(prim.cylinder(component.name + "_hood", barrel_r * 1.32, 0.052,
+                                location=(0, barrel_y + 0.070, centre), rotation=AXIS_Y,
+                                vertices=14, material="OldSteel"))
+    component.add(gr.lens(component.name + "_glass",
+                          (0, barrel_y + 0.052, centre), radius=barrel_r * 0.80,
+                          axis="y"))
+    component.add(gr.bolt_ring(component.name + "_barrelring", 5,
+                               (0, barrel_y - 0.052, centre), barrel_r * 1.05,
+                               axis="y", bolt_radius=0.009))
+    # Cable gland out the back, and a small aiming lamp above.
+    component.add(prim.cylinder(component.name + "_gland", 0.024, 0.038,
+                                location=(0, -body_d * 0.5 - 0.018, centre),
+                                rotation=AXIS_Y, vertices=8, material="Copper"))
+    component.add(gr.cable(component.name + "_feed",
+                           (0, -body_d * 0.5 - 0.030, centre),
+                           (asym["side"] * 0.055, -body_d * 0.5 - 0.020, base_z + 0.010),
+                           rng, radius=0.011, sag=0.03))
+    component.add(prim.box(component.name + "_lamp", (0.045, 0.038, 0.030),
+                           location=(asym["side"] * body_w * 0.26,
+                                     body_d * 0.30, centre + body_h * 0.60),
+                           material="OldSteel", bevel_width=0.005, segments=1))
+    return component
+
+
+def _welder_hood(component, rng, asym, base_z):
+    """A welding helmet: raked face plate with a dark window, hinged at the temples.
+
+    The rake is the point. Every other head in the kit presents a vertical face; this
+    one leans, which reads instantly as a different object and throws a distinctive
+    shadow under a key light."""
+    width = rng.span(0.16, 0.20)
+    depth = rng.span(0.15, 0.18)
+    height = rng.span(0.15, 0.19)
+    centre = base_z + height * 0.5
+
+    component.add(prim.taper_box(component.name + "_shell",
+                                 (width, depth, height),
+                                 top_scale=(0.80, 0.86),
+                                 location=(0, -0.020, centre),
+                                 material="DirtyMetal", bevel_width=0.024, segments=3))
+    rake = rng.span(0.24, 0.36)
+    component.add(gr.plate(component.name + "_face", (width * 0.96, height * 0.92),
+                           location=(0, depth * 0.44, centre),
+                           rotation=(rake, 0, 0), thickness=0.030,
+                           material="DirtyMetal"))
+    component.add(gr.plate(component.name + "_window", (width * 0.62, height * 0.30),
+                           location=(0, depth * 0.50, centre + height * 0.14),
+                           rotation=(rake, 0, 0), thickness=0.016,
+                           material="DarkMetal"))
+    component.add(gr.plate(component.name + "_glass", (width * 0.54, height * 0.22),
+                           location=(0, depth * 0.53, centre + height * 0.15),
+                           rotation=(rake, 0, 0), thickness=0.010,
+                           material="Glass"))
+    component.add(gr.bolt_row(component.name + "_windowbolt", 4,
+                              (-width * 0.26, depth * 0.52, centre + height * 0.28),
+                              (width * 0.17, 0, 0), axis="y", rng=rng, radius=0.009))
+
+    # Temple hinges: the detail that says it flips up.
+    for sign in (1.0, -1.0):
+        component.add(prim.cylinder("%s_hinge_%d" % (component.name, sign > 0), 0.026,
+                                    0.030,
+                                    location=(sign * width * 0.52, depth * 0.10,
+                                              centre + height * 0.10),
+                                    rotation=AXIS_X, vertices=10, material="OldSteel"))
+        component.add(prim.box("%s_strap_%d" % (component.name, sign > 0),
+                               (0.018, depth * 0.55, 0.026),
+                               location=(sign * width * 0.50, -depth * 0.16,
+                                         centre + height * 0.10),
+                               material="Rubber", bevel_width=0.004, segments=1))
+    # A filter canister slung on one side, because a scrapyard hood has one.
+    component.add(gr.tank(component.name + "_filter",
+                          (asym["side"] * width * 0.46, -depth * 0.42, centre - 0.030),
+                          radius=0.034, length=0.075, axis="y", rng=rng))
+    return component
+
+
+def _control_box(component, rng, asym, base_z):
+    """An electrical enclosure: door, latches, conduit, indicator lamp.
+
+    The most deliberately UNFACE-like head in the set. It reads as somebody bolting the
+    nearest junction box where the head goes, which is exactly the fiction -- and the
+    single lit indicator does all the work a face would."""
+    width = rng.span(0.17, 0.21)
+    depth = rng.span(0.12, 0.15)
+    height = rng.span(0.17, 0.21)
+    centre = base_z + height * 0.5
+
+    component.add(prim.box(component.name + "_enclosure", (width, depth, height),
+                           location=(0, -0.008, centre), material="DirtyMetal",
+                           bevel_width=0.012, segments=2))
+    component.add(gr.plate(component.name + "_door", (width * 0.90, height * 0.86),
+                           location=(0, depth * 0.50, centre), thickness=0.024,
+                           material="DirtyMetal"))
+    component.add(gr.rib(component.name + "_doorfold", width * 0.90,
+                         (0, depth * 0.52, centre - height * 0.44), thickness=0.026,
+                         height=0.020, axis="x", material="OldSteel"))
+    for sign in (1.0, -1.0):
+        component.add(prim.box("%s_hinge_%d" % (component.name, sign > 0),
+                               (0.020, 0.028, 0.040),
+                               location=(-width * 0.46, depth * 0.48,
+                                         centre + sign * height * 0.26),
+                               material="OldSteel", bevel_width=0.005, segments=1))
+    component.add(prim.cylinder(component.name + "_latch", 0.022, 0.040,
+                                location=(width * 0.36, depth * 0.54, centre),
+                                rotation=AXIS_Y, vertices=8, material="Copper"))
+    component.add(gr.plate(component.name + "_label", (width * 0.44, height * 0.16),
+                           location=(0, depth * 0.53, centre - height * 0.22),
+                           thickness=0.010, material="OldSteel"))
+    # Indicator lamp: the one lit thing, and therefore the face.
+    component.add(prim.cylinder(component.name + "_lampcan", 0.030, 0.036,
+                                location=(0, depth * 0.52, centre + height * 0.24),
+                                rotation=AXIS_Y, vertices=10, material="DarkMetal"))
+    component.add(gr.lens(component.name + "_lamp",
+                          (0, depth * 0.56, centre + height * 0.24), radius=0.023,
+                          axis="y"))
+    component.add(prim.cylinder(component.name + "_gland", 0.026, 0.032,
+                                location=(asym["side"] * width * 0.30,
+                                          -depth * 0.42, base_z + 0.020),
+                                vertices=8, material="Copper"))
+    component.add(gr.pipe_run(component.name + "_conduit", [
+        (asym["side"] * width * 0.30, -depth * 0.42, base_z + 0.010),
+        (asym["side"] * width * 0.30, -depth * 0.62, base_z - 0.030),
+    ], radius=0.018, material="OldSteel", flanges=False))
+    return component
+
 
 def _visor_box(component, rng, asym, base_z):
     """A welded box with a horizontal vision slit. The workhorse silhouette: wide,

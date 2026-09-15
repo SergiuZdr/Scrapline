@@ -591,3 +591,255 @@ def scrap_sheet(name, size, location, rng, material="RustyMetal"):
                  rotation=(0, 0, fold), material=material,
                  bevel_width=0.004, segments=1),
     ]
+
+
+# --- Industrial composites ---------------------------------------------------
+#
+# Everything below exists because the roster read as primitives bolted together. A box
+# with a cylinder on it is a box with a cylinder on it however it is bevelled; what
+# makes a machine read as salvaged industrial equipment is that its parts are
+# RECOGNISABLE OBJECTS -- a flanged rotary joint, a hydraulic clevis, a bank of cooling
+# fins, a control panel. These are the vocabulary the redesigned archetypes compose
+# from, so a builder places "a pump housing", not "a cylinder".
+
+def flange_joint(name, location, radius=0.070, axis="x", thickness=0.055,
+                 bolts=6, material="OldSteel"):
+    """A bolted rotary joint: two flanges face to face with a bolt circle through them.
+
+    The single most recognisable "this rotates and was engineered" detail on industrial
+    machinery, and the thing a bare `bearing` does not say. A bearing is a race; this is
+    a joint somebody built and can unbolt."""
+    rotation = AXIS_ROTATION[axis]
+    offset = {"x": (thickness * 0.5, 0, 0), "y": (0, thickness * 0.5, 0),
+              "z": (0, 0, thickness * 0.5)}[axis]
+    out = [
+        prim.cylinder(name + "_hub", radius * 0.55, thickness * 1.6, location=location,
+                      rotation=rotation, vertices=12, material="DarkMetal"),
+    ]
+    for sign in (1.0, -1.0):
+        centre = tuple(location[i] + offset[i] * sign for i in range(3))
+        out.append(prim.cylinder("%s_flange_%d" % (name, sign > 0), radius,
+                                 thickness * 0.55, location=centre, rotation=rotation,
+                                 vertices=14, material=material))
+        out.extend(bolt_ring("%s_flangebolt_%d" % (name, sign > 0), bolts, centre,
+                             radius * 0.74, axis=axis, bolt_radius=radius * 0.13))
+    return out
+
+
+def clevis(name, location, radius=0.038, axis="x", gap=0.055, depth=0.085,
+           material="OldSteel"):
+    """The forked end of a hydraulic ram: two cheeks and a pin through them.
+
+    Every cylinder on real plant equipment terminates in one of these. Without it a
+    piston is a tube that happens to touch another tube, and the eye reads glue rather
+    than a pinned joint."""
+    out = []
+    across = {"x": 1, "y": 0, "z": 0}[axis]
+    for sign in (1.0, -1.0):
+        centre = list(location)
+        centre[across] += sign * gap * 0.5
+        out.append(prim.box("%s_cheek_%d" % (name, sign > 0),
+                            (0.020 if across == 0 else depth,
+                             depth if across == 0 else 0.020, depth),
+                            location=tuple(centre), material=material,
+                            bevel_width=0.006, segments=1))
+    out.append(prim.cylinder(name + "_pin", radius * 0.42, gap * 1.5,
+                             location=location, rotation=AXIS_ROTATION[axis],
+                             vertices=8, material="DarkMetal"))
+    return out
+
+
+def cooling_fins(prefix, count, location, span=0.24, depth=0.13, axis="z",
+                 material="DarkMetal"):
+    """A stack of cooling fins on a housing: an air-cooled engine or a generator can.
+
+    Reads as "this makes heat and was designed to shed it", which is most of what says
+    a torso is machinery rather than a container."""
+    out = []
+    step = span / max(1, count)
+    for index in range(count):
+        offset = -span * 0.5 + step * (index + 0.5)
+        centre = list(location)
+        centre["xyz".index(axis)] += offset
+        size = {"z": (depth, depth, step * 0.42),
+                "x": (step * 0.42, depth, depth),
+                "y": (depth, step * 0.42, depth)}[axis]
+        out.append(prim.box("%s_%d" % (prefix, index), size, location=tuple(centre),
+                            material=material, bevel_width=0.004, segments=1))
+    return out
+
+
+def control_panel(prefix, location, size=(0.16, 0.14), rotation=(0, 0, 0), rng=None,
+                  material="DarkMetal"):
+    """A recessed instrument panel: face plate, two gauges and a row of switches.
+
+    Small, but it is the detail that says a person operated this thing -- which is what
+    separates salvaged equipment from a prop."""
+    out = [plate(prefix + "_face", size, location, rotation=rotation, thickness=0.020,
+                 material=material)]
+    for index, side in enumerate((-1.0, 1.0)):
+        centre = (location[0] + side * size[0] * 0.24, location[1] - 0.014,
+                  location[2] + size[1] * 0.20)
+        out.append(prim.cylinder("%s_gauge_%d" % (prefix, index), size[0] * 0.15, 0.016,
+                                 location=centre, rotation=AXIS_ROTATION["y"],
+                                 vertices=10, material="OldSteel"))
+        out.append(prim.cylinder("%s_glass_%d" % (prefix, index), size[0] * 0.11, 0.008,
+                                 location=(centre[0], centre[1] - 0.012, centre[2]),
+                                 rotation=AXIS_ROTATION["y"], vertices=10,
+                                 material="Glass"))
+    count = 3 if rng is None else rng.count(3, 4)
+    for index in range(count):
+        x = location[0] - size[0] * 0.26 + size[0] * 0.52 * index / max(1, count - 1)
+        out.append(prim.box("%s_switch_%d" % (prefix, index), (0.016, 0.020, 0.026),
+                            location=(x, location[1] - 0.016,
+                                      location[2] - size[1] * 0.26),
+                            material="Copper", bevel_width=0.003, segments=1))
+    return out
+
+
+def pulley(name, location, radius=0.058, width=0.036, axis="x", material="DarkMetal"):
+    """A belt pulley with a grooved rim. Vehicle engine vocabulary."""
+    rotation = AXIS_ROTATION[axis]
+    return [
+        prim.cylinder(name + "_disc", radius, width, location=location,
+                      rotation=rotation, vertices=14, material=material),
+        prim.torus(name + "_groove", radius * 0.98, width * 0.22, location=location,
+                   rotation=rotation, major_segments=14, minor_segments=4,
+                   material="OldSteel"),
+        prim.cylinder(name + "_boss", radius * 0.30, width * 1.5, location=location,
+                      rotation=rotation, vertices=10, material="OldSteel"),
+    ]
+
+
+# --- Repair history ----------------------------------------------------------
+#
+# A scrapyard machine has been fixed many times, and that history is part of its
+# identity rather than damage laid on top of it. The rule everything below follows:
+# a repair must look FUNCTIONAL. A patch is bolted AND welded, because one alone is a
+# floating plate. A brace spans two points that would actually need bracing. A hose
+# starts and ends at a fitting. Detail that does not do a job reads as noise, and noise
+# is what makes a model look procedurally generated.
+
+## Metals a repair is made from. Deliberately not `DirtyMetal`: a patch in the same
+## paint as the panel under it is a feature, not a repair.
+REPAIR_METALS = ["RustyMetal", "OldSteel", "DarkMetal"]
+
+
+def mixed_bolt_row(prefix, count, start, step, rng, axis="y", radius=0.016,
+                   material="DarkMetal"):
+    """A bolt row where one or two fasteners have been replaced with the wrong size.
+
+    The cheapest repair cue there is, and the most believable: nobody rebuilding a
+    machine out of salvage has a full set of matching bolts."""
+    out = []
+    swap = rng.count(1, 2)
+    picked = {rng.count(0, max(0, count - 1)) for _ in range(swap)}
+    for index in range(count):
+        at = tuple(start[i] + step[i] * index for i in range(3))
+        if index in picked:
+            out.append(bolt("%s_new_%d" % (prefix, index), at,
+                            radius=radius * rng.span(1.25, 1.55), axis=axis,
+                            material="OldSteel"))
+        else:
+            out.append(bolt("%s_%d" % (prefix, index), at, radius=radius, axis=axis,
+                            material=material))
+    return out
+
+
+def repair_patch(name, size, location, rng, pieces=None, rotation=(0, 0, 0),
+                 thickness=0.016):
+    """A plate in the WRONG metal, bolted over a surface and welded round its edge.
+
+    Bolts and welds together, because a plate with neither is a sticker and a plate
+    with only one reads as unfinished. Pass `pieces` and it snaps to the nearest real
+    surface rather than floating at a computed coordinate."""
+    metal = REPAIR_METALS[rng.count(0, len(REPAIR_METALS) - 1)]
+    at = location if pieces is None else prim.nearest_surface_point(pieces, location)
+    plate_obj = patch(name, size, at, rng, rotation=rotation, thickness=thickness,
+                      material=metal)
+    out = [plate_obj]
+    half_w, half_h = size[0] * 0.5, size[1] * 0.5
+    for corner_x, corner_z in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+        out.append(bolt("%s_bolt_%d%d" % (name, corner_x > 0, corner_z > 0),
+                        (at[0] + corner_x * half_w * 0.78, at[1],
+                         at[2] + corner_z * half_h * 0.78),
+                        radius=0.011, axis="y", material="OldSteel"))
+    out.extend(weld_seam("%s_weld" % name,
+                         (at[0] - half_w, at[1], at[2] - half_h),
+                         (at[0] + half_w, at[1], at[2] - half_h), rng,
+                         count=rng.count(3, 5), size=0.014))
+    return out
+
+
+def improvised_brace(name, start, end, rng, material="OldSteel"):
+    """A strap bolted across two points that needed holding together.
+
+    Flat bar rather than tube, with a bolt at each end and a kink in the middle -- the
+    shape of something cut from stock and bent by hand to fit."""
+    mid = tuple((start[i] + end[i]) * 0.5 for i in range(3))
+    kink = (mid[0] + rng.jitter(0.020), mid[1] + rng.span(0.012, 0.032),
+            mid[2] + rng.jitter(0.020))
+    out = [
+        strut(name + "_a", start, kink, (0.030, 0.014), material=material,
+              bevel_width=0.004),
+        strut(name + "_b", kink, end, (0.030, 0.014), material=material,
+              bevel_width=0.004),
+    ]
+    for index, at in enumerate((start, end)):
+        out.append(prim.box("%s_pad_%d" % (name, index), (0.046, 0.020, 0.046),
+                            location=at, material=material, bevel_width=0.005,
+                            segments=1))
+        out.append(bolt("%s_padbolt_%d" % (name, index), at, radius=0.013, axis="y",
+                        material="DarkMetal"))
+    return out
+
+
+def access_panel(name, size, location, rng, rotation=(0, 0, 0), axis="y",
+                 material="DirtyMetal"):
+    """A recessed inspection hatch: sunk frame, proud door, hinge and a captive screw.
+
+    Layered rather than flat -- the frame sits IN the surface and the door sits proud
+    of it, which is the overlap that makes a panel read as manufactured."""
+    thickness = 0.020
+    out = [
+        plate(name + "_frame", (size[0] * 1.12, size[1] * 1.12), location,
+              rotation=rotation, thickness=thickness * 0.6, material="DarkMetal"),
+        plate(name + "_door", size,
+              (location[0], location[1] - 0.010, location[2]),
+              rotation=rotation, thickness=thickness, material=material),
+    ]
+    out.append(prim.box(name + "_hinge", (size[0] * 0.22, 0.018, 0.016),
+                        location=(location[0] - size[0] * 0.44, location[1] - 0.016,
+                                  location[2]),
+                        material="OldSteel", bevel_width=0.004, segments=1))
+    out.append(prim.cylinder(name + "_screw", 0.014, 0.022,
+                             location=(location[0] + size[0] * 0.38,
+                                       location[1] - 0.020, location[2]),
+                             rotation=AXIS_ROTATION[axis], vertices=8,
+                             material="Copper"))
+    return out
+
+
+def hose_port(name, location, axis="y", radius=0.020, material="Copper"):
+    """A boss and union where a hose lands. The thing that makes a hose a CONNECTION."""
+    rotation = AXIS_ROTATION[axis]
+    return [
+        prim.cylinder(name + "_boss", radius * 1.35, 0.024, location=location,
+                      rotation=rotation, vertices=10, material="OldSteel"),
+        prim.cylinder(name + "_union", radius, 0.034, location=location,
+                      rotation=rotation, vertices=8, material=material),
+    ]
+
+
+def hose_between(name, start, end, rng, radius=0.012, sag=0.06, axis="y",
+                 material="Rubber"):
+    """A hose WITH a fitting at each end.
+
+    The whole point. A hose drawn between two arbitrary coordinates is a rubber band
+    lying on a model; the same hose leaving a union and arriving at another is
+    plumbing, and the eye knows the difference immediately."""
+    out = list(hose_port(name + "_a", start, axis=axis, radius=radius * 1.5))
+    out.extend(hose_port(name + "_b", end, axis=axis, radius=radius * 1.5))
+    out.append(cable(name + "_line", start, end, rng, radius=radius, sag=sag,
+                     material=material))
+    return out

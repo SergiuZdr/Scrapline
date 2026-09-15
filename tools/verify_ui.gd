@@ -16,7 +16,7 @@ extends SceneTree
 
 const SECTIONS: PackedStringArray = [
 	"campaign", "foundry", "gauntlet", "colossus", "ranked", "tournament",
-	"parts", "pass", "store", "crates", "doctrine",
+	"parts", "upgrade", "pass", "store", "crates", "doctrine",
 ]
 ## Pressed last within a section: they replace the content pane, which would invalidate
 ## the buttons we have not tried yet.
@@ -86,9 +86,13 @@ func _press_everything(section: String) -> void:
 	# afterwards belongs to a different screen. Without this the run wandered and every
 	# section reported the same 33 buttons -- a green result that tested one screen ten
 	# times.
+	# The bottom tabs switch section too, so they are nav for the same reason.
 	var nav: Dictionary = {}
-	for entry: Variant in hub.get("_nav_buttons").keys():
-		nav[hub.get("_nav_buttons")[entry]] = true
+	for registry: String in ["_nav_buttons", "_tab_buttons"]:
+		var buttons: Variant = hub.get(registry)
+		if buttons is Dictionary:
+			for entry: Variant in (buttons as Dictionary).keys():
+				nav[(buttons as Dictionary)[entry]] = true
 
 	var pressed_labels: Dictionary = {}
 	var count: int = 0

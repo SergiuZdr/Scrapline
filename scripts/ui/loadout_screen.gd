@@ -40,6 +40,19 @@ const DRAG_SPEED: float = 0.011
 
 signal changed
 
+## Emitted with the five part ids whenever the edited construct changes, but only in
+## external-preview mode. The yard hub listens to this and rebuilds the machine hanging
+## in the service gantry, which is the whole point of a station: the thing you are
+## editing is the thing standing in front of you, not a thumbnail of it.
+signal preview_changed(part_ids: PackedStringArray)
+
+## When true this screen draws NO preview of its own.
+##
+## Inside the yard the panel sat two metres from a full-size, lit construct in a gantry
+## and still drew its own little dark viewport of the same machine -- two pictures of one
+## object, the worse one nearer the eye. Set before the node enters the tree.
+var external_preview: bool = false
+
 var _squad_name: String = "main"
 var _unit_index: int = 0
 var _slot: String = "chassis"
@@ -64,14 +77,19 @@ func _ready() -> void:
 
 ## Drag anywhere on the preview to turn the construct. Held, not spun, and the angle
 ## persists across part changes so a swap is judged from the same viewpoint.
+##
+## The sign is NOT arbitrary. The camera sits on +Z looking back at the origin, so a
+## positive yaw carries the model's front face toward +X, which is screen right -- the
+## direction the finger went. Negated, as it was, the construct turned away from the
+## drag, which reads as the control being broken rather than inverted.
 func _on_preview_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		var motion := event as InputEventMouseMotion
 		if (motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
-			_yaw -= motion.relative.x * DRAG_SPEED
+			_yaw += motion.relative.x * DRAG_SPEED
 			_apply_yaw()
 	elif event is InputEventScreenDrag:
-		_yaw -= (event as InputEventScreenDrag).relative.x * DRAG_SPEED
+		_yaw += (event as InputEventScreenDrag).relative.x * DRAG_SPEED
 		_apply_yaw()
 
 
@@ -83,12 +101,17 @@ func _apply_yaw() -> void:
 # --- Layout ------------------------------------------------------------------
 
 func _build() -> void:
+	if external_preview:
+		# The picker sits above the columns instead of under a picture that is not here.
+		add_child(_build_unit_row())
+
 	var body := HBoxContainer.new()
 	body.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(body)
 
-	body.add_child(_build_preview())
+	if not external_preview:
+		body.add_child(_build_preview())
 	body.add_child(_build_sockets())
 	body.add_child(_build_catalogue())
 
@@ -150,10 +173,16 @@ func _build_preview() -> Control:
 	camera.fov = 32.0
 	_preview_root.add_child(camera)
 
+	column.add_child(_build_unit_row())
+	return column
+
+
+## The construct picker. Lives outside `_build_preview` because external-preview mode
+## still needs it -- which construct you are editing is not a property of the picture.
+func _build_unit_row() -> Control:
 	_unit_row = HBoxContainer.new()
 	_unit_row.add_theme_constant_override("separation", UIKit.SPACE_XS)
-	column.add_child(_unit_row)
-	return column
+	return _unit_row
 
 
 func _build_sockets() -> Control:
@@ -274,26 +303,58 @@ func _refresh_catalogue() -> void:
 			UIKit.TEXT_DIM))
 
 
-## A part as a CARD: picture, name, the stat that matters for its slot, and its level.
+## A part as a CARD, and the card IS the button.
+##
+## Every card used to carry its own FIT button, which put eleven or more controls on a
+## screen that offers exactly one kind of choice -- pick a part. That is what made the
+## screen hard to read: a wall of small identical buttons gives no clue which one is the
+## thing to press, and on a phone each was a 30 px target sitting under a 210 px card
+## that did nothing when tapped. Tapping the part you want is the obvious gesture, so
+## the card takes the press and the button is gone.
 func _part_card(part_id: String, definition: Dictionary, profile: PlayerProfile,
-		fitted: bool) -> PanelContainer:
-	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(168, 210)
+		fitted: bool) -> Button:
+	var card := Button.new()
+	card.custom_minimum_size = Vector2(168, 206)
+	card.toggle_mode = false
+	card.text = ""
+
 	var style: StyleBoxFlat = UIKit.card(
 		UIKit.SURFACE_HIGH if fitted else UIKit.SURFACE, UIKit.RADIUS_CARD,
 		UIKit.SPACE_SM, UIKit.SPACE_SM)
 	if fitted:
+		# Amber marks the SELECTION here -- the other job the palette gives it. The
+		# equipped part is the one thing on this screen the eye should find first.
 		style.border_color = UIKit.AMBER
-	card.add_theme_stylebox_override("panel", style)
+		style.set_border_width_all(2)
+	card.add_theme_stylebox_override("normal", style)
+	card.add_theme_stylebox_override("hover", UIKit.card(
+		UIKit.SURFACE_HIGH.lightened(0.08), UIKit.RADIUS_CARD,
+		UIKit.SPACE_SM, UIKit.SPACE_SM))
+	card.add_theme_stylebox_override("pressed", UIKit.card(
+		UIKit.SURFACE_HIGH.darkened(0.14), UIKit.RADIUS_CARD,
+		UIKit.SPACE_SM, UIKit.SPACE_SM))
+	card.add_theme_stylebox_override("focus", UIKit.plain(Color(0, 0, 0, 0)))
+	if fitted:
+		card.disabled = true
+		card.add_theme_stylebox_override("disabled", style)
+	else:
+		card.pressed.connect(_on_fit.bind(part_id))
 
 	var column := VBoxContainer.new()
+	column.set_anchors_preset(Control.PRESET_FULL_RECT)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.offset_left = UIKit.SPACE_SM
+	column.offset_right = -UIKit.SPACE_SM
+	column.offset_top = UIKit.SPACE_SM
+	column.offset_bottom = -UIKit.SPACE_SM
 	column.add_theme_constant_override("separation", UIKit.SPACE_XS)
 	card.add_child(column)
 
 	var picture := TextureRect.new()
-	picture.custom_minimum_size = Vector2(0, 104)
+	picture.custom_minimum_size = Vector2(0, 112)
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	picture.texture = _thumb(part_id)
 	column.add_child(picture)
 
@@ -304,20 +365,13 @@ func _part_card(part_id: String, definition: Dictionary, profile: PlayerProfile,
 		profile.part_level(part_id), profile.part_tier(part_id)],
 		UIKit.SIZE_MICRO, UIKit.TEXT_DIM))
 
-	var action := Button.new()
-	action.text = "FITTED" if fitted else "FIT"
-	action.disabled = fitted
-	action.custom_minimum_size = Vector2(0, 30)
-	action.add_theme_font_size_override("font_size", UIKit.SIZE_MICRO)
-	if not fitted:
-		action.add_theme_stylebox_override("normal", UIKit.primary())
-		action.add_theme_stylebox_override("hover",
-			UIKit.primary(UIKit.AMBER.lightened(0.12)))
-		action.add_theme_stylebox_override("pressed", UIKit.primary(UIKit.AMBER_DEEP))
-		action.add_theme_color_override("font_color", Color("1a1206"))
-		action.add_theme_color_override("font_hover_color", Color("1a1206"))
-		action.pressed.connect(_on_fit.bind(part_id))
-	column.add_child(action)
+	# The equipped card says so; the others say nothing, because "tap it to fit it" is
+	# what a card affords and does not need writing on every tile.
+	if fitted:
+		var marker := _text("FITTED", UIKit.SIZE_MICRO, UIKit.AMBER)
+		marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		column.add_child(marker)
+
 	return card
 
 
@@ -344,6 +398,8 @@ func _refresh_model() -> void:
 
 	var parts: Dictionary = _current_parts()
 	if String(parts.get("chassis", "")).is_empty():
+		if external_preview:
+			preview_changed.emit(PackedStringArray())
 		return
 
 	var unit := SimUnit.new()
@@ -354,6 +410,13 @@ func _refresh_model() -> void:
 	for slot: String in SLOTS:
 		ids.append(String(parts.get(slot, "")))
 	unit.part_ids = ids
+
+	# Hand the ids over rather than a built model. The yard mounts its construct in a
+	# gantry, at its own scale, under its own lights -- none of which this screen knows
+	# about, and none of which it should have to.
+	if external_preview:
+		preview_changed.emit(ids)
+		return
 
 	_model = ConstructView.build(unit, Session.content, Color("4fa8d8"))
 	_preview_root.add_child(_model)
