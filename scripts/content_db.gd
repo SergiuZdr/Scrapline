@@ -22,6 +22,10 @@ var maps: Dictionary = {}
 ## stores, so this array's order must stay stable.
 var tiles: Array = []
 var linkages: Array = []
+## `data/combat/prototype.json`: grid combat tunables (Iteration 002 prototype stats).
+var combat_rules: Dictionary = {}
+## Fight id -> fight definition, one file per fight in `data/fights/`.
+var fights: Dictionary = {}
 var bosses: Dictionary = {}
 var balance: Balance = null
 
@@ -48,6 +52,20 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	if link_data is Array:
 		db.linkages = link_data as Array
 
+
+	var rules_data: Variant = db._read_json("%s/combat/prototype.json" % root)
+	if rules_data is Dictionary:
+		db.combat_rules = rules_data as Dictionary
+
+	# Sorted, so which file wins a duplicate id never depends on the filesystem.
+	var fight_files: PackedStringArray = DirAccess.get_files_at("%s/fights" % root)
+	fight_files.sort()
+	for file_name: String in fight_files:
+		if not file_name.ends_with(".json"):
+			continue
+		var fight: Variant = db._read_json("%s/fights/%s" % [root, file_name])
+		if fight is Dictionary:
+			db.fights[String((fight as Dictionary).get("id", file_name.get_basename()))] = fight
 
 	var balance_data: Variant = db._read_json("%s/balance.json" % root)
 	db.balance = Balance.from_dict(balance_data as Dictionary if balance_data is Dictionary else {})
@@ -80,6 +98,8 @@ func content_version() -> String:
 	for section: Variant in ["parts", "abilities", "conditions", "linkages", "maps", "tiles"]:
 		hash_value = _hash_string(hash_value, String(section))
 		hash_value = _hash_value(hash_value, to_sim_content()[section])
+	hash_value = _hash_value(hash_value, combat_rules)
+	hash_value = _hash_value(hash_value, fights)
 	hash_value = _hash_value(hash_value, balance.to_dict())
 	return "%08x" % hash_value
 

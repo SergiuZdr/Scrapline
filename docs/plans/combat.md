@@ -1,6 +1,9 @@
 # Plan — Combat
 
-**Status:** draft (Iteration 000). The prototype is Iteration 002; parts come in 003.
+**Status:** 002 prototype built (2026-09-24): board, move, one attack per unit, direction-based intents, wrecks, win/lose, replay undo. Parts, heat, wheel, terrain effects, part damage and shove are 003.
+
+> **Open problem from 002:** dodging a telegraphed line costs nothing, so enemies barely
+> land hits (6 damage over a whole bot fight). The fix belongs in 003; see MEMORY.
 
 ## Design goals
 
@@ -38,11 +41,11 @@ Enemy RESOLVE phase  – enemies execute their shown intents in a displayed orde
 Environment phase    – hazards tick, reinforcements arrive at marked tiles
 ```
 
-- Intents target **tiles, not units**. Move out of the marked tiles and the attack
-  misses. Shove an enemy and its attack fires from where it now stands. This one rule
-  is where most of the puzzle comes from.
-- **Undo**: every move before you commit an action can be undone freely. The sim is
-  deterministic, so undo just replays from the start of the turn.
+- Intents are a **direction fired from the attacker** (as built in 002). They hit the
+  first unit, wreck or scrap heap in the line at resolve time. Step out and the shot flies
+  on; step in and you take it. Shove the attacker and it fires from where it lands.
+- **Undo**: anything in the current turn, attacks included (decided in 002). The sim is
+  deterministic, so undo replays the fight minus the last action.
 - **Execution order is shown** as a number on each enemy intent.
 
 ## Actions come from parts
