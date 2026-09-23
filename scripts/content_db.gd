@@ -5,9 +5,8 @@ extends RefCounted
 ##
 ## This lives outside `sim/` on purpose: the simulation is not allowed to touch the
 ## filesystem, so content is loaded once out here and handed in. That separation is
-## what lets the headless server and the balance tool feed the sim exactly the same
-## content the client had, and later lets the server ship a balance patch without a
-## client update.
+## what lets headless tools (tests, the run bot) feed the sim exactly the content the
+## game has.
 ##
 ## It is a plain RefCounted rather than an autoload so that headless tools run with
 ## `--script` (which does not instantiate autoloads) can use it directly.
@@ -19,21 +18,12 @@ var parts: Dictionary = {}
 var abilities: Dictionary = {}
 var conditions: Dictionary = {}
 var maps: Dictionary = {}
-## Terrain tile definitions, in file order -- the index IS the tile type id stored in
-## a Battlefield's grid, so this array's order must stay stable.
+## Terrain tile definitions, in file order -- the index IS the tile type id a map grid
+## stores, so this array's order must stay stable.
 var tiles: Array = []
 var linkages: Array = []
-var economy: Dictionary = {}
-var crates: Dictionary = {}
-var buildings: Dictionary = {}
-var campaign: Dictionary = {}
 var bosses: Dictionary = {}
-var store: Dictionary = {}
-var battle_pass: Dictionary = {}
 var balance: Balance = null
-
-## Version of the server-delivered patch applied on top of the shipped data, or 0.
-var patch_version: int = 0
 
 var errors: PackedStringArray = []
 
@@ -47,15 +37,8 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	db._load_into(db.abilities, "%s/abilities/abilities.json" % root, "id")
 	db._load_into(db.conditions, "%s/conditions/conditions.json" % root, "id")
 	db._load_into(db.maps, "%s/maps/foundry_yard.json" % root, "id")
-	db._load_into(db.crates, "%s/crates.json" % root, "id")
-	db._load_into(db.buildings, "%s/buildings.json" % root, "id")
-	db._load_into(db.campaign, "%s/campaign.json" % root, "id")
 	db._load_into(db.bosses, "%s/bosses.json" % root, "id")
-	db._load_into(db.store, "%s/store.json" % root, "id")
 
-	var pass_data: Variant = db._read_json("%s/battle_pass.json" % root)
-	if pass_data is Dictionary:
-		db.battle_pass = pass_data as Dictionary
 
 	var tile_data: Variant = db._read_json("%s/terrain/tiles.json" % root)
 	if tile_data is Array:
@@ -65,9 +48,6 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	if link_data is Array:
 		db.linkages = link_data as Array
 
-	var economy_data: Variant = db._read_json("%s/economy.json" % root)
-	if economy_data is Dictionary:
-		db.economy = economy_data as Dictionary
 
 	var balance_data: Variant = db._read_json("%s/balance.json" % root)
 	db.balance = Balance.from_dict(balance_data as Dictionary if balance_data is Dictionary else {})
@@ -88,14 +68,13 @@ func to_sim_content() -> Dictionary:
 	}
 
 
-## A hash of everything the simulation reads. **This is what makes a live balance patch
-## safe.** Two clients whose content hashes differ cannot verify each other's battles, so
-## every submission carries this and the verifier checks it first — the difference
-## between telling a player "your client is out of date" and accusing them of cheating.
+## A hash of everything the simulation reads. A saved run stores its seed and action
+## log, not its state, so it only replays correctly against the content it was played
+## with; the save records this hash so an update that changes the rules can be detected
+## instead of silently replaying a different fight.
 ##
 ## Deterministic: keys are sorted, and only sim-relevant content is included. Cosmetic
-## data, campaign text and economy numbers change nothing about how a battle plays and
-## must not invalidate one.
+## data and text change nothing about how a fight plays and must not invalidate a save.
 func content_version() -> String:
 	var hash_value: int = 0x811C9DC5
 	for section: Variant in ["parts", "abilities", "conditions", "linkages", "maps", "tiles"]:
@@ -135,10 +114,9 @@ func is_valid() -> bool:
 
 
 func summary() -> String:
-	return "patch=%d content=%s " % [patch_version, content_version()] + "parts=%d abilities=%d conditions=%d linkages=%d maps=%d tiles=%d crates=%d buildings=%d nodes=%d bosses=%d" % [
-		parts.size(), abilities.size(), conditions.size(), linkages.size(),
-		maps.size(), tiles.size(), crates.size(), buildings.size(), campaign.size(),
-		bosses.size()
+	return "content=%s parts=%d abilities=%d conditions=%d linkages=%d maps=%d tiles=%d bosses=%d" % [
+		content_version(), parts.size(), abilities.size(), conditions.size(),
+		linkages.size(), maps.size(), tiles.size(), bosses.size()
 	]
 
 

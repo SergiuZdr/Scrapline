@@ -1,6 +1,6 @@
 # Plan — Salvage audit of the old codebase
 
-**Status:** decided in Iteration 000, executed in 001 (cut) and 002–006 (adapt).
+**Status:** CUT list executed in 001 (2026-09-24). ADAPT files that depended on cut code now sit in `legacy/`, and each is deleted once 002–006 replaces it.
 
 Before anything is deleted, the current `main` is tagged **`archive/f2p-battler`**, so
 nothing is lost.

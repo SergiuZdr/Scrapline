@@ -41,6 +41,15 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 - **One test that plays the real game** (the old `verify_loop.gd`) caught what every unit
   test missed. The new game needs an equivalent: a headless bot that plays a full run.
 
+## Lessons (from our own iterations)
+
+| Date | Lesson |
+|---|---|
+| 2026-09-24 | `CLAUDE.md` is listed in `.git/info/exclude`, so edits to it are never committed. Anything that must be versioned belongs in `docs/` |
+| 2026-09-24 | `--shot` used to be copied into each scene. It is now a `DevShot` autoload, so a new screen can be photographed with no code |
+| 2026-09-24 | Keep docs as clean UTF-8. One invalid byte from an editor made Python tooling crash on `docs/README.md` |
+| 2026-09-24 | `verify_animation.gd` prints an ObjectDB leak warning at exit. It is harmless for now, but check whether it predates 001 when the rig is next touched |
+
 ## Open questions
 
 All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decisions above).
