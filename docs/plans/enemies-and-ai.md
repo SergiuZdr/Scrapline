@@ -1,6 +1,6 @@
 # Plan — Enemies and AI
 
-**Status:** draft (Iteration 000). Basic AI in 002; roster in 005.
+**Status:** basic intent AI built in 002 (`sim/combat/intent_ai.gd`). For each reachable tile × 4 directions it scores the shot: a hit on a foe is 100 + damage×10 + missing HP of the target, +60 if it kills, and friendly fire is −100. If nothing is worth shooting it closes to a preferred distance (1 for melee, 3 for ranged). Ties are broken by a murmur3 hash. The roster comes in 005.
 
 ## Enemies are constructs too
 

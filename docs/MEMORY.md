@@ -23,6 +23,10 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-24 | The closing front is **the Reclaimer**, an automated scrap-harvesting swarm | Gives the map pressure a face, and it doubles as an enemy faction |
 | 2026-09-24 | **Light story**: site descriptions and event text, no cutscenes, for now | Solo-dev scope |
 | 2026-09-24 | **Stay 3D**, with a tilted camera over the grid | The whole art pipeline already exists |
+| 2026-09-24 | Undo covers every action in the current turn, attacks included | No damage randomness, so undo reveals nothing; forgives phone misclicks |
+| 2026-09-24 | Attacks take two taps (aim, confirm); moves take one | The costly action gets the confirmation; the cheap one stays fast |
+| 2026-09-24 | Tap priority: friendly unit → select, reachable tile → move, attack line → aim/fire | Any other order makes some action unreachable (see Lessons) |
+| 2026-09-24 | Enemy intents are a DIRECTION fired from wherever the attacker stands at resolve | Stepping into a line takes the hit and stepping out lets it fly on, which gives body-blocking and friendly fire for free |
 | 2026-09-24 | ADAPT code that does not compile once CUT code is gone goes to `legacy/` (ignored by Godot through `.gdignore`), not straight to deletion | It stays greppable as reference while its replacement is written; it is deleted once replaced |
 
 ## Lessons carried over from the old codebase
@@ -50,6 +54,13 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-24 | Keep docs as clean UTF-8. One invalid byte from an editor made Python tooling crash on `docs/README.md` |
 | 2026-09-24 | `verify_animation.gd` prints an ObjectDB leak warning at exit. It is harmless for now, but check whether it predates 001 when the rig is next touched |
 
+| 2026-09-24 | A melee unit's adjacent tiles are both "move" and "attack line". With attack first, a brawler could not step forward. Any overlapping tap meanings need an explicit priority |
+| 2026-09-24 | `push_input(event)` treats positions as window coordinates; tests must pass `true` for viewport-local points. The headless root viewport is 1920×1920 |
+| 2026-09-24 | A "put it back" check passes vacuously if nothing moved. Assert the precondition first |
+| 2026-09-24 | `--check-only` does not know autoloads, so `Identifier not found: Audio` is a false positive. Launch the scene to be sure |
+| 2026-09-24 | Set Control anchors AFTER `add_child`; before, the preset is computed against a zero-size parent |
+| 2026-09-24 | **Free dodging kills intent pressure.** Bot fight: enemy set 12 intents and dealt 6 damage total, against 42 from the player |
+
 ## Open questions
 
 All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decisions above).
@@ -61,4 +72,5 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-23 | Grid size? | 8×8, to stay readable on a phone |8x8 for now |
 | 2026-09-23 | What is the closing front? | "The Reclaimer": an automated scrap-harvesting swarm sweeping the region |agree with the propose |
 | 2026-09-23 | Story delivery? | Light: site descriptions and event text, no cutscenes |agree with the propose for now |
+| 2026-09-24 | **How do intents create pressure when dodging is free?** (see 002 result) | Try in 003: area attacks (mortar splash, cone), a salvage objective the crew must hold, enemies whose shot follows the unit's dodge tile, and reinforcements that close escape routes. Judge by the bot's damage taken and by the user play-testing | |
 | 2026-09-23 | Keep 3D or go 2D? | Keep 3D. The whole art pipeline exists, and a tilted camera suits a grid |agree with the propose |

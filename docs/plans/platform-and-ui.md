@@ -10,9 +10,10 @@
    fills a phone's landscape height.
 3. **Landscape only**, one layout that scales. A 16:9 phone and a 21:9 monitor both work
    by widening side panels, never by reflowing the board.
-4. **Selection model:** tap a unit to select → tap a tile to preview → tap again to confirm.
-   A double confirm on phones prevents fat-finger moves; PC can enable one-click commit in
-   settings.
+4. **Selection model (built in 002):** tap a friendly unit to select it → tap a blue
+   tile to move (one tap, undoable) → tap a yellow attack line to aim (the panel shows
+   target, damage and "DESTROYS IT") → tap the same line again to fire. Priority when a
+   tile means two things: select > move > aim. PC may get a one-click-attack setting later.
 5. **Undo is a big, always-visible button.** Plans are provisional until the turn ends.
 
 ## Combat screen layout (landscape)

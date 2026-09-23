@@ -41,9 +41,15 @@ static var _scene_cache: Dictionary = {}
 ## The core keeps its own damage-type colour, because that is the fastest read for what
 ## a construct actually does.
 static func build(unit: SimUnit, content: ContentDB, team_colour: Color) -> Node3D:
+	return build_parts(unit.part_ids, content, team_colour)
+
+
+## The same, from a bare loadout: chassis, core, arm_l, arm_r, module. The grid game's
+## units are not `SimUnit`s, and the view has no business caring which sim built them.
+static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_colour: Color) -> Node3D:
 	var root := Node3D.new()
 
-	var chassis_id: String = _part_id(unit, 0)
+	var chassis_id: String = _part_id(part_ids, 0)
 	var chassis: Node3D = _instance(chassis_id)
 	if chassis == null:
 		root.add_child(_fallback_body(team_colour))
@@ -54,10 +60,10 @@ static func build(unit: SimUnit, content: ContentDB, team_colour: Color) -> Node
 
 	var sockets: Dictionary = _find_sockets(chassis)
 	var loadout: Dictionary = {
-		"core": _part_id(unit, 1),
-		"arm_l": _part_id(unit, 2),
-		"arm_r": _part_id(unit, 3),
-		"module": _part_id(unit, 4),
+		"core": _part_id(part_ids, 1),
+		"arm_l": _part_id(part_ids, 2),
+		"arm_r": _part_id(part_ids, 3),
+		"module": _part_id(part_ids, 4),
 	}
 
 	for slot: String in ["core", "arm_l", "arm_r", "module"]:
@@ -107,10 +113,10 @@ static func height_of(node: Node3D) -> float:
 
 # --- Internals ---------------------------------------------------------------
 
-static func _part_id(unit: SimUnit, index: int) -> String:
-	if index >= unit.part_ids.size():
+static func _part_id(part_ids: PackedStringArray, index: int) -> String:
+	if index >= part_ids.size():
 		return ""
-	return unit.part_ids[index]
+	return part_ids[index]
 
 
 static func _instance(part_id: String) -> Node3D:

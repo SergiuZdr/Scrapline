@@ -2,6 +2,23 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [002] Grid fight prototype — 2026-09-24 ([detail](iterations/002-grid-fight.md))
+
+### Added
+- A playable turn-based fight on an 8×8 grid. Title → FIGHT → fight → YARD CLEARED /
+  CREW LOST → FIGHT AGAIN.
+- Pure deterministic combat sim in `sim/combat/`: move, attack, telegraphed enemy intents
+  that fire down a line in order, wrecks, win/lose, replay-based undo, event stream.
+- `IntentAI` for enemies, reused as `CombatBot` for tests and the `--bot` demo.
+- 3D board scene with the existing construct models, rig, VFX and lighting; tap/click
+  controls, a two-tap attack, UNDO, END TURN, 90° camera turns, zoom, keyboard shortcuts.
+- `data/combat/prototype.json`, `data/fights/proto_yard.json`, and `blocks` on terrain tiles.
+- Tests: `verify_combat.gd` (41), `verify_combat_input.gd` (13).
+
+### Changed
+- `ContentDB` loads combat rules and fights. `ConstructView.build_parts` builds a model
+  from part ids.
+
 ## [001] Archive and strip — 2026-09-24 ([detail](iterations/001-archive-and-strip.md))
 
 ### Added
