@@ -67,7 +67,7 @@ func _ready() -> void:
 		_stagger_at = _every * 2
 		_stagger_from = _direction(_arg(args, "--stagger-from", "front"))
 
-	var db: ContentDB = Session.content if Session.content != null else ContentDB.load_all()
+	var db: ContentDB = ContentDB.load_all()
 	_build_world()
 
 	# A construct assembled from real parts through the game's own view code, so this

@@ -2,6 +2,23 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [001] Archive and strip — 2026-09-24 ([detail](iterations/001-archive-and-strip.md))
+
+### Added
+- Git tag `archive/f2p-battler` (the full old game at `0b72f74`).
+- `scenes/main.tscn` and a placeholder title screen as the new entry point.
+- `DevShot` autoload: `--shot` screenshots work on any scene.
+- `legacy/`: old code being adapted, ignored by Godot.
+
+### Changed
+- `ContentDB` trimmed to the content the roguelike uses.
+- `project.godot`: new description and main scene. Autoloads are now `Audio` and `DevShot`.
+- `CLAUDE.md` rewritten for the roguelike (not tracked by git).
+
+### Removed
+- All F2P, online and live-service systems, the real-time sim, the hub, and their tests
+  (165 files, about 24k lines).
+
 ## [000] Rethink — 2026-09-23
 
 **Direction change.** Scrapline is now a premium, single-player, turn-based tactics

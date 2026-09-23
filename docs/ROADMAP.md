@@ -8,8 +8,8 @@ Iterations further ahead are sketches and get refined as we get closer.
 | # | Iteration | Goal | Status |
 |---|---|---|---|
 | 000 | [Rethink](iterations/000-rethink.md) | New vision, doc structure, salvage audit | ✅ |
-| 001 | Archive and strip | Tag the old game, delete cut systems, the project boots clean, kept tests pass | ⏭ |
-| 002 | Grid fight prototype | Pure-logic turn-based grid sim: move, attack, enemy intents, win/lose. One playable fight with mouse and touch using existing construct models | ⬜ |
+| 001 | [Archive and strip](iterations/001-archive-and-strip.md) | Tag the old game, delete cut systems, the project boots clean, kept tests pass | ✅ |
+| 002 | Grid fight prototype | Pure-logic turn-based grid sim: move, attack, enemy intents, win/lose. One playable fight with mouse and touch using existing construct models | ⏭ |
 | 003 | Parts drive abilities | Each part grants actions; heat; damage-type wheel; terrain on the grid; part damage (arms can be shot off) | ⬜ |
 | 004 | Run loop | Region map, node types, fight → salvage → next node, save and resume mid-run | ⬜ |
 | 005 | Act 1 content | Enemy roster, elites, act boss, first 25 parts, balance pass with a headless run simulator | ⬜ |
