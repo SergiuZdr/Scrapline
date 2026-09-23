@@ -2,9 +2,9 @@ extends Control
 
 ## Placeholder title screen for the roguelike rebuild.
 ##
-## It exists so the project boots somewhere clean while the grid combat is built. New
-## Run and Continue arrive with the run loop (Iteration 004). Until then they are not
-## drawn at all rather than drawn disabled: a button that can never be pressed is a label.
+## FIGHT opens the Iteration 002 prototype fight. New Run and Continue arrive with the run
+## loop (Iteration 004). Until then they are not drawn at all rather than drawn disabled:
+## a button that can never be pressed is a label.
 
 
 func _ready() -> void:
@@ -36,11 +36,23 @@ func _ready() -> void:
 	column.add_child(tagline)
 
 	var status := Label.new()
-	status.text = "REBUILD IN PROGRESS  ·  grid combat arrives next"
+	status.text = "PROTOTYPE  ·  one fight, no run yet"
 	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	status.add_theme_font_size_override("font_size", UIKit.SIZE_LABEL)
 	status.add_theme_color_override("font_color", UIKit.AMBER)
 	column.add_child(status)
+
+	var fight := Button.new()
+	fight.text = "FIGHT"
+	fight.custom_minimum_size = Vector2(280, 68)
+	fight.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	fight.add_theme_font_override("font", UIKit.font_strong())
+	fight.add_theme_font_size_override("font_size", UIKit.SIZE_TITLE)
+	for state: String in ["normal", "hover", "pressed", "focus"]:
+		fight.add_theme_stylebox_override(state, UIKit.primary())
+		fight.add_theme_color_override("font_color" if state == "normal" else "font_%s_color" % state, UIKit.BG)
+	fight.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/combat.tscn"))
+	column.add_child(fight)
 
 	var quit := Button.new()
 	quit.text = "QUIT"

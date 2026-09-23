@@ -10,7 +10,7 @@ low-end Android).
 | Path | What lives there |
 |---|---|
 | `sim/` | Pure logic: grid combat rules. Same hard rules as before: `RefCounted`, `SimRNG`, integer math, fixed iteration order, no engine APIs |
-| `sim/combat/` | board, unit, actions, intents, resolver, events |
+| `sim/combat/` | **Built in 002:** `CombatSetup`, `CombatState`, `CombatSim`, `IntentAI`, `CombatBot`, `GridUnit`, `GridEv` |
 | `sim/run/` | run state, region graph, front, site resolution, rewards. Also pure and seeded |
 | `sim/ai/` | intent selection (adapted doctrine rules) |
 | `data/` | all content and tunables as JSON |
@@ -44,7 +44,8 @@ them. The old `event_stream.gd`/`events.gd` pattern is kept and the vocabulary c
 
 | Test | Guards |
 |---|---|
-| `verify_combat.gd` | scripted fights; determinism hash; rules edge cases |
+| `verify_combat.gd` | **built**: rules, determinism hash, prefix-stable undo, bot fight to the end |
+| `verify_combat_input.gd` | **built**: the fight driven by synthetic clicks and keys |
 | `verify_run.gd` | region generation invariants (reachability, site counts) |
 | `verify_save.gd` | save → quit → load mid-fight equals continuing |
 | `run_bot.gd` | a bot plays N full runs; reports win rate, deaths by cause, part pick rates. **The equivalent of the old `verify_loop.gd`** |
