@@ -11,7 +11,8 @@ low-end Android).
 |---|---|
 | `sim/` | Pure logic: grid combat rules. Same hard rules as before: `RefCounted`, `SimRNG`, integer math, fixed iteration order, no engine APIs |
 | `sim/combat/` | **Built in 002:** `CombatSetup`, `CombatState`, `CombatSim`, `IntentAI`, `CombatBot`, `GridUnit`, `GridEv` |
-| `sim/run/` | run state, region graph, front, site resolution, rewards. Also pure and seeded |
+| `sim/run/` | **Built in 004:** `RunSetup`, `RunState`, `RunSim` (region, front, sites, fights by replay, rewards, refit), `RunBot` |
+| `scripts/run/` | `run_map_screen.gd` (map and site panels), `run_store.gd` (the save) |
 | `sim/ai/` | intent selection (adapted doctrine rules) |
 | `data/` | all content and tunables as JSON |
 | `scripts/presentation/` | reads events, animates. Computes nothing |
@@ -37,8 +38,9 @@ them. The old `event_stream.gd`/`events.gd` pattern is kept and the vocabulary c
 
 - `user://profile.json`: meta profile (unlocks, settings, history), written through
   commands.
-- `user://run.json`: current run as `{seed, content_version, action_log}`, rebuilt by
-  replaying. Written after every committed action.
+- `user://run.json` (**built**): `{version, seed, content, actions, fight}`. Rebuilt by
+  replaying `actions`; `fight` is the in-progress fight's combat actions. Written atomically
+  after every action. A content-hash mismatch refuses to resume, with a message.
 
 ## Tests (lean, only where they pay off)
 
@@ -46,9 +48,10 @@ them. The old `event_stream.gd`/`events.gd` pattern is kept and the vocabulary c
 |---|---|
 | `verify_combat.gd` | **built**: rules, determinism hash, prefix-stable undo, bot fight to the end |
 | `verify_combat_input.gd` | **built**: the fight driven by synthetic clicks and keys |
-| `verify_run.gd` | region generation invariants (reachability, site counts) |
+| `verify_run.gd` | **built** (42): region invariants, every rule, determinism, save round trip |
+| `verify_run_ui.gd` | **built** (12): the run through its screens, including quit and resume mid-fight |
 | `verify_save.gd` | save → quit → load mid-fight equals continuing |
-| `run_bot.gd` | a bot plays N full runs; reports win rate, deaths by cause, part pick rates. **The equivalent of the old `verify_loop.gd`** |
+| `run_bot.gd` | **built**: a bot plays N full runs; reports win rate, loss causes and columns, fights per run. **The equivalent of the old `verify_loop.gd`** |
 | `verify_assembly.gd` | kept: art export contract |
 | `verify_animation.gd` | kept: rig behaviour |
 

@@ -11,8 +11,8 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 001 | [Archive and strip](iterations/001-archive-and-strip.md) | Tag the old game, delete cut systems, the project boots clean, kept tests pass | ✅ |
 | 002 | [Grid fight prototype](iterations/002-grid-fight.md) | Pure-logic turn-based grid sim: move, attack, enemy intents, win/lose. One playable fight with mouse and touch using existing construct models | ✅ |
 | 003 | [Parts drive abilities](iterations/003-parts-and-pressure.md) | The Crawler (intent pressure), per-part stats, weapon shapes, heat, wheel, terrain, shove, torn arms | ✅ |
-| 004 | Run loop | Region map, site types, fight → salvage → next site, **Crawler HP carries between fights**, save and resume mid-run | ⏭ |
-| 005 | Act 1 content | Enemy roster, elites, act boss, first 25 parts, balance pass with a headless run simulator | ⬜ |
+| 004 | [Run loop](iterations/004-run-loop.md) | Region map, site types, fight → salvage → next site, Crawler HP carries, save and resume mid-run | ✅ |
+| 005 | Act 1 content | A real multi-part boss, an enemy roster with identity, more parts (toward 25 arms), events, balance with `run_bot` | ⏭ (after the user's play-test) |
 | 006 | Meta and workshop | Unlock tracking, starting crews, difficulty tiers, the between-run screen | ⬜ |
 | 007 | Acts 2–3 | Two more regions, events, traders, two bosses | ⬜ |
 | 008 | Feel pass | VFX, audio, animation, camera, onboarding for a first run | ⬜ |

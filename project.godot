@@ -19,6 +19,7 @@ config/features=PackedStringArray("4.6", "GL Compatibility")
 
 Audio="*res://scripts/autoload/audio.gd"
 DevShot="*res://scripts/autoload/dev_shot.gd"
+Run="*res://scripts/autoload/run_session.gd"
 
 [debug]
 
