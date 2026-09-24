@@ -1,14 +1,14 @@
 {
   "id": "proto_yard",
   "name": "Crane Yard Skirmish",
-  "_comment": "Row 0 is the far (enemy) edge, row 7 the near (player) edge. Glyphs from data/terrain/tiles.json.",
+  "_comment": "Row 0 is the far (enemy) edge. Barrels (b), a pit (o), a crate wall (c). The Lancer is a tracker, the Dredge a bomber.",
   "rows": [
     "........",
     "..s..r..",
-    "......s.",
-    ".r..^...",
-    "...s..r.",
-    ".s....l.",
+    "....c.s.",
+    ".rb.^...",
+    "...s.br.",
+    ".s.o..l.",
     "....r.s.",
     "........"
   ],
@@ -85,7 +85,8 @@
         "mo_targeting"
       ],
       "x": 5,
-      "y": 1
+      "y": 1,
+      "kind": "tracker"
     },
     {
       "name": "Dredge",
@@ -97,7 +98,8 @@
         "mo_ablative"
       ],
       "x": 7,
-      "y": 0
+      "y": 0,
+      "kind": "bomber"
     }
   ],
   "objective": {

@@ -5,6 +5,7 @@ extends SceneTree
 ##
 ##   godot --path . --resolution 1920x1080 --script res://tools/shot_combat.gd -- \
 ##       --fight slag_pit --select 1 --weapon 1 --aim 5 3 --out shots/lob.png   (aim = a hex x y)
+##       --select 0 --ability 0 --aim 2 3     arms an ability instead of a weapon
 ##
 ## Not headless: it has to render. Everything is driven through the scene's own methods,
 ## the same ones a tap reaches.
@@ -25,6 +26,9 @@ func _run() -> void:
 	var weapon: int = _int_arg(args, "--weapon", -1)
 	if weapon >= 0:
 		scene.call("_choose_weapon", weapon)
+	var ability: int = _int_arg(args, "--ability", -1)
+	if ability >= 0:
+		scene.call("_choose_ability", ability)
 	var at: int = args.find("--aim")
 	if at >= 0 and at + 2 < args.size():
 		scene.call("_tap", Vector2i(args[at + 1].to_int(), args[at + 2].to_int()))

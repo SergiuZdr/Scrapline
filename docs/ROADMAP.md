@@ -14,7 +14,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 004 | [Run loop](iterations/004-run-loop.md) | Region map, site types, fight → salvage → next site, Crawler HP carries, save and resume mid-run | ✅ |
 | — | [Play-test 1](playtests/2026-09-24-playtest-1.md) | The user plays the full loop: combat a chore, no build progression, bad map/refit, no tutorial | ✅ |
 | 005 | [Hex combat core](iterations/005-hex-core.md) | Hex board with free aim and line of sight; the Crawler removed; scrap piles; fight objectives (rout, defend caches, salvage); machine HP carries through the run; faster animations and a new death | ✅ |
-| 006 | Fight depth | Active part abilities with cooldowns; interactive terrain (barrels, pits, breakable cover); distinct enemy types; **user play-test of 005 + 006** | ⏭ |
+| 006 | [Fight depth](iterations/006-fight-depth.md) | Active part abilities with cooldowns; interactive terrain (barrels, pits, breakable cover); distinct enemy types; **user play-test of 005 + 006** | 🔨 built, awaiting play-test |
 | 007 | Build progression | Perks, manufacturer sets, part upgrades, machine levels; rewards that are always a real choice; **user play-test** | ⬜ |
 | 008 | Clarity | Tutorial first fight; glossary and tap-for-info on every term; map redesign (clear front, forward vs sideways); refit by drag and drop; no log; **user play-test** | ⬜ |
 | 009 | Act 1 content | Real bosses, enemy roster with identity, parts toward 25 arms, events | ⬜ |

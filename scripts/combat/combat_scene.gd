@@ -24,6 +24,7 @@ const COL_MOVE := Color(0.38, 0.70, 0.87, 0.42)
 const COL_ATTACK := Color(0.90, 0.70, 0.24, 0.55)
 const COL_TARGET := Color(0.95, 0.78, 0.30, 0.85)
 const COL_ATTACK_FAINT := Color(0.90, 0.70, 0.24, 0.22)
+const COL_SPAWN := Color(0.62, 0.36, 0.86, 0.55)
 const COL_THREAT := Color(0.86, 0.30, 0.20, 0.50)
 const COL_CACHE := Color("e5b33d")
 ## Damage-type colours for impacts, indexed like the rules' `damage_types`.
@@ -70,8 +71,16 @@ var _selected: int = -1
 ## priority can tell which the player meant.
 var _weapon: int = 0
 var _armed: bool = false
-## An attack waiting for its confirming second tap: `[ref, w, x, y]`, or empty.
-var _pending: Array = []
+## The ability armed instead of a weapon (index into the unit's abilities), or -1.
+var _ability: int = -1
+## An attack or ability waiting for its confirming second tap:
+## `{ "ref", "ability": bool, "i": weapon or ability index, "cell": Vector2i }`, or empty.
+var _pending: Dictionary = {}
+## What each weapon-bar button stands for: `["weapon", w]` or `["ability", i]`.
+var _bar_items: Array = []
+## Props, pits' rims and spawn marks drawn on the board.
+var _prop_views: Dictionary = {}
+var _mark_views: Dictionary = {}
 
 var _board: Node3D
 var _units_root: Node3D
@@ -100,7 +109,7 @@ func _ready() -> void:
 	add_child(layer)
 	layer.add_child(_hud)
 	_hud.unit_card_pressed.connect(_select)
-	_hud.weapon_pressed.connect(_choose_weapon)
+	_hud.weapon_pressed.connect(_bar_press)
 	_hud.vent_pressed.connect(_vent)
 	_hud.undo_pressed.connect(_undo)
 	_hud.end_turn_pressed.connect(_end_turn)
@@ -140,7 +149,7 @@ func _start_fight() -> void:
 		if int(_actions[i][0]) == CombatSim.ACT_END:
 			_turn_start = i + 1
 	_selected = -1
-	_pending = []
+	_pending = {}
 	_armed = false
 	_state = CombatSim.replay(_setup, _actions)
 	_build_board()
@@ -296,6 +305,11 @@ func _build_board() -> void:
 			var def: Dictionary = _db.tiles[_setup.tiles[y * _setup.width + x]]
 			var blocks: bool = bool(def.get("blocks", false))
 			var top: float = _tile_top(x, y)
+			if _setup.pit[y * _setup.width + x] == 1:
+				_board.add_child(_pit(x, y))
+				_hint_quads[Vector2i(x, y)] = _quad(x, y, 0.012, HEX * 0.80)
+				_threat_quads[Vector2i(x, y)] = _quad(x, y, 0.008, HEX * 0.94)
+				continue
 			var slab := MeshInstance3D.new()
 			slab.mesh = _hex_mesh(HEX * 0.96, 0.3 + top)
 			slab.rotation.y = PI / 6.0
@@ -319,6 +333,35 @@ func _build_board() -> void:
 	apron.position = Vector3(0, -0.31, 0)
 	apron.material_override = _material(Color("0f0e0c"), 1.0)
 	_board.add_child(apron)
+
+
+## A pit: a hex hole with a faint rim, so "you can be shoved in here" reads at a glance.
+func _pit(x: int, y: int) -> Node3D:
+	var root := Node3D.new()
+	root.position = _to_world(x, y)
+	var hole := MeshInstance3D.new()
+	hole.mesh = _hex_mesh(HEX * 0.9, 1.2)
+	hole.rotation.y = PI / 6.0
+	hole.position = Vector3(0, -0.75, 0)
+	hole.material_override = _material(Color("040405"), 1.0)
+	root.add_child(hole)
+	var rim := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = HEX * 0.8
+	torus.outer_radius = HEX * 0.9
+	torus.ring_segments = 6
+	torus.rings = 6
+	rim.mesh = torus
+	rim.rotation.y = PI / 6.0
+	rim.scale = Vector3(1, 0.15, 1)
+	var glow := StandardMaterial3D.new()
+	glow.albedo_color = Color("3a2418")
+	glow.emission_enabled = true
+	glow.emission = Color("7a3a1c")
+	glow.emission_energy_multiplier = 0.6
+	rim.material_override = glow
+	root.add_child(rim)
+	return root
 
 
 ## A six-sided prism, pointy-top: CylinderMesh puts its first corner on +X, so it is
@@ -377,24 +420,72 @@ func _material(colour: Color, roughness: float, metallic: float = 0.0) -> Standa
 # --- Units ------------------------------------------------------------------
 
 func _spawn_initial() -> void:
-	for child: Node in _units_root.get_children():
-		child.queue_free()
-	_views.clear()
-	_pile_views.clear()
+	_clear_board_objects()
 	for u: GridUnit in _setup.units:
 		_views[u.ref] = _build_view(u)
 
 
 func _spawn_units() -> void:
-	for child: Node in _units_root.get_children():
-		child.queue_free()
-	_views.clear()
-	_pile_views.clear()
+	_clear_board_objects()
 	for u: GridUnit in _state.units:
 		if u.alive:
 			_views[u.ref] = _build_view(u)
 	for cell: Variant in _state.pile_cells():
 		_spawn_pile(cell)
+	for cell: Variant in _state.props:
+		_spawn_prop(cell, String((_state.props[cell] as Dictionary)["kind"]))
+
+
+func _clear_board_objects() -> void:
+	for child: Node in _units_root.get_children():
+		child.queue_free()
+	_views.clear()
+	_pile_views.clear()
+	_prop_views.clear()
+
+
+## A prop: a fuel drum (red oxide, a bright band so it reads as dangerous) or a crate wall.
+func _spawn_prop(cell: Vector2i, kind: String) -> void:
+	if _prop_views.has(cell):
+		return
+	var root := Node3D.new()
+	root.position = _to_world(cell.x, cell.y)
+	if kind == "barrel":
+		for i: int in 2:
+			var drum := MeshInstance3D.new()
+			var cyl := CylinderMesh.new()
+			cyl.top_radius = 0.2
+			cyl.bottom_radius = 0.2
+			cyl.height = 0.55
+			drum.mesh = cyl
+			drum.position = Vector3(-0.14 + i * 0.3, 0.28, -0.05 + i * 0.12)
+			drum.material_override = _material(Color("8c2a1a"), 0.55, 0.4)
+			root.add_child(drum)
+			var band := MeshInstance3D.new()
+			var band_mesh := CylinderMesh.new()
+			band_mesh.top_radius = 0.205
+			band_mesh.bottom_radius = 0.205
+			band_mesh.height = 0.07
+			band.mesh = band_mesh
+			band.position = drum.position + Vector3(0, 0.12, 0)
+			var hot := StandardMaterial3D.new()
+			hot.albedo_color = Color("ffb04a")
+			hot.emission_enabled = true
+			hot.emission = Color("ff8a2a")
+			hot.emission_energy_multiplier = 0.9
+			band.material_override = hot
+			root.add_child(band)
+	else:
+		for s: Array in [[Vector3(0.7, 0.5, 0.5), Vector3(0, 0.25, 0)], [Vector3(0.5, 0.4, 0.45), Vector3(0.05, 0.7, 0)]]:
+			var crate := MeshInstance3D.new()
+			var box := BoxMesh.new()
+			box.size = s[0]
+			crate.mesh = box
+			crate.position = s[1]
+			crate.material_override = _material(Color("4c5358"), 0.6, 0.6)
+			root.add_child(crate)
+	_units_root.add_child(root)
+	_prop_views[cell] = root
 
 
 func _build_view(u: GridUnit) -> Dictionary:
@@ -529,6 +620,10 @@ func _team_ring(colour: Color) -> MeshInstance3D:
 func _set_tag(view: Dictionary, u: GridUnit) -> void:
 	var lines: PackedStringArray = ["%d/%d" % [u.hp, u.max_hp]]
 	var status: PackedStringArray = []
+	if not u.kind.is_empty():
+		status.append(u.kind.to_upper())
+	if u.shield > 0:
+		status.append("SHIELD")
 	if u.team == GridUnit.TEAM_PLAYER and not u.objective and u.heat > 0:
 		status.append("HEAT %d/%d" % [u.heat, u.heat_cap])
 	if u.marked:
@@ -683,6 +778,65 @@ func _animate(e: Array) -> void:
 			_refresh_tag(actor)
 			Audio.play("ui_confirm", -8.0)
 			await _wait(0.12)
+		GridEv.PROP_PLACED:
+			_spawn_prop(cell, "barrel" if int(e[GridEv.F_V1]) == 1 else "crate")
+		GridEv.PROP_HIT:
+			if _prop_views.has(cell):
+				var prop: Node3D = _prop_views[cell]
+				var jolt := create_tween()
+				jolt.tween_property(prop, "scale", Vector3(1.12, 0.9, 1.12), 0.05)
+				jolt.tween_property(prop, "scale", Vector3.ONE, 0.1)
+		GridEv.PROP_BROKEN:
+			if _prop_views.has(cell):
+				(_prop_views[cell] as Node3D).queue_free()
+				_prop_views.erase(cell)
+			_vfx.destruction(_to_world(cell.x, cell.y) + Vector3(0, 0.3, 0), Color("9a9a9a"))
+		GridEv.EXPLOSION:
+			var at: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, 0.4, 0)
+			_vfx.burst(at, Color("ff8a3c"), 2.2)
+			_vfx.shake(0.55)
+			_float_text(at + Vector3(0, 1.2, 0), "BOOM", Color("ffb04a"))
+			Audio.play("destroy", -2.0)
+			await _wait(0.22)
+		GridEv.FELL:
+			if _views.has(target):
+				var view: Dictionary = _views[target]
+				var root: Node3D = view["root"]
+				_views.erase(target)
+				var drop := create_tween()
+				drop.tween_property(root, "position", _to_world(cell.x, cell.y) + Vector3(0, -2.2, 0), 0.32).set_ease(Tween.EASE_IN)
+				drop.tween_callback(root.queue_free)
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.4, 0), "INTO THE PIT", UIKit.RED)
+			Audio.play("destroy", -6.0)
+			await _wait(0.35)
+		GridEv.ABILITY:
+			var user: GridUnit = _state.unit(actor)
+			if user != null and int(e[GridEv.F_V1]) < user.abilities.size():
+				_float_text(_unit_pos(actor) + Vector3(0, 2.3, 0), String(user.abilities[int(e[GridEv.F_V1])]["name"]).to_upper(), UIKit.BLUE)
+			Audio.play("cycle", -10.0)
+			await _wait(0.12)
+		GridEv.PULLED:
+			if _views.has(target):
+				var root: Node3D = (_views[target] as Dictionary)["root"]
+				var pull := create_tween()
+				pull.tween_property(root, "position", _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0), 0.18)
+				await pull.finished
+		GridEv.SPAWN_MARKED:
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.0, 0), "DRONE NEXT ROUND", Color("b58cf0"))
+		GridEv.SPAWNED:
+			var drone: GridUnit = _state.unit(target)
+			if drone != null and not _views.has(target):
+				_views[target] = _build_view(drone)
+				var root: Node3D = (_views[target] as Dictionary)["root"]
+				root.position = _to_world(cell.x, cell.y)
+				root.scale = Vector3.ONE * 0.1
+				var grow := create_tween()
+				grow.tween_property(root, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_BACK)
+				await _wait(0.2)
+		GridEv.SPAWN_BLOCKED:
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.0, 0), "BUILD BLOCKED", UIKit.GREEN)
+		GridEv.SHIELDED:
+			_refresh_tag(target)
 		GridEv.FIGHT_END:
 			pass
 
@@ -933,11 +1087,20 @@ func _refresh() -> void:
 				_mark(_threat_quads, cell, COL_THREAT)
 		_intent_marker(int(ref), threat)
 
+	for ref: Variant in _state.spawn_marks:
+		_mark(_threat_quads, _state.spawn_marks[ref], COL_SPAWN)
+
 	var sel: GridUnit = _state.unit(_selected) if _selected >= 0 else null
 	if sel != null and sel.alive:
-		if _armed and not sel.acted and not sel.seized and sel.can_fire(_weapon):
-			if _pending.size() == 4:
-				var plan: Dictionary = CombatSim.strike_plan(_state, sel, _weapon, Vector2i(int(_pending[2]), int(_pending[3])))
+		if _armed and _ability >= 0:
+			if not _pending.is_empty():
+				_mark(_hint_quads, _pending["cell"], COL_TARGET)
+			else:
+				for cell: Vector2i in CombatAbilities.targets(_state, sel, _ability):
+					_mark(_hint_quads, cell, COL_ATTACK)
+		elif _armed and not sel.acted and not sel.seized and sel.can_fire(_weapon):
+			if not _pending.is_empty():
+				var plan: Dictionary = CombatSim.strike_plan(_state, sel, _weapon, _pending["cell"])
 				for cell: Vector2i in (plan["tiles"] as Array):
 					_mark(_hint_quads, cell, COL_TARGET)
 			else:
@@ -972,15 +1135,24 @@ func _refresh_hud(threats: Dictionary) -> void:
 
 	var sel: GridUnit = _state.unit(_selected) if _selected >= 0 else null
 	_refresh_weapon_bar(sel)
-	if _pending.size() == 4:
-		_hud.set_info("FIRE %s" % String(sel.weapons[int(_pending[1])]["name"]).to_upper(),
-			_preview_text(CombatSim.preview_attack(_state, int(_pending[0]), int(_pending[1]), Vector2i(int(_pending[2]), int(_pending[3]))))
-			+ "\n\nTap the same target again to confirm.")
+	if not _pending.is_empty():
+		var cell: Vector2i = _pending["cell"]
+		if bool(_pending["ability"]):
+			var ability: Dictionary = sel.abilities[int(_pending["i"])]
+			_hud.set_info(String(ability["name"]).to_upper(), _effects_text(CombatSim.dry_run(_state,
+				[CombatSim.ACT_ABILITY, sel.ref, int(_pending["i"]), cell.x, cell.y]), {}) + "\n\nTap the same hex again to confirm.")
+		else:
+			_hud.set_info("FIRE %s" % String(sel.weapons[int(_pending["i"])]["name"]).to_upper(),
+				_preview_text(CombatSim.preview_attack(_state, sel.ref, int(_pending["i"]), cell))
+				+ "\n\nTap the same target again to confirm.")
 		_hud.set_hint("Tap the yellow target again to fire  ·  tap elsewhere to cancel")
 	elif sel != null:
 		_hud.set_info(sel.name.to_upper(), "%s\n%s\n\n%s" % [_unit_line(sel), _arms_line(sel), _threat_summary(threats)])
 		if sel.seized:
 			_hud.set_hint("SEIZED this round: it can move but not attack.")
+		elif _armed and _ability >= 0:
+			_hud.set_hint("Yellow: where %s can go  ·  tap one to aim  ·  tap %s again to go back to moving" % [
+				String(sel.abilities[_ability]["name"]), String(sel.abilities[_ability]["name"]).to_upper()])
 		elif _armed:
 			_hud.set_hint("Yellow: %s targets  ·  tap one to aim  ·  tap the weapon again to go back to moving" % String(sel.weapons[_weapon]["name"]))
 		elif not sel.acted:
@@ -993,10 +1165,12 @@ func _refresh_hud(threats: Dictionary) -> void:
 
 
 func _refresh_weapon_bar(sel: GridUnit) -> void:
+	_bar_items = []
 	if sel == null or not sel.alive or sel.objective:
 		_hud.set_weapons([], -1, "")
 		return
 	var list: Array = []
+	var selected: int = -1
 	for w: int in sel.weapons.size():
 		var weapon: Dictionary = sel.weapons[w]
 		var reason: String = ""
@@ -1008,30 +1182,62 @@ func _refresh_weapon_bar(sel: GridUnit) -> void:
 			reason = "SEIZED THIS ROUND"
 		elif sel.acted:
 			reason = "ALREADY ACTED"
+		if _armed and _ability < 0 and w == _weapon:
+			selected = list.size()
 		list.append({"name": String(weapon["name"]), "detail": _weapon_detail(sel, w),
 			"available": reason.is_empty(), "reason": reason})
+		_bar_items.append(["weapon", w])
+	# Abilities after the arms: what the chassis and module can DO besides shoot.
+	for i: int in sel.abilities.size():
+		var ability: Dictionary = sel.abilities[i]
+		var reason: String = ""
+		if not sel.ability_ready(i):
+			reason = "READY IN %d ROUND%s" % [int(ability["wait"]), "" if int(ability["wait"]) == 1 else "S"]
+		elif not CombatAbilities.usable(_state, sel, i):
+			reason = "NOT NOW"
+		if _armed and _ability == i:
+			selected = list.size()
+		list.append({"name": String(ability["name"]), "detail": String(ability["text"]),
+			"available": reason.is_empty(), "reason": reason, "ability": true})
+		_bar_items.append(["ability", i])
 	var vent: String = ""
 	if not sel.acted and sel.heat > 0:
-		vent = "Drop heat to 0. Uses this construct's action."
-	_hud.set_weapons(list, _weapon if _armed and sel.can_fire(_weapon) else -1, vent)
+		vent = "Drop heat to 0. Uses this machine's action."
+	_hud.set_weapons(list, selected, vent)
 
 
 func _preview_text(preview: Dictionary) -> String:
-	var lines: PackedStringArray = []
-	var hits: Array = preview.get("hits", [])
-	if hits.is_empty():
-		lines.append("Nothing there takes damage.")
-	for hit: Dictionary in hits:
-		var t: GridUnit = _state.unit(int(hit["ref"]))
-		var who: String = t.name + (" (ALLY)" if t.team == GridUnit.TEAM_PLAYER else "")
-		var extra: String = ""
-		if (preview["kills"] as Array).has(t.ref):
-			extra = "  DESTROYS IT"
-		elif (preview["tears"] as Array).has(t.ref):
-			extra = "  TEARS AN ARM OFF"
-		lines.append("%s  -%d → %d/%d%s" % [who, int(hit["damage"]), maxi(0, t.hp - int(hit["damage"])), t.max_hp, extra])
+	var text: String = _effects_text(preview.get("effects", []), preview)
 	if bool(preview.get("overheats", false)):
-		lines.append("OVERHEATS: no attack next round")
+		text += "\nOVERHEATS: no attack next round"
+	return text
+
+
+## What a dry run changed, as lines a player reads: every machine hurt, destroyed, dropped
+## into a pit, moved, and every prop that breaks. Built from the REAL rules run on a copy.
+func _effects_text(effects: Array, preview: Dictionary) -> String:
+	var lines: PackedStringArray = []
+	for effect: Dictionary in effects:
+		if effect.has("prop"):
+			var cell: Vector2i = effect["prop"]
+			var kind: String = String((_state.props.get(cell, {"kind": "prop"}) as Dictionary)["kind"])
+			lines.append("A fuel drum EXPLODES" if kind == "barrel" else "A crate wall breaks")
+			continue
+		var t: GridUnit = _state.unit(int(effect["ref"]))
+		if t == null:
+			continue
+		var who: String = t.name + (" (YOURS)" if t.team == GridUnit.TEAM_PLAYER else "")
+		if bool(effect["fell"]):
+			lines.append("%s FALLS INTO THE PIT" % who)
+		elif bool(effect["killed"]):
+			lines.append("%s -%d  DESTROYED" % [who, int(effect["hp_lost"])])
+		elif int(effect["hp_lost"]) > 0:
+			var tear: String = "  TEARS AN ARM OFF" if (preview.get("tears", []) as Array).has(t.ref) else ""
+			lines.append("%s -%d → %d/%d%s" % [who, int(effect["hp_lost"]), t.hp - int(effect["hp_lost"]), t.max_hp, tear])
+		elif effect["moved_to"] != null:
+			lines.append("%s is moved" % who)
+	if lines.is_empty():
+		return "Nothing there is affected."
 	return "\n".join(lines)
 
 
@@ -1048,6 +1254,8 @@ func _threat_summary(threats: Dictionary) -> String:
 		for hit: Dictionary in (threat["hits"] as Array):
 			names.append("%s -%d" % [_state.unit(int(hit["ref"])).name, int(hit["damage"])])
 		var outcome: String = ", ".join(names) if not names.is_empty() else "nothing"
+		if int(threat.get("lock", -1)) >= 0:
+			outcome += "  (locked on: moving does not dodge it)"
 		if not bool(threat["legal"]):
 			outcome = "out of reach now: it will miss"
 		lines.append("%d. %s (%s) → %s" % [int(threat["order"]), shooter.name,
@@ -1124,6 +1332,8 @@ func _intent_marker(ref: int, threat: Dictionary) -> void:
 
 	var label := Label3D.new()
 	label.text = str(int(threat["order"])) if legal else "%d  MISSES" % int(threat["order"])
+	if legal and int(threat.get("lock", -1)) >= 0:
+		label.text = "%d  LOCKED" % int(threat["order"])
 	label.font_size = 72 if legal else 44
 	label.pixel_size = 0.005
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -1242,28 +1452,47 @@ func _tap(cell: Vector2i) -> void:
 	var sel: GridUnit = _state.unit(_selected) if _selected >= 0 else null
 	if sel != null and sel.alive and not _armed:
 		if CombatSim.reachable(_state, sel.ref).has(cell):
-			_pending = []
+			_pending = {}
 			_act([CombatSim.ACT_MOVE, sel.ref, cell.x, cell.y])
 			return
-	if sel != null and sel.alive and _armed:
+	if sel != null and sel.alive and _armed and _ability >= 0:
+		if CombatAbilities.targets(_state, sel, _ability).has(cell):
+			if not _pending.is_empty() and _pending["cell"] == cell:
+				var i: int = _ability
+				_pending = {}
+				_armed = false
+				_ability = -1
+				_act([CombatSim.ACT_ABILITY, sel.ref, i, cell.x, cell.y])
+			else:
+				_pending = {"ref": sel.ref, "ability": true, "i": _ability, "cell": cell}
+				Audio.play("ui_confirm", -14.0)
+				_refresh()
+			return
+	elif sel != null and sel.alive and _armed:
 		var aim: Array = _aim_for(sel, cell)
 		if not aim.is_empty():
-			if _pending.size() == 4 and int(_pending[2]) == int(aim[0]) and int(_pending[3]) == int(aim[1]):
-				_pending = []
+			var at := Vector2i(int(aim[0]), int(aim[1]))
+			if not _pending.is_empty() and _pending["cell"] == at:
+				_pending = {}
 				_armed = false
-				_act([CombatSim.ACT_ATTACK, sel.ref, _weapon, int(aim[0]), int(aim[1])])
+				_act([CombatSim.ACT_ATTACK, sel.ref, _weapon, at.x, at.y])
 			else:
-				_pending = [sel.ref, _weapon, int(aim[0]), int(aim[1])]
+				_pending = {"ref": sel.ref, "ability": false, "i": _weapon, "cell": at}
 				Audio.play("ui_confirm", -14.0)
 				_refresh()
 			return
 
-	_pending = []
+	_pending = {}
 	_refresh()
 	if there != null:
-		_hud.set_info(there.name.to_upper() + ("" if there.alive else "  ·  WRECK"),
-			"%d / %d HP\n%s" % [there.hp, there.max_hp, "Protect it: losing it loses the fight." if there.objective
-				else _unit_line(there) + "\n" + _arms_line(there)])
+		var about: String = "Protect it: every cache still standing pays out scrap." if there.objective \
+			else _unit_line(there) + "\n" + _arms_line(there)
+		if not there.kind.is_empty():
+			var kind: Dictionary = _db.enemy_kinds.get(there.kind, {})
+			about += "\n\n%s: %s" % [String(kind.get("name", there.kind)).to_upper(), String(kind.get("text", ""))]
+		_hud.set_info(there.name.to_upper(), "%d / %d HP\n%s" % [there.hp, there.max_hp, about])
+	else:
+		_terrain_info(cell)
 
 
 ## The hex to aim the armed weapon at if `cell` is tapped, or empty: any hex in reach.
@@ -1285,7 +1514,8 @@ func _select(ref: int) -> void:
 		_weapon = _default_weapon(ref, -1)
 	_selected = ref
 	_armed = false
-	_pending = []
+	_ability = -1
+	_pending = {}
 	Audio.play("ui_confirm", -16.0)
 	_refresh()
 
@@ -1295,11 +1525,68 @@ func _choose_weapon(w: int) -> void:
 	if _busy or u == null or not u.can_fire(w):
 		return
 	# Tapping the armed weapon again puts the construct back into moving.
-	_armed = not (_armed and _weapon == w)
+	_armed = not (_armed and _ability < 0 and _weapon == w)
+	_ability = -1
 	_weapon = w
-	_pending = []
+	_pending = {}
 	Audio.play("ui_confirm", -16.0)
 	_refresh()
+
+
+func _bar_press(index: int) -> void:
+	if index < 0 or index >= _bar_items.size():
+		return
+	var item: Array = _bar_items[index]
+	if String(item[0]) == "weapon":
+		_choose_weapon(int(item[1]))
+	else:
+		_choose_ability(int(item[1]))
+
+
+## An untargeted ability happens on the tap (UNDO takes it back); a targeted one is armed
+## like a weapon: its hexes light up, tap one to aim, tap it again to use.
+func _choose_ability(i: int) -> void:
+	var u: GridUnit = _state.unit(_selected) if _selected >= 0 else null
+	if _busy or u == null or not CombatAbilities.usable(_state, u, i):
+		Audio.play("ui_deny", -10.0)
+		return
+	_pending = {}
+	if not CombatAbilities.needs_target(u.abilities[i]):
+		_armed = false
+		_ability = -1
+		_act([CombatSim.ACT_ABILITY, u.ref, i, 0, 0])
+		return
+	_armed = not (_armed and _ability == i)
+	_ability = i if _armed else -1
+	Audio.play("ui_confirm", -16.0)
+	_refresh()
+
+
+## Tapping an empty hex explains what is on it: terms the player has not been told yet are
+## the first thing play-test 1 complained about.
+func _terrain_info(cell: Vector2i) -> void:
+	if _state.props.has(cell):
+		var prop: Dictionary = _state.props[cell]
+		var def: Dictionary = _tile_def_by_id(String(prop["kind"]))
+		_hud.set_info(String(def.get("name", "")).to_upper(), "%s\n%d HP left." % [String(def.get("text", "")), int(prop["hp"])])
+		return
+	if _state.piles.has(cell):
+		_hud.set_info("SCRAP PILE", "Worth %d scrap. End a move here to collect it and patch 2 HP. Enemies grab them too." % int(_state.piles[cell]))
+		return
+	for ref: Variant in _state.spawn_marks:
+		if _state.spawn_marks[ref] == cell:
+			_hud.set_info("DRONE BUILD SITE", "A hive will build a drone here next round. Stand on it to stop the build.")
+			return
+	var def: Dictionary = _db.tiles[_state.tile_at(cell.x, cell.y)]
+	if String(def.get("id", "")) != "open":
+		_hud.set_info(String(def.get("name", "")).to_upper(), String(def.get("text", "")))
+
+
+func _tile_def_by_id(id: String) -> Dictionary:
+	for def: Variant in _db.tiles:
+		if String((def as Dictionary).get("id", "")) == id:
+			return def
+	return {}
 
 
 func _cycle_weapon() -> void:
@@ -1338,7 +1625,7 @@ func _crew_ref(index: int) -> int:
 func _vent() -> void:
 	if _busy or _selected < 0:
 		return
-	_pending = []
+	_pending = {}
 	_act([CombatSim.ACT_VENT, _selected, 0, 0])
 
 
@@ -1363,8 +1650,9 @@ func _undo() -> void:
 	_record()
 	_state = CombatSim.replay(_setup, _actions)
 	_shown = _state.events.size()
-	_pending = []
+	_pending = {}
 	_armed = false
+	_ability = -1
 	_spawn_units()
 	_weapon = _default_weapon(_selected, _weapon)
 	Audio.play("ui_deny", -14.0)
@@ -1374,8 +1662,9 @@ func _undo() -> void:
 func _end_turn() -> void:
 	if _busy or _state.outcome != CombatState.ONGOING:
 		return
-	_pending = []
+	_pending = {}
 	_armed = false
+	_ability = -1
 	_selected = -1
 	await _act([CombatSim.ACT_END, -1, 0, 0])
 	_turn_start = _actions.size()

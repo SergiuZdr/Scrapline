@@ -2,6 +2,18 @@
 
 **Status:** basic intent AI built in 002 (`sim/combat/intent_ai.gd`). For each reachable tile × 4 directions it scores the shot: a hit on a foe is 100 + damage×10 + missing HP of the target, +60 if it kills, and friendly fire is −100. If nothing is worth shooting it closes to a preferred distance (1 for melee, 3 for ranged). Ties are broken by a murmur3 hash. The roster comes in 005.
 
+## Enemy kinds (built in 006)
+
+| Kind | Rule |
+|---|---|
+| Tracker | Intent locks onto a machine; the shot follows it. Counter: line of sight, range, kill, shove |
+| Bomber | 4 damage to all 6 neighbours on death, both sides |
+| Warden | Neighbours take 2 less per hit |
+| Hive | Every 2 rounds marks a neighbouring hex; builds a drone there next round unless it is occupied |
+
+The AI re-scores its 6 best candidates by dry run (`IntentAI._dry_value`), so it uses
+drums and pits and avoids its own bombers' blasts.
+
 ## Enemies are constructs too
 
 Enemies use the **same part system** as the player. A "Reclaimer Harvester" is a chassis

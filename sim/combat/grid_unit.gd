@@ -21,6 +21,17 @@ var part_ids: PackedStringArray = []
 var role: String = ""
 ## A salvage cache (the defend objective): cannot move, act or be shoved.
 var objective: bool = false
+## An enemy's special rules ("tracker", "bomber", "warden", "hive"), or "". See
+## `data/combat/enemy_kinds.json`.
+var kind: String = ""
+## Active abilities from its parts: `{ "id", "name", "kind", "cooldown", "free", ...params,
+## "wait": rounds until usable again (0 = ready) }`.
+var abilities: Array[Dictionary] = []
+## A one-shot bonus for this machine's next attack this turn (Focus, Overdrive).
+var boost_damage: int = 0
+var boost_heat: int = 0
+## Damage taken off every hit until the player's next turn (Shield).
+var shield: int = 0
 
 var x: int = 0
 var y: int = 0
@@ -68,6 +79,10 @@ func can_fire(w: int) -> bool:
 	return w >= 0 and w < weapons.size() and not bool(weapons[w].get("torn", false))
 
 
+func ability_ready(i: int) -> bool:
+	return i >= 0 and i < abilities.size() and int(abilities[i]["wait"]) <= 0
+
+
 func has_weapon() -> bool:
 	for w: int in weapons.size():
 		if can_fire(w):
@@ -84,6 +99,12 @@ func copy() -> GridUnit:
 	u.part_ids = part_ids.duplicate()
 	u.role = role
 	u.objective = objective
+	u.kind = kind
+	for ability: Dictionary in abilities:
+		u.abilities.append(ability.duplicate(true))
+	u.boost_damage = boost_damage
+	u.boost_heat = boost_heat
+	u.shield = shield
 	u.x = x
 	u.y = y
 	u.hp = hp

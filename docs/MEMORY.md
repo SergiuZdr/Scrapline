@@ -45,6 +45,9 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-24 | Progression: **perks (relics), manufacturer sets, part upgrades, machine levels** — all four (user) | "Not a true roguelike" (PT1-6): a run must build toward something |
 | 2026-09-24 | Fight depth: **active part abilities, interactive terrain, distinct enemy types, fight objectives** — all four (user) | "A boring chore" (PT1-1) |
 | 2026-09-24 | Process: **every iteration that changes how the game plays ends with the user playing it** | Three iterations passed on bot numbers alone; the bot cannot measure fun or clarity |
+| 2026-09-24 | **Previews are dry runs**: an attack/ability is executed on `CombatState.clone()` and diffed | With explosions, chains, pits and bombers only the real rules can say what happens; a second calculation would eventually lie |
+| 2026-09-24 | Abilities are player-only; enemies express threat through intents and kinds | An enemy ability the player cannot see coming breaks the telegraph promise |
+| 2026-09-24 | Crate walls (and barricades) break into nothing, not rubble | Simpler, and a broken wall opening a lane is itself a decision |
 | 2026-09-24 | ADAPT code that does not compile once CUT code is gone goes to `legacy/` (ignored by Godot through `.gdignore`), not straight to deletion | It stays greppable as reference while its replacement is written; it is deleted once replaced |
 
 ## Lessons carried over from the old codebase
@@ -93,6 +96,8 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-24 | Free aim + tile-targeted intents make dodging free again: 005 bot runs won 100%. Objectives (defend) are the only pressure until enemy types and terrain arrive (006) |
 | 2026-09-24 | Spawn fight models from the SETUP when animating from event 0; the state after `start` already has the enemies' opening moves applied |
 | 2026-09-24 | Validate authored AND generated fights for overlapping starts: a clash does not crash, it just draws wrong |
+
+| 2026-09-24 | The bot barely uses the new tools, so bot numbers after 006 are a FLOOR on player power. A smarter bot (ability use) is needed before trusting balance numbers again |
 
 ## Open questions
 

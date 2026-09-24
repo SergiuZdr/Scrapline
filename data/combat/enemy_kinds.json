@@ -1,0 +1,33 @@
+{
+  "_comment": "Enemy kinds: rules layered on top of an ordinary part-built enemy. Generated fights roll these by column (see data/run/run.json).",
+  "tracker": {
+    "name": "Tracker",
+    "text": "Its attack locks onto a machine, not a hex. The shot follows that machine: break its line of sight, get out of range, kill it or shove it."
+  },
+  "bomber": {
+    "name": "Bomber",
+    "text": "Explodes when destroyed: 4 damage to every neighbour, its own side included.",
+    "blast": 4
+  },
+  "warden": {
+    "name": "Warden",
+    "text": "Its neighbours take 2 less from every hit.",
+    "armor": 2
+  },
+  "hive": {
+    "name": "Hive",
+    "text": "Every 2 rounds it marks a neighbouring hex and builds a drone there next round. Stand on the marked hex to block it.",
+    "every": 2,
+    "drone": {
+      "name": "Drone",
+      "parts": [
+        "ch_courier",
+        "co_null",
+        "",
+        "ar_pulse",
+        ""
+      ],
+      "hp": 3
+    }
+  }
+}

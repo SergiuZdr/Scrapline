@@ -13,6 +13,7 @@ extends RefCounted
 ##   [ACT_ATTACK, ref, weapon, x, y]      the hex aimed at
 ##   [ACT_VENT,   ref, 0, 0]
 ##   [ACT_END,    -1,  0, 0]
+##   [ACT_ABILITY, ref, ability, x, y]    x, y ignored by abilities that take no target
 ##
 ## Aim is free: a weapon targets a HEX. Melee reaches the six neighbours; a shot travels
 ## the hex line toward its target and hits the first thing on it (piercing shots carry
@@ -26,6 +27,7 @@ const ACT_MOVE: int = 0
 const ACT_ATTACK: int = 1
 const ACT_END: int = 2
 const ACT_VENT: int = 3
+const ACT_ABILITY: int = 4
 
 
 static func start(setup: CombatSetup) -> CombatState:
@@ -37,6 +39,10 @@ static func start(setup: CombatSetup) -> CombatState:
 		state.units.append(u.copy())
 	state.units.sort_custom(func(a: GridUnit, b: GridUnit) -> bool: return a.ref < b.ref)
 	state.emit(GridEv.FIGHT_START)
+	for prop: Dictionary in setup.start_props:
+		var cell := Vector2i(int(prop["x"]), int(prop["y"]))
+		state.props[cell] = {"kind": String(prop["kind"]), "hp": int(prop["hp"])}
+		state.emit(GridEv.PROP_PLACED, -1, -1, cell.x, cell.y, 1 if String(prop["kind"]) == "barrel" else 0)
 	for pile: Dictionary in setup.start_piles:
 		var cell := Vector2i(int(pile["x"]), int(pile["y"]))
 		state.piles[cell] = int(state.piles.get(cell, 0)) + int(pile["value"])
@@ -65,6 +71,11 @@ static func apply(state: CombatState, action: Array) -> bool:
 				ok = _player_attack(state, int(action[1]), int(action[2]), Vector2i(int(action[3]), int(action[4])))
 		ACT_VENT:
 			ok = _vent(state, int(action[1]))
+		ACT_ABILITY:
+			if action.size() >= 5:
+				ok = CombatAbilities.use(state, int(action[1]), int(action[2]), Vector2i(int(action[3]), int(action[4])))
+				if ok:
+					_check_outcome(state)
 		ACT_END:
 			_end_turn(state)
 			ok = true
@@ -88,8 +99,8 @@ static func reachable(state: CombatState, ref: int) -> Dictionary:
 
 
 ## Cheapest paths within `budget` movement over the six neighbours. Rubble and ridges cost
-## 2. Allies can be walked through but not stopped on; enemies and scrap heaps cannot be
-## entered. Scrap piles are open ground. Expansion order is fixed -- lowest cost, then row,
+## 2. Allies can be walked through but not stopped on; enemies, scrap heaps, props and pits
+## cannot be entered. Scrap piles are open ground. Expansion order is fixed -- lowest cost, then row,
 ## then column -- so the path chosen between two equal routes never depends on anything else.
 static func paths_from(state: CombatState, u: GridUnit, budget: int) -> Dictionary:
 	var start := Vector2i(u.x, u.y)
@@ -108,7 +119,7 @@ static func paths_from(state: CombatState, u: GridUnit, budget: int) -> Dictiona
 			continue
 		done[cell] = true
 		for n: Vector2i in Hex.neighbors(cell):
-			if not state.inside(n) or state.tile_blocks(n.x, n.y):
+			if not state.inside(n) or state.solid(n) or state.is_pit(n):
 				continue
 			var occupant: GridUnit = state.unit_at(n.x, n.y)
 			if occupant != null and occupant != u and occupant.team != u.team:
@@ -178,23 +189,28 @@ static func strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector2
 		return plan
 	var base: int = int(weapon["damage"])
 	if base > 0:
-		base += u.damage_bonus + (u.melee_bonus if shape == "melee" else 0)
+		base += u.damage_bonus + (u.melee_bonus if shape == "melee" else 0) + u.boost_damage
 	var tiles: Array[Vector2i] = []
 	var hits: Array[Dictionary] = []
+	# Props struck, `{ "cell", "damage" }`: a prop takes the raw number, no armour wheel.
+	var props: Array[Dictionary] = []
 
 	match shape:
 		"melee":
 			tiles.append(target)
 			_add_hit(state, u, hits, target, base, true, false)
+			_add_prop(state, props, target, base)
 		"lob":
 			tiles.append(target)
 			_add_hit(state, u, hits, target, base, true, false)
+			_add_prop(state, props, target, base)
 			for n: Vector2i in Hex.neighbors(target):
 				if not state.inside(n):
 					continue
 				tiles.append(n)
 				if int(weapon["splash"]) > 0:
 					_add_hit(state, u, hits, n, int(weapon["splash"]), false, false)
+					_add_prop(state, props, n, int(weapon["splash"]))
 		_:
 			# A shot: the hex line toward the target. Piercing shots are a beam to full range.
 			var pierce_left: int = int(weapon["pierce"])
@@ -205,6 +221,9 @@ static func strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector2
 				tiles.append(c)
 				plan["end"] = c
 				if state.tile_blocks(c.x, c.y):
+					break
+				if state.props.has(c):
+					_add_prop(state, props, c, base)
 					break
 				var occupant: GridUnit = state.unit_at(c.x, c.y)
 				if occupant == null or occupant == u:
@@ -228,7 +247,13 @@ static func strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector2
 	plan["legal"] = true
 	plan["tiles"] = tiles
 	plan["hits"] = hits
+	plan["props"] = props
 	return plan
+
+
+static func _add_prop(state: CombatState, props: Array[Dictionary], cell: Vector2i, amount: int) -> void:
+	if amount > 0 and state.props.has(cell):
+		props.append({"cell": cell, "damage": amount})
 
 
 static func _add_hit(state: CombatState, u: GridUnit, hits: Array[Dictionary], cell: Vector2i,
@@ -261,10 +286,21 @@ static func damage_to(state: CombatState, u: GridUnit, target: GridUnit, amount:
 	var dmg: int = (amount * pct + 50) / 100
 	if shot:
 		dmg -= state.cover(target.x, target.y)
-	dmg -= target.armor
+	dmg -= target.armor + target.shield + _warden_cover(state, target)
 	if target.marked:
 		dmg += state.setup.mark_bonus
 	return maxi(state.setup.min_damage, dmg)
+
+
+## A warden takes damage off every hit on its neighbours (not on itself).
+static func _warden_cover(state: CombatState, target: GridUnit) -> int:
+	for n: Vector2i in Hex.neighbors(Vector2i(target.x, target.y)):
+		if not state.inside(n):
+			continue
+		var other: GridUnit = state.unit_at(n.x, n.y)
+		if other != null and other.team == target.team and other.kind == "warden":
+			return int((state.setup.kinds.get("warden", {}) as Dictionary).get("armor", 2))
+	return 0
 
 
 ## `strike_plan` plus what the player needs to decide: legality for the player, whether
@@ -287,7 +323,44 @@ static func preview_attack(state: CombatState, ref: int, w: int, target: Vector2
 			tears.append(t.ref)
 	plan["kills"] = kills
 	plan["tears"] = tears
+	plan["effects"] = dry_run(state, [ACT_ATTACK, ref, w, target.x, target.y]) if bool(plan["legal"]) else []
 	return plan
+
+
+## Runs one player action on a COPY of the fight and reports what it changed, unit by unit:
+## `[{ "ref", "hp_lost", "killed", "fell", "moved_to": Vector2i or null }]`, plus
+## `{ "prop": Vector2i, "broken": bool }` for props that broke. With explosions, chains,
+## pits and bombers, only the real rules can say what an attack does; this is them.
+static func dry_run(state: CombatState, action: Array) -> Array:
+	var copy: CombatState = state.clone()
+	if not apply(copy, action):
+		return []
+	return diff(state, copy)
+
+
+## What changed between two states of the same fight, in ref order.
+static func diff(before: CombatState, after: CombatState) -> Array:
+	var out: Array = []
+	for u: GridUnit in after.units:
+		var old: GridUnit = before.unit(u.ref)
+		if old == null:
+			out.append({"ref": u.ref, "hp_lost": 0, "killed": false, "fell": false, "moved_to": Vector2i(u.x, u.y), "spawned": true})
+			continue
+		if not old.alive:
+			continue
+		var lost: int = old.hp - (u.hp if u.alive else 0)
+		var moved: bool = u.alive and (u.x != old.x or u.y != old.y)
+		if lost == 0 and u.alive and not moved:
+			continue
+		out.append({"ref": u.ref, "hp_lost": maxi(0, lost), "killed": not u.alive,
+			"fell": not u.alive and u.hp == 0 and after.is_pit(Vector2i(u.x, u.y)),
+			"moved_to": Vector2i(u.x, u.y) if moved else null})
+	var cells: Array = before.props.keys()
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
+	for cell: Variant in cells:
+		if not after.props.has(cell):
+			out.append({"prop": cell, "broken": true})
+	return out
 
 
 static func can_attack(state: CombatState, ref: int, w: int, target: Vector2i) -> bool:
@@ -308,12 +381,24 @@ static func threats(state: CombatState) -> Dictionary:
 		var u: GridUnit = state.unit(int(intent["ref"]))
 		if u == null or not u.alive or not u.can_fire(int(intent["w"])):
 			continue
-		var target := Vector2i(int(intent["x"]), int(intent["y"]))
+		var target: Vector2i = intent_target(state, intent)
 		var plan: Dictionary = strike_plan(state, u, int(intent["w"]), target)
 		plan["w"] = int(intent["w"])
 		plan["order"] = int(intent["order"])
+		plan["lock"] = int(intent.get("lock", -1))
 		out[u.ref] = plan
 	return out
+
+
+## Where an intent fires: its hex, or -- for a tracker -- wherever its locked machine
+## stands now. A tracker's lock is broken only by that machine dying.
+static func intent_target(state: CombatState, intent: Dictionary) -> Vector2i:
+	var lock: int = int(intent.get("lock", -1))
+	if lock >= 0:
+		var locked: GridUnit = state.unit(lock)
+		if locked != null and locked.alive:
+			return Vector2i(locked.x, locked.y)
+	return Vector2i(int(intent["x"]), int(intent["y"]))
 
 
 ## How the fight is going against its objective, for the HUD and the run.
@@ -355,7 +440,7 @@ static func _move(state: CombatState, ref: int, x: int, y: int) -> bool:
 	u.y = y
 	u.moved = true
 	state.emit(GridEv.MOVED, ref, -1, x, y, from.x, from.y)
-	_collect(state, u)
+	collect(state, u)
 	_check_outcome(state)
 	return true
 
@@ -401,18 +486,22 @@ static func _execute_attack(state: CombatState, u: GridUnit, w: int, target: Vec
 		var primary: bool = bool(hit["primary"])
 		if dmg > 0:
 			victim.marked = false
-			_hurt(state, u.ref, victim, dmg)
+			hurt(state, u.ref, victim, dmg)
 			if victim.alive and primary and _would_tear(state, victim, weapon, dmg):
 				_tear(state, u.ref, victim)
 		if victim.alive and primary and bool(weapon["mark"]):
 			victim.marked = true
 			state.emit(GridEv.MARKED, u.ref, victim.ref, victim.x, victim.y)
 		if victim.alive and primary and int(weapon["shove"]) > 0:
-			_shove(state, u.ref, victim, Hex.direction(origin, Vector2i(victim.x, victim.y)))
+			shove(state, u.ref, victim, Hex.direction(origin, Vector2i(victim.x, victim.y)))
+	for prop: Dictionary in (plan.get("props", []) as Array):
+		damage_prop(state, u.ref, prop["cell"], int(prop["damage"]))
+	u.boost_damage = 0
 	# Heat is the PLAYER's resource. Enemies ignore it: an enemy that sometimes cannot
 	# fire would be one more hidden state to read off the board every turn.
 	if u.team == GridUnit.TEAM_PLAYER:
-		u.heat += int(weapon["heat"]) + u.heat_bonus
+		u.heat += int(weapon["heat"]) + u.heat_bonus + u.boost_heat
+		u.boost_heat = 0
 		state.emit(GridEv.HEAT, u.ref, -1, u.x, u.y, u.heat, u.heat_cap)
 		if u.heat >= u.heat_cap and not u.overheated:
 			u.overheated = true
@@ -426,23 +515,67 @@ static func _would_tear(state: CombatState, target: GridUnit, weapon: Dictionary
 
 
 ## Damage, and on death a scrap pile where the machine stood. A cache just breaks.
-static func _hurt(state: CombatState, actor: int, target: GridUnit, dmg: int) -> void:
+static func hurt(state: CombatState, actor: int, target: GridUnit, dmg: int) -> void:
 	target.hp = maxi(0, target.hp - dmg)
 	state.emit(GridEv.DAMAGE, actor, target.ref, target.x, target.y, dmg, target.hp)
 	if target.hp > 0:
 		return
 	target.alive = false
 	state.emit(GridEv.DESTROYED, actor, target.ref, target.x, target.y)
+	var cell := Vector2i(target.x, target.y)
 	if not target.objective:
-		var cell := Vector2i(target.x, target.y)
 		state.piles[cell] = int(state.piles.get(cell, 0)) + state.setup.pile_value
 		state.emit(GridEv.PILE_DROPPED, actor, target.ref, cell.x, cell.y, state.setup.pile_value)
+	if target.kind == "bomber":
+		explode(state, target.ref, cell, int((state.setup.kinds.get("bomber", {}) as Dictionary).get("blast", 4)))
+
+
+## Damage to every neighbour of `cell`: units take it straight (no armour), props take it
+## and may break -- a barrel that breaks explodes in turn, which is how chains happen.
+static func explode(state: CombatState, actor: int, cell: Vector2i, dmg: int) -> void:
+	state.emit(GridEv.EXPLOSION, actor, -1, cell.x, cell.y, dmg)
+	for n: Vector2i in Hex.neighbors(cell):
+		if not state.inside(n):
+			continue
+		var victim: GridUnit = state.unit_at(n.x, n.y)
+		if victim != null:
+			hurt(state, actor, victim, dmg)
+		damage_prop(state, actor, n, dmg)
+
+
+static func damage_prop(state: CombatState, actor: int, cell: Vector2i, dmg: int) -> void:
+	if not state.props.has(cell) or dmg <= 0:
+		return
+	var prop: Dictionary = state.props[cell]
+	prop["hp"] = int(prop["hp"]) - dmg
+	state.emit(GridEv.PROP_HIT, actor, -1, cell.x, cell.y, dmg, maxi(0, int(prop["hp"])))
+	if int(prop["hp"]) > 0:
+		return
+	var barrel: bool = String(prop["kind"]) == "barrel"
+	state.props.erase(cell)
+	state.emit(GridEv.PROP_BROKEN, actor, -1, cell.x, cell.y, 1 if barrel else 0)
+	if barrel:
+		explode(state, actor, cell, state.setup.barrel_damage)
+
+
+## Into a pit: gone, with no pile (it went down with its scrap).
+static func fall(state: CombatState, actor: int, target: GridUnit, cell: Vector2i) -> void:
+	target.x = cell.x
+	target.y = cell.y
+	target.hp = 0
+	target.alive = false
+	state.emit(GridEv.FELL, actor, target.ref, cell.x, cell.y)
+	state.emit(GridEv.DESTROYED, actor, target.ref, cell.x, cell.y)
 
 
 ## Whoever ends a move on a scrap pile takes it: the player banks the scrap, and the
 ## machine patches itself. An enemy that gets there first carries it off.
-static func _collect(state: CombatState, u: GridUnit) -> void:
-	var cell := Vector2i(u.x, u.y)
+static func collect(state: CombatState, u: GridUnit) -> void:
+	collect_at(state, u, Vector2i(u.x, u.y))
+
+
+## Takes the pile at `cell` for `u` (Magnet reaches one without stepping on it).
+static func collect_at(state: CombatState, u: GridUnit, cell: Vector2i) -> void:
 	if not state.piles.has(cell) or u.objective:
 		return
 	var value: int = int(state.piles[cell])
@@ -466,21 +599,27 @@ static func _tear(state: CombatState, actor: int, target: GridUnit) -> void:
 
 ## One hex away from the attacker. Into anything solid -- the edge, scrap, a unit -- it
 ## does not move, and both it and whatever it hit take bump damage instead.
-static func _shove(state: CombatState, actor: int, target: GridUnit, dir: int) -> void:
+static func shove(state: CombatState, actor: int, target: GridUnit, dir: int) -> void:
 	if target.unshovable:
 		return
 	var n: Vector2i = Hex.neighbor(Vector2i(target.x, target.y), dir)
 	var bump: int = state.setup.bump_damage
-	if not state.inside(n) or state.tile_blocks(n.x, n.y):
+	if state.inside(n) and state.is_pit(n) and state.unit_at(n.x, n.y) == null:
+		var start := Vector2i(target.x, target.y)
+		state.emit(GridEv.SHOVED, actor, target.ref, n.x, n.y, start.x, start.y)
+		fall(state, actor, target, n)
+		return
+	if not state.inside(n) or state.solid(n):
 		state.emit(GridEv.BUMP, actor, target.ref, n.x, n.y, bump)
-		_hurt(state, actor, target, bump)
+		hurt(state, actor, target, bump)
+		damage_prop(state, actor, n, bump)
 		return
 	var occupant: GridUnit = state.unit_at(n.x, n.y)
 	if occupant != null:
 		state.emit(GridEv.BUMP, actor, target.ref, n.x, n.y, bump)
-		_hurt(state, actor, target, bump)
+		hurt(state, actor, target, bump)
 		if occupant.alive:
-			_hurt(state, actor, occupant, bump)
+			hurt(state, actor, occupant, bump)
 		return
 	var from := Vector2i(target.x, target.y)
 	target.x = n.x
@@ -496,7 +635,7 @@ static func _end_turn(state: CombatState) -> void:
 		var u: GridUnit = state.unit(int(intent["ref"]))
 		if u == null or not u.alive or not u.can_fire(int(intent["w"])):
 			continue
-		var target := Vector2i(int(intent["x"]), int(intent["y"]))
+		var target: Vector2i = intent_target(state, intent)
 		if not bool(strike_plan(state, u, int(intent["w"]), target)["legal"]):
 			state.emit(GridEv.MISSED, u.ref, -1, target.x, target.y)
 			continue
@@ -522,6 +661,12 @@ static func _begin_round(state: CombatState) -> void:
 		u.moved = false
 		u.acted = false
 		u.seized = false
+		u.boost_damage = 0
+		u.boost_heat = 0
+		if u.team == GridUnit.TEAM_PLAYER:
+			u.shield = 0
+		for ability: Dictionary in u.abilities:
+			ability["wait"] = maxi(0, int(ability["wait"]) - 1)
 		if not u.alive or u.objective or u.team != GridUnit.TEAM_PLAYER:
 			continue
 		if u.overheated:
@@ -536,9 +681,11 @@ static func _begin_round(state: CombatState) -> void:
 	# Terrain bites before anyone moves, so standing on slag is a decision made last turn.
 	for u: GridUnit in state.units:
 		if u.alive and state.hazard(u.x, u.y) > 0:
-			_hurt(state, -1, u, state.hazard(u.x, u.y))
+			hurt(state, -1, u, state.hazard(u.x, u.y))
 	if _check_outcome(state):
 		return
+
+	_hives(state)
 
 	# Enemies move and commit in ref order. Each plans against the board as the earlier
 	# ones have already left it, so two never pick the same hex.
@@ -555,13 +702,60 @@ static func _begin_round(state: CombatState) -> void:
 			u.x = dest.x
 			u.y = dest.y
 			state.emit(GridEv.MOVED, u.ref, -1, u.x, u.y, from.x, from.y)
-			_collect(state, u)
+			collect(state, u)
 		var w: int = int(plan["w"])
 		if w >= 0:
 			order += 1
 			var target: Vector2i = plan["target"]
-			state.intents.append({"ref": u.ref, "w": w, "x": target.x, "y": target.y, "order": order})
-			state.emit(GridEv.INTENT_SET, u.ref, -1, target.x, target.y, w, order)
+			var intent: Dictionary = {"ref": u.ref, "w": w, "x": target.x, "y": target.y, "order": order}
+			# A tracker locks onto the machine on its target hex, not the hex.
+			var locked: GridUnit = state.unit_at(target.x, target.y)
+			if u.kind == "tracker" and locked != null and locked.team != u.team:
+				intent["lock"] = locked.ref
+			state.intents.append(intent)
+			state.emit(GridEv.INTENT_SET, u.ref, int(intent.get("lock", -1)), target.x, target.y, w, order)
+
+
+## Hives build on their marked hex, then mark the next one. A marked hex that anything
+## stands on (or that became solid) blocks the build: that is the counterplay.
+static func _hives(state: CombatState) -> void:
+	var hive: Dictionary = state.setup.kinds.get("hive", {})
+	var every: int = maxi(1, int(hive.get("every", 2)))
+	var refs: Array = state.spawn_marks.keys()
+	refs.sort()
+	for ref: Variant in refs:
+		var cell: Vector2i = state.spawn_marks[ref]
+		state.spawn_marks.erase(ref)
+		var builder: GridUnit = state.unit(int(ref))
+		if builder == null or not builder.alive or state.setup.drone == null:
+			continue
+		if state.unit_at(cell.x, cell.y) != null or state.solid(cell) or state.is_pit(cell):
+			state.emit(GridEv.SPAWN_BLOCKED, builder.ref, -1, cell.x, cell.y)
+			continue
+		var drone: GridUnit = state.setup.drone.copy()
+		var slot: int = 0
+		for u: GridUnit in state.units:
+			if u.team == GridUnit.TEAM_ENEMY:
+				slot = maxi(slot, u.slot + 1)
+		drone.slot = slot
+		drone.ref = GridUnit.TEAM_ENEMY * 10 + slot
+		drone.x = cell.x
+		drone.y = cell.y
+		state.units.append(drone)
+		state.units.sort_custom(func(a: GridUnit, b: GridUnit) -> bool: return a.ref < b.ref)
+		state.emit(GridEv.SPAWNED, builder.ref, drone.ref, cell.x, cell.y)
+	for u: GridUnit in state.units:
+		if not u.alive or u.kind != "hive" or (state.round_number - 1) % every != 0:
+			continue
+		var free: Array[Vector2i] = []
+		for n: Vector2i in Hex.neighbors(Vector2i(u.x, u.y)):
+			if state.inside(n) and not state.solid(n) and not state.is_pit(n) and state.unit_at(n.x, n.y) == null:
+				free.append(n)
+		if free.is_empty():
+			continue
+		var pick: Vector2i = free[IntentAI.mix(state.setup.rng_seed, u.ref, state.round_number, 41) % free.size()]
+		state.spawn_marks[u.ref] = pick
+		state.emit(GridEv.SPAWN_MARKED, u.ref, -1, pick.x, pick.y)
 
 
 ## Ends the fight if its objective is met or failed. Returns true if it ended.

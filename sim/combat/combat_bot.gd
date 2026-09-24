@@ -47,6 +47,13 @@ static func plan_unit(state: CombatState, ref: int, apply: bool) -> Array:
 			out.append(move)
 	var w: int = int(plan["w"])
 	if w >= 0:
+		# A ready boost (Focus, Overdrive) is free damage on an attack about to happen.
+		for i: int in u.abilities.size():
+			if String(u.abilities[i]["kind"]) == "boost" and u.ability_ready(i) and u.heat + 4 < u.heat_cap:
+				var boost: Array = [CombatSim.ACT_ABILITY, ref, i, 0, 0]
+				if not apply or CombatSim.apply(state, boost):
+					out.append(boost)
+				break
 		var target: Vector2i = plan["target"]
 		out.append([CombatSim.ACT_ATTACK, ref, w, target.x, target.y])
 	elif u.heat > 0 and not u.seized:
