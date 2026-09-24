@@ -27,3 +27,6 @@ server/modules/build/
 # Python bytecode from the Blender tools
 __pycache__/
 *.pyc
+
+# Dev helper scripts
+tools/_refunc.py

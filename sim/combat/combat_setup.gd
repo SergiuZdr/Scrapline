@@ -23,6 +23,16 @@ var move_cost: PackedByteArray = []
 var cover: PackedByteArray = []
 var range_bonus: PackedByteArray = []
 var hazard: PackedByteArray = []
+## 1 on a pit: nothing walks in, shots pass over, anything shoved in is destroyed.
+var pit: PackedByteArray = []
+## Objects on the board at the start: `[{ "x", "y", "kind": "barrel"|"crate", "hp" }]`.
+var start_props: Array = []
+var barrel_damage: int = 3
+var crate_hp: int = 3
+## `data/combat/enemy_kinds.json`, for the rules that need a kind's numbers.
+var kinds: Dictionary = {}
+## What a hive builds, resolved from its parts once so a spawn is a copy, not a lookup.
+var drone: GridUnit = null
 
 var max_rounds: int = 20
 var min_damage: int = 1
@@ -58,6 +68,9 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 	setup.pile_value = int(rules.get("pile_value", 4))
 	setup.pile_heal = int(rules.get("pile_heal", 2))
 	setup.wheel = wheel
+	setup.barrel_damage = int(rules.get("barrel_damage", 3))
+	setup.crate_hp = int(rules.get("crate_hp", 3))
+	setup.kinds = rules.get("enemy_kinds", {})
 	var objective: Dictionary = fight.get("objective", {"type": "rout"})
 	setup.objective = {"type": String(objective.get("type", "rout")),
 		"rounds": int(objective.get("rounds", 0)), "need": int(objective.get("need", 0))}
@@ -78,6 +91,7 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 	setup.cover.resize(cells)
 	setup.range_bonus.resize(cells)
 	setup.hazard.resize(cells)
+	setup.pit.resize(cells)
 	setup.tiles.resize(cells)
 	for y: int in setup.height:
 		var row: String = String(rows[y])
@@ -98,6 +112,11 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 			setup.cover[i] = int(grid.get("cover", 0))
 			setup.range_bonus[i] = int(grid.get("range", 0))
 			setup.hazard[i] = int(grid.get("hazard", 0))
+			setup.pit[i] = int(grid.get("pit", 0))
+			var prop: String = String(grid.get("prop", ""))
+			if not prop.is_empty():
+				var prop_hp: int = int(rules.get("%s_hp" % prop, 1))
+				setup.start_props.append({"x": x, "y": y, "kind": prop, "hp": prop_hp})
 
 	var damage_types: Array = rules.get("damage_types", [])
 	var armor_types: Array = rules.get("armor_types", [])
@@ -107,7 +126,13 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 		var specs: Array = slot_lists[team]
 		for slot: int in specs.size():
 			setup.units.append(_build_unit(specs[slot], team, slot, parts, roles,
-				damage_types, armor_types, setup.errors))
+				damage_types, armor_types, setup.errors, rules.get("abilities", {})))
+
+	var drone_spec: Dictionary = (setup.kinds.get("hive", {}) as Dictionary).get("drone", {})
+	if not drone_spec.is_empty():
+		setup.drone = _build_unit(drone_spec, GridUnit.TEAM_ENEMY, 9, parts, roles, damage_types,
+			armor_types, setup.errors)
+		setup.drone.name = String(drone_spec.get("name", "Drone"))
 
 	# Salvage caches (the defend objective): immobile, unarmed, on the player's side. They
 	# take refs after the crew, so the crew's refs are always 0..2.
@@ -119,6 +144,8 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 	# Two things on one hex is a broken fight file, not a rule: say so instead of letting a
 	# cache and a machine share a hex and draw two health tags on top of each other.
 	var seen: Dictionary = {}
+	for prop: Dictionary in setup.start_props:
+		seen[Vector2i(int(prop["x"]), int(prop["y"]))] = String(prop["kind"])
 	for u: GridUnit in setup.units:
 		var cell := Vector2i(u.x, u.y)
 		if seen.has(cell):
@@ -126,14 +153,14 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 		seen[cell] = u.name
 		if setup.width > 0 and (cell.x < 0 or cell.y < 0 or cell.x >= setup.width or cell.y >= setup.height):
 			setup.errors.append("%s starts off the board at (%d,%d)" % [u.name, cell.x, cell.y])
-		elif setup.width > 0 and setup.blocks[cell.y * setup.width + cell.x] == 1:
-			setup.errors.append("%s starts on a blocking hex at (%d,%d)" % [u.name, cell.x, cell.y])
+		elif setup.width > 0 and (setup.blocks[cell.y * setup.width + cell.x] == 1 or setup.pit[cell.y * setup.width + cell.x] == 1):
+			setup.errors.append("%s starts on a blocking hex or a pit at (%d,%d)" % [u.name, cell.x, cell.y])
 	return setup
 
 
 static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionary,
 		roles: Dictionary, damage_types: Array, armor_types: Array,
-		errors: PackedStringArray) -> GridUnit:
+		errors: PackedStringArray, ability_defs: Dictionary = {}) -> GridUnit:
 	var u := GridUnit.new()
 	u.team = team
 	u.slot = slot
@@ -179,6 +206,21 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 	for index: int in [2, 3]:
 		var arm: Dictionary = _part(parts, u.part_ids[index], "arm", u.name, errors)
 		u.weapons.append(weapon_from(arm))
+
+	u.kind = String(spec.get("kind", ""))
+	# Abilities: the chassis's, then the module's. Only the player's machines use them --
+	# an enemy's threat is its intent, and hidden enemy abilities would break that promise.
+	if team == GridUnit.TEAM_PLAYER:
+		for grid: Dictionary in [cg, mg]:
+			var id: String = String(grid.get("ability", ""))
+			if id.is_empty() or not ability_defs.has(id):
+				continue
+			if u.abilities.any(func(a: Dictionary) -> bool: return String(a["id"]) == id):
+				continue
+			var ability: Dictionary = (ability_defs[id] as Dictionary).duplicate(true)
+			ability["id"] = id
+			ability["wait"] = 0
+			u.abilities.append(ability)
 	return u
 
 

@@ -35,5 +35,8 @@
   "pile_value": 4,
   "pile_heal": 2,
   "cache_hp": 5,
-  "_objectives": "rout: destroy every enemy. defend: caches (immobile) on the board; survive `rounds` rounds or rout; every cache left pays out. salvage: piles on the board; collect `need` of them or rout. A destroyed machine always bursts into a scrap pile."
+  "_objectives": "rout: destroy every enemy. defend: caches (immobile) on the board; survive `rounds` rounds or rout; every cache left pays out. salvage: piles on the board; collect `need` of them or rout. A destroyed machine always bursts into a scrap pile.",
+  "barrel_hp": 1,
+  "barrel_damage": 3,
+  "crate_hp": 3
 }

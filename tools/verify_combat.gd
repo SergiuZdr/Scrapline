@@ -18,6 +18,8 @@ const LANCE: Array = ["ch_hauler", "co_dynamo", "ar_scanner", "ar_lance", "mo_sc
 const RAIL: Array = ["ch_lancer", "co_dynamo", "ar_scanner", "ar_railgun", "mo_scavenger"]  # marksman, plate
 const MORTAR: Array = ["ch_bulwark", "co_dynamo", "ar_mortar", "ar_hammer", "mo_scavenger"] # anchor, reactive
 const COIL: Array = ["ch_hauler", "co_dynamo", "ar_pulse", "ar_scatter", "mo_scavenger"]
+const DASHER: Array = ["ch_skirmisher", "co_dynamo", "ar_saw", "ar_hammer", "mo_coolant"]   # abilities: dash, flush
+const GUARD: Array = ["ch_brute", "co_dynamo", "ar_saw", "ar_hammer", "mo_reactive"]       # abilities: charge, shield
 const SIZE: int = 9
 const C := Vector2i(4, 4)
 
@@ -47,6 +49,11 @@ func _initialize() -> void:
 	_test_intents_target_hexes()
 	_test_piles()
 	_test_objectives()
+	_test_barrels_and_props()
+	_test_pits()
+	_test_abilities()
+	_test_enemy_kinds()
+	_test_dry_run_matches()
 	for id: String in ["proto_yard", "slag_pit", "container_row"]:
 		_test_bot_fight(id)
 	print("")
@@ -407,6 +414,200 @@ func _test_objectives() -> void:
 	CombatSim.apply(salvage, [CombatSim.ACT_MOVE, 0, n.x, n.y])
 	_check("salvage: collecting the piles needed wins", not had or salvage.outcome == CombatState.WON)
 	_check("the objective has a line of text for the HUD", String(CombatSim.objective_status(salvage)["text"]).begins_with("SALVAGE"))
+
+
+# --- 006: terrain, abilities, enemy kinds -------------------------------------
+
+func _ability(state: CombatState, ref: int, i: int, cell: Vector2i = Vector2i.ZERO) -> bool:
+	return CombatSim.apply(state, [CombatSim.ACT_ABILITY, ref, i, cell.x, cell.y])
+
+
+func _test_barrels_and_props() -> void:
+	var barrel: Vector2i = Hex.neighbor(C, 0)
+	var second: Vector2i = Hex.neighbor(barrel, 0)
+	var victim: Vector2i = Hex.neighbor(second, 1)
+	var shooter: Vector2i = Hex.neighbor(C, 3)
+	var state: CombatState = _fight(_rows({barrel: "b", second: "b"}), [_unit(LANCE, shooter)], [_unit(HAMMER, victim, 20), _unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(state, 0, shooter)
+	_place(state, 10, victim)
+	_place(state, 11, Vector2i(0, 0))
+	_check("a barrel starts on the board as a prop", state.props.has(barrel) and state.props.has(second))
+	_check("a prop cannot be walked into", not CombatSim.reachable(state, 0).has(barrel))
+	var preview: Dictionary = CombatSim.preview_attack(state, 0, 1, barrel)
+	_check("the preview (a dry run) sees the chain reach the unit beyond", preview["effects"].any(func(e: Dictionary) -> bool: return e.has("ref") and int(e["ref"]) == 10))
+	_attack(state, 0, 1, barrel)
+	_check("shooting a barrel breaks it, and it sets off the next one", not state.props.has(barrel) and not state.props.has(second))
+	_check("the chain's blast hits the unit next to the second barrel (3)", state.unit(10).hp == 17)
+
+	var wall: Vector2i = Hex.neighbor(C, 0)
+	var behind: Vector2i = Hex.neighbor(wall, 0)
+	var crate: CombatState = _fight(_rows({wall: "c"}), [_unit(LANCE, C)], [_unit(HAMMER, behind, 20)])
+	_place(crate, 0, C)
+	_place(crate, 10, behind)
+	_attack(crate, 0, 1, behind)
+	_check("a crate wall stops a shot and takes the damage (3 -> 0 HP, broken)", crate.unit(10).hp == 20 and not crate.props.has(wall))
+
+
+func _test_pits() -> void:
+	var pit: Vector2i = Hex.neighbor(Hex.neighbor(C, 0), 0)
+	var enemy: Vector2i = Hex.neighbor(C, 0)
+	var state: CombatState = _fight(_rows({pit: "o"}), [_unit(HAMMER, C)], [_unit(HAMMER, enemy, 20), _unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(state, 0, C)
+	_place(state, 10, enemy)
+	_place(state, 11, Vector2i(0, 0))
+	_check("a pit cannot be walked into", not CombatSim.paths_from(state, state.unit(0), 5).has(pit))
+	_attack(state, 0, 1, enemy)
+	_check("shoved into a pit: gone", not state.unit(10).alive)
+	_check("and it leaves no scrap pile (it went down with its scrap)", not state.piles.has(pit) and not state.piles.has(enemy))
+	var over: CombatState = _fight(_rows({enemy: "o"}), [_unit(LANCE, C)], [_unit(HAMMER, pit, 20)])
+	_place(over, 0, C)
+	_place(over, 10, pit)
+	_attack(over, 0, 1, pit)
+	_check("shots pass over a pit", over.unit(10).hp < 20)
+
+
+func _test_abilities() -> void:
+	var brute: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, _off(C, 3, -3, 0), 20), _unit(HAMMER, Vector2i(0, 0), 20)])
+	var target: Vector2i = _off(C, 3, -3, 0)
+	_place(brute, 0, C)
+	_place(brute, 10, target)
+	_place(brute, 11, Vector2i(0, 0))
+	_check("a brawler frame gives Charge, a Scavenger module gives Magnet",
+		String(brute.unit(0).abilities[0]["id"]) == "charge" and String(brute.unit(0).abilities[1]["id"]) == "magnet")
+	_check("charge can aim down a straight hex line", CombatAbilities.targets(brute, brute.unit(0), 0).has(target))
+	_check("charge runs up to the enemy, hits for 3 and shoves it", _ability(brute, 0, 0, target)
+		and Hex.distance(_at(brute, 0), target) == 1 and brute.unit(10).hp == 17 and _at(brute, 10) != target)
+	_check("charge uses the action", brute.unit(0).acted)
+	_check("and then waits its cooldown", not brute.unit(0).ability_ready(0))
+
+	var far: Vector2i = _off(C, 3, -3, 0)
+	var pit: Vector2i = _off(C, 2, -2, 0)
+	var hook: CombatState = _fight(_rows({pit: "o"}), [_unit(LANCE, C)], [_unit(HAMMER, far, 20)])
+	_place(hook, 0, C)
+	_place(hook, 10, far)
+	_check("grapple drags across a pit, and the victim falls in", _ability(hook, 0, 0, far) and not hook.unit(10).alive)
+	var pull: CombatState = _fight(_rows(), [_unit(LANCE, C)], [_unit(HAMMER, far, 20)])
+	_place(pull, 0, C)
+	_place(pull, 10, far)
+	_ability(pull, 0, 0, far)
+	_check("grapple pulls a unit until it is adjacent", Hex.distance(_at(pull, 10), C) == 1)
+
+	var wall_at: Vector2i = Hex.neighbor(C, 0)
+	var shooter_at: Vector2i = Hex.neighbor(wall_at, 0)
+	var fort: CombatState = _fight(_rows(), [_unit(MORTAR, C)], [_unit(LANCE, Hex.neighbor(shooter_at, 0), 20)])
+	_place(fort, 0, C)
+	_place(fort, 10, Hex.neighbor(shooter_at, 0))
+	_check("an anchor frame drops a barricade on a neighbouring hex", _ability(fort, 0, 0, wall_at) and fort.props.has(wall_at))
+
+	var dash: CombatState = _fight(_rows(), [_unit(DASHER, C)], [_unit(HAMMER, Hex.neighbor(C, 0), 20)])
+	_place(dash, 0, C)
+	_place(dash, 10, Hex.neighbor(C, 0))
+	_attack(dash, 0, 0, Hex.neighbor(C, 0))
+	var away: Vector2i = _off(C, -2, 1, 1)
+	_check("dash moves again after attacking, for free", _ability(dash, 0, 0, away) and _at(dash, 0) == away)
+	dash.unit(0).heat = 3
+	_check("flush dumps heat for free", _ability(dash, 0, 1) and dash.unit(0).heat == 0)
+
+	var aim: CombatState = _fight(_rows(), [_unit(RAIL, C)], [_unit(HAMMER, _off(C, 2, -1, -1), 30)])
+	_place(aim, 0, C)
+	_place(aim, 10, _off(C, 2, -1, -1))
+	_check("focus is free and adds +2 to the next attack", _ability(aim, 0, 0) and not aim.unit(0).acted)
+	_attack(aim, 0, 1, _off(C, 2, -1, -1))
+	_check("rail 3 + focus 2 = 5", aim.unit(10).hp == 25)
+
+	var mate: Vector2i = Hex.neighbor(C, 3)
+	var shield: CombatState = _fight(_rows(), [_unit(GUARD, C), _unit(HAMMER, mate)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(shield, 0, C)
+	_place(shield, 1, mate)
+	_ability(shield, 0, 1)
+	_check("shield covers this machine and its neighbours", shield.unit(0).shield == 2 and shield.unit(1).shield == 2)
+	_check("a shielded machine takes 2 less", CombatSim.damage_to(shield, shield.unit(10), shield.unit(1), 4, false) == 2)
+
+	var pile: Vector2i = _off(C, 2, -1, -1)
+	var mag: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, Vector2i(0, 0), 20)],
+		{"type": "rout", "piles": [{"x": pile.x, "y": pile.y}]})
+	_place(mag, 0, C)
+	_check("magnet pulls in a pile 2 hexes away without moving", _ability(mag, 0, 1, pile) and mag.scrap_collected == 4 and _at(mag, 0) == C)
+
+
+func _test_enemy_kinds() -> void:
+	# Tracker: its shot follows the machine it locked onto.
+	var tracker := Vector2i(4, 1)
+	var victim: Vector2i = _off(tracker, 0, -3, 3)
+	var state: CombatState = _fight(_rows(), [_unit(HAMMER, victim)], [{"parts": LANCE, "x": tracker.x, "y": tracker.y, "hp": 30, "kind": "tracker"}])
+	_place(state, 0, victim)
+	_place(state, 10, tracker)
+	state.intents = [{"ref": 10, "w": 1, "x": victim.x, "y": victim.y, "order": 1, "lock": 0}]
+	# Sideways, staying in range: getting OUT of range is real counterplay, not a dodge.
+	var step: Vector2i = victim
+	for n: Vector2i in Hex.neighbors(victim):
+		if state.inside(n) and Hex.distance(n, tracker) <= 3 and n != victim and not Hex.line(tracker, victim).has(n):
+			step = n
+			break
+	CombatSim.apply(state, [CombatSim.ACT_MOVE, 0, step.x, step.y])
+	var hp: int = state.unit(0).hp
+	CombatSim.apply(state, [CombatSim.ACT_END, -1, 0, 0])
+	_check("tracker: stepping aside does not dodge a locked shot", state.unit(0).hp < hp)
+
+	var gen: CombatState = _fight(_rows(), [_unit(HAMMER, victim)], [{"parts": LANCE, "x": tracker.x, "y": tracker.y, "hp": 30, "kind": "tracker"}])
+	_check("tracker: its intent is locked onto a machine", gen.intents.is_empty() or int(gen.intents[0].get("lock", -1)) == 0)
+
+	# Bomber: explodes on death, both sides.
+	var bomb: Vector2i = Hex.neighbor(C, 0)
+	var friend: Vector2i = Hex.neighbor(bomb, 1)
+	var boom: CombatState = _fight(_rows(), [_unit(HAMMER, C)],
+		[{"parts": HAMMER, "x": bomb.x, "y": bomb.y, "hp": 4, "kind": "bomber"}, _unit(HAMMER, friend, 20)])
+	_place(boom, 0, C)
+	_place(boom, 10, bomb)
+	_place(boom, 11, friend)
+	var mine: int = boom.unit(0).hp
+	_attack(boom, 0, 0, bomb)
+	_check("bomber: killing it blasts its neighbours for 4 (its friend too)", boom.unit(11).hp == 16)
+	_check("bomber: and the machine that killed it, if adjacent", boom.unit(0).hp == mine - 4)
+
+	# Warden: its neighbours take 2 less.
+	var w_at: Vector2i = Hex.neighbor(C, 0)
+	var ward: CombatState = _fight(_rows(), [_unit(HAMMER, Vector2i(0, 8))],
+		[_unit(HAMMER, C, 20), {"parts": HAMMER, "x": w_at.x, "y": w_at.y, "hp": 20, "kind": "warden"}])
+	_place(ward, 10, C)
+	_place(ward, 11, w_at)
+	_check("warden: a neighbour takes 2 less (4 -> 2)", CombatSim.damage_to(ward, ward.unit(0), ward.unit(10), 4, false) == 2)
+	_check("warden: the warden itself does not", CombatSim.damage_to(ward, ward.unit(0), ward.unit(11), 4, false) == 4)
+
+	# Hive: marks a hex, builds on it next round -- unless something stands there.
+	var hive: CombatState = _fight(_rows(), [_unit(HAMMER, Vector2i(0, 8))],
+		[{"parts": LANCE, "x": 4, "y": 1, "hp": 20, "kind": "hive"}])
+	_check("hive: marks a spawn hex on round 1", hive.spawn_marks.has(10))
+	var mark: Vector2i = hive.spawn_marks.get(10, Vector2i(-1, -1))
+	var enemies_before: int = hive.crew(GridUnit.TEAM_ENEMY).size()
+	hive.intents.clear()
+	CombatSim.apply(hive, [CombatSim.ACT_END, -1, 0, 0])
+	_check("hive: builds a drone there next round", hive.crew(GridUnit.TEAM_ENEMY).size() == enemies_before + 1)
+	var blocked: CombatState = _fight(_rows(), [_unit(HAMMER, Vector2i(0, 8))],
+		[{"parts": LANCE, "x": 4, "y": 1, "hp": 20, "kind": "hive"}])
+	var bmark: Vector2i = blocked.spawn_marks.get(10, Vector2i(-1, -1))
+	_place(blocked, 0, bmark)
+	blocked.intents.clear()
+	var before: int = blocked.crew(GridUnit.TEAM_ENEMY).size()
+	CombatSim.apply(blocked, [CombatSim.ACT_END, -1, 0, 0])
+	_check("hive: standing on the marked hex blocks the build", blocked.crew(GridUnit.TEAM_ENEMY).size() == before and mark.x >= 0)
+
+
+## The preview is the real rules on a copy, so it must match what then happens.
+func _test_dry_run_matches() -> void:
+	var barrel: Vector2i = Hex.neighbor(C, 0)
+	var a: Vector2i = Hex.neighbor(barrel, 1)
+	var b: Vector2i = Hex.neighbor(barrel, 5)
+	var state: CombatState = _fight(_rows({barrel: "b"}), [_unit(LANCE, Hex.neighbor(C, 3))],
+		[{"parts": HAMMER, "x": a.x, "y": a.y, "hp": 3, "kind": "bomber"}, _unit(HAMMER, b, 20)])
+	_place(state, 0, Hex.neighbor(C, 3))
+	_place(state, 10, a)
+	_place(state, 11, b)
+	var predicted: Array = CombatSim.preview_attack(state, 0, 1, barrel)["effects"]
+	var before: CombatState = state.clone()
+	_attack(state, 0, 1, barrel)
+	var actual: Array = CombatSim.diff(before, state)
+	_check("a barrel + bomber chain: the preview predicted exactly what happened", str(predicted) == str(actual) and not actual.is_empty())
 
 
 # --- Whole fights -------------------------------------------------------------

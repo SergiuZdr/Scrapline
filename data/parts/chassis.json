@@ -17,7 +17,8 @@
     "grid": {
       "hp": 11,
       "move": 3,
-      "heat_cap": 6
+      "heat_cap": 6,
+      "ability": "charge"
     }
   },
   {
@@ -38,7 +39,8 @@
     "grid": {
       "hp": 7,
       "move": 3,
-      "heat_cap": 4
+      "heat_cap": 4,
+      "ability": "dash"
     }
   },
   {
@@ -60,7 +62,8 @@
     "grid": {
       "hp": 14,
       "move": 2,
-      "heat_cap": 8
+      "heat_cap": 8,
+      "ability": "barricade"
     }
   },
   {
@@ -81,7 +84,8 @@
     "grid": {
       "hp": 6,
       "move": 4,
-      "heat_cap": 4
+      "heat_cap": 4,
+      "ability": "focus"
     }
   },
   {
@@ -102,7 +106,8 @@
     "grid": {
       "hp": 11,
       "move": 2,
-      "heat_cap": 6
+      "heat_cap": 6,
+      "ability": "grapple"
     }
   },
   {
@@ -124,7 +129,8 @@
     "grid": {
       "hp": 10,
       "move": 4,
-      "heat_cap": 6
+      "heat_cap": 6,
+      "ability": "charge"
     }
   },
   {
@@ -145,7 +151,8 @@
     "grid": {
       "hp": 16,
       "move": 2,
-      "heat_cap": 7
+      "heat_cap": 7,
+      "ability": "barricade"
     }
   },
   {
@@ -166,7 +173,8 @@
     "grid": {
       "hp": 8,
       "move": 3,
-      "heat_cap": 5
+      "heat_cap": 5,
+      "ability": "focus"
     }
   },
   {
@@ -187,7 +195,8 @@
     "grid": {
       "hp": 5,
       "move": 4,
-      "heat_cap": 4
+      "heat_cap": 4,
+      "ability": "dash"
     }
   },
   {
@@ -209,7 +218,8 @@
     "grid": {
       "hp": 12,
       "move": 2,
-      "heat_cap": 6
+      "heat_cap": 6,
+      "ability": "charge"
     }
   }
 ]

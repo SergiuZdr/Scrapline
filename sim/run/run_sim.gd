@@ -457,8 +457,10 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 		cap = 3
 
 	var fight: Dictionary = {"id": "run_site_%d" % site_id, "name": String(template.get("name", "")),
-		"rows": template["rows"]}
-	fight["objective"] = _roll_objective(setup, rng, template, kind)
+		"rows": _scatter_terrain(setup, rng, template)}
+	var laid: Dictionary = template.duplicate()
+	laid["rows"] = fight["rows"]
+	fight["objective"] = _roll_objective(setup, rng, laid, kind)
 
 	var player: Array = []
 	var slots: Array = template.get("player", [])
@@ -476,6 +478,10 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 			_roll_slot(setup, rng, "arm", cap), _roll_slot(setup, rng, "arm", cap), _roll_slot(setup, rng, "module", cap)]
 		var spec: Dictionary = {"name": String((setup.parts[parts[0]] as Dictionary).get("name", "")).replace(" Frame", ""),
 			"parts": parts, "x": int(positions[i].x), "y": int(positions[i].y)}
+		var kind_rules: Dictionary = setup.rules.get("kinds", {})
+		var chances: Array = kind_rules.get("chance_by_column", [0])
+		if rng.chance_percent(int(chances[mini(col, chances.size() - 1)])):
+			spec["kind"] = _weighted(rng, (kind_rules.get("weights", {}) as Dictionary).keys(), kind_rules.get("weights", {}), true)
 		if hp_bonus > 0 and i == 0:
 			var cg: Dictionary = (setup.parts[parts[0]] as Dictionary).get("grid", {})
 			var mg: Dictionary = (setup.parts[parts[4]] as Dictionary).get("grid", {})
@@ -484,6 +490,24 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 		enemy.append(spec)
 	fight["enemy"] = enemy
 	return fight
+
+
+## The template's map with barrels, crate walls and pits scattered on open hexes in the
+## middle rows, never where anyone starts.
+static func _scatter_terrain(setup: RunSetup, rng: SimRNG, template: Dictionary) -> Array:
+	var rows: Array = (template["rows"] as Array).duplicate()
+	var terrain: Dictionary = setup.rules.get("terrain", {})
+	var taken: Array = []
+	for spec: Dictionary in (template.get("player", []) as Array) + (template.get("enemy", []) as Array):
+		taken.append(Vector2i(int(spec["x"]), int(spec["y"])))
+	for pair: Array in [["barrels", "b"], ["crates", "c"], ["pits", "o"]]:
+		var span: Array = terrain.get(pair[0], [0, 0])
+		var count: int = rng.range_int(int(span[0]), int(span[1]))
+		for cell: Vector2i in _free_cells(rng, rows, taken, terrain.get("rows", [2, 3, 4, 5]), count):
+			var row: String = String(rows[cell.y])
+			rows[cell.y] = row.substr(0, cell.x) + String(pair[1]) + row.substr(cell.x + 1)
+			taken.append(cell)
+	return rows
 
 
 ## What this fight asks for. A boss is always a rout. Otherwise rolled by weight; a defend
