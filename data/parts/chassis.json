@@ -13,7 +13,12 @@
     "mesh": "res://art/parts/ch_brute.glb",
     "flavour": "Salvaged from a mining rig. Slow, and does not care.",
     "role": "brawler",
-    "move_speed": 10
+    "move_speed": 10,
+    "grid": {
+      "hp": 11,
+      "move": 3,
+      "heat_cap": 6
+    }
   },
   {
     "id": "ch_skirmisher",
@@ -29,7 +34,12 @@
     "mesh": "res://art/parts/ch_skirmisher.glb",
     "flavour": "Three swings for every one it takes. Assuming it takes one.",
     "role": "line",
-    "move_speed": 11
+    "move_speed": 11,
+    "grid": {
+      "hp": 7,
+      "move": 3,
+      "heat_cap": 4
+    }
   },
   {
     "id": "ch_bulwark",
@@ -46,7 +56,12 @@
     "flavour": "Holds ground and covers it. The line that never has to advance.",
     "role": "anchor",
     "move_speed": 5,
-    "range_bonus": 120
+    "range_bonus": 120,
+    "grid": {
+      "hp": 14,
+      "move": 2,
+      "heat_cap": 8
+    }
   },
   {
     "id": "ch_strider",
@@ -62,7 +77,12 @@
     "mesh": "res://art/parts/ch_strider.glb",
     "flavour": "Acts before anything else on the field. Survives almost nothing.",
     "role": "marksman",
-    "move_speed": 13
+    "move_speed": 13,
+    "grid": {
+      "hp": 6,
+      "move": 4,
+      "heat_cap": 4
+    }
   },
   {
     "id": "ch_hauler",
@@ -78,7 +98,12 @@
     "mesh": "res://art/parts/ch_hauler.glb",
     "flavour": "A cargo chassis with the crates torn off. Enormous heat ceiling.",
     "role": "line",
-    "move_speed": 6
+    "move_speed": 6,
+    "grid": {
+      "hp": 11,
+      "move": 2,
+      "heat_cap": 6
+    }
   },
   {
     "id": "ch_reaper",
@@ -95,7 +120,12 @@
     "move_speed": 15,
     "mesh": "res://art/parts/ch_reaper.glb",
     "flavour": "Armoured only across the front. Crossing open ground is the one thing it is good at.",
-    "charge_reduction": 58
+    "charge_reduction": 58,
+    "grid": {
+      "hp": 10,
+      "move": 4,
+      "heat_cap": 6
+    }
   },
   {
     "id": "ch_citadel",
@@ -111,7 +141,12 @@
     "role": "anchor",
     "move_speed": 3,
     "mesh": "res://art/parts/ch_citadel.glb",
-    "flavour": "A foundry door with legs. It does not take ground; it refuses to give it."
+    "flavour": "A foundry door with legs. It does not take ground; it refuses to give it.",
+    "grid": {
+      "hp": 16,
+      "move": 2,
+      "heat_cap": 7
+    }
   },
   {
     "id": "ch_lancer",
@@ -127,7 +162,12 @@
     "role": "marksman",
     "move_speed": 9,
     "mesh": "res://art/parts/ch_lancer.glb",
-    "flavour": "A marksman that can take a hit, which is rarer than it sounds."
+    "flavour": "A marksman that can take a hit, which is rarer than it sounds.",
+    "grid": {
+      "hp": 8,
+      "move": 3,
+      "heat_cap": 5
+    }
   },
   {
     "id": "ch_courier",
@@ -143,7 +183,12 @@
     "role": "line",
     "move_speed": 16,
     "mesh": "res://art/parts/ch_courier.glb",
-    "flavour": "Crosses the map before anything else has finished standing up."
+    "flavour": "Crosses the map before anything else has finished standing up.",
+    "grid": {
+      "hp": 5,
+      "move": 4,
+      "heat_cap": 4
+    }
   },
   {
     "id": "ch_dredge",
@@ -160,6 +205,11 @@
     "move_speed": 6,
     "mesh": "res://art/parts/ch_dredge.glb",
     "flavour": "Slow to arrive and very hard to remove once it has.",
-    "charge_reduction": 42
+    "charge_reduction": 42,
+    "grid": {
+      "hp": 12,
+      "move": 2,
+      "heat_cap": 6
+    }
   }
 ]

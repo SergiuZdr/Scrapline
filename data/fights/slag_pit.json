@@ -1,0 +1,119 @@
+{
+  "id": "slag_pit",
+  "name": "The Slag Pit",
+  "_comment": "A molten channel across the middle: shove enemies into it, and do not stand in it.",
+  "rows": [
+    "..r.....",
+    "....s...",
+    ".s......",
+    "..lll^..",
+    "..lll...",
+    "......s.",
+    ".r......",
+    "........"
+  ],
+  "crawler": {
+    "x": 4,
+    "y": 7
+  },
+  "player": [
+    {
+      "name": "Bulwark",
+      "parts": [
+        "ch_bulwark",
+        "co_dynamo",
+        "ar_hammer",
+        "ar_scatter",
+        "mo_reactive"
+      ],
+      "x": 3,
+      "y": 6
+    },
+    {
+      "name": "Lancer",
+      "parts": [
+        "ch_lancer",
+        "co_ember",
+        "ar_scanner",
+        "ar_mortar",
+        "mo_governor"
+      ],
+      "x": 5,
+      "y": 7
+    },
+    {
+      "name": "Reaper",
+      "parts": [
+        "ch_reaper",
+        "co_bile",
+        "ar_ripper",
+        "ar_saw",
+        "mo_servo"
+      ],
+      "x": 6,
+      "y": 6
+    }
+  ],
+  "enemy": [
+    {
+      "name": "Hauler",
+      "parts": [
+        "ch_hauler",
+        "co_mag",
+        "ar_lance",
+        "ar_mortar",
+        "mo_capacitor"
+      ],
+      "x": 1,
+      "y": 0
+    },
+    {
+      "name": "Skirmisher",
+      "parts": [
+        "ch_skirmisher",
+        "co_arc",
+        "ar_pulse",
+        "ar_scatter",
+        "mo_servo"
+      ],
+      "x": 4,
+      "y": 0
+    },
+    {
+      "name": "Citadel",
+      "parts": [
+        "ch_citadel",
+        "co_slug",
+        "ar_maul",
+        "ar_hammer",
+        "mo_ablative"
+      ],
+      "x": 6,
+      "y": 1
+    },
+    {
+      "name": "Courier",
+      "parts": [
+        "ch_courier",
+        "co_tesla",
+        "ar_railgun",
+        "ar_scanner",
+        "mo_targeting"
+      ],
+      "x": 7,
+      "y": 0
+    },
+    {
+      "name": "Dredge",
+      "parts": [
+        "ch_dredge",
+        "co_furnace",
+        "ar_mortar",
+        "ar_maul",
+        "mo_ablative"
+      ],
+      "x": 2,
+      "y": 0
+    }
+  ]
+}

@@ -20,6 +20,11 @@ var _failed: int = 0
 func _initialize() -> void:
 	print("")
 	print("=== combat input ===")
+	# A script error inside a coroutine stops `_run` without quitting, and the test would
+	# hang forever looking like a slow pass. A watchdog turns that into a failure.
+	create_timer(240.0).timeout.connect(func() -> void:
+		print("  FAIL  watchdog: the test did not finish (a script error above?)")
+		quit(1))
 	_run.call_deferred()
 
 
@@ -71,26 +76,43 @@ func _run() -> void:
 	state = _scene.get("_state")
 	_check("tapping an empty tile beside a melee unit moves it", state.unit(0).x == beside.x and state.unit(0).y == beside.y)
 
-	# --- Attack takes two taps on the same line. After moving, every line tile aims.
-	var dir: int = -1
-	var line: Array = []
-	for d: int in 4:
-		var preview: Dictionary = CombatSim.preview_attack(state, 0, d)
-		if bool(preview.get("legal", false)):
-			dir = d
-			line = preview["tiles"]
-			break
-	_check("the Brute has an attack line", dir >= 0)
-	if dir >= 0:
-		var cell: Vector2i = line[0]
-		_click_tile(cell.x, cell.y)
+	# --- Weapons come from the arms: the bar's buttons switch between them.
+	# The bar is rebuilt on every refresh, so its buttons are looked up again after each tap.
+	var buttons: Array = _weapon_buttons(hud)
+	_check("the weapon bar offers one button per arm (+ VENT when hot)", buttons.size() >= 2)
+	if buttons.size() >= 2:
+		_click_control(buttons[1])
+		await _settle()
+		_check("tapping the second arm's button arms it", int(_scene.get("_weapon")) == 1 and bool(_scene.get("_armed")))
+		_click_control(_weapon_buttons(hud)[1])
+		await _settle()
+		_check("tapping the armed weapon again returns to moving", not bool(_scene.get("_armed")))
+		_click_control(_weapon_buttons(hud)[0])
+		await _settle()
+		_check("the first arm's button arms the first weapon", int(_scene.get("_weapon")) == 0 and bool(_scene.get("_armed")))
+
+	# --- Attack takes two taps on the same target. After moving, every line tile aims.
+	var w: int = int(_scene.get("_weapon"))
+	var target_cell := Vector2i(-1, -1)
+	for aim: Array in CombatSim.aim_options(state, state.unit(0), w):
+		var plan: Dictionary = CombatSim.strike_plan(state, state.unit(0), w, int(aim[0]), int(aim[1]))
+		if bool(plan["legal"]) and not (plan["tiles"] as Array).is_empty():
+			var first: Vector2i = plan["tiles"][0]
+			var occupant: GridUnit = state.unit_at(first.x, first.y)
+			if occupant == null or occupant.team != GridUnit.TEAM_PLAYER:
+				target_cell = first
+				break
+	_check("the Brute has a target that is not an ally", target_cell.x >= 0)
+	if target_cell.x >= 0:
+		_click_tile(target_cell.x, target_cell.y)
 		await _settle()
 		state = _scene.get("_state")
-		_check("first tap on an attack line only aims", not state.unit(0).acted and (_scene.get("_pending") as Array).size() == 2)
-		_click_tile(cell.x, cell.y)
+		_check("first tap on a target only aims", not state.unit(0).acted and (_scene.get("_pending") as Array).size() == 4)
+		_click_tile(target_cell.x, target_cell.y)
 		await _settle()
 		state = _scene.get("_state")
-		_check("second tap on the same line fires", state.unit(0).acted)
+		_check("second tap on the same target fires", state.unit(0).acted)
+		_check("firing added heat", state.unit(0).heat > 0)
 
 	# --- Tapping an ally always selects it, even inside someone's line of fire.
 	_click_tile(state.unit(1).x, state.unit(1).y)
@@ -111,6 +133,11 @@ func _run() -> void:
 	print("  %d passed, %d failed" % [_passed, _failed])
 	print("")
 	quit(1 if _failed > 0 else 0)
+
+
+func _weapon_buttons(hud: Control) -> Array:
+	var bar: Control = hud.get("_weapon_bar")
+	return bar.get_children().filter(func(c: Node) -> bool: return c is Button and not c.is_queued_for_deletion())
 
 
 ## Waits until the scene has finished animating, then one frame more for the redraw.

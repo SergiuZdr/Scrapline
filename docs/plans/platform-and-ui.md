@@ -10,10 +10,12 @@
    fills a phone's landscape height.
 3. **Landscape only**, one layout that scales. A 16:9 phone and a 21:9 monitor both work
    by widening side panels, never by reflowing the board.
-4. **Selection model (built in 002):** tap a friendly unit to select it → tap a blue
-   tile to move (one tap, undoable) → tap a yellow attack line to aim (the panel shows
-   target, damage and "DESTROYS IT") → tap the same line again to fire. Priority when a
-   tile means two things: select > move > aim. PC may get a one-click-attack setting later.
+4. **Selection model (003, replacing 002's tap priority):** tap a friendly construct →
+   MOVE mode (blue tiles; tap one to move). Tap a weapon button in the bottom bar → that
+   arm is ARMED (yellow targets; a lob shows its landing tiles). Tap a target to aim (the
+   panel lists every hit, kills, torn arms and overheating) → tap it again to fire. Tap the
+   armed weapon again to go back to moving. Keyboard: 1–3 select, TAB weapon, V vent.
+   Modes exist because a lob's landing tile is often a tile you could walk to.
 5. **Undo is a big, always-visible button.** Plans are provisional until the turn ends.
 
 ## Combat screen layout (landscape)
