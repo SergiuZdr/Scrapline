@@ -12,14 +12,20 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 002 | [Grid fight prototype](iterations/002-grid-fight.md) | Pure-logic turn-based grid sim: move, attack, enemy intents, win/lose. One playable fight with mouse and touch using existing construct models | ✅ |
 | 003 | [Parts drive abilities](iterations/003-parts-and-pressure.md) | The Crawler (intent pressure), per-part stats, weapon shapes, heat, wheel, terrain, shove, torn arms | ✅ |
 | 004 | [Run loop](iterations/004-run-loop.md) | Region map, site types, fight → salvage → next site, Crawler HP carries, save and resume mid-run | ✅ |
-| 005 | Act 1 content | A real multi-part boss, an enemy roster with identity, more parts (toward 25 arms), events, balance with `run_bot` | ⏭ (after the user's play-test) |
-| 006 | Meta and workshop | Unlock tracking, starting crews, difficulty tiers, the between-run screen | ⬜ |
-| 007 | Acts 2–3 | Two more regions, events, traders, two bosses | ⬜ |
-| 008 | Feel pass | VFX, audio, animation, camera, onboarding for a first run | ⬜ |
-| 009 | Ship prep | Android and desktop exports, performance on a low-end phone, Steam demo build | ⬜ |
+| — | [Play-test 1](playtests/2026-09-24-playtest-1.md) | The user plays the full loop: combat a chore, no build progression, bad map/refit, no tutorial | ✅ |
+| 005 | [Hex combat core](iterations/005-hex-core.md) | Hex board with free aim and line of sight; the Crawler removed; scrap piles; fight objectives (rout, defend caches, salvage); machine HP carries through the run; faster animations and a new death | ✅ |
+| 006 | Fight depth | Active part abilities with cooldowns; interactive terrain (barrels, pits, breakable cover); distinct enemy types; **user play-test of 005 + 006** | ⏭ |
+| 007 | Build progression | Perks, manufacturer sets, part upgrades, machine levels; rewards that are always a real choice; **user play-test** | ⬜ |
+| 008 | Clarity | Tutorial first fight; glossary and tap-for-info on every term; map redesign (clear front, forward vs sideways); refit by drag and drop; no log; **user play-test** | ⬜ |
+| 009 | Act 1 content | Real bosses, enemy roster with identity, parts toward 25 arms, events | ⬜ |
+| 010 | Acts 2–3 | Two more regions, traders, events, bosses | ⬜ |
+| 011 | Feel pass | Art on the board, VFX, audio, camera | ⬜ |
+| 012 | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
 
-**End of 003: one fight that is fun to replay.** *(003 is done. This now needs the user's play-test: the bot says fights have stakes, and only a person can say they are fun.)* If fights built from part-driven
+**End of 006: one fight that is fun to replay.** Play-test 1 said 003's fights have
+stakes but no interesting decisions. 005 and 006 exist to fix that, and they are judged
+by the user playing, not by the bot. If fights built from part-driven
 abilities, intents and part damage are not interesting to replay by then, change the
 combat design before building the run structure on top of it.

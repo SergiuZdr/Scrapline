@@ -1,22 +1,25 @@
 extends SceneTree
 
-## Grid combat: every rule, determinism, replay-based undo, and whole fights played by bot.
+## Combat on the hex board: geometry, every rule, objectives, piles, determinism, undo,
+## and whole fights played by bot.
 ##
 ##   godot --headless --path . --script res://tools/verify_combat.gd
 ##
-## The bot-played fights are the important ones. A rule test proves a rule; only playing
-## a fight to the end proves the fight can end.
+## Positions are derived with `Hex` (a neighbour, an off-axis hex, the hex a line passes
+## through) rather than typed as coordinates. Hand-worked odd-r coordinates are exactly the
+## kind of number a test gets wrong and then "passes" against.
 ##
-## Loadouts use `co_dynamo` (kinetic, no damage or heat bonus, vent 2) and `mo_scavenger`
-## (+2 HP) so the numbers below can be worked out by hand: kinetic is 100% against plate,
-## 130% against composite and 70% against reactive.
+## Loadouts use `co_dynamo` (kinetic, no bonuses, vent 2) and `mo_scavenger` (+2 HP) so
+## the damage can be worked out by hand: kinetic is 100% vs plate, 130% vs composite and
+## 70% vs reactive.
 
-const HAMMER: Array = ["ch_brute", "co_dynamo", "ar_saw", "ar_hammer", "mo_scavenger"]     # brawler, plate, 13 HP
+const HAMMER: Array = ["ch_brute", "co_dynamo", "ar_saw", "ar_hammer", "mo_scavenger"]     # brawler, plate
 const LANCE: Array = ["ch_hauler", "co_dynamo", "ar_scanner", "ar_lance", "mo_scavenger"]  # line role, composite
 const RAIL: Array = ["ch_lancer", "co_dynamo", "ar_scanner", "ar_railgun", "mo_scavenger"]  # marksman, plate
 const MORTAR: Array = ["ch_bulwark", "co_dynamo", "ar_mortar", "ar_hammer", "mo_scavenger"] # anchor, reactive
-const SCATTER: Array = ["ch_lancer", "co_dynamo", "ar_pulse", "ar_scatter", "mo_targeting"] # non-piercing line, reach 4
-const BLANK: Array = ["......", "......", "......", "......", "......", "......"]
+const COIL: Array = ["ch_hauler", "co_dynamo", "ar_pulse", "ar_scatter", "mo_scavenger"]
+const SIZE: int = 9
+const C := Vector2i(4, 4)
 
 var _db: ContentDB
 var _passed: int = 0
@@ -26,26 +29,26 @@ var _failed: int = 0
 func _initialize() -> void:
 	_db = ContentDB.load_all()
 	print("")
-	print("=== grid combat ===")
-
+	print("=== combat on hexes ===")
+	_test_hex_geometry()
 	_test_fights_build()
 	_test_stats_come_from_parts()
-	_test_movement_and_terrain_cost()
-	_test_attack_order_and_line_role()
-	_test_line_pierce_and_blocking()
-	_test_lob_and_splash()
+	_test_movement()
+	_test_free_aim()
+	_test_melee_all_neighbours()
+	_test_pierce()
+	_test_lob()
 	_test_damage_wheel_and_cover()
 	_test_shove_and_bump()
 	_test_mark()
-	_test_heat_overheat_and_vent()
-	_test_tearing_arms()
+	_test_heat()
+	_test_tearing()
 	_test_slag()
-	_test_intent_fires_down_its_line()
-	_test_crawler()
-	_test_wreck_blocks_and_win()
-	for fight_id: String in ["proto_yard", "slag_pit", "container_row"]:
-		_test_bot_fight(fight_id)
-
+	_test_intents_target_hexes()
+	_test_piles()
+	_test_objectives()
+	for id: String in ["proto_yard", "slag_pit", "container_row"]:
+		_test_bot_fight(id)
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
 	print("")
@@ -54,12 +57,20 @@ func _initialize() -> void:
 
 # --- Fixtures ---------------------------------------------------------------
 
-## A small board. Tests reposition everything by hand after `start` and clear the
-## intents, so each rule is tested on exact positions rather than wherever the AI walked.
-func _fight(rows: Array, players: Array, enemies: Array, crawler: Dictionary = {}) -> CombatState:
+func _rows(marks: Dictionary = {}) -> Array:
+	var rows: Array = []
+	for y: int in SIZE:
+		var row: String = ""
+		for x: int in SIZE:
+			row += String(marks.get(Vector2i(x, y), "."))
+		rows.append(row)
+	return rows
+
+
+func _fight(rows: Array, players: Array, enemies: Array, objective: Dictionary = {}) -> CombatState:
 	var fight: Dictionary = {"id": "test", "rows": rows, "player": players, "enemy": enemies}
-	if not crawler.is_empty():
-		fight["crawler"] = crawler
+	if not objective.is_empty():
+		fight["objective"] = objective
 	var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 1)
 	if not setup.errors.is_empty():
 		_check("test setup has no errors %s" % [setup.errors], false)
@@ -68,17 +79,22 @@ func _fight(rows: Array, players: Array, enemies: Array, crawler: Dictionary = {
 	return state
 
 
-func _unit(parts: Array, x: int, y: int, hp: int = -1) -> Dictionary:
-	var spec: Dictionary = {"parts": parts, "x": x, "y": y}
+func _unit(parts: Array, cell: Vector2i, hp: int = -1) -> Dictionary:
+	var spec: Dictionary = {"parts": parts, "x": cell.x, "y": cell.y}
 	if hp > 0:
 		spec["hp"] = hp
 	return spec
 
 
-func _place(state: CombatState, ref: int, x: int, y: int) -> void:
+func _place(state: CombatState, ref: int, cell: Vector2i) -> void:
 	var u: GridUnit = state.unit(ref)
-	u.x = x
-	u.y = y
+	u.x = cell.x
+	u.y = cell.y
+
+
+## A hex at cube offset (dq, ds, dr) from `c`.
+func _off(c: Vector2i, dq: int, ds: int, dr: int) -> Vector2i:
+	return Hex.from_cube(Hex.to_cube(c) + Vector3i(dq, ds, dr))
 
 
 func _count(state: CombatState, since: int, kind: int) -> int:
@@ -89,247 +105,311 @@ func _count(state: CombatState, since: int, kind: int) -> int:
 	return n
 
 
-func _attack(state: CombatState, ref: int, w: int, dir: int, dist: int = 0) -> bool:
-	return CombatSim.apply(state, [CombatSim.ACT_ATTACK, ref, w, dir, dist])
+func _attack(state: CombatState, ref: int, w: int, target: Vector2i) -> bool:
+	return CombatSim.apply(state, [CombatSim.ACT_ATTACK, ref, w, target.x, target.y])
 
 
-# --- Tests ------------------------------------------------------------------
+func _at(state: CombatState, ref: int) -> Vector2i:
+	return Vector2i(state.unit(ref).x, state.unit(ref).y)
+
+
+# --- Geometry ---------------------------------------------------------------
+
+func _test_hex_geometry() -> void:
+	var ring: Array[Vector2i] = Hex.neighbors(C)
+	var unique: Dictionary = {}
+	var all_one: bool = true
+	for n: Vector2i in ring:
+		unique[n] = true
+		all_one = all_one and Hex.distance(C, n) == 1
+	_check("six distinct neighbours, all at distance 1", unique.size() == 6 and all_one)
+	var odd := Vector2i(3, 3)
+	_check("an odd row's hex also has six neighbours at distance 1",
+		Hex.neighbors(odd).all(func(n: Vector2i) -> bool: return Hex.distance(odd, n) == 1))
+	_check("offset -> cube -> offset round-trips", Hex.from_cube(Hex.to_cube(Vector2i(5, 3))) == Vector2i(5, 3))
+	_check("a radius-2 area holds 18 hexes", Hex.within(C, 2).size() == 18)
+	var off_axis: Vector2i = _off(C, 2, -1, -1)
+	var line: Array[Vector2i] = Hex.line(C, off_axis)
+	_check("a line has one hex per step and ends on its target", line.size() == 2 and line[-1] == off_axis)
+	_check("each step of a line is adjacent to the last", Hex.distance(C, line[0]) == 1 and Hex.distance(line[0], line[1]) == 1)
+	var ray: Array[Vector2i] = Hex.ray(C, Hex.neighbor(C, 0), 4)
+	_check("a ray carries on past its target to full reach", ray.size() == 4 and Hex.distance(C, ray[-1]) == 4)
+	_check("direction toward a neighbour is that neighbour's direction", Hex.neighbor(C, Hex.direction(C, ring[2])) == ring[2])
+
+
+# --- Setup ------------------------------------------------------------------
 
 func _test_fights_build() -> void:
 	for id: String in ["proto_yard", "slag_pit", "container_row"]:
 		var fight: Dictionary = _db.fights.get(id, {})
 		var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 7)
 		_check("%s builds with no errors %s" % [id, setup.errors], not fight.is_empty() and setup.errors.is_empty())
-		var crawlers: int = setup.units.filter(func(u: GridUnit) -> bool: return u.objective).size()
-		_check("%s has 3 constructs and a Crawler" % id,
-			crawlers == 1 and setup.units.filter(func(u: GridUnit) -> bool: return u.team == 0 and not u.objective).size() == 3)
+	var defend: CombatSetup = CombatSetup.build(_db.fights["container_row"], _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 7)
+	var cache_refs: Array = []
+	for u: GridUnit in defend.units:
+		if u.objective:
+			cache_refs.append(u.ref)
+	_check("a defend fight places its caches after the crew (refs 3, 4)", cache_refs == [3, 4])
+	var salvage: CombatSetup = CombatSetup.build(_db.fights["slag_pit"], _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 7)
+	_check("a salvage fight starts with scrap piles", salvage.start_piles.size() == 4)
 
 
 func _test_stats_come_from_parts() -> void:
-	var state: CombatState = _fight(BLANK, [_unit(HAMMER, 0, 5), _unit(RAIL, 5, 5)], [_unit(HAMMER, 0, 0)])
+	var state: CombatState = _fight(_rows(), [_unit(HAMMER, C), _unit(RAIL, Vector2i(0, 8))], [_unit(HAMMER, Vector2i(0, 0))])
 	var brute: GridUnit = state.unit(0)
-	_check("HP = chassis grid hp + module hp (11 + 2)", brute.max_hp == 13)
-	_check("move from the chassis (3)", brute.move == 3)
-	_check("two weapons, one per arm", brute.weapons.size() == 2 and String(brute.weapons[1]["class"]) == "hammer")
-	_check("brawler role adds +1 melee", brute.melee_bonus == 1)
-	_check("marksman role adds +1 range", state.unit(1).range_bonus == 1)
+	_check("HP = chassis + module (11 + 2)", brute.max_hp == 13)
+	_check("brawler +1 melee, marksman +1 range", brute.melee_bonus == 1 and state.unit(1).range_bonus == 1)
+	var carried: CombatState = _fight(_rows(), [{"parts": HAMMER, "x": C.x, "y": C.y, "hp_now": 5}], [_unit(HAMMER, Vector2i(0, 0))])
+	_check("a machine can enter a fight damaged (HP carried from the run)", carried.unit(0).hp == 5 and carried.unit(0).max_hp == 13)
 
 
-func _test_movement_and_terrain_cost() -> void:
-	var rows: Array = ["......", "......", "..s...", "......", ".rr...", "......"]
-	var state: CombatState = _fight(rows, [_unit(HAMMER, 1, 5)], [_unit(HAMMER, 5, 0)])
-	_place(state, 0, 1, 5)
-	_place(state, 10, 5, 0)
+# --- Movement ---------------------------------------------------------------
+
+func _test_movement() -> void:
+	var ring: Array[Vector2i] = Hex.neighbors(C)
+	var state: CombatState = _fight(_rows({ring[0]: "s", ring[1]: "r"}), [_unit(HAMMER, C)], [_unit(HAMMER, Vector2i(0, 0))])
+	_place(state, 0, C)
+	_place(state, 10, Vector2i(0, 0))
 	var reach: Dictionary = CombatSim.reachable(state, 0)
-	_check("rubble costs 2: (1,4) is reachable at cost 2", reach.has(Vector2i(1, 4)))
-	_check("rubble costs 2: (1,3) through rubble costs 3, still in reach", reach.has(Vector2i(1, 3)))
-	_check("but not (1,2): that would cost 4", not reach.has(Vector2i(1, 2)) or (reach[Vector2i(1, 2)] as Array).size() <= 3)
-	_check("cannot move onto scrap", not CombatSim.apply(state, [CombatSim.ACT_MOVE, 0, 2, 2]))
-	_check("legal move is accepted", CombatSim.apply(state, [CombatSim.ACT_MOVE, 0, 0, 4]))
-	_check("cannot move twice", not CombatSim.apply(state, [CombatSim.ACT_MOVE, 0, 0, 3]))
+	_check("every open neighbour is in reach", ring.slice(2).all(func(n: Vector2i) -> bool: return reach.has(n)))
+	_check("a scrap heap cannot be entered", not reach.has(ring[0]))
+	_check("rubble is enterable (costs 2 of a 3 move)", reach.has(ring[1]))
+	_check("a legal move is accepted", CombatSim.apply(state, [CombatSim.ACT_MOVE, 0, ring[3].x, ring[3].y]))
+	_check("cannot move twice", not CombatSim.apply(state, [CombatSim.ACT_MOVE, 0, ring[4].x, ring[4].y]))
 
 
-func _test_attack_order_and_line_role() -> void:
-	var state: CombatState = _fight(BLANK, [_unit(HAMMER, 0, 5), _unit(LANCE, 3, 5)], [_unit(HAMMER, 0, 4, 20), _unit(HAMMER, 3, 2, 20)])
-	_place(state, 0, 0, 5)
-	_place(state, 10, 0, 4)
-	_place(state, 1, 3, 5)
-	_place(state, 11, 3, 2)
-	_check("hammer attack north", _attack(state, 0, 1, 0))
-	_check("a brawler cannot move after attacking", CombatSim.reachable(state, 0).is_empty())
-	_check("cannot attack twice", not _attack(state, 0, 1, 0))
-	_check("a line construct fires first...", _attack(state, 1, 1, 0))
-	_check("...and may still move after", not CombatSim.reachable(state, 1).is_empty())
+# --- Aim --------------------------------------------------------------------
+
+func _test_free_aim() -> void:
+	# The play-test complaint: a target off the straight lines could not be hit at all.
+	var off_axis: Vector2i = _off(C, 2, -1, -1)
+	var state: CombatState = _fight(_rows(), [_unit(LANCE, C)], [_unit(HAMMER, off_axis, 20)])
+	_place(state, 0, C)
+	_place(state, 10, off_axis)
+	_check("a shot can target an off-axis hex", CombatSim.can_attack(state, 0, 1, off_axis))
+	_attack(state, 0, 1, off_axis)
+	_check("and it hits (lance 3 kinetic vs plate)", state.unit(10).hp == 17)
+
+	var between: Vector2i = Hex.line(C, off_axis)[0]
+	var blocked: CombatState = _fight(_rows({between: "s"}), [_unit(LANCE, C)], [_unit(HAMMER, off_axis, 20)])
+	_place(blocked, 0, C)
+	_place(blocked, 10, off_axis)
+	var plan: Dictionary = CombatSim.preview_attack(blocked, 0, 1, off_axis)
+	_check("a scrap heap on the line blocks the shot", (plan["hits"] as Array).is_empty() and plan["end"] == between)
+
+	var coil: CombatState = _fight(_rows(), [_unit(COIL, C)], [_unit(HAMMER, between, 20), _unit(HAMMER, off_axis, 20)])
+	_place(coil, 0, C)
+	_place(coil, 10, between)
+	_place(coil, 11, off_axis)
+	var hits: Array = CombatSim.strike_plan(coil, coil.unit(0), 1, off_axis)["hits"]
+	_check("a shot stops at the first unit on its line", hits.size() == 1 and int(hits[0]["ref"]) == 10)
+	_check("out of reach is not a legal aim", not CombatSim.can_attack(state, 0, 1, _off(C, 4, -2, -2)))
 
 
-func _test_line_pierce_and_blocking() -> void:
-	var rows: Array = ["......", "......", "......", "..s...", "......", "......"]
-	var state: CombatState = _fight(rows,
-		[_unit(LANCE, 0, 5), _unit(RAIL, 5, 5), _unit(RAIL, 2, 5)],
-		[_unit(HAMMER, 0, 4, 20), _unit(HAMMER, 0, 3, 20), _unit(HAMMER, 0, 2, 20), _unit(HAMMER, 5, 3, 20), _unit(HAMMER, 5, 1, 20), _unit(HAMMER, 2, 1, 20)])
-	for p: Array in [[0, 0, 5], [1, 5, 5], [2, 2, 5], [10, 0, 4], [11, 0, 3], [12, 0, 2], [13, 5, 3], [14, 5, 1], [15, 2, 1]]:
-		_place(state, p[0], p[1], p[2])
-	var lance: Dictionary = CombatSim.preview_attack(state, 0, 1, 0, 0)
-	_check("lance pierces one: hits the first two in line", (lance["hits"] as Array).size() == 2)
-	var rail: Dictionary = CombatSim.preview_attack(state, 1, 1, 0, 0)
-	_check("railgun pierces every unit in its line", (rail["hits"] as Array).size() == 2)
-	var blocked: Dictionary = CombatSim.preview_attack(state, 2, 1, 0, 0)
-	_check("a scrap heap stops a railgun", (blocked["hits"] as Array).is_empty())
-	var before: int = state.events.size()
-	_attack(state, 2, 1, 0)
-	_check("a blocked shot reports MISSED", _count(state, before, GridEv.MISSED) == 1)
+func _test_melee_all_neighbours() -> void:
+	var ok: bool = true
+	for n: Vector2i in Hex.neighbors(C):
+		var state: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, n, 20)])
+		_place(state, 0, C)
+		_place(state, 10, n)
+		ok = ok and CombatSim.can_attack(state, 0, 0, n)
+	_check("melee reaches all six neighbours", ok)
 
 
-func _test_lob_and_splash() -> void:
-	var rows: Array = ["......", "......", "......", "..s...", "......", "......"]
-	var state: CombatState = _fight(rows, [_unit(MORTAR, 2, 5)],
-		[_unit(HAMMER, 2, 1, 20), _unit(HAMMER, 1, 1, 20), _unit(HAMMER, 5, 5, 20)])
-	_place(state, 0, 2, 5)
-	_place(state, 10, 2, 1)
-	_place(state, 11, 1, 1)
-	_place(state, 12, 5, 5)
-	_check("a lob cannot land closer than its minimum", not CombatSim.can_attack(state, 0, 0, 0, 1))
-	var plan: Dictionary = CombatSim.preview_attack(state, 0, 0, 0, 4)
-	_check("a lob flies over scrap to its tile", bool(plan["legal"]) and plan["aim"] == Vector2i(2, 1))
-	_check("centre takes full damage, a neighbour takes splash", (plan["hits"] as Array).size() == 2)
-	_attack(state, 0, 0, 0, 4)
-	# Mortar 3 kinetic vs plate (100%) = 3; splash 1.
-	_check("centre hit for 3", state.unit(10).hp == 17)
-	_check("splash hit for 1", state.unit(11).hp == 19)
+func _test_pierce() -> void:
+	var a: Vector2i = Hex.neighbor(C, 0)
+	var b: Vector2i = Hex.neighbor(a, 0)
+	var c: Vector2i = Hex.neighbor(b, 0)
+	var state: CombatState = _fight(_rows(), [_unit(LANCE, C), _unit(RAIL, Vector2i(0, 8))],
+		[_unit(HAMMER, a, 20), _unit(HAMMER, b, 20), _unit(HAMMER, c, 20)])
+	_place(state, 0, C)
+	_place(state, 10, a)
+	_place(state, 11, b)
+	_place(state, 12, c)
+	_check("lance (pierce 1) hits the first two in line", (CombatSim.strike_plan(state, state.unit(0), 1, a)["hits"] as Array).size() == 2)
+	_place(state, 0, Vector2i(0, 8))
+	_place(state, 1, C)
+	_check("railgun beams through every unit to full reach", (CombatSim.strike_plan(state, state.unit(1), 1, a)["hits"] as Array).size() == 3)
+
+
+func _test_lob() -> void:
+	var far: Vector2i = _off(C, 3, -2, -1)
+	var near: Vector2i = Hex.neighbor(C, 3)
+	var splash_victim: Vector2i = Hex.neighbor(far, 0)
+	var state: CombatState = _fight(_rows({Hex.line(C, far)[0]: "s"}), [_unit(MORTAR, C)],
+		[_unit(HAMMER, far, 20), _unit(HAMMER, splash_victim, 20)])
+	_place(state, 0, C)
+	_place(state, 10, far)
+	_place(state, 11, splash_victim)
+	_check("a lob cannot land closer than its minimum", not CombatSim.can_attack(state, 0, 0, near))
+	_check("a lob flies over scrap to its hex", CombatSim.can_attack(state, 0, 0, far))
+	_attack(state, 0, 0, far)
+	_check("centre takes 3, a neighbour takes the splash 1", state.unit(10).hp == 17 and state.unit(11).hp == 19)
 
 
 func _test_damage_wheel_and_cover() -> void:
-	var rows: Array = ["......", "......", "......", "......", ".r....", "......"]
-	var state: CombatState = _fight(rows, [_unit(HAMMER, 0, 5), _unit(RAIL, 5, 5)],
-		[_unit(LANCE, 0, 4, 20), _unit(MORTAR, 5, 4, 20), _unit(HAMMER, 1, 4, 20)])
-	_place(state, 0, 0, 5)
-	_place(state, 10, 0, 4)
-	_place(state, 1, 5, 5)
-	_place(state, 11, 5, 4)
-	_place(state, 12, 1, 0)
+	var r: Vector2i = Hex.neighbor(C, 1)
+	var state: CombatState = _fight(_rows({r: "r"}), [_unit(HAMMER, C)],
+		[_unit(LANCE, Vector2i(0, 0), 20), _unit(MORTAR, Vector2i(8, 0), 20), _unit(HAMMER, r, 20)])
 	var brute: GridUnit = state.unit(0)
-	# Hammer: 3 + 1 brawler = 4. Kinetic vs composite 130% -> 5.2 -> 5.
 	_check("kinetic beats composite (4 -> 5)", CombatSim.damage_to(state, brute, state.unit(10), 4, false) == 5)
-	# Kinetic vs reactive 70% -> 2.8 -> 3.
 	_check("kinetic is blunted by reactive (4 -> 3)", CombatSim.damage_to(state, brute, state.unit(11), 4, false) == 3)
-	_place(state, 12, 1, 4)
-	_check("rubble takes 1 off a line shot", CombatSim.damage_to(state, brute, state.unit(12), 3, true) == 2)
-	_check("but not off a melee blow", CombatSim.damage_to(state, brute, state.unit(12), 3, false) == 3)
+	_place(state, 12, r)
+	_check("rubble takes 1 off a shot", CombatSim.damage_to(state, brute, state.unit(12), 3, true) == 2)
+	_check("but not off a blow", CombatSim.damage_to(state, brute, state.unit(12), 3, false) == 3)
 
 
 func _test_shove_and_bump() -> void:
-	var state: CombatState = _fight(BLANK, [_unit(HAMMER, 2, 5), _unit(HAMMER, 0, 1)],
-		[_unit(HAMMER, 2, 4, 20), _unit(HAMMER, 0, 0, 20), _unit(MORTAR, 4, 4, 20), _unit(HAMMER, 5, 5, 20)])
-	_place(state, 0, 2, 5)
-	_place(state, 10, 2, 4)
-	_attack(state, 0, 1, 0)
-	_check("hammer shoves its target one tile back", state.unit(10).y == 3)
-	_check("shoved target took the hit (20 - 4)", state.unit(10).hp == 16)
-	_place(state, 1, 0, 1)
-	_place(state, 11, 0, 0)
-	_attack(state, 1, 1, 0)
-	_check("shoved into the edge: no move, 1 bump damage on top", state.unit(11).y == 0 and state.unit(11).hp == 20 - 4 - 1)
-	_place(state, 12, 4, 4)
-	var anchor: GridUnit = state.unit(12)
-	_check("an anchor cannot be shoved", anchor.unshovable)
+	var n: Vector2i = Hex.neighbor(C, 0)
+	var state: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, n, 20)])
+	_place(state, 0, C)
+	_place(state, 10, n)
+	_attack(state, 0, 1, n)
+	_check("a hammer shoves one hex straight back", _at(state, 10) == Hex.neighbor(n, 0))
+	var edge := Vector2i(SIZE - 2, 4)
+	var wall: Vector2i = Hex.neighbor(edge, 0)
+	var bumped: CombatState = _fight(_rows(), [_unit(HAMMER, edge)], [_unit(HAMMER, wall, 20)])
+	_place(bumped, 0, edge)
+	_place(bumped, 10, wall)
+	_attack(bumped, 0, 1, wall)
+	_check("shoved off the board edge: no move, 1 bump on top", _at(bumped, 10) == wall and bumped.unit(10).hp == 20 - 4 - 1)
 
 
 func _test_mark() -> void:
-	var state: CombatState = _fight(BLANK, [_unit(LANCE, 0, 5), _unit(HAMMER, 1, 3)], [_unit(HAMMER, 0, 3, 20)])
-	_place(state, 0, 0, 5)
-	_place(state, 10, 0, 3)
-	_place(state, 1, 1, 3)
-	_attack(state, 0, 0, 0)   # scanner
+	var n: Vector2i = Hex.neighbor(C, 0)
+	var spotter: Vector2i = Hex.neighbor(n, 0)
+	var state: CombatState = _fight(_rows(), [_unit(LANCE, spotter), _unit(HAMMER, C)], [_unit(HAMMER, n, 20)])
+	_place(state, 0, spotter)
+	_place(state, 1, C)
+	_place(state, 10, n)
+	_attack(state, 0, 0, n)
 	_check("the scanner chips 1 and marks", state.unit(10).marked and state.unit(10).hp == 19)
-	_attack(state, 1, 0, 3)   # saw west (no shove): 5 + mark 2
-	_check("a marked target takes +2 and the mark clears", state.unit(10).hp == 12 and not state.unit(10).marked)
+	_attack(state, 1, 0, n)
+	_check("a marked target takes +2 (saw 5 + 2) and the mark clears", state.unit(10).hp == 12 and not state.unit(10).marked)
 
 
-func _test_heat_overheat_and_vent() -> void:
-	var state: CombatState = _fight(BLANK, [_unit(RAIL, 0, 5), _unit(LANCE, 5, 5)], [_unit(HAMMER, 0, 0, 40)])
-	_place(state, 0, 0, 5)
-	_place(state, 10, 0, 0)
+func _test_heat() -> void:
+	var n: Vector2i = _off(C, 2, -1, -1)
+	var state: CombatState = _fight(_rows(), [_unit(RAIL, C), _unit(LANCE, Vector2i(0, 8))], [_unit(HAMMER, n, 40)])
+	_place(state, 0, C)
+	_place(state, 10, n)
 	var rail: GridUnit = state.unit(0)
-	rail.heat = 3   # cap 5, railgun +2
-	var preview: Dictionary = CombatSim.preview_attack(state, 0, 1, 0, 0)
-	_check("preview warns the shot will overheat", bool(preview["overheats"]))
-	_attack(state, 0, 1, 0)
-	_check("reaching the cap overheats", rail.overheated and rail.heat == 5)
+	rail.heat = 3
+	_check("preview warns the shot will overheat", bool(CombatSim.preview_attack(state, 0, 1, n)["overheats"]))
+	_attack(state, 0, 1, n)
+	_check("reaching the cap overheats", rail.overheated)
 	CombatSim.apply(state, [CombatSim.ACT_END, -1, 0, 0])
 	state.intents.clear()
 	rail = state.unit(0)
-	_check("next round it is seized, heat reset to 0", rail.seized and rail.heat == 0)
-	_check("a seized construct cannot attack", not CombatSim.can_attack(state, 0, 1, 0, 0))
-	_check("but it can still move", not CombatSim.reachable(state, 0).is_empty())
-	var lance: GridUnit = state.unit(1)
-	lance.heat = 3
-	_check("VENT is accepted", CombatSim.apply(state, [CombatSim.ACT_VENT, 1, 0, 0]))
-	_check("VENT clears heat and uses the action", lance.heat == 0 and lance.acted)
+	_check("next round it is seized, heat reset, no attacks", rail.seized and rail.heat == 0 and not CombatSim.can_attack(state, 0, 1, _at(state, 10)))
+	state.unit(1).heat = 3
+	_check("VENT clears heat and uses the action", CombatSim.apply(state, [CombatSim.ACT_VENT, 1, 0, 0]) and state.unit(1).heat == 0)
 
 
-func _test_tearing_arms() -> void:
-	var state: CombatState = _fight(BLANK, [_unit(HAMMER, 0, 5)], [_unit(LANCE, 0, 4, 40)])
-	_place(state, 0, 0, 5)
-	_place(state, 10, 0, 4)
-	# Saw: 4 + 1 brawler = 5, kinetic vs composite 130% -> 6.5 -> 7 (half rounds up): over the threshold.
-	var preview: Dictionary = CombatSim.preview_attack(state, 0, 0, 0, 0)
-	_check("preview says the blow will tear an arm", (preview["tears"] as Array).has(10))
-	_attack(state, 0, 0, 0)
-	var target: GridUnit = state.unit(10)
-	_check("a heavy hit tears the RIGHT arm first", bool(target.weapons[GridUnit.ARM_R]["torn"]) and not bool(target.weapons[GridUnit.ARM_L]["torn"]))
-	_check("a torn arm cannot fire", not target.can_fire(GridUnit.ARM_R))
+func _test_tearing() -> void:
+	var n: Vector2i = Hex.neighbor(C, 0)
+	var state: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(LANCE, n, 40)])
+	_place(state, 0, C)
+	_place(state, 10, n)
+	_check("preview says the saw will tear an arm", (CombatSim.preview_attack(state, 0, 0, n)["tears"] as Array).has(10))
+	_attack(state, 0, 0, n)
+	_check("the right arm goes first", bool(state.unit(10).weapons[GridUnit.ARM_R]["torn"]) and not bool(state.unit(10).weapons[GridUnit.ARM_L]["torn"]))
 
 
 func _test_slag() -> void:
-	var rows: Array = ["......", "......", "......", "......", "......", "l....."]
-	var state: CombatState = _fight(rows, [_unit(HAMMER, 5, 5)], [_unit(HAMMER, 5, 0, 20)])
-	_place(state, 0, 0, 5)
+	var state: CombatState = _fight(_rows({C: "l"}), [_unit(HAMMER, C)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(state, 0, C)
 	var before: int = state.unit(0).hp
 	CombatSim.apply(state, [CombatSim.ACT_END, -1, 0, 0])
-	_check("a construct on slag at round start takes 1", state.unit(0).hp == before - 1 or state.unit(0).x != 0)
+	_check("a machine on slag at round start takes 1", state.unit(0).hp == before - 1)
 
 
-## The core puzzle rule: an intent is a DIRECTION from the attacker, resolved at end of
-## turn. Stepping out of the line dodges it; stepping into it takes the hit.
-func _test_intent_fires_down_its_line() -> void:
-	var state: CombatState = _fight(BLANK, [_unit(RAIL, 0, 3), _unit(HAMMER, 1, 1)], [_unit(LANCE, 0, 0, 20)])
-	_place(state, 0, 0, 3)
-	_place(state, 1, 1, 1)
-	_place(state, 10, 0, 0)
-	state.intents = [{"ref": 10, "w": 1, "dir": 2, "dist": 0, "order": 1}]
-	var hits: Array = CombatSim.threats(state)[10]["hits"]
-	_check("threat currently lands on the rail unit", hits.size() == 1 and int(hits[0]["ref"]) == 0)
-	CombatSim.apply(state, [CombatSim.ACT_MOVE, 0, 1, 3])
-	CombatSim.apply(state, [CombatSim.ACT_MOVE, 1, 0, 1])
-	hits = CombatSim.threats(state)[10]["hits"]
-	_check("after moving, the threat lands on the unit that stepped in", int(hits[0]["ref"]) == 1)
-	var rail_hp: int = state.unit(0).hp
+# --- Intents ----------------------------------------------------------------
+
+func _test_intents_target_hexes() -> void:
+	var target: Vector2i = _off(C, 3, -2, -1)
+	var state: CombatState = _fight(_rows(), [_unit(HAMMER, target)], [_unit(LANCE, C, 20)])
+	_place(state, 0, target)
+	_place(state, 10, C)
+	state.intents = [{"ref": 10, "w": 1, "x": target.x, "y": target.y, "order": 1}]
+	_check("the intent lands on the machine on its hex", int(CombatSim.threats(state)[10]["hits"][0]["ref"]) == 0)
+	var step: Vector2i = Vector2i(-1, -1)
+	for n: Vector2i in Hex.neighbors(target):
+		if state.inside(n) and not Hex.line(C, target).has(n) and Hex.distance(C, n) > Hex.distance(C, target):
+			step = n
+			break
+	CombatSim.apply(state, [CombatSim.ACT_MOVE, 0, step.x, step.y])
+	var hp: int = state.unit(0).hp
 	CombatSim.apply(state, [CombatSim.ACT_END, -1, 0, 0])
-	_check("the unit that stepped out is unhurt", state.unit(0).hp == rail_hp)
-	_check("the unit that stepped in took the shot", state.unit(1).hp < state.unit(1).max_hp)
+	_check("stepping off the targeted hex dodges it", state.unit(0).hp == hp)
+
+	# Shoving a brawler away makes its blow hit air.
+	var mine: Vector2i = Hex.neighbor(C, 3)
+	var shove: CombatState = _fight(_rows(), [_unit(HAMMER, mine)], [_unit(HAMMER, C, 20)])
+	_place(shove, 0, mine)
+	_place(shove, 10, C)
+	shove.intents = [{"ref": 10, "w": 0, "x": mine.x, "y": mine.y, "order": 1}]
+	_attack(shove, 0, 1, C)
+	_check("after the shove the blow is out of reach", not bool(CombatSim.threats(shove)[10]["legal"]))
+	var hp2: int = shove.unit(0).hp
+	var before: int = shove.events.size()
+	CombatSim.apply(shove, [CombatSim.ACT_END, -1, 0, 0])
+	_check("and at the end of the turn it misses", shove.unit(0).hp == hp2 and _count(shove, before, GridEv.MISSED) >= 1)
 
 
-func _test_crawler() -> void:
-	var state: CombatState = _fight(BLANK, [_unit(HAMMER, 5, 5), _unit(LANCE, 3, 3), _unit(RAIL, 4, 5)],
-		[_unit(SCATTER, 2, 1, 20)], {"x": 2, "y": 5, "hp": 3})
-	var crawler: GridUnit = state.crawler()
-	_check("the Crawler is on the player's team, immobile, unshovable", crawler.team == 0 and crawler.move == 0 and crawler.unshovable)
-	_check("the Crawler cannot be moved", not CombatSim.apply(state, [CombatSim.ACT_MOVE, crawler.ref, 2, 4]))
-	_place(state, 10, 2, 1)
-	state.intents = [{"ref": 10, "w": 1, "dir": 2, "dist": 0, "order": 1}]
-	_check("an enemy line aimed down the column hits the Crawler", int(CombatSim.threats(state)[10]["hits"][0]["ref"]) == crawler.ref)
-	var shield: Dictionary = CombatBot.context(state)["shield"]
-	_check("the bot sees shield value in front of the Crawler, not behind it",
-		shield.has(Vector2i(2, 3)) and not shield.has(Vector2i(2, 5)))
-	var undo_point: Array = []
-	_check("(the shielding move is legal)", CombatSim.apply(state, [CombatSim.ACT_MOVE, 1, 2, 3]))
-	_check("a construct stepping in front shields it", int(CombatSim.threats(state)[10]["hits"][0]["ref"]) == 1)
-	state = CombatSim.replay(state.setup, undo_point)
-	_place(state, 10, 2, 1)
-	state.intents = [{"ref": 10, "w": 1, "dir": 2, "dist": 0, "order": 1}]
-	CombatSim.apply(state, [CombatSim.ACT_END, -1, 0, 0])
-	_check("losing the Crawler loses the fight", state.outcome == CombatState.LOST and not state.crawler().alive)
+# --- Piles and objectives -----------------------------------------------------
+
+func _test_piles() -> void:
+	var n: Vector2i = Hex.neighbor(C, 0)
+	var state: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, n, 4), _unit(HAMMER, Vector2i(0, 0), 30)])
+	_place(state, 0, C)
+	_place(state, 10, n)
+	_place(state, 11, Vector2i(0, 0))
+	_attack(state, 0, 1, n)
+	_check("a destroyed machine leaves a scrap pile on its hex", not state.unit(10).alive and state.piles.has(n))
+	_check("and no longer blocks it", state.unit_at(n.x, n.y) == null)
+
+	var walk: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, Vector2i(0, 0), 30)],
+		{"type": "rout", "piles": [{"x": n.x, "y": n.y}]})
+	_place(walk, 0, C)
+	walk.unit(0).hp = 8
+	CombatSim.apply(walk, [CombatSim.ACT_MOVE, 0, n.x, n.y])
+	_check("ending a move on a pile collects its scrap and patches 2 HP",
+		walk.scrap_collected == 4 and walk.unit(0).hp == 10 and not walk.piles.has(n))
+
+	var grab: CombatState = _fight(_rows(), [_unit(HAMMER, Vector2i(0, 8))], [_unit(HAMMER, C, 20)],
+		{"type": "salvage", "need": 2, "piles": [{"x": n.x, "y": n.y}, {"x": 8, "y": 8}]})
+	_check("on a salvage fight an enemy grabs a pile in reach", not grab.piles.has(n))
 
 
-func _test_wreck_blocks_and_win() -> void:
-	var state: CombatState = _fight(BLANK, [_unit(HAMMER, 0, 5)],
-		[_unit(HAMMER, 0, 0, 4), _unit(HAMMER, 5, 0, 30)])
-	_place(state, 0, 0, 1)
-	_place(state, 10, 0, 0)
-	_place(state, 11, 5, 0)
-	_attack(state, 0, 1, 0)
-	_check("4 damage destroys a 4 hp unit", not state.unit(10).alive)
-	_check("fight goes on while an enemy stands", state.outcome == CombatState.ONGOING)
-	CombatSim.apply(state, [CombatSim.ACT_END, -1, 0, 0])
-	_check("wreck tile is not reachable", not CombatSim.reachable(state, 0).has(Vector2i(0, 0)))
-	state.intents.clear()
-	state.unit(11).hp = 1
-	_place(state, 11, 1, 1)
-	_place(state, 0, 0, 1)
-	_attack(state, 0, 1, 1)
-	_check("destroying the last enemy wins", state.outcome == CombatState.WON)
-	_check("nothing is legal after the fight ends", not CombatSim.apply(state, [CombatSim.ACT_END, -1, 0, 0]))
+func _test_objectives() -> void:
+	var cache := Vector2i(4, 8)
+	var defend: CombatState = _fight(_rows(), [_unit(HAMMER, Vector2i(0, 8))], [_unit(RAIL, Vector2i(4, 2), 30)],
+		{"type": "defend", "rounds": 2, "caches": [{"x": cache.x, "y": cache.y, "hp": 1}]})
+	_place(defend, 10, Vector2i(4, 2))
+	defend.intents = [{"ref": 10, "w": 1, "x": cache.x, "y": cache.y, "order": 1}]
+	CombatSim.apply(defend, [CombatSim.ACT_END, -1, 0, 0])
+	_check("defend: losing every cache loses the fight", defend.outcome == CombatState.LOST)
 
+	var hold: CombatState = _fight(_rows(), [_unit(HAMMER, Vector2i(0, 8))], [_unit(HAMMER, Vector2i(8, 0), 30)],
+		{"type": "defend", "rounds": 2, "caches": [{"x": 8, "y": 8, "hp": 30}]})
+	for i: int in 2:
+		if hold.outcome == CombatState.ONGOING:
+			hold.intents.clear()
+			CombatSim.apply(hold, [CombatSim.ACT_END, -1, 0, 0])
+	_check("defend: holding for the rounds wins", hold.outcome == CombatState.WON)
+
+	var n: Vector2i = Hex.neighbor(C, 0)
+	var salvage: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, Vector2i(0, 0), 30)],
+		{"type": "salvage", "need": 1, "piles": [{"x": n.x, "y": n.y}]})
+	_place(salvage, 0, C)
+	var had: bool = salvage.piles.has(n)
+	CombatSim.apply(salvage, [CombatSim.ACT_MOVE, 0, n.x, n.y])
+	_check("salvage: collecting the piles needed wins", not had or salvage.outcome == CombatState.WON)
+	_check("the objective has a line of text for the HUD", String(CombatSim.objective_status(salvage)["text"]).begins_with("SALVAGE"))
+
+
+# --- Whole fights -------------------------------------------------------------
 
 func _test_bot_fight(fight_id: String) -> void:
 	var setup: CombatSetup = CombatSetup.build(_db.fights[fight_id], _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 2026)
@@ -344,19 +424,14 @@ func _test_bot_fight(fight_id: String) -> void:
 	for e: Array in state.events:
 		if int(e[GridEv.F_KIND]) == GridEv.DAMAGE and int(e[GridEv.F_ACTOR]) >= 0:
 			dealt[int(e[GridEv.F_ACTOR]) / 10] += int(e[GridEv.F_V1])
-	var crawler: GridUnit = state.crawler()
-	print("    %s: %s in %d rounds, crew %d/3, crawler %d/%d, damage dealt player %d / enemy %d, hash %s" % [
-		fight_id, "WON" if state.outcome == CombatState.WON else "LOST", state.round_number,
-		state.crew(GridUnit.TEAM_PLAYER).size(), crawler.hp, crawler.max_hp, dealt[0], dealt[1], state.event_hash()])
-
+	print("    %s (%s): %s in %d rounds, crew %d/3, piles %d, damage player %d / enemy %d, hash %s" % [
+		fight_id, String(setup.objective["type"]), "WON" if state.outcome == CombatState.WON else "LOST",
+		state.round_number, state.crew(GridUnit.TEAM_PLAYER).size(), state.piles_collected, dealt[0], dealt[1], state.event_hash()])
 	var same: bool = true
 	for i: int in 3:
 		if CombatSim.replay(setup, actions).event_hash() != state.event_hash():
 			same = false
 	_check("%s: replaying gives the same hash 3 times" % fight_id, same)
-
-	# Prefix stability: undo is "replay one fewer action", so the replay of any prefix
-	# must produce exactly the events the full fight produced up to that point.
 	var stable: bool = true
 	for cut: int in [1, actions.size() / 3, actions.size() / 2, actions.size() - 1]:
 		var partial: CombatState = CombatSim.replay(setup, actions.slice(0, cut))

@@ -13,22 +13,66 @@
     "elite": 18
   },
   "elite_from_column": 2,
-  "workshop_guaranteed_columns": [3],
+  "workshop_guaranteed_columns": [
+    3
+  ],
   "front": {
     "every": 2,
-    "damage": 3,
-    "_comment": "The Reclaimer consumes one column every `every` moves. Each move made while standing in consumed ground costs the Crawler `damage`."
+    "damage": 2,
+    "_comment": "The Reclaimer consumes one column every `every` moves. Each move made while standing in consumed ground costs every machine `damage` HP (never below 1)."
   },
-  "crawler": { "max_hp": 16 },
   "starting_scrap": 10,
   "starting_crew": [
-    { "name": "Brute",   "parts": ["ch_brute", "co_slug", "ar_saw", "ar_hammer", "mo_scavenger"] },
-    { "name": "Hauler",  "parts": ["ch_hauler", "co_furnace", "ar_pulse", "ar_lance", "mo_ablative"] },
-    { "name": "Strider", "parts": ["ch_strider", "co_arc", "ar_scanner", "ar_scatter", "mo_governor"] }
+    {
+      "name": "Brute",
+      "parts": [
+        "ch_brute",
+        "co_slug",
+        "ar_saw",
+        "ar_hammer",
+        "mo_scavenger"
+      ]
+    },
+    {
+      "name": "Hauler",
+      "parts": [
+        "ch_hauler",
+        "co_furnace",
+        "ar_pulse",
+        "ar_lance",
+        "mo_ablative"
+      ]
+    },
+    {
+      "name": "Strider",
+      "parts": [
+        "ch_strider",
+        "co_arc",
+        "ar_scanner",
+        "ar_scatter",
+        "mo_governor"
+      ]
+    }
   ],
   "enemies": {
-    "count_by_column": [3, 3, 3, 4, 4, 4, 5],
-    "rarity_cap_by_column": [1, 1, 2, 2, 2, 3, 3],
+    "count_by_column": [
+      3,
+      3,
+      3,
+      4,
+      4,
+      4,
+      5
+    ],
+    "rarity_cap_by_column": [
+      1,
+      1,
+      2,
+      2,
+      2,
+      3,
+      3
+    ],
     "elite_extra": 1,
     "elite_hp_bonus": 3,
     "boss_count": 4,
@@ -40,13 +84,30 @@
     "boss_scrap": 0,
     "scrapyard_scrap": 15,
     "choices": 3,
-    "rarity_weights": [60, 30, 10],
-    "elite_min_rarity": 2
+    "rarity_weights": [
+      60,
+      30,
+      10
+    ],
+    "elite_min_rarity": 2,
+    "cache_scrap": 6
   },
   "workshop": {
     "repair_cost": 8,
-    "repair_amount": 4,
-    "rebuild_cost": 20
+    "repair_amount": 3,
+    "rebuild_cost": 20,
+    "_comment": "repair_amount is per machine; a rebuilt wreck comes back at half HP"
   },
-  "cargo_size": 6
+  "cargo_size": 6,
+  "objective_weights": {
+    "rout": 30,
+    "defend": 40,
+    "salvage": 30
+  },
+  "objectives": {
+    "defend_rounds": 4,
+    "defend_caches": 2,
+    "salvage_piles": 4,
+    "salvage_need": 3
+  }
 }

@@ -61,6 +61,22 @@ func _test_generation() -> void:
 	_check("200 regions: exactly one boss gate each", all_one_boss)
 	_check("200 regions: at least one workshop each", all_have_shop)
 	_check("regions vary in size across seeds", sizes.size() > 1)
+
+	# Every generated fight builds cleanly: no two things on one hex, nothing on scrap.
+	var bad: PackedStringArray = []
+	var built: int = 0
+	for s: int in 40:
+		var setup: RunSetup = _setup(s)
+		var state: RunState = RunSim.start(setup)
+		for site: Dictionary in state.sites:
+			if not RunSim.FIGHT_TYPES.has(String(site["type"])):
+				continue
+			var fight: Dictionary = RunSim._make_fight(state, setup, int(site["id"]), String(site["type"]))
+			var combat: CombatSetup = CombatSetup.build(fight, setup.combat_rules, setup.parts, setup.tiles, setup.wheel, 1)
+			built += 1
+			if not combat.errors.is_empty():
+				bad.append("seed %d site %d: %s" % [s, site["id"], combat.errors[0]])
+	_check("%d generated fights all build with no errors %s" % [built, bad.slice(0, 2)], bad.is_empty())
 	var a: RunState = RunSim.start(_setup(42))
 	var b: RunState = RunSim.start(_setup(42))
 	_check("the same seed gives the same region", _region_text(a) == _region_text(b))
@@ -89,10 +105,15 @@ func _test_travel_and_front() -> void:
 	var s2: RunState = RunSim.start(setup)
 	s2.front_col = 0
 	_check("the start column can be consumed", s2.consumed(0))
-	var hp: int = s2.crawler_hp
+	var hp: int = int(s2.crew[0]["hp"])
 	RunSim.apply(s2, setup, [RunSim.TRAVEL, RunSim.destinations(s2)[0]])
-	_check("leaving consumed ground costs the Crawler front damage",
-		s2.crawler_hp == hp - int((_db.run_rules["front"] as Dictionary)["damage"]))
+	_check("leaving consumed ground costs every machine front damage",
+		int(s2.crew[0]["hp"]) == hp - int((_db.run_rules["front"] as Dictionary)["damage"]))
+	s2.crew[1]["hp"] = 1
+	s2.pending = {}
+	s2.front_col = 5
+	s2.current = RunSim.destinations(s2)[0] if not RunSim.destinations(s2).is_empty() else s2.current
+	_check("the front never finishes a machine off", int(s2.crew[1]["hp"]) >= 1)
 	s2.pending = {}
 	s2.front_col = 1
 	_check("consumed sites are not destinations",
@@ -115,10 +136,13 @@ func _test_sites() -> void:
 	_check("reward: skipping is always allowed", RunSim.apply(state, setup, [RunSim.PICK, -1]) and state.pending.is_empty())
 	# Workshop.
 	state.pending = {"kind": "workshop"}
-	state.crawler_hp = 5
+	state.crew[0]["hp"] = 5
+	state.crew[1]["hp"] = 5
 	state.scrap = 100
-	_check("workshop: repair patches the Crawler for scrap", RunSim.apply(state, setup, [RunSim.REPAIR]) and state.crawler_hp == 9 and state.scrap == 92)
-	state.crawler_hp = state.crawler_max
+	_check("workshop: repair patches every machine for one price", RunSim.apply(state, setup, [RunSim.REPAIR])
+		and int(state.crew[0]["hp"]) == 8 and int(state.crew[1]["hp"]) == 8 and state.scrap == 92)
+	for member: Dictionary in state.crew:
+		member["hp"] = RunSim.max_hp(setup, member)
 	_check("workshop: nothing to repair at full HP", not RunSim.apply(state, setup, [RunSim.REPAIR]))
 	_check("workshop: leave", RunSim.apply(state, setup, [RunSim.LEAVE]) and state.pending.is_empty())
 
@@ -133,23 +157,26 @@ func _test_fight_feeds_the_run() -> void:
 	if fight_site < 0:
 		fight_site = RunSim.destinations(state)[0]
 		state.sites[fight_site]["type"] = "skirmish"
-	state.crawler_hp = 11
+	state.crew[0]["hp"] = 6
 	RunSim.apply(state, setup, [RunSim.TRAVEL, fight_site])
 	_check("a fight site sets a fight pending", String(state.pending.get("kind", "")) == "fight")
+	_check("every fight has an objective", ["rout", "defend", "salvage"].has(String(state.pending["fight"]["objective"]["type"])))
 	var combat_setup: CombatSetup = RunSim.fight_setup(state, setup)
 	_check("the fight builds with no errors %s" % [combat_setup.errors], combat_setup.errors.is_empty())
-	var crawler: GridUnit = null
-	for u: GridUnit in combat_setup.units:
-		if u.objective:
-			crawler = u
-	_check("the Crawler enters the fight with the run's HP (11)", crawler != null and crawler.hp == 11 and crawler.max_hp == state.crawler_max)
+	_check("a machine enters the fight with its run HP (6)", combat_setup.units[0].hp == 6)
 	_check("an unfinished fight is refused", not RunSim.apply(state, setup, [RunSim.FIGHT, []]))
 	var actions: Array = RunBot.play_fight(combat_setup)
 	var result: CombatState = CombatSim.replay(combat_setup, actions)
+	var scrap_before: int = state.scrap
 	_check("a finished fight is accepted", RunSim.apply(state, setup, [RunSim.FIGHT, actions]))
-	_check("the run takes the Crawler's HP from the replayed fight", state.crawler_hp == result.crawler().hp or state.outcome == RunState.LOST)
+	var first: GridUnit = result.unit(0)
+	_check("the run takes each machine's HP from the replayed fight",
+		(first.alive and int(state.crew[0]["hp"]) == first.hp) or (not first.alive and not bool(state.crew[0]["alive"])))
+	_check("scrap from piles is banked", state.scrap >= scrap_before + result.scrap_collected)
 	if result.outcome == CombatState.WON:
-		_check("a won skirmish offers salvage", String(state.pending.get("kind", "")) == "reward")
+		_check("a won fight offers salvage", String(state.pending.get("kind", "")) == "reward")
+	else:
+		_check("a lost objective with the crew alive moves on with no salvage", state.pending.is_empty() or state.outcome != RunState.ONGOING)
 
 
 func _test_wreck_and_rebuild() -> void:
@@ -162,8 +189,8 @@ func _test_wreck_and_rebuild() -> void:
 	state.scrap = 50
 	_check("a wreck cannot be refitted", not RunSim.apply(state, setup, [RunSim.REFIT, 1, 2, 0]))
 	_check("the workshop rebuilds a wreck for scrap", RunSim.apply(state, setup, [RunSim.REBUILD, 1]) and bool(member["alive"]) and state.scrap == 30)
-	_check("the rebuilt construct keeps its chassis and nothing else",
-		String(member["parts"][0]) != "" and String(member["parts"][2]) == "")
+	_check("the rebuilt machine keeps its chassis and nothing else, at half HP",
+		String(member["parts"][0]) != "" and String(member["parts"][2]) == "" and int(member["hp"]) == RunSim.max_hp(setup, member) / 2)
 	state.pending = {}
 	var fight: Dictionary = RunSim._make_fight(state, setup, 1, "skirmish")
 	var built: CombatSetup = CombatSetup.build(fight, setup.combat_rules, setup.parts, setup.tiles, setup.wheel, 1)

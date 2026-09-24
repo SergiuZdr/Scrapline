@@ -12,7 +12,7 @@ extends SceneTree
 ##
 ## The numbers that matter:
 ##   enemy share   -- enemy damage / player damage. Iteration 002 measured 6/42 = 14%.
-##   loss causes   -- a Crawler loss means the pressure works; all-timeout means stalemate.
+##   loss causes   -- a lost objective means the pressure works; all-timeout means stalemate.
 ##   arm win rate  -- per weapon class on the PLAYER side, against the average. More than
 ##                    6 points off in random fights is a tuning target.
 
@@ -76,8 +76,8 @@ func _initialize() -> void:
 
 
 func _new_stats() -> Dictionary:
-	return {"fights": 0, "won": 0, "lost_crawler": 0, "lost_crew": 0, "timeout": 0, "rounds": 0,
-		"player_dmg": 0, "enemy_dmg": 0, "crawler_left": 0, "intents": 0, "intents_hit": 0}
+	return {"fights": 0, "won": 0, "lost_objective": 0, "lost_crew": 0, "timeout": 0, "rounds": 0,
+		"player_dmg": 0, "enemy_dmg": 0, "crew_hp_lost": 0, "intents": 0, "intents_hit": 0}
 
 
 ## Plays one fight with the bot. Returns true on a win.
@@ -93,16 +93,17 @@ func _play(fight: Dictionary, seed_value: int, stats: Dictionary) -> bool:
 		guard += 1
 	stats["fights"] += 1
 	stats["rounds"] += state.round_number
-	var crawler: GridUnit = state.crawler()
+	for u: GridUnit in state.units:
+		if u.team == GridUnit.TEAM_PLAYER and not u.objective:
+			stats["crew_hp_lost"] += u.max_hp - (u.hp if u.alive else 0)
 	if state.outcome == CombatState.WON:
 		stats["won"] += 1
-		stats["crawler_left"] += crawler.hp
-	elif not crawler.alive:
-		stats["lost_crawler"] += 1
 	elif state.crew(GridUnit.TEAM_PLAYER).is_empty():
 		stats["lost_crew"] += 1
-	else:
+	elif state.round_number >= setup.max_rounds:
 		stats["timeout"] += 1
+	else:
+		stats["lost_objective"] += 1
 	# Damage by side, and how many enemy intents actually landed on something.
 	var fired_by_enemy: bool = false
 	for e: Array in state.events:
@@ -125,12 +126,11 @@ func _play(fight: Dictionary, seed_value: int, stats: Dictionary) -> bool:
 
 func _report(label: String, s: Dictionary) -> void:
 	var n: float = maxf(1.0, s["fights"])
-	var wins: float = maxf(1.0, s["won"])
-	print("  %-14s win %5.1f%%  | lost: crawler %d, crew %d, timeout %d | rounds %.1f | dmg player %.1f enemy %.1f (share %d%%) | intents landing %d%% | crawler hp left on wins %.1f" % [
-		label, 100.0 * s["won"] / n, s["lost_crawler"], s["lost_crew"], s["timeout"],
+	print("  %-14s win %5.1f%%  | lost: objective %d, crew %d, timeout %d | rounds %.1f | dmg player %.1f enemy %.1f (share %d%%) | intents landing %d%% | crew HP lost per fight %.1f" % [
+		label, 100.0 * s["won"] / n, s["lost_objective"], s["lost_crew"], s["timeout"],
 		s["rounds"] / n, s["player_dmg"] / n, s["enemy_dmg"] / n,
 		int(100.0 * s["enemy_dmg"] / maxf(1.0, s["player_dmg"])),
-		int(100.0 * s["intents_hit"] / maxf(1.0, s["intents"])), s["crawler_left"] / wins])
+		int(100.0 * s["intents_hit"] / maxf(1.0, s["intents"])), s["crew_hp_lost"] / n])
 
 
 ## A squad the same size and positions as `template`, every part rolled from the pool.

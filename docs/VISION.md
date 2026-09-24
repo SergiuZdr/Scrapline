@@ -6,11 +6,15 @@
 
 ## The pitch in three lines
 
-- **Fights are short tactical puzzles.** Every enemy shows what it is about to do, and your
-  turn is working out how to stop it (in the spirit of *Into the Breach*).
+- **Fights are short tactical puzzles on a hex board.** Every enemy shows what it is about
+  to do, every fight has a goal beyond "kill everything", and the board itself (barrels,
+  pits, cover) is a weapon (in the spirit of *Into the Breach*).
 - **Your machines ARE their parts.** A construct's attacks, movement and weaknesses come
   from the chassis, arms, core and module bolted onto it. Parts get shot off in battle and
   salvaged from wrecks, so your squad keeps changing shape during a run.
+- **A run builds toward something.** Perks change the rules, manufacturer sets reward
+  committing to a direction, parts can be upgraded, and machines level up. By the last
+  room your crew should be something you made.
 - **The run is a journey across a scrapyard region.** You pick a route through connected
   sites, but a closing front means you cannot visit everything. Every detour is a trade.
 
@@ -54,6 +58,8 @@ in [plans/salvage-audit.md](plans/salvage-audit.md).
 
 ## Settled details
 
-3 constructs per crew, always. An 8×8 grid. Destroyed constructs can be rebuilt at
-workshops. The closing front is the Reclaimer swarm. Light story through text. 3D with a
-tilted camera. See [MEMORY.md](MEMORY.md) for the reasoning.
+3 machines per crew, always. A **hex** board with free aim. No escort unit: the run's
+health is the crew's HP, which carries between fights. Destroyed machines leave scrap
+piles. The closing front is the Reclaimer swarm. Light story through text. 3D with a
+tilted camera. A tutorial first fight explains the jargon. See [MEMORY.md](MEMORY.md),
+including play-test 1, which changed most of this on 2026-09-24.

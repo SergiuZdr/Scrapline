@@ -4,14 +4,13 @@ extends RefCounted
 ## Plays the player's side of a fight with `IntentAI`. Used by tests and the balance
 ## tool (a fight has to be finishable, the same way twice) and by the `--bot` demo.
 ##
-## Beyond what an enemy considers, the bot reads the telegraphed intents: tiles that will
-## be hit are DANGER, and tiles on a line of fire in front of the Crawler are SHIELD -- a
-## construct standing there takes the shot instead. That trade is the puzzle the Crawler
-## exists to create, so a bot that ignored it would be measuring a different game.
+## Beyond what an enemy considers, the bot reads the telegraphed intents: hexes that will
+## be hit are DANGER, and hexes on a shot's line in front of a salvage cache are SHIELD --
+## a machine standing there takes the shot instead. That trade is the puzzle a defend
+## fight exists to create, so a bot that ignored it would be measuring a different game.
 
-## Worth of shielding the Crawler, per point of damage the shot would do to it. Higher
-## than `IntentAI.SCORE_DANGER` per point, because the shielding tile is also a danger tile
-## and the Crawler's HP is worth more than a construct's.
+## Worth of shielding a cache, per point of damage the shot would do to it. Higher than
+## `IntentAI.SCORE_DANGER` per point, because the shielding hex is also a danger hex.
 const SHIELD_PER_DAMAGE: int = 20
 
 
@@ -48,7 +47,8 @@ static func plan_unit(state: CombatState, ref: int, apply: bool) -> Array:
 			out.append(move)
 	var w: int = int(plan["w"])
 	if w >= 0:
-		out.append([CombatSim.ACT_ATTACK, ref, w, int(plan["dir"]), int(plan["dist"])])
+		var target: Vector2i = plan["target"]
+		out.append([CombatSim.ACT_ATTACK, ref, w, target.x, target.y])
 	elif u.heat > 0 and not u.seized:
 		# Nothing worth hitting: bank the turn as cooling instead of wasting it.
 		out.append([CombatSim.ACT_VENT, ref, 0, 0])
@@ -63,23 +63,25 @@ static func context(state: CombatState) -> Dictionary:
 	var danger: Dictionary = {}
 	var shield: Dictionary = {}
 	var all: Dictionary = CombatSim.threats(state)
-	var crawler: GridUnit = state.crawler()
 	for ref: Variant in all:
 		var threat: Dictionary = all[ref]
+		if not bool(threat["legal"]):
+			continue
 		var shooter: GridUnit = state.unit(int(ref))
 		var weapon: Dictionary = shooter.weapons[int(threat["w"])]
 		var damage: int = int(weapon["damage"]) + shooter.damage_bonus
 		for cell: Vector2i in (threat["tiles"] as Array):
 			danger[cell] = int(danger.get(cell, 0)) + damage
-		# A line aimed at the Crawler can be blocked by standing anywhere in front of it --
-		# unless it pierces, in which case the blocker is simply hit as well.
-		if crawler == null or String(weapon["shape"]) != "line" or int(weapon["pierce"]) > 0:
+		# A shot aimed at a cache can be blocked by standing anywhere on its line in front
+		# of it -- unless it pierces, in which case the blocker is simply hit as well.
+		if String(weapon["shape"]) != "shot" or int(weapon["pierce"]) > 0:
 			continue
 		for hit: Dictionary in (threat["hits"] as Array):
-			if int(hit["ref"]) != crawler.ref:
+			var victim: GridUnit = state.unit(int(hit["ref"]))
+			if victim == null or not victim.objective:
 				continue
 			for cell: Vector2i in (threat["tiles"] as Array):
-				if cell == Vector2i(crawler.x, crawler.y):
+				if cell == Vector2i(victim.x, victim.y):
 					break
 				shield[cell] = int(shield.get(cell, 0)) + int(hit["damage"]) * SHIELD_PER_DAMAGE
 	return {"danger": danger, "shield": shield}

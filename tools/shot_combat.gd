@@ -4,7 +4,7 @@ extends SceneTree
 ## target aimed. `--shot` alone can only photograph what the opening turn happens to show.
 ##
 ##   godot --path . --resolution 1920x1080 --script res://tools/shot_combat.gd -- \
-##       --fight slag_pit --select 1 --weapon 1 --aim 0 3 --out shots/lob.png
+##       --fight slag_pit --select 1 --weapon 1 --aim 5 3 --out shots/lob.png   (aim = a hex x y)
 ##
 ## Not headless: it has to render. Everything is driven through the scene's own methods,
 ## the same ones a tap reaches.
@@ -27,11 +27,7 @@ func _run() -> void:
 		scene.call("_choose_weapon", weapon)
 	var at: int = args.find("--aim")
 	if at >= 0 and at + 2 < args.size():
-		var state: CombatState = scene.get("_state")
-		var u: GridUnit = state.unit(select)
-		var plan: Dictionary = CombatSim.strike_plan(state, u, int(scene.get("_weapon")), args[at + 1].to_int(), args[at + 2].to_int())
-		var aim: Vector2i = plan["aim"]
-		scene.call("_tap", aim)
+		scene.call("_tap", Vector2i(args[at + 1].to_int(), args[at + 2].to_int()))
 	for i: int in 20:
 		await process_frame
 

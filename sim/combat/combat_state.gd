@@ -2,29 +2,30 @@ class_name CombatState
 extends RefCounted
 
 ## The whole state of one fight. Built fresh by `CombatSim.start`, changed only by
-## `CombatSim.apply`.
+## `CombatSim.apply`. Cells are hex offsets (see `Hex`).
 
 const ONGOING: int = 0
 const WON: int = 1
 const LOST: int = 2
 
-## Directions, in the order everything iterates them: north (toward row 0), east, south, west.
-const DX: Array[int] = [0, 1, 0, -1]
-const DY: Array[int] = [-1, 0, 1, 0]
-
 var setup: CombatSetup
 var width: int = 0
 var height: int = 0
-## Sorted by ref, always. Destroyed units stay in the list as wrecks.
+## Sorted by ref, always. Destroyed units stay in the list (alive = false) but no longer
+## occupy their hex: they became a scrap pile.
 var units: Array[GridUnit] = []
 var round_number: int = 0
 var outcome: int = ONGOING
 ## Enemy intents for the current round, in firing order:
-## `{ "ref": int, "w": weapon index, "dir": int, "dist": int, "order": int }`.
+## `{ "ref": int, "w": weapon index, "x": int, "y": int, "order": int }` -- the hex it will hit.
 var intents: Array[Dictionary] = []
+## Scrap piles on the board: `Vector2i -> scrap value`.
+var piles: Dictionary = {}
+## What the player has collected this fight.
+var piles_collected: int = 0
+var scrap_collected: int = 0
 ## Every event since the fight began. See `GridEv`.
 var events: Array = []
-## Number of actions applied so far.
 var action_count: int = 0
 
 
@@ -35,6 +36,10 @@ func emit(kind: int, actor: int = -1, target: int = -1, x: int = -1, y: int = -1
 
 func in_bounds(x: int, y: int) -> bool:
 	return x >= 0 and y >= 0 and x < width and y < height
+
+
+func inside(c: Vector2i) -> bool:
+	return in_bounds(c.x, c.y)
 
 
 func tile_blocks(x: int, y: int) -> bool:
@@ -68,10 +73,10 @@ func unit(ref: int) -> GridUnit:
 	return null
 
 
-## The unit or wreck standing on (x, y), or null.
+## The LIVING unit on (x, y), or null. The dead are scrap piles, not obstacles.
 func unit_at(x: int, y: int) -> GridUnit:
 	for u: GridUnit in units:
-		if u.x == x and u.y == y:
+		if u.alive and u.x == x and u.y == y:
 			return u
 	return null
 
@@ -84,7 +89,7 @@ func living(team: int) -> Array[GridUnit]:
 	return out
 
 
-## Living constructs of a team, without the Crawler.
+## Living fighters of a team, without caches.
 func crew(team: int) -> Array[GridUnit]:
 	var out: Array[GridUnit] = []
 	for u: GridUnit in units:
@@ -93,11 +98,17 @@ func crew(team: int) -> Array[GridUnit]:
 	return out
 
 
-func crawler() -> GridUnit:
+## Salvage caches still standing (the defend objective).
+func caches() -> Array[GridUnit]:
+	var out: Array[GridUnit] = []
 	for u: GridUnit in units:
-		if u.objective:
-			return u
-	return null
+		if u.alive and u.objective:
+			out.append(u)
+	return out
+
+
+func objective() -> Dictionary:
+	return setup.objective
 
 
 func intent_of(ref: int) -> Dictionary:
@@ -105,6 +116,13 @@ func intent_of(ref: int) -> Dictionary:
 		if int(intent["ref"]) == ref:
 			return intent
 	return {}
+
+
+## Piles in a fixed order (row, then column), since a Dictionary's order is not a rule.
+func pile_cells() -> Array:
+	var cells: Array = piles.keys()
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
+	return cells
 
 
 ## FNV-1a over the whole event stream. Two runs of the same fight with the same actions

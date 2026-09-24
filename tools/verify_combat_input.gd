@@ -62,13 +62,12 @@ func _run() -> void:
 	_check("UNDO button puts it back", state.unit(0).x == start.x and state.unit(0).y == start.y)
 	_check("UNDO leaves no action in the log", (_scene.get("_actions") as Array).is_empty())
 
-	# --- An empty tile beside a melee unit is a MOVE, even though it is also on an
-	# attack line. (The first version aimed instead, and a brawler could not step forward.)
+	# --- An empty hex beside a melee unit is a MOVE when unarmed.
 	_click_tile(start.x, start.y)
 	await _settle()
 	var beside: Vector2i = Vector2i(-1, -1)
 	for cell: Vector2i in options:
-		if absi(cell.x - start.x) + absi(cell.y - start.y) == 1:
+		if Hex.distance(cell, start) == 1:
 			beside = cell
 			break
 	_click_tile(beside.x, beside.y)
@@ -94,14 +93,11 @@ func _run() -> void:
 	# --- Attack takes two taps on the same target. After moving, every line tile aims.
 	var w: int = int(_scene.get("_weapon"))
 	var target_cell := Vector2i(-1, -1)
-	for aim: Array in CombatSim.aim_options(state, state.unit(0), w):
-		var plan: Dictionary = CombatSim.strike_plan(state, state.unit(0), w, int(aim[0]), int(aim[1]))
-		if bool(plan["legal"]) and not (plan["tiles"] as Array).is_empty():
-			var first: Vector2i = plan["tiles"][0]
-			var occupant: GridUnit = state.unit_at(first.x, first.y)
-			if occupant == null or occupant.team != GridUnit.TEAM_PLAYER:
-				target_cell = first
-				break
+	for aim: Vector2i in CombatSim.aim_options(state, state.unit(0), w):
+		var occupant: GridUnit = state.unit_at(aim.x, aim.y)
+		if occupant == null or occupant.team != GridUnit.TEAM_PLAYER:
+			target_cell = aim
+			break
 	_check("the Brute has a target that is not an ally", target_cell.x >= 0)
 	if target_cell.x >= 0:
 		_click_tile(target_cell.x, target_cell.y)

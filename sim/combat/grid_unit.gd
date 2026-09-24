@@ -1,7 +1,7 @@
 class_name GridUnit
 extends RefCounted
 
-## One construct on the grid, or the Crawler. Plain data: the rules live in `CombatSim`,
+## One machine on the board, or a salvage cache. Plain data: the rules live in `CombatSim`,
 ## and every number here was resolved from the unit's parts by `CombatSetup`.
 
 const TEAM_PLAYER: int = 0
@@ -19,7 +19,7 @@ var name: String = ""
 ## chassis, core, arm_l, arm_r, module -- the order `ConstructView` reads.
 var part_ids: PackedStringArray = []
 var role: String = ""
-## The Crawler: cannot move, act or be shoved, and losing it loses the fight.
+## A salvage cache (the defend objective): cannot move, act or be shoved.
 var objective: bool = false
 
 var x: int = 0

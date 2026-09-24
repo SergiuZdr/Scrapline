@@ -15,14 +15,17 @@ extends Node3D
 ##   --seed <n>     tie-break seed
 ##   --bot          the player's turns are played by `CombatBot`, for demos and screenshots
 
-const TILE: float = 1.3
+## Centre-to-corner size of a hex, in metres. Pointy-top: a hex is sqrt(3) * HEX wide.
+const HEX: float = 0.78
+const SQRT3: float = 1.7320508
 const COL_PLAYER := Color("4fa8d8")
 const COL_ENEMY := Color("d8654f")
 const COL_MOVE := Color(0.38, 0.70, 0.87, 0.42)
 const COL_ATTACK := Color(0.90, 0.70, 0.24, 0.55)
 const COL_TARGET := Color(0.95, 0.78, 0.30, 0.85)
+const COL_ATTACK_FAINT := Color(0.90, 0.70, 0.24, 0.22)
 const COL_THREAT := Color(0.86, 0.30, 0.20, 0.50)
-const COL_CRAWLER := Color("e5b33d")
+const COL_CACHE := Color("e5b33d")
 ## Damage-type colours for impacts, indexed like the rules' `damage_types`.
 const DAMAGE_COLOURS: Array[Color] = [Color("ffcf9a"), Color("ff7a3c"), Color("7fd4ff"), Color("b5e05a")]
 
@@ -36,12 +39,14 @@ const MODEL_SCALE: float = 1.45
 ## sit over the apron rather than over the first row of tiles.
 const AIM_NEAR: float = 0.9
 
-## How long each kind of event holds the queue, in seconds.
-const T_STEP: float = 0.13
-const T_ATTACK: float = 0.24
-const T_HIT: float = 0.30
-const T_DESTROY: float = 0.55
-const T_BANNER: float = 0.45
+## How long each kind of event holds the queue, in seconds. Play-test 1 called the old
+## timings laggy (0.13 s a tile, a pause before every strike, half a second per death):
+## a move is now one continuous glide, and nothing waits longer than it has to be seen.
+const T_STEP: float = 0.075
+const T_ATTACK: float = 0.14
+const T_HIT: float = 0.16
+const T_DESTROY: float = 0.30
+const T_BANNER: float = 0.30
 
 var _db: ContentDB
 var _fight_id: String = "proto_yard"
@@ -65,7 +70,7 @@ var _selected: int = -1
 ## priority can tell which the player meant.
 var _weapon: int = 0
 var _armed: bool = false
-## An attack waiting for its confirming second tap: `[ref, w, dir, dist]`, or empty.
+## An attack waiting for its confirming second tap: `[ref, w, x, y]`, or empty.
 var _pending: Array = []
 
 var _board: Node3D
@@ -74,6 +79,10 @@ var _marks_root: Node3D
 var _hint_quads: Dictionary = {}
 var _threat_quads: Dictionary = {}
 var _views: Dictionary = {}
+## Scrap pile models, by hex.
+var _pile_views: Dictionary = {}
+## Board-space offset that centres the hex layout on the origin.
+var _origin: Vector2 = Vector2.ZERO
 var _pivot: Node3D
 var _camera: Camera3D
 var _zoom: float = 12.5
@@ -135,13 +144,16 @@ func _start_fight() -> void:
 	_armed = false
 	_state = CombatSim.replay(_setup, _actions)
 	_build_board()
-	_spawn_units()
 	_frame_camera()
 	if _actions.is_empty():
+		# A fresh fight plays from the very start, so the models start where the SETUP
+		# puts them and the enemies' opening moves and grabs play out on screen.
+		_spawn_initial()
 		_shown = 0
 		await _play_new_events()
 	else:
 		# A resumed fight does not replay its history on screen: it opens on the turn.
+		_spawn_units()
 		_shown = _state.events.size()
 	_after_events()
 
@@ -244,9 +256,9 @@ func _place_camera() -> void:
 
 
 func _frame_camera() -> void:
-	# Fit the board's diagonal into the view, then leave the rest to the zoom control.
-	var span: float = maxf(_setup.width, _setup.height) * TILE
-	_zoom = clampf(span * 1.62, ZOOM_MIN, ZOOM_MAX)
+	# Fit the board's larger side into the view, then leave the rest to the zoom control.
+	var span: float = maxf(_origin.x, _origin.y) * 2.0 + HEX * 2.0
+	_zoom = clampf(span * 1.5, ZOOM_MIN, ZOOM_MAX)
 	_place_camera()
 
 
@@ -257,8 +269,9 @@ func _rotate(step: int) -> void:
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
+## Pointy-top hexes in odd-r offset: odd rows sit half a hex to the right.
 func _to_world(x: int, y: int) -> Vector3:
-	return Vector3((x - (_setup.width - 1) * 0.5) * TILE, 0.0, (y - (_setup.height - 1) * 0.5) * TILE)
+	return Vector3(SQRT3 * HEX * (float(x) + 0.5 * float(y & 1)) - _origin.x, 0.0, 1.5 * HEX * float(y) - _origin.y)
 
 
 func _tile_top(x: int, y: int) -> float:
@@ -275,6 +288,8 @@ func _build_board() -> void:
 		child.queue_free()
 	_hint_quads.clear()
 	_threat_quads.clear()
+	_pile_views.clear()
+	_origin = Vector2(SQRT3 * HEX * (float(_setup.width) - 0.5) * 0.5, 1.5 * HEX * float(_setup.height - 1) * 0.5)
 
 	for y: int in _setup.height:
 		for x: int in _setup.width:
@@ -282,13 +297,10 @@ func _build_board() -> void:
 			var blocks: bool = bool(def.get("blocks", false))
 			var top: float = _tile_top(x, y)
 			var slab := MeshInstance3D.new()
-			var box := BoxMesh.new()
-			box.size = Vector3(TILE * 0.97, 0.3 + top, TILE * 0.97)
-			slab.mesh = box
+			slab.mesh = _hex_mesh(HEX * 0.96, 0.3 + top)
+			slab.rotation.y = PI / 6.0
 			slab.position = _to_world(x, y) + Vector3(0, -0.15 + top * 0.5, 0)
-			# A faint checker, so a player can count tiles without a grid line on every edge.
-			# The ground sits UNDER the machines in value (CLAUDE.md): lit by a 1.15 key, a
-			# lightened tile was the brightest, largest surface on screen.
+			# The ground sits UNDER the machines in value (CLAUDE.md).
 			var base: Color = Color(String(def.get("colour", "1a1e26")))
 			if (x + y) % 2 == 1:
 				base = base.lightened(0.04)
@@ -296,21 +308,32 @@ func _build_board() -> void:
 			_board.add_child(slab)
 			if blocks:
 				_board.add_child(_scrap_heap(x, y))
-
-			_hint_quads[Vector2i(x, y)] = _quad(x, y, top + 0.012, TILE * 0.84)
-			_threat_quads[Vector2i(x, y)] = _quad(x, y, top + 0.008, TILE * 0.95)
+			_hint_quads[Vector2i(x, y)] = _quad(x, y, top + 0.012, HEX * 0.80)
+			_threat_quads[Vector2i(x, y)] = _quad(x, y, top + 0.008, HEX * 0.94)
 
 	# A dark apron around the board, so its edge reads as an edge.
 	var apron := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(_setup.width * TILE + 30.0, _setup.height * TILE + 30.0)
+	plane.size = Vector2(_origin.x * 2.0 + 30.0, _origin.y * 2.0 + 30.0)
 	apron.mesh = plane
 	apron.position = Vector3(0, -0.31, 0)
 	apron.material_override = _material(Color("0f0e0c"), 1.0)
 	_board.add_child(apron)
 
 
-## A blocking tile: a heap of rusted slabs, dressed from a hash of its cell so a map
+## A six-sided prism, pointy-top: CylinderMesh puts its first corner on +X, so it is
+## turned 30 degrees to put a corner at north and south.
+func _hex_mesh(radius: float, height: float) -> CylinderMesh:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = height
+	mesh.radial_segments = 6
+	mesh.rings = 1
+	return mesh
+
+
+## A blocking hex: a heap of rusted slabs, dressed from a hash of its cell so a map
 ## looks the same every time it is loaded.
 func _scrap_heap(x: int, y: int) -> Node3D:
 	var heap := Node3D.new()
@@ -319,10 +342,10 @@ func _scrap_heap(x: int, y: int) -> Node3D:
 	for i: int in 3:
 		var piece := MeshInstance3D.new()
 		var box := BoxMesh.new()
-		var s: float = 0.35 + float((h >> (i * 5)) & 7) * 0.05
-		box.size = Vector3(TILE * s, 0.22 + float((h >> (i * 3)) & 3) * 0.12, TILE * (s * 0.8))
+		var s: float = 0.32 + float((h >> (i * 5)) & 7) * 0.045
+		box.size = Vector3(HEX * s * 1.5, 0.22 + float((h >> (i * 3)) & 3) * 0.12, HEX * s * 1.2)
 		piece.mesh = box
-		piece.position = Vector3(float(((h >> (i * 7)) & 7) - 3) * 0.06, box.size.y * 0.5 + i * 0.16, float(((h >> (i * 4)) & 7) - 3) * 0.06)
+		piece.position = Vector3(float(((h >> (i * 7)) & 7) - 3) * 0.05, box.size.y * 0.5 + i * 0.16, float(((h >> (i * 4)) & 7) - 3) * 0.05)
 		piece.rotation.y = float((h >> (i * 6)) & 15) * 0.2
 		piece.material_override = _material(Color("4a3526").lerp(Color("2d2f33"), float(i) * 0.4), 0.7, 0.4)
 		heap.add_child(piece)
@@ -331,9 +354,8 @@ func _scrap_heap(x: int, y: int) -> Node3D:
 
 func _quad(x: int, y: int, height: float, size: float) -> MeshInstance3D:
 	var quad := MeshInstance3D.new()
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(size, size)
-	quad.mesh = plane
+	quad.mesh = _hex_mesh(size, 0.012)
+	quad.rotation.y = PI / 6.0
 	quad.position = _to_world(x, y) + Vector3(0, height, 0)
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -354,12 +376,25 @@ func _material(colour: Color, roughness: float, metallic: float = 0.0) -> Standa
 
 # --- Units ------------------------------------------------------------------
 
+func _spawn_initial() -> void:
+	for child: Node in _units_root.get_children():
+		child.queue_free()
+	_views.clear()
+	_pile_views.clear()
+	for u: GridUnit in _setup.units:
+		_views[u.ref] = _build_view(u)
+
+
 func _spawn_units() -> void:
 	for child: Node in _units_root.get_children():
 		child.queue_free()
 	_views.clear()
+	_pile_views.clear()
 	for u: GridUnit in _state.units:
-		_views[u.ref] = _build_view(u)
+		if u.alive:
+			_views[u.ref] = _build_view(u)
+	for cell: Variant in _state.pile_cells():
+		_spawn_pile(cell)
 
 
 func _build_view(u: GridUnit) -> Dictionary:
@@ -370,10 +405,10 @@ func _build_view(u: GridUnit) -> Dictionary:
 	_units_root.add_child(root)
 
 	var colour: Color = COL_PLAYER if u.team == GridUnit.TEAM_PLAYER else COL_ENEMY
-	var model: Node3D = _crawler_model() if u.objective else ConstructView.build_parts(u.part_ids, _db, colour)
+	var model: Node3D = _cache_model() if u.objective else ConstructView.build_parts(u.part_ids, _db, colour)
 	model.scale = Vector3.ONE * (1.0 if u.objective else MODEL_SCALE)
 	root.add_child(model)
-	var ring: MeshInstance3D = _team_ring(COL_CRAWLER if u.objective else colour)
+	var ring: MeshInstance3D = _team_ring(COL_CACHE if u.objective else colour)
 	root.add_child(ring)
 
 	var rig := ConstructRig.new()
@@ -387,7 +422,7 @@ func _build_view(u: GridUnit) -> Dictionary:
 	tag.position = Vector3(0, 1.75, 0)
 	tag.outline_size = 12
 	tag.outline_modulate = Color(0, 0, 0, 0.9)
-	tag.modulate = (COL_CRAWLER if u.objective else colour).lightened(0.45)
+	tag.modulate = (COL_CACHE if u.objective else colour).lightened(0.45)
 	root.add_child(tag)
 
 	var view: Dictionary = {"root": root, "model": model, "rig": rig, "ring": ring, "tag": tag, "dead": false}
@@ -395,57 +430,77 @@ func _build_view(u: GridUnit) -> Dictionary:
 	for w: int in u.weapons.size():
 		if not u.can_fire(w):
 			_hide_arm(view, w)
-	if not u.alive:
-		_show_wrecked(view, Vector3(0, 0, 1))
 	return view
 
 
-## The Crawler: a tracked salvage rig, built from primitives until it has a model of its
-## own. Deliberately NOT a construct silhouette -- it has to read as the thing you are
-## protecting, not as a fourth fighter.
-func _crawler_model() -> Node3D:
+## A salvage cache (defend objective): a stack of strapped crates. Not a machine
+## silhouette on purpose -- it must read as cargo to protect, not as a fighter.
+func _cache_model() -> Node3D:
 	var root := Node3D.new()
-	var body_mat: StandardMaterial3D = _material(Color("8c7a4a"), 0.7, 0.15)
-	var dark: StandardMaterial3D = _material(Color("2a2926"), 0.8, 0.5)
-	var metal: StandardMaterial3D = _material(Color("6b6259"), 0.5, 0.8)
-	for side: float in [-0.42, 0.42]:
-		var track := MeshInstance3D.new()
+	var wood: StandardMaterial3D = _material(Color("6e5a3a"), 0.85, 0.05)
+	var strap: StandardMaterial3D = _material(Color("2a2926"), 0.6, 0.6)
+	var sizes: Array = [[Vector3(0.62, 0.34, 0.5), Vector3(0, 0.17, 0), 0.0],
+		[Vector3(0.44, 0.28, 0.4), Vector3(0.04, 0.48, 0.02), 0.3],
+		[Vector3(0.3, 0.2, 0.3), Vector3(-0.06, 0.72, -0.02), -0.2]]
+	for s: Array in sizes:
+		var crate := MeshInstance3D.new()
 		var box := BoxMesh.new()
-		box.size = Vector3(0.26, 0.28, 1.15)
-		track.mesh = box
-		track.position = Vector3(side, 0.14, 0)
-		track.material_override = dark
-		root.add_child(track)
-	var hull := MeshInstance3D.new()
-	var hull_box := BoxMesh.new()
-	hull_box.size = Vector3(0.86, 0.34, 1.0)
-	hull.mesh = hull_box
-	hull.position = Vector3(0, 0.42, 0)
-	hull.material_override = body_mat
-	root.add_child(hull)
-	var cab := MeshInstance3D.new()
-	var cab_box := BoxMesh.new()
-	cab_box.size = Vector3(0.5, 0.3, 0.34)
-	cab.mesh = cab_box
-	cab.position = Vector3(0, 0.74, 0.28)
-	cab.material_override = metal
-	root.add_child(cab)
-	var cargo := MeshInstance3D.new()
-	var cargo_box := BoxMesh.new()
-	cargo_box.size = Vector3(0.7, 0.36, 0.5)
-	cargo.mesh = cargo_box
-	cargo.position = Vector3(0, 0.77, -0.2)
-	cargo.material_override = _material(Color("4a3526"), 0.8, 0.3)
-	root.add_child(cargo)
-	var boom := MeshInstance3D.new()
-	var boom_box := BoxMesh.new()
-	boom_box.size = Vector3(0.08, 0.08, 0.9)
-	boom.mesh = boom_box
-	boom.position = Vector3(0.22, 1.12, -0.05)
-	boom.rotation.x = -0.5
-	boom.material_override = metal
-	root.add_child(boom)
+		box.size = s[0]
+		crate.mesh = box
+		crate.position = s[1]
+		crate.rotation.y = float(s[2])
+		crate.material_override = wood
+		root.add_child(crate)
+		var band := MeshInstance3D.new()
+		var band_box := BoxMesh.new()
+		band_box.size = (s[0] as Vector3) * Vector3(1.02, 0.18, 1.02)
+		band.mesh = band_box
+		band.position = s[1]
+		band.rotation.y = float(s[2])
+		band.material_override = strap
+		root.add_child(band)
 	return root
+
+
+## A scrap pile: what a destroyed machine becomes. Walkable, worth scrap and a patch-up
+## to whoever ends a move on it -- so it gets a glint, because it is a thing to go for.
+func _spawn_pile(cell: Vector2i) -> void:
+	if _pile_views.has(cell):
+		return
+	var pile := Node3D.new()
+	pile.position = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
+	var h: int = IntentAI.mix(cell.x, cell.y, 55, 3)
+	for i: int in 6:
+		var bit := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.12 + float((h >> i) & 3) * 0.05, 0.06 + float((h >> (i + 2)) & 3) * 0.03, 0.1 + float((h >> (i + 4)) & 3) * 0.04)
+		bit.mesh = box
+		var angle: float = float(i) / 6.0 * TAU + float(h & 7) * 0.2
+		bit.position = Vector3(cos(angle) * 0.2, box.size.y * 0.5 + float(i % 2) * 0.05, sin(angle) * 0.2)
+		bit.rotation = Vector3(float((h >> i) & 3) * 0.3, angle, 0.0)
+		bit.material_override = _material(Color("5c5146").lerp(Color("8a6a3a"), float(i % 3) * 0.35), 0.6, 0.7)
+		pile.add_child(bit)
+	var glint := OmniLight3D.new()
+	glint.light_color = Color("ffcf7a")
+	glint.light_energy = 0.6
+	glint.omni_range = 1.2
+	glint.position = Vector3(0, 0.5, 0)
+	pile.add_child(glint)
+	_units_root.add_child(pile)
+	_pile_views[cell] = pile
+	var tween := create_tween()
+	pile.scale = Vector3.ONE * 0.2
+	tween.tween_property(pile, "scale", Vector3.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _remove_pile(cell: Vector2i) -> void:
+	var pile: Node3D = _pile_views.get(cell)
+	if pile == null:
+		return
+	_pile_views.erase(cell)
+	var tween := create_tween()
+	tween.tween_property(pile, "scale", Vector3.ONE * 0.05, 0.14)
+	tween.tween_callback(pile.queue_free)
 
 
 ## The ground ring is half of the team read: lit eyes are the other half. See CLAUDE.md.
@@ -513,21 +568,22 @@ func _find_node(node: Node, name: String) -> Node:
 	return null
 
 
-func _show_wrecked(view: Dictionary, push: Vector3) -> void:
+## A destroyed machine bursts: the model flies apart and is gone, and the pile the sim
+## drops on its hex takes its place. The old slow topple read as lag and left a body that
+## blocked the hex for no visible reason (play-test 1).
+func _burst(view: Dictionary, push: Vector3) -> void:
 	if bool(view["dead"]):
 		return
 	view["dead"] = true
-	(view["rig"] as ConstructRig).collapse(push)
+	var root: Node3D = view["root"]
 	(view["tag"] as Label3D).visible = false
-	# The ring stays, greyed: a wreck BLOCKS its tile, and a fallen machine seen from the
-	# battle camera is a few dark pieces on a dark floor. The team colour goes, because
-	# the ring means "whose it is" and a wreck is nobody's.
-	var ring: MeshInstance3D = view["ring"]
-	var material: StandardMaterial3D = (ring.material_override as StandardMaterial3D).duplicate()
-	material.albedo_color = Color(0.55, 0.52, 0.47, 0.55)
-	material.emission = Color(0.30, 0.28, 0.25)
-	material.emission_energy_multiplier = 0.4
-	ring.material_override = material
+	(view["ring"] as MeshInstance3D).visible = false
+	var model: Node3D = view["model"]
+	var world_push: Vector3 = root.transform.basis * push
+	var tween := create_tween().set_parallel(true)
+	tween.tween_property(model, "position", model.position + Vector3(world_push.x * 0.3, 0.35, world_push.z * 0.3), 0.12)
+	tween.tween_property(model, "scale", model.scale * 0.05, 0.22).set_delay(0.06).set_ease(Tween.EASE_IN)
+	tween.chain().tween_callback(root.queue_free)
 
 
 func _process(delta: float) -> void:
@@ -543,6 +599,17 @@ func _play_new_events() -> void:
 	while _shown < _state.events.size():
 		var e: Array = _state.events[_shown]
 		_shown += 1
+		# A move is played as ONE glide along its whole path: collect the run of STEPs.
+		if int(e[GridEv.F_KIND]) == GridEv.STEP:
+			var actor: int = int(e[GridEv.F_ACTOR])
+			var path: Array[Vector2i] = [Vector2i(int(e[GridEv.F_X]), int(e[GridEv.F_Y]))]
+			while _shown < _state.events.size() and int(_state.events[_shown][GridEv.F_KIND]) == GridEv.STEP \
+					and int(_state.events[_shown][GridEv.F_ACTOR]) == actor:
+				var next: Array = _state.events[_shown]
+				path.append(Vector2i(int(next[GridEv.F_X]), int(next[GridEv.F_Y])))
+				_shown += 1
+			await _walk(actor, path)
+			continue
 		await _animate(e)
 		while _vfx.is_frozen():
 			await get_tree().process_frame
@@ -561,14 +628,14 @@ func _animate(e: Array) -> void:
 		GridEv.TURN_END:
 			_hud.set_banner("ENEMY FIRE", UIKit.RED)
 			await _wait(T_BANNER)
-		GridEv.STEP:
-			await _step(actor, cell)
 		GridEv.MOVED:
-			((_views[actor] as Dictionary)["rig"] as ConstructRig).set_moving(false)
+			if _views.has(actor):
+				((_views[actor] as Dictionary)["rig"] as ConstructRig).set_moving(false)
 		GridEv.INTENT_SET:
-			await _wait(0.08)
+			await _wait(0.03)
 		GridEv.ATTACK:
-			await _attack(actor, cell, int(e[GridEv.F_V1]), int(e[GridEv.F_V2]))
+			var packed: int = int(e[GridEv.F_V2])
+			await _attack(actor, cell, int(e[GridEv.F_V1]), Vector2i(packed % 64, packed / 64))
 		GridEv.DAMAGE:
 			await _hit(actor, target, int(e[GridEv.F_V1]))
 		GridEv.DESTROYED:
@@ -605,6 +672,17 @@ func _animate(e: Array) -> void:
 			await _wait(0.2)
 		GridEv.PART_TORN:
 			await _torn(target, int(e[GridEv.F_V1]))
+		GridEv.PILE_DROPPED:
+			_spawn_pile(cell)
+		GridEv.PILE_TAKEN:
+			_remove_pile(cell)
+			var gain: String = ("+%d SCRAP" % int(e[GridEv.F_V1])) if actor < 10 else "SCRAP LOST"
+			if int(e[GridEv.F_V2]) > 0:
+				gain += "  +%d HP" % int(e[GridEv.F_V2])
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.9, 0), gain, UIKit.GREEN if actor < 10 else UIKit.RED)
+			_refresh_tag(actor)
+			Audio.play("ui_confirm", -8.0)
+			await _wait(0.12)
 		GridEv.FIGHT_END:
 			pass
 
@@ -613,39 +691,49 @@ func _unit_pos(ref: int) -> Vector3:
 	return ((_views[ref] as Dictionary)["root"] as Node3D).position if _views.has(ref) else Vector3.ZERO
 
 
-func _step(ref: int, cell: Vector2i) -> void:
+func _walk(ref: int, path: Array[Vector2i]) -> void:
+	if not _views.has(ref):
+		return
 	var view: Dictionary = _views[ref]
 	var root: Node3D = view["root"]
 	var rig: ConstructRig = view["rig"]
 	rig.set_moving(true)
-	var destination: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
-	_face(root, destination)
 	var tween := create_tween()
-	tween.tween_property(root, "position", destination, T_STEP)
+	var from: Vector3 = root.position
+	for cell: Vector2i in path:
+		var destination: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
+		var heading: Vector3 = destination - from
+		if heading.length_squared() > 0.0004:
+			var yaw: float = atan2(heading.x, heading.z)
+			tween.tween_property(root, "rotation:y", root.rotation.y + wrapf(yaw - root.rotation.y, -PI, PI), 0.04)
+		tween.tween_property(root, "position", destination, T_STEP)
+		from = destination
 	await tween.finished
 
 
-func _attack(ref: int, aim: Vector2i, w: int, dir: int) -> void:
+func _attack(ref: int, aim: Vector2i, w: int, end: Vector2i) -> void:
+	if not _views.has(ref):
+		return
 	var view: Dictionary = _views[ref]
 	var root: Node3D = view["root"]
 	var u: GridUnit = _state.unit(ref)
 	var weapon: Dictionary = u.weapons[w]
-	var toward: Vector3 = root.position + Vector3(CombatState.DX[dir], 0, CombatState.DY[dir])
-	_face(root, toward)
-	await _wait(0.12)
+	_face(root, _to_world(aim.x, aim.y))
+	await _wait(0.05)
 	(view["rig"] as ConstructRig).strike("arm_l" if w == GridUnit.ARM_L else "arm_r", String(weapon["class"]), get_tree())
 	var colour: Color = DAMAGE_COLOURS[clampi(u.damage_type, 0, DAMAGE_COLOURS.size() - 1)]
 	var muzzle: Vector3 = root.position + Vector3(0, 0.7, 0)
-	var hit_point: Vector3 = _to_world(aim.x, aim.y) + Vector3(0, 0.6, 0)
 	match String(weapon["shape"]):
-		"line":
+		"shot":
+			var hit_point: Vector3 = _to_world(end.x, end.y) + Vector3(0, 0.6, 0)
 			_vfx.muzzle_flash(muzzle, hit_point, colour.lightened(0.5))
 			_tracer(muzzle, hit_point, colour)
 			Audio.play("detonate", -12.0)
 		"lob":
-			_vfx.muzzle_flash(muzzle, hit_point, colour.lightened(0.5))
-			await _lob(muzzle, hit_point, colour)
-			_vfx.burst(hit_point, colour, 1.2)
+			var landing: Vector3 = _to_world(aim.x, aim.y) + Vector3(0, 0.4, 0)
+			_vfx.muzzle_flash(muzzle, landing, colour.lightened(0.5))
+			await _lob(muzzle, landing, colour)
+			_vfx.burst(landing, colour, 1.2)
 			Audio.play("hit_heavy", -8.0)
 	await _wait(T_ATTACK)
 
@@ -671,12 +759,14 @@ func _lob(from: Vector3, to: Vector3, colour: Color) -> void:
 
 
 func _hit(attacker: int, victim: int, amount: int) -> void:
+	if not _views.has(victim):
+		return
 	var view: Dictionary = _views[victim]
 	var root: Node3D = view["root"]
 	var u: GridUnit = _state.unit(victim)
 	var severity: float = clampf(float(amount) / maxf(1.0, float(u.max_hp) * 0.35), 0.15, 1.0)
 	_vfx.impact(root.position + Vector3(0, 0.6, 0), Color("ffb070"), severity)
-	if attacker >= 0:
+	if attacker >= 0 and _views.has(attacker):
 		(view["rig"] as ConstructRig).stagger(_local_push(attacker, victim), severity)
 	# Terrain damage is labelled as terrain, so slag reads as a cause and not as a bug.
 	_float_text(root.position + Vector3(0, 1.8, 0), ("-%d" % amount) if attacker >= 0 else ("SLAG -%d" % amount),
@@ -698,6 +788,8 @@ func _refresh_tag_from_event(view: Dictionary, ref: int) -> void:
 
 
 func _shoved(actor: int, target: int, cell: Vector2i) -> void:
+	if not _views.has(target):
+		return
 	var root: Node3D = (_views[target] as Dictionary)["root"]
 	var destination: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
 	var tween := create_tween()
@@ -708,6 +800,8 @@ func _shoved(actor: int, target: int, cell: Vector2i) -> void:
 
 
 func _torn(ref: int, w: int) -> void:
+	if not _views.has(ref):
+		return
 	var view: Dictionary = _views[ref]
 	_hide_arm(view, w)
 	var at: Vector3 = (view["root"] as Node3D).position + Vector3(0, 0.8, 0)
@@ -718,9 +812,13 @@ func _torn(ref: int, w: int) -> void:
 
 
 func _destroyed(killer: int, victim: int) -> void:
+	if not _views.has(victim):
+		return
 	var view: Dictionary = _views[victim]
 	_vfx.destruction((view["root"] as Node3D).position + Vector3(0, 0.5, 0), Color("ff9a5a"))
-	_show_wrecked(view, _local_push(killer, victim) if killer >= 0 else Vector3(0, 0, 1))
+	_vfx.shake(0.3)
+	_burst(view, _local_push(killer, victim) if killer >= 0 and _views.has(killer) else Vector3(0, 0, 1))
+	_views.erase(victim)
 	Audio.play("destroy", -4.0)
 	await _wait(T_DESTROY)
 
@@ -728,6 +826,8 @@ func _destroyed(killer: int, victim: int) -> void:
 ## Which way a hit pushes a construct, in the construct's own space. See the note on
 ## `_stagger` in the legacy battle scene: a world direction makes every unit lurch north.
 func _local_push(from_ref: int, to_ref: int) -> Vector3:
+	if not _views.has(to_ref):
+		return Vector3(0, 0, 1)
 	var target: Node3D = (_views[to_ref] as Dictionary)["root"]
 	var source: Node3D = (_views[from_ref] as Dictionary)["root"] if _views.has(from_ref) else null
 	if source == null:
@@ -804,10 +904,13 @@ func _after_events() -> void:
 		_refresh()
 		_hud.set_banner("FIGHT OVER", UIKit.TEXT_DIM)
 		_hud.set_hint("")
-		var crawler: GridUnit = _state.crawler()
-		var body: String = "Round %d  ·  %d of 3 constructs standing" % [_state.round_number, _state.crew(GridUnit.TEAM_PLAYER).size()]
-		if crawler != null:
-			body += "  ·  Crawler %d/%d" % [crawler.hp, crawler.max_hp] if crawler.alive else "\nThe Crawler was destroyed."
+		var status: Dictionary = CombatSim.objective_status(_state)
+		var body: String = "Round %d  ·  %d of 3 machines standing  ·  %d scrap from piles" % [
+			_state.round_number, _state.crew(GridUnit.TEAM_PLAYER).size(), _state.scrap_collected]
+		if String(status["type"]) == "defend":
+			body += "\n%d of %d caches saved" % [int(status["caches"]), int(status["caches_total"])]
+		if _state.outcome != CombatState.WON and not _state.crew(GridUnit.TEAM_PLAYER).is_empty():
+			body += "\nThe objective failed, but the crew made it out. No salvage from this one."
 		_hud.show_result(_state.outcome == CombatState.WON, body, _run_mode)
 		return
 	if _selected < 0 or not _unit_has_moves(_selected):
@@ -825,28 +928,24 @@ func _refresh() -> void:
 	var threats: Dictionary = CombatSim.threats(_state)
 	for ref: Variant in threats:
 		var threat: Dictionary = threats[ref]
-		for cell: Vector2i in (threat["tiles"] as Array):
-			_mark(_threat_quads, cell, COL_THREAT)
+		if bool(threat["legal"]):
+			for cell: Vector2i in (threat["tiles"] as Array):
+				_mark(_threat_quads, cell, COL_THREAT)
 		_intent_marker(int(ref), threat)
 
 	var sel: GridUnit = _state.unit(_selected) if _selected >= 0 else null
 	if sel != null and sel.alive:
 		if _armed and not sel.acted and not sel.seized and sel.can_fire(_weapon):
 			if _pending.size() == 4:
-				var plan: Dictionary = CombatSim.strike_plan(_state, sel, _weapon, int(_pending[2]), int(_pending[3]))
+				var plan: Dictionary = CombatSim.strike_plan(_state, sel, _weapon, Vector2i(int(_pending[2]), int(_pending[3])))
 				for cell: Vector2i in (plan["tiles"] as Array):
 					_mark(_hint_quads, cell, COL_TARGET)
 			else:
-				for aim: Array in CombatSim.aim_options(_state, sel, _weapon):
-					var plan: Dictionary = CombatSim.strike_plan(_state, sel, _weapon, int(aim[0]), int(aim[1]))
-					if not bool(plan["legal"]):
-						continue
-					# A lob is aimed at one tile; a line or a blow covers its whole path.
-					if String(sel.weapons[_weapon]["shape"]) == "lob":
-						_mark(_hint_quads, plan["aim"], COL_ATTACK)
-					else:
-						for cell: Vector2i in (plan["tiles"] as Array):
-							_mark(_hint_quads, cell, COL_ATTACK)
+				# Free aim: every hex in reach is a target. Hexes holding a unit are drawn
+				# stronger, because those are the ones worth considering.
+				for aim: Vector2i in CombatSim.aim_options(_state, sel, _weapon):
+					var occupied: bool = _state.unit_at(aim.x, aim.y) != null
+					_mark(_hint_quads, aim, COL_TARGET if occupied else COL_ATTACK_FAINT)
 		if not _armed:
 			for cell: Variant in CombatSim.reachable(_state, _selected):
 				_mark(_hint_quads, cell, COL_MOVE)
@@ -866,8 +965,8 @@ func _refresh_hud(threats: Dictionary) -> void:
 			"selected": u.ref == _selected,
 		})
 	_hud.set_crew(cards)
-	var crawler: GridUnit = _state.crawler()
-	_hud.set_crawler(crawler.hp if crawler != null else 0, crawler.max_hp if crawler != null else 0)
+	var status: Dictionary = CombatSim.objective_status(_state)
+	_hud.set_objective(String(status["text"]), String(status["type"]) == "defend" and int(status["caches"]) < int(status["caches_total"]))
 	var ongoing: bool = _state.outcome == CombatState.ONGOING and not _bot
 	_hud.set_controls(ongoing and not _busy and _actions.size() > _turn_start, ongoing and not _busy)
 
@@ -875,7 +974,7 @@ func _refresh_hud(threats: Dictionary) -> void:
 	_refresh_weapon_bar(sel)
 	if _pending.size() == 4:
 		_hud.set_info("FIRE %s" % String(sel.weapons[int(_pending[1])]["name"]).to_upper(),
-			_preview_text(CombatSim.preview_attack(_state, int(_pending[0]), int(_pending[1]), int(_pending[2]), int(_pending[3])))
+			_preview_text(CombatSim.preview_attack(_state, int(_pending[0]), int(_pending[1]), Vector2i(int(_pending[2]), int(_pending[3]))))
 			+ "\n\nTap the same target again to confirm.")
 		_hud.set_hint("Tap the yellow target again to fire  ·  tap elsewhere to cancel")
 	elif sel != null:
@@ -887,10 +986,10 @@ func _refresh_hud(threats: Dictionary) -> void:
 		elif not sel.acted:
 			_hud.set_hint("Blue: move  ·  Red: where enemies will fire  ·  pick a weapon below to attack")
 		else:
-			_hud.set_hint("This construct is done. Pick another, or END TURN.")
+			_hud.set_hint("This machine is done. Pick another, or END TURN.")
 	else:
 		_hud.set_info("ENEMY INTENTS", _threat_summary(threats))
-		_hud.set_hint("Every construct has acted. END TURN to let the enemy fire.")
+		_hud.set_hint("Every machine has acted. END TURN to let the enemy fire.")
 
 
 func _refresh_weapon_bar(sel: GridUnit) -> void:
@@ -948,8 +1047,11 @@ func _threat_summary(threats: Dictionary) -> String:
 		var names: PackedStringArray = []
 		for hit: Dictionary in (threat["hits"] as Array):
 			names.append("%s -%d" % [_state.unit(int(hit["ref"])).name, int(hit["damage"])])
+		var outcome: String = ", ".join(names) if not names.is_empty() else "nothing"
+		if not bool(threat["legal"]):
+			outcome = "out of reach now: it will miss"
 		lines.append("%d. %s (%s) → %s" % [int(threat["order"]), shooter.name,
-			String(shooter.weapons[int(threat["w"])]["name"]), ", ".join(names) if not names.is_empty() else "nothing"])
+			String(shooter.weapons[int(threat["w"])]["name"]), outcome])
 	return "Enemy fire, in order:\n" + "\n".join(lines)
 
 
@@ -975,8 +1077,8 @@ func _weapon_detail(u: GridUnit, w: int) -> String:
 	match String(weapon["shape"]):
 		"melee":
 			bits.append("melee")
-		"line":
-			bits.append("line %d" % CombatSim.weapon_reach(_state, u, w))
+		"shot":
+			bits.append("shot %d" % CombatSim.weapon_reach(_state, u, w))
 		"lob":
 			bits.append("lob %d-%d" % [int(weapon["range_min"]), CombatSim.weapon_reach(_state, u, w)])
 	bits.append("%d dmg" % dmg)
@@ -1009,24 +1111,26 @@ func _clear_marks() -> void:
 			child.queue_free()
 
 
-## The firing order on the line of fire, and a red bar from the shooter to where it lands.
+## The firing order on the line of fire, and a red bar from the shooter to where it
+## lands. An intent that can no longer reach its hex (the shooter was shoved) is drawn
+## grey: it will miss, and the player should see that they caused it.
 func _intent_marker(ref: int, threat: Dictionary) -> void:
 	var u: GridUnit = _state.unit(ref)
+	var legal: bool = bool(threat["legal"])
 	var from: Vector3 = _to_world(u.x, u.y) + Vector3(0, 0.35, 0)
-	var end: Vector2i = threat["aim"]
+	var end: Vector2i = threat["end"] if legal else threat["aim"]
 	var to: Vector3 = _to_world(end.x, end.y) + Vector3(0, 0.35, 0)
+	var colour: Color = Color("ff5a3c") if legal else Color(0.6, 0.6, 0.6, 0.7)
 
 	var label := Label3D.new()
-	label.text = str(int(threat["order"]))
-	label.font_size = 72
+	label.text = str(int(threat["order"])) if legal else "%d  MISSES" % int(threat["order"])
+	label.font_size = 72 if legal else 44
 	label.pixel_size = 0.005
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
 	label.outline_size = 16
 	label.outline_modulate = Color(0, 0, 0, 0.95)
-	label.modulate = Color("ff7a5c")
-	# On the line of fire rather than over the shooter: above the machine it sat on top
-	# of the health tag and the two numbers read as one.
+	label.modulate = Color("ff7a5c") if legal else colour
 	label.position = (from.lerp(to, 0.5) if from.distance_to(to) > 0.01 else from) + Vector3(0, 0.55, 0)
 	label.set_meta("intent", true)
 	_marks_root.add_child(label)
@@ -1039,7 +1143,8 @@ func _intent_marker(ref: int, threat: Dictionary) -> void:
 	bar.mesh = box
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.albedo_color = Color("ff5a3c")
+	material.albedo_color = colour
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	bar.material_override = material
 	bar.set_meta("intent", true)
 	_marks_root.add_child(bar)
@@ -1084,22 +1189,38 @@ func _set_zoom(value: float) -> void:
 	_place_camera()
 
 
-## The tile under a screen point, or null. Intersects the board plane rather than
-## physics bodies: nothing on the board needs a collider, and a phone does not pay for one.
+## The hex under a screen point, or null. Intersects the board plane rather than physics
+## bodies: nothing on the board needs a collider, and a phone does not pay for one. The
+## point is converted to fractional axial coordinates and cube-rounded, the standard
+## pixel-to-hex, so a tap near a hex's corner lands on the right one.
 func _pick(screen: Vector2) -> Variant:
 	var origin: Vector3 = _camera.project_ray_origin(screen)
 	var normal: Vector3 = _camera.project_ray_normal(screen)
 	if absf(normal.y) < 0.0001:
 		return null
-	var t: float = (0.05 - origin.y) / normal.y
-	if t < 0.0:
+	var t_hit: float = (0.05 - origin.y) / normal.y
+	if t_hit < 0.0:
 		return null
-	var hit: Vector3 = origin + normal * t
-	var x: int = roundi(hit.x / TILE + (_setup.width - 1) * 0.5)
-	var y: int = roundi(hit.z / TILE + (_setup.height - 1) * 0.5)
-	if x < 0 or y < 0 or x >= _setup.width or y >= _setup.height:
+	var hit: Vector3 = origin + normal * t_hit
+	var px: float = hit.x + _origin.x
+	var pz: float = hit.z + _origin.y
+	var q: float = (SQRT3 / 3.0 * px - pz / 3.0) / HEX
+	var r: float = (2.0 / 3.0 * pz) / HEX
+	var s: float = -q - r
+	var rq: float = roundf(q)
+	var rr: float = roundf(r)
+	var rs: float = roundf(s)
+	var dq: float = absf(rq - q)
+	var dr: float = absf(rr - r)
+	var ds: float = absf(rs - s)
+	if dq > dr and dq > ds:
+		rq = -rr - rs
+	elif dr > ds:
+		rr = -rq - rs
+	var cell: Vector2i = Hex.from_cube(Vector3i(int(rq), int(-rq - rr), int(rr)))
+	if cell.x < 0 or cell.y < 0 or cell.x >= _setup.width or cell.y >= _setup.height:
 		return null
-	return Vector2i(x, y)
+	return cell
 
 
 func _tap(cell: Vector2i) -> void:
@@ -1145,18 +1266,12 @@ func _tap(cell: Vector2i) -> void:
 				else _unit_line(there) + "\n" + _arms_line(there)])
 
 
-## `[dir, dist]` of the armed weapon's aim that covers `cell`, or empty. A lob is aimed
-## at its landing tile; a line or a blow at any tile of its path.
+## The hex to aim the armed weapon at if `cell` is tapped, or empty: any hex in reach.
 func _aim_for(u: GridUnit, cell: Vector2i) -> Array:
 	if u.acted or u.seized or not u.can_fire(_weapon):
 		return []
-	var lob: bool = String(u.weapons[_weapon]["shape"]) == "lob"
-	for aim: Array in CombatSim.aim_options(_state, u, _weapon):
-		var plan: Dictionary = CombatSim.strike_plan(_state, u, _weapon, int(aim[0]), int(aim[1]))
-		if not bool(plan["legal"]):
-			continue
-		if (lob and plan["aim"] == cell) or (not lob and (plan["tiles"] as Array).has(cell)):
-			return aim
+	if CombatSim.aim_options(_state, u, _weapon).has(cell):
+		return [cell.x, cell.y]
 	return []
 
 
