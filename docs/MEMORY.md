@@ -27,6 +27,11 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-24 | Attacks take two taps (aim, confirm); moves take one | The costly action gets the confirmation; the cheap one stays fast |
 | 2026-09-24 | Tap priority: friendly unit → select, reachable tile → move, attack line → aim/fire | Any other order makes some action unreachable (see Lessons) |
 | 2026-09-24 | Enemy intents are a DIRECTION fired from wherever the attacker stands at resolve | Stepping into a line takes the hit and stepping out lets it fly on, which gives body-blocking and friendly fire for free |
+| 2026-09-24 | **The Crawler**: an immobile, unarmed objective on every board. Losing it loses the fight; in the run its HP will carry between fights (like FTL's hull) | Telegraphed attacks need something that CANNOT dodge, or dodging is free (002: 6 enemy damage per fight) |
+| 2026-09-24 | ~~Tap priority select > move > aim~~ → **explicit modes**: select = move mode; a weapon button arms it; tap target to aim, again to fire; tap the weapon again to disarm | Lob landing tiles overlap move tiles; no priority can tell which the player meant |
+| 2026-09-24 | Every construct stat comes from its five parts' `grid` blocks plus a role trait from `rules.json` | "Your machines ARE their parts" (VISION); no stat sheets to drift from the parts |
+| 2026-09-24 | Enemies ignore heat | Heat is the player's resource; enemy heat would be another hidden state to read |
+| 2026-09-24 | Arms tear right-then-left on hits ≥ 5 or any ripper hit; no facing | Learnable in one fight; facing would be one more thing on a phone screen |
 | 2026-09-24 | ADAPT code that does not compile once CUT code is gone goes to `legacy/` (ignored by Godot through `.gdignore`), not straight to deletion | It stays greppable as reference while its replacement is written; it is deleted once replaced |
 
 ## Lessons carried over from the old codebase
@@ -61,6 +66,12 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-24 | Set Control anchors AFTER `add_child`; before, the preset is computed against a zero-size parent |
 | 2026-09-24 | **Free dodging kills intent pressure.** Bot fight: enemy set 12 intents and dealt 6 damage total, against 42 from the player |
 
+| 2026-09-24 | Only a piercing weapon hits through a blocker, so shielding is a per-weapon question. Tests and the bot must know which lines can be blocked |
+| 2026-09-24 | A HUD that rebuilds its buttons on refresh invalidates any reference held across a refresh. Look controls up again after every tap |
+| 2026-09-24 | A script error inside a test coroutine stops it without quitting: the test hangs and looks slow, not failed. Every coroutine test gets a watchdog |
+| 2026-09-24 | With the bot winning most fights, raw per-arm win rates all sit near the mean. Judge arms by their offset from the average, not a fixed band |
+| 2026-09-24 | Enemy damage share understates pressure against a bot that dodges well; Crawler losses are the clearer signal |
+
 ## Open questions
 
 All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decisions above).
@@ -72,5 +83,6 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-23 | Grid size? | 8×8, to stay readable on a phone |8x8 for now |
 | 2026-09-23 | What is the closing front? | "The Reclaimer": an automated scrap-harvesting swarm sweeping the region |agree with the propose |
 | 2026-09-23 | Story delivery? | Light: site descriptions and event text, no cutscenes |agree with the propose for now |
-| 2026-09-24 | **How do intents create pressure when dodging is free?** (see 002 result) | Try in 003: area attacks (mortar splash, cone), a salvage objective the crew must hold, enemies whose shot follows the unit's dodge tile, and reinforcements that close escape routes. Judge by the bot's damage taken and by the user play-testing | |
+| 2026-09-24 | **How do intents create pressure when dodging is free?** (see 002 result) | Try in 003: area attacks (mortar splash, cone), a salvage objective the crew must hold, enemies whose shot follows the unit's dodge tile, and reinforcements that close escape routes. Judge by the bot's damage taken and by the user play-testing | **003: the Crawler + lob/pierce weapons. 600 random fights: bot wins 73.8%, and every loss is the Crawler. Awaiting the user's play-test** |
+| 2026-09-24 | Does the enemy damage share (22%) need to rise once HP carries across a run? | Re-measure in 004 with Crawler HP persisting | |
 | 2026-09-23 | Keep 3D or go 2D? | Keep 3D. The whole art pipeline exists, and a tilted camera suits a grid |agree with the propose |

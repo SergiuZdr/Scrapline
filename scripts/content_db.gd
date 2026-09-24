@@ -22,7 +22,7 @@ var maps: Dictionary = {}
 ## stores, so this array's order must stay stable.
 var tiles: Array = []
 var linkages: Array = []
-## `data/combat/prototype.json`: grid combat tunables (Iteration 002 prototype stats).
+## `data/combat/rules.json`: grid combat tunables.
 var combat_rules: Dictionary = {}
 ## Fight id -> fight definition, one file per fight in `data/fights/`.
 var fights: Dictionary = {}
@@ -53,7 +53,7 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 		db.linkages = link_data as Array
 
 
-	var rules_data: Variant = db._read_json("%s/combat/prototype.json" % root)
+	var rules_data: Variant = db._read_json("%s/combat/rules.json" % root)
 	if rules_data is Dictionary:
 		db.combat_rules = rules_data as Dictionary
 

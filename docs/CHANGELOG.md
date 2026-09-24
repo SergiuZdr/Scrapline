@@ -2,6 +2,26 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [003] Parts drive abilities, and intents create pressure — 2026-09-24 ([detail](iterations/003-parts-and-pressure.md))
+
+### Added
+- **The Crawler**: an immobile salvage rig on every board. Lose it and you lose the fight.
+- Per-part `grid` stats on all 40 parts. A construct is exactly its parts plus a role trait.
+- Weapon shapes (melee, line, lob) with pierce, splash, shove, mark, chain and tear.
+- The damage-type wheel, cover, armour and marks; heat, overheat, seize and VENT.
+- Terrain effects (rubble, ridge, slag), shove and bump, and arms torn off by heavy hits.
+- Two new fights (`slag_pit`, `container_row`) and `data/combat/rules.json`.
+- HUD weapon bar, heat on cards, the Crawler plate, multi-hit previews; explicit move and
+  attack modes.
+- `tools/balance_fights.gd` (bulk bot fights) and `tools/shot_combat.gd` (aimed screenshots).
+
+### Changed
+- `verify_combat.gd` 41 → 77 checks; `verify_combat_input.gd` 13 → 18 with a watchdog.
+- The tap priority from 002 is replaced by modes (select → move; weapon button → aim).
+
+### Removed
+- `data/combat/prototype.json` (role and weapon-group stats), superseded by per-part stats.
+
 ## [002] Grid fight prototype — 2026-09-24 ([detail](iterations/002-grid-fight.md))
 
 ### Added

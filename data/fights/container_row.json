@@ -1,0 +1,107 @@
+{
+  "id": "container_row",
+  "name": "Container Row",
+  "_comment": "Two scrap walls make lanes. Railguns own the lanes; mortars go over the walls.",
+  "rows": [
+    "........",
+    ".s....s.",
+    ".s.r..s.",
+    ".s....s.",
+    "........",
+    "...^^...",
+    ".r....r.",
+    "........"
+  ],
+  "crawler": {
+    "x": 3,
+    "y": 7
+  },
+  "player": [
+    {
+      "name": "Dredge",
+      "parts": [
+        "ch_dredge",
+        "co_solvent",
+        "ar_maul",
+        "ar_hammer",
+        "mo_ablative"
+      ],
+      "x": 2,
+      "y": 6
+    },
+    {
+      "name": "Courier",
+      "parts": [
+        "ch_courier",
+        "co_arc",
+        "ar_pulse",
+        "ar_railgun",
+        "mo_overclock"
+      ],
+      "x": 4,
+      "y": 6
+    },
+    {
+      "name": "Skirmisher",
+      "parts": [
+        "ch_skirmisher",
+        "co_furnace",
+        "ar_lance",
+        "ar_scatter",
+        "mo_coolant"
+      ],
+      "x": 5,
+      "y": 7
+    }
+  ],
+  "enemy": [
+    {
+      "name": "Strider",
+      "parts": [
+        "ch_strider",
+        "co_mag",
+        "ar_scanner",
+        "ar_railgun",
+        "mo_scavenger"
+      ],
+      "x": 0,
+      "y": 0
+    },
+    {
+      "name": "Brute",
+      "parts": [
+        "ch_brute",
+        "co_bile",
+        "ar_saw",
+        "ar_hammer",
+        "mo_servo"
+      ],
+      "x": 3,
+      "y": 0
+    },
+    {
+      "name": "Bulwark",
+      "parts": [
+        "ch_bulwark",
+        "co_furnace",
+        "ar_mortar",
+        "ar_hammer",
+        "mo_reactive"
+      ],
+      "x": 4,
+      "y": 1
+    },
+    {
+      "name": "Reaper",
+      "parts": [
+        "ch_reaper",
+        "co_tesla",
+        "ar_ripper",
+        "ar_pulse",
+        "mo_bypass"
+      ],
+      "x": 7,
+      "y": 0
+    }
+  ]
+}

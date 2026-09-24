@@ -10,18 +10,26 @@ extends Control
 ## depends on hover. A mouse gets the same controls, plus keyboard shortcuts in the scene.
 
 signal unit_card_pressed(ref: int)
+signal weapon_pressed(w: int)
+signal vent_pressed
 signal undo_pressed
 signal end_turn_pressed
 signal rotate_pressed(step: int)
 signal retry_pressed
 signal title_pressed
 
-const CARD_SIZE := Vector2(320, 118)
+const CARD_SIZE := Vector2(320, 140)
+const WEAPON_SIZE := Vector2(250, 76)
 const PANEL_WIDTH: int = 360
 
 var _banner: Label
 var _cards: Dictionary = {}
 var _card_column: VBoxContainer
+var _crawler_plate: PanelContainer
+var _crawler_bar: ProgressBar
+var _crawler_label: Label
+var _weapon_bar: HBoxContainer
+var _weapon_row: CenterContainer
 var _info_title: Label
 var _info_body: Label
 var _hint: Label
@@ -48,9 +56,25 @@ func _ready() -> void:
 	_banner.offset_top = UIKit.SPACE_LG
 
 	_card_column = VBoxContainer.new()
-	_card_column.position = Vector2(UIKit.SPACE_XL, 110)
-	_card_column.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	_card_column.position = Vector2(UIKit.SPACE_XL, 96)
+	_card_column.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	add_child(_card_column)
+	_build_crawler_plate()
+
+	# The selected construct's arms, as buttons: what it can DO comes from what is bolted
+	# onto it, so the choice of attack is a choice of part.
+	# A full-width centring row, so the bar stays centred however many buttons it holds.
+	# Anchoring the bar itself was computed from its size mid-rebuild and landed it in the
+	# bottom-left corner, half off the screen.
+	_weapon_row = CenterContainer.new()
+	_weapon_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_weapon_row)
+	_weapon_row.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_weapon_row.offset_top = -WEAPON_SIZE.y - UIKit.SPACE_XL
+	_weapon_row.offset_bottom = -UIKit.SPACE_XL
+	_weapon_bar = HBoxContainer.new()
+	_weapon_bar.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	_weapon_row.add_child(_weapon_bar)
 
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", UIKit.card())
@@ -76,8 +100,8 @@ func _ready() -> void:
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_hint)
 	_hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	_hint.offset_top = -120
-	_hint.offset_bottom = -92
+	_hint.offset_top = -148
+	_hint.offset_bottom = -120
 
 	var actions := HBoxContainer.new()
 	actions.add_theme_constant_override("separation", UIKit.SPACE_MD)
@@ -114,6 +138,63 @@ func set_crew(cards: Array) -> void:
 		if not _cards.has(ref):
 			_cards[ref] = _build_card(ref)
 		_fill_card(_cards[ref], card)
+
+
+## The Crawler is not a construct the player commands, so it is a plate, not a card:
+## a button that never does anything would be a label pretending to be a control.
+func set_crawler(hp: int, max_hp: int) -> void:
+	_crawler_plate.visible = max_hp > 0
+	_crawler_bar.max_value = max_hp
+	_crawler_bar.value = hp
+	_crawler_label.text = "CRAWLER   %d / %d" % [hp, max_hp]
+	var low: bool = hp * 3 <= max_hp
+	_crawler_bar.add_theme_stylebox_override("fill", UIKit.plain(UIKit.RED if low else UIKit.GREEN, 2))
+
+
+## `weapons`: `{ "name", "detail", "available", "reason" }` per arm, in arm order.
+## `selected`: index of the ARMED weapon, or -1 when the construct is in move mode.
+## `vent`: "" to hide VENT, else its label.
+func set_weapons(weapons: Array, selected: int, vent: String) -> void:
+	for child: Node in _weapon_bar.get_children():
+		child.queue_free()
+	for w: int in weapons.size():
+		var info: Dictionary = weapons[w]
+		if not bool(info["available"]):
+			# A weapon that cannot fire is a plate that says why, not a disabled button.
+			var plate := PanelContainer.new()
+			plate.custom_minimum_size = WEAPON_SIZE
+			plate.add_theme_stylebox_override("panel", UIKit.inset(UIKit.SURFACE_SUNK))
+			var box := VBoxContainer.new()
+			plate.add_child(box)
+			box.add_child(_label(String(info["name"]).to_upper(), UIKit.SIZE_LABEL, UIKit.TEXT_FAINT, UIKit.font_strong()))
+			box.add_child(_label(String(info["reason"]), UIKit.SIZE_LABEL, UIKit.RED))
+			_weapon_bar.add_child(plate)
+			continue
+		var button := Button.new()
+		button.custom_minimum_size = WEAPON_SIZE
+		button.focus_mode = Control.FOCUS_NONE
+		var style: StyleBoxFlat = UIKit.choice() if w == selected else UIKit.secondary()
+		if w == selected:
+			style.set_border_width_all(2)
+		for state: String in ["normal", "hover", "pressed", "focus"]:
+			button.add_theme_stylebox_override(state, style)
+		var index: int = w
+		button.pressed.connect(func() -> void: weapon_pressed.emit(index))
+		var box := VBoxContainer.new()
+		box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		box.offset_left = UIKit.SPACE_MD
+		box.offset_top = UIKit.SPACE_SM
+		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		button.add_child(box)
+		box.add_child(_label(String(info["name"]).to_upper(), UIKit.SIZE_BODY,
+			UIKit.AMBER if w == selected else UIKit.TEXT, UIKit.font_strong()))
+		box.add_child(_label(String(info["detail"]), UIKit.SIZE_LABEL, UIKit.TEXT_DIM))
+		_weapon_bar.add_child(button)
+	if not vent.is_empty():
+		var vent_button := _button("VENT", UIKit.secondary(), UIKit.BLUE, Vector2(130, WEAPON_SIZE.y))
+		vent_button.tooltip_text = vent
+		vent_button.pressed.connect(func() -> void: vent_pressed.emit())
+		_weapon_bar.add_child(vent_button)
 
 
 func set_banner(text: String, colour: Color = UIKit.TEXT) -> void:
@@ -171,6 +252,8 @@ func _build_card(ref: int) -> Dictionary:
 	box.add_child(name)
 	var detail := _label("", UIKit.SIZE_LABEL, UIKit.TEXT_DIM)
 	box.add_child(detail)
+	var arms := _label("", UIKit.SIZE_LABEL, UIKit.TEXT_DIM)
+	box.add_child(arms)
 
 	var bar := ProgressBar.new()
 	bar.show_percentage = false
@@ -186,6 +269,8 @@ func _build_card(ref: int) -> Dictionary:
 	box.add_child(row)
 	var hp := _label("", UIKit.SIZE_LABEL, UIKit.TEXT, UIKit.font_numbers())
 	row.add_child(hp)
+	var heat := _label("", UIKit.SIZE_LABEL, UIKit.GOLD, UIKit.font_numbers())
+	row.add_child(heat)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -195,7 +280,8 @@ func _build_card(ref: int) -> Dictionary:
 	var act := _label("ATTACK", UIKit.SIZE_LABEL, UIKit.GREEN, UIKit.font_strong())
 	row.add_child(act)
 
-	return {"button": button, "name": name, "detail": detail, "bar": bar, "hp": hp, "move": move, "act": act}
+	return {"button": button, "name": name, "detail": detail, "arms": arms, "bar": bar, "hp": hp,
+		"heat": heat, "move": move, "act": act}
 
 
 func _fill_card(parts: Dictionary, card: Dictionary) -> void:
@@ -218,6 +304,11 @@ func _fill_card(parts: Dictionary, card: Dictionary) -> void:
 	bar.max_value = int(card["max_hp"])
 	bar.value = int(card["hp"])
 	(parts["hp"] as Label).text = "%d / %d HP" % [int(card["hp"]), int(card["max_hp"])]
+	(parts["arms"] as Label).text = String(card.get("arms", ""))
+	var heat: Label = parts["heat"]
+	heat.text = "HEAT %d/%d" % [int(card.get("heat", 0)), int(card.get("heat_cap", 0))]
+	heat.add_theme_color_override("font_color",
+		UIKit.RED if int(card.get("heat", 0)) >= int(card.get("heat_cap", 1)) - 1 else UIKit.GOLD)
 	_chip(parts["move"], alive and bool(card["can_move"]))
 	_chip(parts["act"], alive and bool(card["can_act"]))
 
@@ -226,6 +317,26 @@ func _fill_card(parts: Dictionary, card: Dictionary) -> void:
 ## checking WHICH of the two a construct has left, and a missing word answers nothing.
 func _chip(label: Label, available: bool) -> void:
 	label.add_theme_color_override("font_color", UIKit.GREEN if available else UIKit.TEXT_FAINT)
+
+
+func _build_crawler_plate() -> void:
+	_crawler_plate = PanelContainer.new()
+	_crawler_plate.custom_minimum_size = Vector2(CARD_SIZE.x, 0)
+	_crawler_plate.add_theme_stylebox_override("panel", UIKit.inset(UIKit.SURFACE, UIKit.RADIUS_CARD, UIKit.SPACE_LG, UIKit.SPACE_SM))
+	_crawler_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card_column.add_child(_crawler_plate)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	_crawler_plate.add_child(box)
+	_crawler_label = _label("", UIKit.SIZE_LABEL, UIKit.TEXT, UIKit.font_strong())
+	box.add_child(_crawler_label)
+	_crawler_bar = ProgressBar.new()
+	_crawler_bar.show_percentage = false
+	_crawler_bar.custom_minimum_size = Vector2(0, 10)
+	_crawler_bar.add_theme_stylebox_override("background", UIKit.plain(UIKit.SURFACE_SUNK, 2))
+	_crawler_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(_crawler_bar)
+	box.add_child(_label("Lose it and the fight is lost", UIKit.SIZE_MICRO, UIKit.TEXT_FAINT))
 
 
 func _build_result() -> void:

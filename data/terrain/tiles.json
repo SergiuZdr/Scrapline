@@ -10,7 +10,10 @@
     "colour": "1a1e26",
     "height": 0.0,
     "text": "Nothing to hide behind and nothing in the way.",
-    "blocks": false
+    "blocks": false,
+    "grid": {
+      "move_cost": 1
+    }
   },
   {
     "id": "rubble",
@@ -23,7 +26,11 @@
     "colour": "2b2a25",
     "height": 0.12,
     "text": "Slow to cross, but it stops a lot of what is aimed at you.",
-    "blocks": false
+    "blocks": false,
+    "grid": {
+      "move_cost": 2,
+      "cover": 1
+    }
   },
   {
     "id": "scrap",
@@ -36,7 +43,10 @@
     "colour": "3a3128",
     "height": 0.28,
     "text": "The best cover on the field. Wading into it is a commitment.",
-    "blocks": true
+    "blocks": true,
+    "grid": {
+      "move_cost": 1
+    }
   },
   {
     "id": "slag",
@@ -49,7 +59,11 @@
     "colour": "6b2c14",
     "height": -0.06,
     "text": "Crossable, and it cooks you the whole way. Brawlers seize in here.",
-    "blocks": false
+    "blocks": false,
+    "grid": {
+      "move_cost": 1,
+      "hazard": 1
+    }
   },
   {
     "id": "ridge",
@@ -62,6 +76,10 @@
     "colour": "232c33",
     "height": 0.42,
     "text": "High ground. Everything you carry reaches further from up here.",
-    "blocks": false
+    "blocks": false,
+    "grid": {
+      "move_cost": 2,
+      "range": 1
+    }
   }
 ]

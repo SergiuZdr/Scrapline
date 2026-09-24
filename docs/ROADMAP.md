@@ -10,8 +10,8 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 000 | [Rethink](iterations/000-rethink.md) | New vision, doc structure, salvage audit | ✅ |
 | 001 | [Archive and strip](iterations/001-archive-and-strip.md) | Tag the old game, delete cut systems, the project boots clean, kept tests pass | ✅ |
 | 002 | [Grid fight prototype](iterations/002-grid-fight.md) | Pure-logic turn-based grid sim: move, attack, enemy intents, win/lose. One playable fight with mouse and touch using existing construct models | ✅ |
-| 003 | Parts drive abilities | **First: make intents create pressure** (dodging is free in 002). Then each part grants actions; heat; damage-type wheel; terrain on the grid; part damage (arms can be shot off); shove | ⏭ |
-| 004 | Run loop | Region map, node types, fight → salvage → next node, save and resume mid-run | ⬜ |
+| 003 | [Parts drive abilities](iterations/003-parts-and-pressure.md) | The Crawler (intent pressure), per-part stats, weapon shapes, heat, wheel, terrain, shove, torn arms | ✅ |
+| 004 | Run loop | Region map, site types, fight → salvage → next site, **Crawler HP carries between fights**, save and resume mid-run | ⏭ |
 | 005 | Act 1 content | Enemy roster, elites, act boss, first 25 parts, balance pass with a headless run simulator | ⬜ |
 | 006 | Meta and workshop | Unlock tracking, starting crews, difficulty tiers, the between-run screen | ⬜ |
 | 007 | Acts 2–3 | Two more regions, events, traders, two bosses | ⬜ |
@@ -20,6 +20,6 @@ Iterations further ahead are sketches and get refined as we get closer.
 
 ## The first milestone that matters
 
-**End of 003: one fight that is fun to replay.** If fights built from part-driven
+**End of 003: one fight that is fun to replay.** *(003 is done. This now needs the user's play-test: the bot says fights have stakes, and only a person can say they are fun.)* If fights built from part-driven
 abilities, intents and part damage are not interesting to replay by then, change the
 combat design before building the run structure on top of it.

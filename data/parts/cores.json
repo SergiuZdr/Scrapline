@@ -8,7 +8,12 @@
     "attack": 14,
     "heat_per_attack": 7,
     "mesh": "res://art/parts/co_slug.glb",
-    "flavour": "Mass, and the will to move it."
+    "flavour": "Mass, and the will to move it.",
+    "grid": {
+      "damage": 0,
+      "heat": 0,
+      "vent": 1
+    }
   },
   {
     "id": "co_furnace",
@@ -19,7 +24,12 @@
     "attack": 16,
     "heat_per_attack": 11,
     "mesh": "res://art/parts/co_furnace.glb",
-    "flavour": "Hits harder than it can afford to."
+    "flavour": "Hits harder than it can afford to.",
+    "grid": {
+      "damage": 1,
+      "heat": 1,
+      "vent": 1
+    }
   },
   {
     "id": "co_arc",
@@ -30,7 +40,12 @@
     "attack": 12,
     "heat_per_attack": 9,
     "mesh": "res://art/parts/co_arc.glb",
-    "flavour": "Shielding was a mistake, and this core knows it."
+    "flavour": "Shielding was a mistake, and this core knows it.",
+    "grid": {
+      "damage": 0,
+      "heat": 0,
+      "vent": 1
+    }
   },
   {
     "id": "co_bile",
@@ -41,7 +56,12 @@
     "attack": 15,
     "heat_per_attack": 8,
     "mesh": "res://art/parts/co_bile.glb",
-    "flavour": "Plate is only armour until it starts dissolving."
+    "flavour": "Plate is only armour until it starts dissolving.",
+    "grid": {
+      "damage": 1,
+      "heat": 0,
+      "vent": 1
+    }
   },
   {
     "id": "co_dynamo",
@@ -52,7 +72,12 @@
     "attack": 10,
     "heat_per_attack": 3,
     "mesh": "res://art/parts/co_dynamo.glb",
-    "flavour": "Hits softly and never stops. The core that outlasts the fight."
+    "flavour": "Hits softly and never stops. The core that outlasts the fight.",
+    "grid": {
+      "damage": 0,
+      "heat": 0,
+      "vent": 2
+    }
   },
   {
     "id": "co_ember",
@@ -63,7 +88,12 @@
     "attack": 12,
     "heat_per_attack": 5,
     "mesh": "res://art/parts/co_ember.glb",
-    "flavour": "Burns cool. Everything a Furnace does, for longer and less of it."
+    "flavour": "Burns cool. Everything a Furnace does, for longer and less of it.",
+    "grid": {
+      "damage": 0,
+      "heat": 0,
+      "vent": 2
+    }
   },
   {
     "id": "co_tesla",
@@ -74,7 +104,12 @@
     "attack": 19,
     "heat_per_attack": 14,
     "mesh": "res://art/parts/co_tesla.glb",
-    "flavour": "Enormous output against shielding, and it cooks the frame carrying it."
+    "flavour": "Enormous output against shielding, and it cooks the frame carrying it.",
+    "grid": {
+      "damage": 1,
+      "heat": 1,
+      "vent": 1
+    }
   },
   {
     "id": "co_solvent",
@@ -85,7 +120,12 @@
     "attack": 11,
     "heat_per_attack": 4,
     "mesh": "res://art/parts/co_solvent.glb",
-    "flavour": "Barely warms up. Made for frames that intend to be there at the end."
+    "flavour": "Barely warms up. Made for frames that intend to be there at the end.",
+    "grid": {
+      "damage": 0,
+      "heat": 0,
+      "vent": 2
+    }
   },
   {
     "id": "co_mag",
@@ -96,7 +136,12 @@
     "attack": 20,
     "heat_per_attack": 13,
     "mesh": "res://art/parts/co_mag.glb",
-    "flavour": "The hardest hitting core in the yard, and it will seize you for it."
+    "flavour": "The hardest hitting core in the yard, and it will seize you for it.",
+    "grid": {
+      "damage": 1,
+      "heat": 1,
+      "vent": 1
+    }
   },
   {
     "id": "co_null",
@@ -107,6 +152,11 @@
     "attack": 9,
     "heat_per_attack": 2,
     "mesh": "res://art/parts/co_null.glb",
-    "flavour": "Almost no output and almost no heat. A frame that never stops."
+    "flavour": "Almost no output and almost no heat. A frame that never stops.",
+    "grid": {
+      "damage": 0,
+      "heat": 0,
+      "vent": 2
+    }
   }
 ]
