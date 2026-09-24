@@ -39,6 +39,13 @@ proposal:
 | Watchtower | reveals fog in a radius | 1–2 per act |
 | Boss gate | the act boss; exit to the next region | 1 |
 
+## The Crawler (from 003)
+
+The Crawler is on the board in every fight and losing it loses the fight. **Its HP
+carries across the whole run.** Workshops repair it for scrap. It is the run's health bar:
+a won fight still costs something if the Crawler took hits. Losing the Crawler anywhere
+ends the run.
+
 ## Currency
 
 **Scrap** is the only currency inside a run. It comes from fights, scrapyards and selling

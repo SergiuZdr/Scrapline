@@ -1,9 +1,11 @@
 # Plan — Combat
 
-**Status:** 002 prototype built (2026-09-24): board, move, one attack per unit, direction-based intents, wrecks, win/lose, replay undo. Parts, heat, wheel, terrain effects, part damage and shove are 003.
+**Status:** built through 003 (2026-09-24). Everything below is implemented unless marked
+*later*. Numbers live in `data/parts/*.json` (`grid`), `data/terrain/tiles.json` (`grid`) and
+`data/combat/rules.json`.
 
-> **Open problem from 002:** dodging a telegraphed line costs nothing, so enemies barely
-> land hits (6 damage over a whole bot fight). The fix belongs in 003; see MEMORY.
+> **Pressure (002's open problem) is answered by the Crawler**: an immobile objective the
+> enemy targets, which the crew must shield, kill for, or shove for. See MEMORY.
 
 ## Design goals
 
@@ -60,21 +62,33 @@ A construct has no fixed moveset. Each part grants something (details in
 
 Weapon shapes (first pass, mapped onto existing `weapon_class`):
 
-| Shape | Classes | Pattern |
-|---|---|---|
-| Melee strike | hammer, maul, saw, ripper | adjacent tile; hammer and maul **shove** the target 1 tile |
-| Line | lance, railgun | straight line; railgun pierces through units |
-| Arc / lob | mortar | any tile at range 2–4, ignores cover, splashes adjacent tiles |
-| Cone | scattergun | 3-tile cone, damage drops with distance, shoves |
-| Utility | scanner, coil | scanner **marks** (next hit +50%); coil hits in a chain |
+As built (003), per `weapon_class`:
+
+| Class | Shape | Damage | Special | Heat |
+|---|---|---|---|---|
+| hammer | melee | 3 | shove 1 | 1 |
+| maul | melee | 5 | (tears by threshold) | 2 |
+| saw | melee | 4 | | 1 |
+| ripper | melee | 3 | **tears** an arm on any hit | 1 |
+| lance | line 3 | 3 | pierce 1 | 1 |
+| railgun | line 6 | 3 | pierce all (stopped by scrap) | 2 |
+| scattergun | line 2 | 3 | shove 1 | 1 |
+| mortar | lob 2–4 | 3 | splash 1 to the 4 neighbours, flies over blockers | 2 |
+| scanner | line 5 | 1 | **mark**: next hit on the target +2 | 0 |
+| coil | line 3 | 2 | chains to one neighbour of the first hit for 1 less | 1 |
+
+Lines stop at the first unit (unless piercing), wreck or scrap heap. Cones were dropped:
+a scattergun is a short shoving line, which reads the same at a fraction of the rules.
 
 ## Heat: the resource
 
-- Each weapon action generates heat (defined per part in data).
-- At **max heat** the construct **seizes**: it skips its next action and vents to 50%.
-- **Vent** (a free action once per turn instead of attacking) removes a large chunk.
-- Slag, thermal damage and some modules add heat. Thermal cores trade raw damage
-  for burning the target's heat meter.
+- Each shot adds the weapon's heat plus core/module heat bonuses.
+- Reaching the **heat cap** (chassis + module) marks the construct OVERHEATED. Next round
+  it is **SEIZED**: it can move but not attack, and its heat resets to 0.
+- Otherwise heat drops by the construct's **vent** (core + module) at each round start.
+- **VENT** as the construct's action sets heat to 0.
+- Enemies have no heat.
+- *Later:* thermal damage burning the target's heat.
 
 This carries the old sim's heat identity over into a turn economy. You always have the
 option to push harder, and it always costs something.
@@ -92,11 +106,11 @@ option to push harder, and it always costs something.
 
 ## Part damage (signature mechanic — test in Iteration 003)
 
-- Hits land on the **chassis HP pool**, but **a hit of 4 or more damage also damages a
-  part**: an arm facing the attacker, or the module on a hit from behind. Facing
-  matters, so it is shown on the unit.
-- A damaged part works at reduced strength. A part damaged twice is **torn off** and
-  drops on the tile as salvage.
+- As built (003): a primary hit of **5+ damage** (after the wheel), or **any ripper hit**,
+  **tears off an arm**: the right arm first, then the left. Its weapon is gone for the fight.
+  The preview says "TEARS AN ARM OFF" before you commit.
+- *Later (004+):* the torn arm drops as salvage on the tile. The damaged-part middle state
+  and facing were cut for readability.
 - A construct whose chassis HP reaches 0 becomes a **wreck**: it blocks its tile and can
   be searched for parts.
 

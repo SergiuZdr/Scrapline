@@ -19,8 +19,8 @@ var height: int = 0
 var units: Array[GridUnit] = []
 var round_number: int = 0
 var outcome: int = ONGOING
-## Enemy intents for the current round: `{ "ref": int, "dir": int, "order": int }`,
-## in firing order.
+## Enemy intents for the current round, in firing order:
+## `{ "ref": int, "w": weapon index, "dir": int, "dist": int, "order": int }`.
 var intents: Array[Dictionary] = []
 ## Every event since the fight began. See `GridEv`.
 var events: Array = []
@@ -45,6 +45,22 @@ func tile_at(x: int, y: int) -> int:
 	return setup.tiles[y * width + x]
 
 
+func move_cost(x: int, y: int) -> int:
+	return setup.move_cost[y * width + x]
+
+
+func cover(x: int, y: int) -> int:
+	return setup.cover[y * width + x]
+
+
+func range_bonus(x: int, y: int) -> int:
+	return setup.range_bonus[y * width + x]
+
+
+func hazard(x: int, y: int) -> int:
+	return setup.hazard[y * width + x]
+
+
 func unit(ref: int) -> GridUnit:
 	for u: GridUnit in units:
 		if u.ref == ref:
@@ -66,6 +82,22 @@ func living(team: int) -> Array[GridUnit]:
 		if u.alive and u.team == team:
 			out.append(u)
 	return out
+
+
+## Living constructs of a team, without the Crawler.
+func crew(team: int) -> Array[GridUnit]:
+	var out: Array[GridUnit] = []
+	for u: GridUnit in units:
+		if u.alive and u.team == team and not u.objective:
+			out.append(u)
+	return out
+
+
+func crawler() -> GridUnit:
+	for u: GridUnit in units:
+		if u.objective:
+			return u
+	return null
 
 
 func intent_of(ref: int) -> Dictionary:

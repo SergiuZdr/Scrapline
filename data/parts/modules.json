@@ -9,7 +9,10 @@
     "vent_rate": 3,
     "can_overdrive": false,
     "mesh": "res://art/parts/mo_governor.glb",
-    "flavour": "Never seizes. Never spikes either. The safe hands."
+    "flavour": "Never seizes. Never spikes either. The safe hands.",
+    "grid": {
+      "heat_cap": 2
+    }
   },
   {
     "id": "mo_bypass",
@@ -21,7 +24,11 @@
     "vent_rate": -1,
     "can_overdrive": true,
     "mesh": "res://art/parts/mo_bypass.glb",
-    "flavour": "Turns the seize into an overdrive. Runs hot to get there."
+    "flavour": "Turns the seize into an overdrive. Runs hot to get there.",
+    "grid": {
+      "damage": 1,
+      "heat": 1
+    }
   },
   {
     "id": "mo_ablative",
@@ -33,7 +40,10 @@
     "speed": -8,
     "can_overdrive": false,
     "mesh": "res://art/parts/mo_ablative.glb",
-    "flavour": "Bolted-on scrap. Every plate is something that used to be a wall."
+    "flavour": "Bolted-on scrap. Every plate is something that used to be a wall.",
+    "grid": {
+      "hp": 3
+    }
   },
   {
     "id": "mo_capacitor",
@@ -45,7 +55,12 @@
     "vent_rate": -2,
     "can_overdrive": true,
     "mesh": "res://art/parts/mo_capacitor.glb",
-    "flavour": "A long climb to the threshold, and a very loud arrival."
+    "flavour": "A long climb to the threshold, and a very loud arrival.",
+    "grid": {
+      "damage": 1,
+      "heat": 1,
+      "heat_cap": 1
+    }
   },
   {
     "id": "mo_servo",
@@ -57,7 +72,10 @@
     "vent_rate": -1,
     "can_overdrive": false,
     "mesh": "res://art/parts/mo_servo.glb",
-    "flavour": "Acts sooner and more often. Pays for it in cooling."
+    "flavour": "Acts sooner and more often. Pays for it in cooling.",
+    "grid": {
+      "move": 1
+    }
   },
   {
     "id": "mo_coolant",
@@ -68,7 +86,10 @@
     "heat_max": 20,
     "can_overdrive": false,
     "mesh": "res://art/parts/mo_coolant.glb",
-    "flavour": "Sheds heat faster than any frame can build it. Nothing else."
+    "flavour": "Sheds heat faster than any frame can build it. Nothing else.",
+    "grid": {
+      "vent": 2
+    }
   },
   {
     "id": "mo_reactive",
@@ -80,7 +101,10 @@
     "speed": -14,
     "can_overdrive": false,
     "mesh": "res://art/parts/mo_reactive.glb",
-    "flavour": "Enormous protection bolted on at the cost of every bit of tempo."
+    "flavour": "Enormous protection bolted on at the cost of every bit of tempo.",
+    "grid": {
+      "armor": 1
+    }
   },
   {
     "id": "mo_targeting",
@@ -91,7 +115,10 @@
     "range_bonus": 140,
     "can_overdrive": false,
     "mesh": "res://art/parts/mo_targeting.glb",
-    "flavour": "Extends the reach of whatever arms the frame is carrying."
+    "flavour": "Extends the reach of whatever arms the frame is carrying.",
+    "grid": {
+      "range": 1
+    }
   },
   {
     "id": "mo_overclock",
@@ -104,7 +131,12 @@
     "heat_max": -32,
     "can_overdrive": true,
     "mesh": "res://art/parts/mo_overclock.glb",
-    "flavour": "Everything faster and hotter. Overdrives early, seizes if it misses."
+    "flavour": "Everything faster and hotter. Overdrives early, seizes if it misses.",
+    "grid": {
+      "damage": 1,
+      "move": 1,
+      "heat": 1
+    }
   },
   {
     "id": "mo_scavenger",
@@ -116,6 +148,9 @@
     "vent_rate": 1,
     "can_overdrive": false,
     "mesh": "res://art/parts/mo_scavenger.glb",
-    "flavour": "Welded-on plate off three different machines. Cheap, and it works."
+    "flavour": "Welded-on plate off three different machines. Cheap, and it works.",
+    "grid": {
+      "hp": 2
+    }
   }
 ]

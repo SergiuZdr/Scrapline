@@ -10,7 +10,14 @@
     "mesh": "res://art/parts/ar_hammer.glb",
     "flavour": "Opens armour. Someone else is expected to walk through it.",
     "range": 140,
-    "weapon_class": "hammer"
+    "weapon_class": "hammer",
+    "grid": {
+      "shape": "melee",
+      "range": 1,
+      "damage": 3,
+      "heat": 1,
+      "shove": 1
+    }
   },
   {
     "id": "ar_lance",
@@ -23,7 +30,14 @@
     "mesh": "res://art/parts/ar_lance.glb",
     "flavour": "Reaches the back rank. Cares nothing for the front one.",
     "range": 780,
-    "weapon_class": "lance"
+    "weapon_class": "lance",
+    "grid": {
+      "shape": "line",
+      "range": 3,
+      "damage": 3,
+      "heat": 1,
+      "pierce": 1
+    }
   },
   {
     "id": "ar_scanner",
@@ -36,7 +50,14 @@
     "mesh": "res://art/parts/ar_scanner.glb",
     "flavour": "Does almost no damage. Decides who dies anyway.",
     "range": 620,
-    "weapon_class": "scanner"
+    "weapon_class": "scanner",
+    "grid": {
+      "shape": "line",
+      "range": 5,
+      "damage": 1,
+      "heat": 0,
+      "mark": true
+    }
   },
   {
     "id": "ar_ripper",
@@ -49,7 +70,14 @@
     "mesh": "res://art/parts/ar_ripper.glb",
     "flavour": "Finds the seam a Spotter marked and widens it.",
     "range": 170,
-    "weapon_class": "ripper"
+    "weapon_class": "ripper",
+    "grid": {
+      "shape": "melee",
+      "range": 1,
+      "damage": 3,
+      "heat": 1,
+      "tears": true
+    }
   },
   {
     "id": "ar_pulse",
@@ -62,7 +90,14 @@
     "mesh": "res://art/parts/ar_pulse.glb",
     "flavour": "Slows a fast frame down to something survivable.",
     "range": 430,
-    "weapon_class": "coil"
+    "weapon_class": "coil",
+    "grid": {
+      "shape": "line",
+      "range": 3,
+      "damage": 2,
+      "heat": 1,
+      "chain": 1
+    }
   },
   {
     "id": "ar_maul",
@@ -75,7 +110,13 @@
     "ability": "ab_sunder",
     "mesh": "res://art/parts/ar_maul.glb",
     "flavour": "The heaviest thing a frame can swing. Slow, and it does not matter.",
-    "weapon_class": "maul"
+    "weapon_class": "maul",
+    "grid": {
+      "shape": "melee",
+      "range": 1,
+      "damage": 5,
+      "heat": 2
+    }
   },
   {
     "id": "ar_saw",
@@ -88,7 +129,13 @@
     "ability": "ab_rend",
     "mesh": "res://art/parts/ar_saw.glb",
     "flavour": "Keeps cutting after the plate opens. Punishes anything already Fractured.",
-    "weapon_class": "saw"
+    "weapon_class": "saw",
+    "grid": {
+      "shape": "melee",
+      "range": 1,
+      "damage": 4,
+      "heat": 1
+    }
   },
   {
     "id": "ar_scatter",
@@ -101,7 +148,14 @@
     "ability": "ab_stagger",
     "mesh": "res://art/parts/ar_scatter.glb",
     "flavour": "Close-mid. Loud, imprecise, and it puts things on the back foot.",
-    "weapon_class": "scattergun"
+    "weapon_class": "scattergun",
+    "grid": {
+      "shape": "line",
+      "range": 2,
+      "damage": 3,
+      "heat": 1,
+      "shove": 1
+    }
   },
   {
     "id": "ar_mortar",
@@ -114,7 +168,15 @@
     "ability": "ab_scald",
     "mesh": "res://art/parts/ar_mortar.glb",
     "flavour": "Lobs burning slag. Overheats whatever it lands on.",
-    "weapon_class": "mortar"
+    "weapon_class": "mortar",
+    "grid": {
+      "shape": "lob",
+      "range_min": 2,
+      "range": 4,
+      "damage": 3,
+      "heat": 2,
+      "splash": 1
+    }
   },
   {
     "id": "ar_railgun",
@@ -127,6 +189,13 @@
     "ability": "ab_snipe",
     "mesh": "res://art/parts/ar_railgun.glb",
     "flavour": "Reaches the far baseline. Needs a ridge and time you may not have.",
-    "weapon_class": "railgun"
+    "weapon_class": "railgun",
+    "grid": {
+      "shape": "line",
+      "range": 6,
+      "damage": 3,
+      "heat": 2,
+      "pierce": 9
+    }
   }
 ]

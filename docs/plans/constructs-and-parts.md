@@ -1,6 +1,8 @@
 # Plan — Constructs and parts
 
-**Status:** draft (Iteration 000). Implementation in 003; content in 005.
+**Status:** implemented in 003 (2026-09-24). Every part has a `grid` block; a construct is
+built from its five parts' blocks plus its chassis role's trait (`data/combat/rules.json`).
+Salvage and the cargo hold are 004; content growth is 005.
 
 ## The crew
 
@@ -24,10 +26,10 @@
 
 | Role | Trait |
 |---|---|
-| brawler | +1 move when moving toward an enemy; melee shove pushes 2 tiles |
-| line | can move after attacking |
-| marksman | +1 range; −1 move |
-| anchor | cannot be shoved; adjacent allies get half cover |
+| brawler | +1 melee damage (built) |
+| line | can move after attacking (built) |
+| marksman | +1 range on line and lob weapons (built) |
+| anchor | cannot be shoved (built) |
 
 ## Salvage: how the crew changes during a run
 
