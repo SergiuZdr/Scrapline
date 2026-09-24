@@ -47,6 +47,8 @@ var _db: ContentDB
 var _fight_id: String = "proto_yard"
 var _seed: int = 2026
 var _bot: bool = false
+## The fight belongs to the live run (`Run`): read from it, saved into it, reported to it.
+var _run_mode: bool = false
 
 var _setup: CombatSetup
 var _state: CombatState
@@ -96,6 +98,8 @@ func _ready() -> void:
 	_hud.rotate_pressed.connect(_rotate)
 	_hud.retry_pressed.connect(_start_fight)
 	_hud.title_pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/main.tscn"))
+	_hud.continue_pressed.connect(_back_to_run)
+	_run_mode = Run.in_fight() and not OS.get_cmdline_user_args().has("--fight")
 	_start_fight()
 
 
@@ -112,21 +116,45 @@ func _read_args() -> void:
 
 func _start_fight() -> void:
 	_hud.hide_result()
-	_setup = CombatSetup.build(_db.fights.get(_fight_id, {}), _db.combat_rules, _db.parts, _db.tiles,
-		_db.balance.effectiveness, _seed)
-	for error: String in _setup.errors:
-		push_error("fight %s: %s" % [_fight_id, error])
 	_actions = []
+	if _run_mode:
+		_setup = Run.fight_setup()
+		# Resuming mid-fight: the saved combat actions replay to the exact turn.
+		_actions = Run.fight_actions.duplicate(true)
+	else:
+		_setup = CombatSetup.build(_db.fights.get(_fight_id, {}), _db.combat_rules, _db.parts, _db.tiles,
+			_db.balance.effectiveness, _seed)
+	for error: String in _setup.errors:
+		push_error("fight %s: %s" % [_setup.fight_id, error])
 	_turn_start = 0
+	for i: int in _actions.size():
+		if int(_actions[i][0]) == CombatSim.ACT_END:
+			_turn_start = i + 1
 	_selected = -1
 	_pending = []
-	_state = CombatSim.start(_setup)
+	_armed = false
+	_state = CombatSim.replay(_setup, _actions)
 	_build_board()
 	_spawn_units()
-	_shown = 0
 	_frame_camera()
-	await _play_new_events()
+	if _actions.is_empty():
+		_shown = 0
+		await _play_new_events()
+	else:
+		# A resumed fight does not replay its history on screen: it opens on the turn.
+		_shown = _state.events.size()
 	_after_events()
+
+
+## Hands the finished fight's action log to the run, which replays it for itself.
+func _back_to_run() -> void:
+	Run.finish_fight(_actions)
+	get_tree().change_scene_to_file("res://scenes/run_map.tscn")
+
+
+func _record() -> void:
+	if _run_mode:
+		Run.record_fight(_actions)
 
 
 # --- World ------------------------------------------------------------------
@@ -780,7 +808,7 @@ func _after_events() -> void:
 		var body: String = "Round %d  ·  %d of 3 constructs standing" % [_state.round_number, _state.crew(GridUnit.TEAM_PLAYER).size()]
 		if crawler != null:
 			body += "  ·  Crawler %d/%d" % [crawler.hp, crawler.max_hp] if crawler.alive else "\nThe Crawler was destroyed."
-		_hud.show_result(_state.outcome == CombatState.WON, body)
+		_hud.show_result(_state.outcome == CombatState.WON, body, _run_mode)
 		return
 	if _selected < 0 or not _unit_has_moves(_selected):
 		_selected = _next_ready_unit()
@@ -873,7 +901,9 @@ func _refresh_weapon_bar(sel: GridUnit) -> void:
 	for w: int in sel.weapons.size():
 		var weapon: Dictionary = sel.weapons[w]
 		var reason: String = ""
-		if bool(weapon["torn"]):
+		if bool(weapon.get("empty", false)):
+			reason = "EMPTY SOCKET"
+		elif bool(weapon["torn"]):
 			reason = "ARM TORN OFF"
 		elif sel.seized:
 			reason = "SEIZED THIS ROUND"
@@ -1202,6 +1232,7 @@ func _act(action: Array) -> void:
 		Audio.play("ui_deny", -10.0)
 		return
 	_actions.append(action)
+	_record()
 	_refresh_hud(CombatSim.threats(_state))
 	await _play_new_events()
 	_after_events()
@@ -1214,6 +1245,7 @@ func _undo() -> void:
 	if _busy or _bot or _actions.size() <= _turn_start:
 		return
 	_actions.pop_back()
+	_record()
 	_state = CombatSim.replay(_setup, _actions)
 	_shown = _state.events.size()
 	_pending = []
@@ -1266,12 +1298,14 @@ func _bot_turn() -> void:
 			if not CombatSim.apply(_state, action):
 				continue
 			_actions.append(action)
+			_record()
 			await _play_new_events()
 	if _state.outcome == CombatState.ONGOING:
 		await _wait(0.4)
 		_selected = -1
 		if CombatSim.apply(_state, [CombatSim.ACT_END, -1, 0, 0]):
 			_actions.append([CombatSim.ACT_END, -1, 0, 0])
+			_record()
 		_turn_start = _actions.size()
 		await _play_new_events()
 	_after_events()

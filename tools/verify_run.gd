@@ -1,0 +1,223 @@
+extends SceneTree
+
+## Run rules: generation, travel and the front, every site type, fights feeding back into
+## the run, wrecks and rebuilds, refits, determinism and the save round trip.
+##
+##   godot --headless --path . --script res://tools/verify_run.gd
+
+var _db: ContentDB
+var _passed: int = 0
+var _failed: int = 0
+
+
+func _initialize() -> void:
+	_db = ContentDB.load_all()
+	print("")
+	print("=== run ===")
+	_test_generation()
+	_test_travel_and_front()
+	_test_sites()
+	_test_fight_feeds_the_run()
+	_test_wreck_and_rebuild()
+	_test_refit()
+	_test_determinism_and_save()
+	print("")
+	print("  %d passed, %d failed" % [_passed, _failed])
+	print("")
+	quit(1 if _failed > 0 else 0)
+
+
+func _setup(seed_value: int) -> RunSetup:
+	return RunSetup.create(_db.parts, _db.tiles, _db.fights, _db.run_rules, _db.combat_rules,
+		_db.balance.effectiveness, seed_value)
+
+
+func _test_generation() -> void:
+	var all_connected: bool = true
+	var all_one_boss: bool = true
+	var all_have_shop: bool = true
+	var sizes: Dictionary = {}
+	for s: int in 200:
+		var state: RunState = RunSim.start(_setup(s))
+		sizes[state.sites.size()] = true
+		# Boss reachable from start by breadth-first search.
+		var seen: Dictionary = {0: true}
+		var queue: Array = [0]
+		while not queue.is_empty():
+			var id: int = queue.pop_front()
+			for n: Variant in (state.site(id)["links"] as Array):
+				if not seen.has(int(n)):
+					seen[int(n)] = true
+					queue.append(int(n))
+		all_connected = all_connected and seen.size() == state.sites.size()
+		var bosses: int = 0
+		var shops: int = 0
+		for site: Dictionary in state.sites:
+			bosses += 1 if String(site["type"]) == "boss" else 0
+			shops += 1 if String(site["type"]) == "workshop" else 0
+		all_one_boss = all_one_boss and bosses == 1
+		all_have_shop = all_have_shop and shops >= 1
+	_check("200 regions: every site reachable from the start", all_connected)
+	_check("200 regions: exactly one boss gate each", all_one_boss)
+	_check("200 regions: at least one workshop each", all_have_shop)
+	_check("regions vary in size across seeds", sizes.size() > 1)
+	var a: RunState = RunSim.start(_setup(42))
+	var b: RunState = RunSim.start(_setup(42))
+	_check("the same seed gives the same region", _region_text(a) == _region_text(b))
+	_check("a different seed gives a different region", _region_text(a) != _region_text(RunSim.start(_setup(43))))
+
+
+func _region_text(state: RunState) -> String:
+	var parts: PackedStringArray = []
+	for site: Dictionary in state.sites:
+		parts.append("%d:%s:%s" % [site["id"], site["type"], str(site["links"])])
+	return " ".join(parts)
+
+
+func _test_travel_and_front() -> void:
+	var setup: RunSetup = _setup(7)
+	var state: RunState = RunSim.start(setup)
+	_check("the run starts at the start site with nothing pending", state.current == 0 and state.pending.is_empty())
+	var far: int = state.sites.size() - 1
+	_check("cannot travel to a site that is not linked", not RunSim.apply(state, setup, [RunSim.TRAVEL, far]))
+	var first: int = RunSim.destinations(state)[0]
+	_check("can travel to a linked site", RunSim.apply(state, setup, [RunSim.TRAVEL, first]))
+	_check("arriving at an unvisited site sets something pending", not state.pending.is_empty())
+	_check("cannot travel on while something is pending", RunSim.destinations(state).is_empty())
+
+	# The front: consumed sites are closed, and lingering in consumed ground bites.
+	var s2: RunState = RunSim.start(setup)
+	s2.front_col = 0
+	_check("the start column can be consumed", s2.consumed(0))
+	var hp: int = s2.crawler_hp
+	RunSim.apply(s2, setup, [RunSim.TRAVEL, RunSim.destinations(s2)[0]])
+	_check("leaving consumed ground costs the Crawler front damage",
+		s2.crawler_hp == hp - int((_db.run_rules["front"] as Dictionary)["damage"]))
+	s2.pending = {}
+	s2.front_col = 1
+	_check("consumed sites are not destinations",
+		RunSim.destinations(s2).all(func(id: int) -> bool: return int(s2.site(id)["col"]) > 1))
+
+
+func _test_sites() -> void:
+	var setup: RunSetup = _setup(11)
+	var state: RunState = RunSim.start(setup)
+	# Scrapyard: take a part, or take the scrap.
+	state.pending = {"kind": "scrapyard", "options": ["ar_railgun", "co_mag", "mo_servo"], "scrap": 15}
+	var scrap: int = state.scrap
+	_check("scrapyard: taking the scrap instead", RunSim.apply(state, setup, [RunSim.PICK, -1]) and state.scrap == scrap + 15)
+	state.pending = {"kind": "reward", "options": ["ar_railgun", "co_mag", "mo_servo"]}
+	_check("reward: picking a part puts it in the hold", RunSim.apply(state, setup, [RunSim.PICK, 0]) and state.cargo.has("ar_railgun"))
+	state.pending = {"kind": "reward", "options": ["ar_railgun"]}
+	for i: int in 10:
+		state.cargo.append("mo_servo")
+	_check("reward: a full hold refuses the part", not RunSim.apply(state, setup, [RunSim.PICK, 0]))
+	_check("reward: skipping is always allowed", RunSim.apply(state, setup, [RunSim.PICK, -1]) and state.pending.is_empty())
+	# Workshop.
+	state.pending = {"kind": "workshop"}
+	state.crawler_hp = 5
+	state.scrap = 100
+	_check("workshop: repair patches the Crawler for scrap", RunSim.apply(state, setup, [RunSim.REPAIR]) and state.crawler_hp == 9 and state.scrap == 92)
+	state.crawler_hp = state.crawler_max
+	_check("workshop: nothing to repair at full HP", not RunSim.apply(state, setup, [RunSim.REPAIR]))
+	_check("workshop: leave", RunSim.apply(state, setup, [RunSim.LEAVE]) and state.pending.is_empty())
+
+
+func _test_fight_feeds_the_run() -> void:
+	var setup: RunSetup = _setup(21)
+	var state: RunState = RunSim.start(setup)
+	var fight_site: int = -1
+	for id: int in RunSim.destinations(state):
+		if String(state.site(id)["type"]) == "skirmish":
+			fight_site = id
+	if fight_site < 0:
+		fight_site = RunSim.destinations(state)[0]
+		state.sites[fight_site]["type"] = "skirmish"
+	state.crawler_hp = 11
+	RunSim.apply(state, setup, [RunSim.TRAVEL, fight_site])
+	_check("a fight site sets a fight pending", String(state.pending.get("kind", "")) == "fight")
+	var combat_setup: CombatSetup = RunSim.fight_setup(state, setup)
+	_check("the fight builds with no errors %s" % [combat_setup.errors], combat_setup.errors.is_empty())
+	var crawler: GridUnit = null
+	for u: GridUnit in combat_setup.units:
+		if u.objective:
+			crawler = u
+	_check("the Crawler enters the fight with the run's HP (11)", crawler != null and crawler.hp == 11 and crawler.max_hp == state.crawler_max)
+	_check("an unfinished fight is refused", not RunSim.apply(state, setup, [RunSim.FIGHT, []]))
+	var actions: Array = RunBot.play_fight(combat_setup)
+	var result: CombatState = CombatSim.replay(combat_setup, actions)
+	_check("a finished fight is accepted", RunSim.apply(state, setup, [RunSim.FIGHT, actions]))
+	_check("the run takes the Crawler's HP from the replayed fight", state.crawler_hp == result.crawler().hp or state.outcome == RunState.LOST)
+	if result.outcome == CombatState.WON:
+		_check("a won skirmish offers salvage", String(state.pending.get("kind", "")) == "reward")
+
+
+func _test_wreck_and_rebuild() -> void:
+	var setup: RunSetup = _setup(5)
+	var state: RunState = RunSim.start(setup)
+	var member: Dictionary = state.crew[1]
+	member["alive"] = false
+	member["parts"] = [String(member["parts"][0]), "", "", "", ""]
+	state.pending = {"kind": "workshop"}
+	state.scrap = 50
+	_check("a wreck cannot be refitted", not RunSim.apply(state, setup, [RunSim.REFIT, 1, 2, 0]))
+	_check("the workshop rebuilds a wreck for scrap", RunSim.apply(state, setup, [RunSim.REBUILD, 1]) and bool(member["alive"]) and state.scrap == 30)
+	_check("the rebuilt construct keeps its chassis and nothing else",
+		String(member["parts"][0]) != "" and String(member["parts"][2]) == "")
+	state.pending = {}
+	var fight: Dictionary = RunSim._make_fight(state, setup, 1, "skirmish")
+	var built: CombatSetup = CombatSetup.build(fight, setup.combat_rules, setup.parts, setup.tiles, setup.wheel, 1)
+	_check("a construct with empty sockets still builds into a fight %s" % [built.errors], built.errors.is_empty())
+	_check("its empty arms cannot fire", not built.units[1].has_weapon())
+
+
+func _test_refit() -> void:
+	var setup: RunSetup = _setup(3)
+	var state: RunState = RunSim.start(setup)
+	state.cargo.append("ar_railgun")
+	state.cargo.append("co_mag")
+	var old_arm: String = String(state.crew[0]["parts"][3])
+	_check("a part only fits its own slot", not RunSim.apply(state, setup, [RunSim.REFIT, 0, 3, 1]))
+	_check("refit swaps a socket with the hold", RunSim.apply(state, setup, [RunSim.REFIT, 0, 3, 0])
+		and String(state.crew[0]["parts"][3]) == "ar_railgun" and state.cargo[0] == old_arm)
+	_check("unfitting puts the part in the hold", RunSim.apply(state, setup, [RunSim.REFIT, 0, 4, -1])
+		and String(state.crew[0]["parts"][4]) == "")
+	_check("a chassis cannot be unfitted", not RunSim.apply(state, setup, [RunSim.REFIT, 0, 0, -1]))
+	state.pending = {"kind": "fight", "site_type": "skirmish", "fight": {}}
+	_check("no refitting in the middle of a fight", not RunSim.apply(state, setup, [RunSim.REFIT, 0, 3, 0]))
+
+
+func _test_determinism_and_save() -> void:
+	var setup: RunSetup = _setup(99)
+	var state: RunState = RunSim.start(setup)
+	var actions: Array = []
+	var guard: int = 0
+	while state.outcome == RunState.ONGOING and guard < 400:
+		var action: Array = RunBot.next_action(state, setup)
+		if not RunSim.apply(state, setup, action):
+			break
+		actions.append(action)
+		guard += 1
+	_check("a bot run finishes", state.outcome != RunState.ONGOING)
+	var again: RunState = RunSim.replay(_setup(99), actions)
+	_check("replaying the run's actions reproduces it exactly", again.fingerprint() == state.fingerprint())
+
+	# The save format: the actions through JSON and back. JSON turns every int into a
+	# float, and a run must survive that or no save would ever load.
+	var text: String = RunStore.encode(99, "test", actions, [])
+	var loaded: Dictionary = RunStore.decode(text)
+	var reloaded: RunState = RunSim.replay(_setup(int(loaded["seed"])), loaded["actions"])
+	_check("a run survives the JSON round trip", reloaded.fingerprint() == state.fingerprint())
+	var partial: RunState = RunSim.replay(setup, actions.slice(0, actions.size() / 2))
+	var partial_text: String = RunStore.encode(99, "test", actions.slice(0, actions.size() / 2), [])
+	var partial_loaded: RunState = RunSim.replay(setup, RunStore.decode(partial_text)["actions"])
+	_check("a run saved halfway resumes at the same point", partial.fingerprint() == partial_loaded.fingerprint())
+
+
+func _check(label: String, ok: bool) -> void:
+	if ok:
+		_passed += 1
+		print("  ok    %s" % label)
+	else:
+		_failed += 1
+		print("  FAIL  %s" % label)

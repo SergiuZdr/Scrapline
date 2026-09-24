@@ -1,6 +1,8 @@
 # Plan — Run structure (the scrapyard region)
 
-**Status:** draft (Iteration 000). Implementation in 004.
+**Status:** built in 004 (2026-09-24) for one act: region generation, fog, the front, skirmish,
+elite, scrapyard, workshop and boss sites, salvage, the hold, refit, wrecks, rebuilds, and
+save/resume. Numbers are in `data/run/run.json`. Traders, signals and watchtowers are 007.
 
 ## The hybrid map
 
@@ -19,9 +21,10 @@ proposal:
 
 ## The Reclaimer front (pressure)
 
-- The front starts on one edge of the region and **advances one band every N moves**.
-- Sites the front swallows are gone. If it reaches you, the next fight is a hard
-  "caught by the Reclaimer" battle.
+- The front starts on one edge of the region and **advances one column every 2 moves**
+  (as built).
+- Sites the front swallows cannot be entered. **Each move made from consumed ground costs
+  the Crawler 3 HP** (as built, replacing the "caught" fight idea).
 - The **exit** (the act boss) is on the far side. So the act is a question of how much of
   the region you can loot before you have to run.
 - Backtracking works, but it spends moves the front will make you pay for.

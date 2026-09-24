@@ -1,0 +1,136 @@
+class_name RunBot
+extends RefCounted
+
+## Plays a run: routes, fights (through `CombatBot`), salvage, refits and workshops.
+##
+## This is the successor to the old game's `verify_loop.gd`, the one test that found a
+## starter squad losing its first fight while every unit test was green. It plays the
+## REAL run through `RunSim.apply`, so anything it can do a player can do, and anything
+## that breaks for it breaks for a player.
+##
+## Its choices are simple on purpose -- rarity as a stand-in for "better", forward as a
+## stand-in for "progress". A run that only a clever bot can win is a balance problem this
+## tool should surface, not hide.
+
+
+## The next action for the run as it stands, or [] if the run is over.
+static func next_action(state: RunState, setup: RunSetup) -> Array:
+	if state.outcome != RunState.ONGOING:
+		return []
+	var kind: String = String(state.pending.get("kind", ""))
+	match kind:
+		"fight":
+			return [RunSim.FIGHT, play_fight(RunSim.fight_setup(state, setup))]
+		"reward", "scrapyard":
+			return [RunSim.PICK, _choose_part(state, setup, state.pending["options"], kind)]
+		"workshop":
+			for i: int in state.crew.size():
+				if not bool(state.crew[i]["alive"]) and state.scrap >= int((setup.rules["workshop"] as Dictionary)["rebuild_cost"]):
+					return [RunSim.REBUILD, i]
+			if state.crawler_hp < state.crawler_max and state.scrap >= int((setup.rules["workshop"] as Dictionary)["repair_cost"]):
+				return [RunSim.REPAIR]
+			var refit: Array = _best_refit(state, setup)
+			return refit if not refit.is_empty() else [RunSim.LEAVE]
+	var refit: Array = _best_refit(state, setup)
+	if not refit.is_empty():
+		return refit
+	return [RunSim.TRAVEL, _choose_site(state, setup)]
+
+
+## Plays a whole fight with the combat bot and returns its action log.
+static func play_fight(combat_setup: CombatSetup) -> Array:
+	var combat: CombatState = CombatSim.start(combat_setup)
+	var actions: Array = []
+	var guard: int = 0
+	while combat.outcome == CombatState.ONGOING and guard < 60:
+		actions.append_array(CombatBot.take_turn(combat))
+		guard += 1
+	return actions
+
+
+static func _choose_part(state: RunState, setup: RunSetup, options: Array, kind: String) -> int:
+	if state.cargo.size() >= int(setup.rules.get("cargo_size", 6)):
+		return -1
+	var best: int = -1
+	var best_gain: int = 0
+	for i: int in options.size():
+		var gain: int = _best_gain(state, setup, String(options[i]))
+		if gain > best_gain:
+			best_gain = gain
+			best = i
+	# Nothing it would fit: a scrapyard's scrap is worth more than a spare part.
+	if best == -1 and kind == "reward" and not options.is_empty():
+		return 0
+	return best
+
+
+## How much fitting `part` would improve the crew's best-matching socket (rarity, and
+## a lot for filling an empty socket).
+static func _best_gain(state: RunState, setup: RunSetup, part: String) -> int:
+	var slot: String = String((setup.parts[part] as Dictionary).get("slot", ""))
+	var best: int = 0
+	for member: Dictionary in state.crew:
+		if not bool(member["alive"]):
+			continue
+		for socket: int in 5:
+			if RunSetup.socket_slot(socket) != slot:
+				continue
+			var current: String = String(member["parts"][socket])
+			var gain: int = 10 if current.is_empty() else setup.rarity(part) - setup.rarity(current)
+			best = maxi(best, gain)
+	return best
+
+
+## `[REFIT, crew, socket, cargo]` for the best improvement the hold offers, or [].
+static func _best_refit(state: RunState, setup: RunSetup) -> Array:
+	if not RunSim.can_refit(state):
+		return []
+	var best: Array = []
+	var best_gain: int = 0
+	for c: int in state.cargo.size():
+		var part: String = state.cargo[c]
+		var slot: String = String((setup.parts[part] as Dictionary).get("slot", ""))
+		for i: int in state.crew.size():
+			var member: Dictionary = state.crew[i]
+			if not bool(member["alive"]):
+				continue
+			for socket: int in 5:
+				if RunSetup.socket_slot(socket) != slot:
+					continue
+				var current: String = String(member["parts"][socket])
+				var gain: int = 10 if current.is_empty() else setup.rarity(part) - setup.rarity(current)
+				if gain > best_gain:
+					best_gain = gain
+					best = [RunSim.REFIT, i, socket, c]
+	return best
+
+
+static func _choose_site(state: RunState, setup: RunSetup) -> int:
+	var options: Array[int] = RunSim.destinations(state)
+	var best: int = options[0] if not options.is_empty() else state.current
+	var best_score: int = -1000000
+	var hurt: bool = state.crawler_hp * 2 < state.crawler_max
+	for id: int in options:
+		var s: Dictionary = state.site(id)
+		var score: int = int(s["col"]) * 12
+		if bool(s["visited"]):
+			score -= 25
+		else:
+			match String(s["type"]):
+				"boss":
+					score += 40
+				"workshop":
+					score += 30 if hurt or state.alive_crew() < state.crew.size() else 4
+				"elite":
+					score += -20 if hurt else 6
+				# Fights are where salvage comes from; a bot that detours to every scrapyard
+				# plays a run with half the fights a player would take.
+				"scrapyard":
+					score += 5
+				"skirmish":
+					score += 9
+		score = score * 1000 + (IntentAI.mix(setup.rng_seed, id, state.moves, 3) & 0x3FF)
+		if score > best_score:
+			best_score = score
+			best = id
+	return best

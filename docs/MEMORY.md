@@ -32,6 +32,11 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-24 | Every construct stat comes from its five parts' `grid` blocks plus a role trait from `rules.json` | "Your machines ARE their parts" (VISION); no stat sheets to drift from the parts |
 | 2026-09-24 | Enemies ignore heat | Heat is the player's resource; enemy heat would be another hidden state to read |
 | 2026-09-24 | Arms tear right-then-left on hits ≥ 5 or any ripper hit; no facing | Learnable in one fight; facing would be one more thing on a phone screen |
+| 2026-09-24 | Constructs are repaired after every fight and torn arms are restored; only a DESTROYED construct loses its parts (it keeps its chassis as a wreck) | Attrition lives in two visible things, the Crawler's HP and wrecks, not in per-construct bookkeeping |
+| 2026-09-24 | The Reclaimer consumes a column every 2 moves; each move made FROM consumed ground costs the Crawler 3 HP | Pushes the player onward with a number instead of an instant loss |
+| 2026-09-24 | A run is one action list; a fight is reported as ITS action list, which the run replays | The save cannot disagree with the game, and a run cannot be told a false fight result |
+| 2026-09-24 | Enemy squads are generated from the parts pool by column and site type | Every run differs; authored rosters come with 005 |
+| 2026-09-24 | Gold marks rare salvage | The premium currency it was reserved for no longer exists |
 | 2026-09-24 | ADAPT code that does not compile once CUT code is gone goes to `legacy/` (ignored by Godot through `.gdignore`), not straight to deletion | It stays greppable as reference while its replacement is written; it is deleted once replaced |
 
 ## Lessons carried over from the old codebase
@@ -72,6 +77,10 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-24 | With the bot winning most fights, raw per-arm win rates all sit near the mean. Judge arms by their offset from the average, not a fixed band |
 | 2026-09-24 | Enemy damage share understates pressure against a bot that dodges well; Crawler losses are the clearer signal |
 
+| 2026-09-24 | zsh does not word-split an unquoted `$var` in a command line: use `${=var}` or the arguments arrive as one string |
+| 2026-09-24 | JSON has no integers. A saved action comes back with floats and is a different action unless every number is turned back into an int (`RunStore._ints`) |
+| 2026-09-24 | Bot route preferences change pacing a lot: preferring scrapyards gave about 1 fight a run. Tool biases show up as design numbers, so read run_bot results with the bot's policy in mind |
+
 ## Open questions
 
 All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decisions above).
@@ -84,5 +93,7 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-23 | What is the closing front? | "The Reclaimer": an automated scrap-harvesting swarm sweeping the region |agree with the propose |
 | 2026-09-23 | Story delivery? | Light: site descriptions and event text, no cutscenes |agree with the propose for now |
 | 2026-09-24 | **How do intents create pressure when dodging is free?** (see 002 result) | Try in 003: area attacks (mortar splash, cone), a salvage objective the crew must hold, enemies whose shot follows the unit's dodge tile, and reinforcements that close escape routes. Judge by the bot's damage taken and by the user play-testing | **003: the Crawler + lob/pierce weapons. 600 random fights: bot wins 73.8%, and every loss is the Crawler. Awaiting the user's play-test** |
-| 2026-09-24 | Does the enemy damage share (22%) need to rise once HP carries across a run? | Re-measure in 004 with Crawler HP persisting | |
+| 2026-09-24 | Does the enemy damage share (22%) need to rise once HP carries across a run? | Re-measure in 004 with Crawler HP persisting | **004: runs are lost mostly to the Crawler (63 of 95 losses); pressure carries. Closed unless play-testing disagrees** |
+| 2026-09-24 | Act length: the bot wins 3.2 fights per act; the plan said 4–5 | The front's speed is the dial. Decide after the user plays | |
+| 2026-09-24 | The four 004 design calls (repair between fights, restored arms, front damage per move, generated squads) | Proposed; awaiting the user's veto | |
 | 2026-09-23 | Keep 3D or go 2D? | Keep 3D. The whole art pipeline exists, and a tilted camera suits a grid |agree with the propose |

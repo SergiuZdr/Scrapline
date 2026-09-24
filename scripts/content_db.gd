@@ -26,6 +26,8 @@ var linkages: Array = []
 var combat_rules: Dictionary = {}
 ## Fight id -> fight definition, one file per fight in `data/fights/`.
 var fights: Dictionary = {}
+## `data/run/run.json`: every number a run reads.
+var run_rules: Dictionary = {}
 var bosses: Dictionary = {}
 var balance: Balance = null
 
@@ -52,6 +54,10 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	if link_data is Array:
 		db.linkages = link_data as Array
 
+
+	var run_data: Variant = db._read_json("%s/run/run.json" % root)
+	if run_data is Dictionary:
+		db.run_rules = run_data as Dictionary
 
 	var rules_data: Variant = db._read_json("%s/combat/rules.json" % root)
 	if rules_data is Dictionary:
@@ -100,6 +106,7 @@ func content_version() -> String:
 		hash_value = _hash_value(hash_value, to_sim_content()[section])
 	hash_value = _hash_value(hash_value, combat_rules)
 	hash_value = _hash_value(hash_value, fights)
+	hash_value = _hash_value(hash_value, run_rules)
 	hash_value = _hash_value(hash_value, balance.to_dict())
 	return "%08x" % hash_value
 

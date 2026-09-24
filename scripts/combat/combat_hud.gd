@@ -17,6 +17,7 @@ signal end_turn_pressed
 signal rotate_pressed(step: int)
 signal retry_pressed
 signal title_pressed
+signal continue_pressed
 
 const CARD_SIZE := Vector2(320, 140)
 const WEAPON_SIZE := Vector2(250, 76)
@@ -38,6 +39,9 @@ var _end_turn: Button
 var _result: Control
 var _result_title: Label
 var _result_body: Label
+var _retry: Button
+var _title: Button
+var _continue: Button
 
 
 func _ready() -> void:
@@ -216,10 +220,15 @@ func set_controls(can_undo: bool, can_end: bool) -> void:
 	_end_turn.disabled = not can_end
 
 
-func show_result(won: bool, body: String) -> void:
-	_result_title.text = "YARD CLEARED" if won else "CREW LOST"
+## `in_run`: the fight belongs to a run, so the only way on is CONTINUE (back to the map);
+## a practice fight offers FIGHT AGAIN and TITLE instead.
+func show_result(won: bool, body: String, in_run: bool = false) -> void:
+	_result_title.text = "YARD CLEARED" if won else ("CREW LOST" if not in_run else "RUN OVER")
 	_result_title.add_theme_color_override("font_color", UIKit.GREEN if won else UIKit.RED)
 	_result_body.text = body
+	_retry.visible = not in_run
+	_title.visible = not in_run
+	_continue.visible = in_run
 	_result.visible = true
 
 
@@ -371,12 +380,15 @@ func _build_result() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	box.add_child(row)
-	var title := _button("TITLE", UIKit.secondary(), UIKit.TEXT, Vector2(170, 60))
-	title.pressed.connect(func() -> void: title_pressed.emit())
-	row.add_child(title)
-	var retry := _button("FIGHT AGAIN", UIKit.primary(), UIKit.BG, Vector2(230, 60))
-	retry.pressed.connect(func() -> void: retry_pressed.emit())
-	row.add_child(retry)
+	_title = _button("TITLE", UIKit.secondary(), UIKit.TEXT, Vector2(170, 60))
+	_title.pressed.connect(func() -> void: title_pressed.emit())
+	row.add_child(_title)
+	_retry = _button("FIGHT AGAIN", UIKit.primary(), UIKit.BG, Vector2(230, 60))
+	_retry.pressed.connect(func() -> void: retry_pressed.emit())
+	row.add_child(_retry)
+	_continue = _button("CONTINUE", UIKit.primary(), UIKit.BG, Vector2(260, 60))
+	_continue.pressed.connect(func() -> void: continue_pressed.emit())
+	row.add_child(_continue)
 
 
 func _label(text: String, size: int, colour: Color, face: Font = null) -> Label:

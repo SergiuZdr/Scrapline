@@ -1,10 +1,11 @@
 extends Control
 
-## Placeholder title screen for the roguelike rebuild.
+## Title: CONTINUE (when a run is saved), NEW RUN, PRACTICE FIGHT, QUIT.
 ##
-## FIGHT opens the Iteration 002 prototype fight. New Run and Continue arrive with the run
-## loop (Iteration 004). Until then they are not drawn at all rather than drawn disabled:
-## a button that can never be pressed is a label.
+## CONTINUE is not drawn at all without a save rather than drawn disabled: a button that
+## can never be pressed is a label.
+
+var _problem: Label
 
 
 func _ready() -> void:
@@ -35,24 +36,21 @@ func _ready() -> void:
 	tagline.add_theme_color_override("font_color", UIKit.TEXT_DIM)
 	column.add_child(tagline)
 
-	var status := Label.new()
-	status.text = "PROTOTYPE  ·  one fight, no run yet"
-	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	status.add_theme_font_size_override("font_size", UIKit.SIZE_LABEL)
-	status.add_theme_color_override("font_color", UIKit.AMBER)
-	column.add_child(status)
+	# CONTINUE is the primary action when there is a run to go back to; otherwise NEW RUN.
+	var saved: bool = Run.has_saved()
+	if saved:
+		column.add_child(_menu_button("CONTINUE", true, _continue_run))
+	column.add_child(_menu_button("NEW RUN", not saved, func() -> void:
+		Run.new_run()
+		get_tree().change_scene_to_file("res://scenes/run_map.tscn")))
+	column.add_child(_menu_button("PRACTICE FIGHT", false, func() -> void:
+		get_tree().change_scene_to_file("res://scenes/combat.tscn")))
 
-	var fight := Button.new()
-	fight.text = "FIGHT"
-	fight.custom_minimum_size = Vector2(280, 68)
-	fight.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	fight.add_theme_font_override("font", UIKit.font_strong())
-	fight.add_theme_font_size_override("font_size", UIKit.SIZE_TITLE)
-	for state: String in ["normal", "hover", "pressed", "focus"]:
-		fight.add_theme_stylebox_override(state, UIKit.primary())
-		fight.add_theme_color_override("font_color" if state == "normal" else "font_%s_color" % state, UIKit.BG)
-	fight.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/combat.tscn"))
-	column.add_child(fight)
+	_problem = Label.new()
+	_problem.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_problem.add_theme_font_size_override("font_size", UIKit.SIZE_BODY)
+	_problem.add_theme_color_override("font_color", UIKit.RED)
+	column.add_child(_problem)
 
 	var quit := Button.new()
 	quit.text = "QUIT"
@@ -61,3 +59,27 @@ func _ready() -> void:
 	quit.add_theme_stylebox_override("normal", UIKit.secondary())
 	quit.pressed.connect(func() -> void: get_tree().quit())
 	column.add_child(quit)
+
+
+func _continue_run() -> void:
+	if Run.continue_run():
+		get_tree().change_scene_to_file("res://scenes/run_map.tscn")
+	else:
+		_problem.text = Run.problem
+
+
+func _menu_button(text: String, primary: bool, on_press: Callable) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(320, 64)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_font_override("font", UIKit.font_strong())
+	button.add_theme_font_size_override("font_size", UIKit.SIZE_TITLE if primary else UIKit.SIZE_HEADING)
+	var ink: Color = UIKit.BG if primary else UIKit.TEXT
+	for state: String in ["normal", "hover", "pressed", "focus"]:
+		button.add_theme_stylebox_override(state, UIKit.primary() if primary else UIKit.secondary())
+	for key: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		button.add_theme_color_override(key, ink)
+	button.pressed.connect(on_press)
+	return button

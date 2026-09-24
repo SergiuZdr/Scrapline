@@ -2,6 +2,23 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [004] The run loop — 2026-09-24 ([detail](iterations/004-run-loop.md))
+
+### Added
+- A full Act 1 run: region map with fog and the advancing Reclaimer; skirmish, elite,
+  scrapyard, workshop and boss sites; salvage picks, the hold and refits; wrecks and
+  rebuilds; the Crawler's HP carrying between fights; the run ends at the boss or with
+  the Crawler.
+- `sim/run/` (RunSetup, RunState, RunSim, RunBot) and `data/run/run.json`.
+- Save and resume via the `Run` autoload and `RunStore`, per action, mid-fight included.
+- Title: CONTINUE / NEW RUN / PRACTICE FIGHT / QUIT.
+- Tests and tools: `verify_run.gd` (42), `verify_run_ui.gd` (12), `run_bot.gd`, `shot_run.gd`.
+
+### Changed
+- `CombatSetup` accepts the Crawler's current HP and empty sockets.
+- The combat scene runs in run mode when a run fight is pending: it saves per action and
+  reports its action log back.
+
 ## [003] Parts drive abilities, and intents create pressure — 2026-09-24 ([detail](iterations/003-parts-and-pressure.md))
 
 ### Added
