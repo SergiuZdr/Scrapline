@@ -30,6 +30,9 @@ const SCORE_DANGER: int = -12
 const SCORE_OVERHEAT: int = -25
 ## Hitting an enemy that is currently aiming at something (bot only).
 const SCORE_DISRUPT: int = 30
+const SCORE_FELL: int = 30
+## How many of the best candidates get the full dry run (explosions, pits, bombers).
+const REFINE: int = 6
 
 
 ## Returns `{ "dest", "path", "w" (-1 = no attack), "target": Vector2i, "score" }`.
@@ -52,6 +55,7 @@ static func plan(state: CombatState, u: GridUnit, ctx: Dictionary) -> Dictionary
 	var best_score: int = -1000000
 	var best_tie: int = 0
 	var best_attack: int = 0
+	var candidates: Array = []
 	for cell: Vector2i in cells:
 		var base: int = _tile_value(state, cell, (options[cell] as Array).size(), danger, shield)
 		# Evaluate from the destination by standing there for the length of the loop.
@@ -66,11 +70,27 @@ static func plan(state: CombatState, u: GridUnit, ctx: Dictionary) -> Dictionary
 		var score: int = base + maxi(0, attack_value)
 		var aim: Vector2i = choice[1]
 		var tie: int = mix(state.setup.rng_seed, u.ref * 131 + state.round_number, cell.x * 17 + cell.y, int(choice[0]) * 4096 + aim.y * 64 + aim.x)
+		if int(choice[0]) >= 0:
+			candidates.append([score, tie, cell, choice, base])
 		if score > best_score or (score == best_score and tie < best_tie):
 			best_score = score
 			best_tie = tie
 			best_attack = attack_value
 			best = {"dest": cell, "path": options[cell], "w": int(choice[0]), "target": aim, "score": score}
+
+	# The quick score only sees direct hits. The best few candidates are played for real on
+	# a copy, so a shot into a barrel beside three machines, a shove into a pit or killing a
+	# bomber next to its friends is valued by what actually happens.
+	candidates.sort_custom(func(a: Array, b: Array) -> bool: return int(a[0]) > int(b[0]) or (int(a[0]) == int(b[0]) and int(a[1]) < int(b[1])))
+	for k: int in mini(REFINE, candidates.size()):
+		var c: Array = candidates[k]
+		var choice: Array = c[3]
+		var refined: int = int(c[4]) + _dry_value(state, u, c[2], int(choice[0]), choice[1], ctx)
+		if refined > best_score or (refined == best_score and int(c[1]) < best_tie):
+			best_score = refined
+			best_tie = int(c[1])
+			best_attack = refined - int(c[4])
+			best = {"dest": c[2], "path": options[c[2]], "w": int(choice[0]), "target": choice[1], "score": refined}
 
 	if best_attack >= SCORE_HIT / 2:
 		return best
@@ -104,10 +124,11 @@ static func _best_shot(state: CombatState, u: GridUnit, ctx: Dictionary) -> Arra
 		var hot: bool = u.team == GridUnit.TEAM_PLAYER and u.heat + int(weapon["heat"]) + u.heat_bonus >= u.heat_cap
 		var lob: bool = String(weapon["shape"]) == "lob"
 		for aim: Vector2i in CombatSim.aim_options(state, u, w):
-			if not lob and state.unit_at(aim.x, aim.y) == null:
+			var prop: bool = state.props.has(aim)
+			if not lob and not prop and state.unit_at(aim.x, aim.y) == null:
 				continue
 			var plan: Dictionary = CombatSim.strike_plan(state, u, w, aim)
-			if not bool(plan["legal"]) or (plan["hits"] as Array).is_empty():
+			if not bool(plan["legal"]) or ((plan["hits"] as Array).is_empty() and (plan["props"] as Array).is_empty()):
 				continue
 			var value: int = plan_value(state, u, weapon, plan, ctx) + (SCORE_OVERHEAT if hot else 0)
 			var tie: int = mix(state.setup.rng_seed, u.ref, w * 4096 + aim.y * 64 + aim.x, state.round_number)
@@ -145,6 +166,56 @@ static func plan_value(state: CombatState, u: GridUnit, weapon: Dictionary, plan
 			value += SCORE_DISRUPT
 	if any_foe:
 		value += SCORE_HIT
+	# A barrel in the line is worth a look: the dry run decides whether it is worth it.
+	for prop: Dictionary in (plan.get("props", []) as Array):
+		if String((state.props[prop["cell"]] as Dictionary)["kind"]) == "barrel":
+			value += 40
+	return value
+
+
+## The full consequence of `u` attacking from `cell`: the attack is executed on a copy and
+## every change is scored, both sides.
+static func _dry_value(state: CombatState, u: GridUnit, cell: Vector2i, w: int, target: Vector2i, ctx: Dictionary) -> int:
+	var before: CombatState = state.clone()
+	var me: GridUnit = before.unit(u.ref)
+	me.x = cell.x
+	me.y = cell.y
+	var after: CombatState = before.clone()
+	CombatSim._execute_attack(after, after.unit(u.ref), w, target)
+	var value: int = 0
+	var any_foe: bool = false
+	var intents: Dictionary = {}
+	if ctx.has("danger"):
+		for intent: Dictionary in state.intents:
+			intents[int(intent["ref"])] = true
+	for effect: Dictionary in CombatSim.diff(before, after):
+		if not effect.has("ref"):
+			continue
+		var t: GridUnit = before.unit(int(effect["ref"]))
+		if t == null:
+			continue
+		var lost: int = int(effect["hp_lost"])
+		if t.team == u.team:
+			value -= lost * 10
+			if bool(effect["killed"]):
+				value += SCORE_OWN_OBJECTIVE if t.objective else SCORE_FRIENDLY_FIRE
+			continue
+		if lost > 0 or bool(effect["killed"]):
+			any_foe = true
+		value += lost * 10
+		if bool(effect["killed"]):
+			value += SCORE_KILL + (SCORE_OBJECTIVE if t.objective else 0)
+		if bool(effect["fell"]):
+			value += SCORE_FELL
+		if intents.has(t.ref):
+			value += SCORE_DISRUPT
+	if any_foe:
+		value += SCORE_HIT
+	var weapon: Dictionary = u.weapons[w]
+	if bool(weapon["mark"]) and any_foe:
+		value += SCORE_MARK
+	if u.team == GridUnit.TEAM_PLAYER and u.heat + int(weapon["heat"]) + u.heat_bonus >= u.heat_cap:
+		value += SCORE_OVERHEAT
 	return value
 
 
@@ -157,6 +228,8 @@ static func _tile_value(state: CombatState, cell: Vector2i, steps: int, danger: 
 
 
 static func _preferred_distance(u: GridUnit) -> int:
+	if u.kind == "hive":
+		return 4
 	var want: int = 1
 	for w: int in u.weapons.size():
 		if not u.can_fire(w):

@@ -5,6 +5,11 @@ description of the rules: `sim/combat/combat_sim.gd` and `docs/iterations/005-he
 Sections below that still say "square", "line" or "Crawler" are history, kept for their
 reasoning; the table in *Weapons* and the sections marked (005) are current.
 
+(006) **Terrain acts**: fuel drums (chain explosions), crate walls (breakable), pits
+(shove or drag in = gone). **Abilities** from chassis and modules (charge, grapple,
+barricade, focus, dash, overdrive, flush, shield, magnet) with cooldowns. **Enemy kinds**:
+tracker, bomber, warden, hive. **Previews are dry runs** of the real rules on a copy.
+
 (005) The board is **pointy-top hexes** in odd-r offset. Aim is **free**: melee hits any of
 the 6 neighbours; shots target any hex in reach and travel the hex line, stopping at the
 first unit or scrap heap (piercing shots continue to full reach); lobs land on their hex

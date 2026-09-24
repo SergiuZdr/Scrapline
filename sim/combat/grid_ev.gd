@@ -28,6 +28,17 @@ const MARKED: int = 17       ## actor marked target
 const PART_TORN: int = 18    ## target lost its arm v1 (GridUnit.ARM_L / ARM_R) to actor
 const PILE_DROPPED: int = 19 ## a scrap pile worth v1 appeared at (x, y) (target = the unit that burst)
 const PILE_TAKEN: int = 20   ## actor collected the pile at (x, y) worth v1, patching v2 HP
+const PROP_HIT: int = 21     ## the prop at (x, y) took v1; v2 = its hp left (actor = who hit it)
+const PROP_BROKEN: int = 22  ## the prop at (x, y) broke; v1 = 0 crate, 1 barrel
+const EXPLOSION: int = 23    ## something exploded at (x, y) for v1 to every neighbour (actor = the cause)
+const FELL: int = 24         ## target fell into the pit at (x, y) and is gone
+const ABILITY: int = 25      ## actor used its ability v1 at (x, y)
+const PULLED: int = 26       ## actor dragged target to (x, y); v1/v2 = where it was
+const PROP_PLACED: int = 27  ## a prop appeared at (x, y); v1 = 0 crate, 1 barrel
+const SPAWN_MARKED: int = 28 ## hive actor will build a drone at (x, y) next round
+const SPAWNED: int = 29      ## a new unit (target) appeared at (x, y), built by actor
+const SPAWN_BLOCKED: int = 30 ## the spawn at (x, y) was blocked by whatever stands there
+const SHIELDED: int = 31     ## target takes v1 less from every hit until the player's next turn
 
 const F_KIND: int = 0
 const F_ACTOR: int = 1
@@ -41,6 +52,8 @@ const NAMES: PackedStringArray = [
 	"FIGHT_START", "ROUND_START", "STEP", "MOVED", "INTENT_SET", "ATTACK",
 	"DAMAGE", "DESTROYED", "MISSED", "TURN_END", "FIGHT_END", "SHOVED", "BUMP",
 	"HEAT", "OVERHEAT", "SEIZED", "VENTED", "MARKED", "PART_TORN", "PILE_DROPPED", "PILE_TAKEN",
+	"PROP_HIT", "PROP_BROKEN", "EXPLOSION", "FELL", "ABILITY", "PULLED", "PROP_PLACED",
+	"SPAWN_MARKED", "SPAWNED", "SPAWN_BLOCKED", "SHIELDED",
 ]
 
 

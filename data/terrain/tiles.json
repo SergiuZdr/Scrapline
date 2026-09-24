@@ -81,5 +81,44 @@
       "move_cost": 2,
       "range": 1
     }
+  },
+  {
+    "id": "pit",
+    "name": "Pit",
+    "glyph": "o",
+    "colour": "07080a",
+    "height": -0.3,
+    "blocks": false,
+    "text": "A drop into the dark. Nothing walks in; anything shoved in is gone.",
+    "grid": {
+      "move_cost": 1,
+      "pit": 1
+    }
+  },
+  {
+    "id": "barrel",
+    "name": "Fuel Drum",
+    "glyph": "b",
+    "colour": "1a1e26",
+    "height": 0.0,
+    "blocks": false,
+    "text": "Explodes when hit: 3 damage to everything next to it, and the next drum along.",
+    "grid": {
+      "move_cost": 1,
+      "prop": "barrel"
+    }
+  },
+  {
+    "id": "crate",
+    "name": "Crate Wall",
+    "glyph": "c",
+    "colour": "1a1e26",
+    "height": 0.0,
+    "blocks": false,
+    "text": "Stacked steel crates. Blocks movement and shots until broken (3 HP).",
+    "grid": {
+      "move_cost": 1,
+      "prop": "crate"
+    }
   }
 ]

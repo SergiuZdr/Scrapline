@@ -27,7 +27,8 @@
     "flavour": "Turns the seize into an overdrive. Runs hot to get there.",
     "grid": {
       "damage": 1,
-      "heat": 1
+      "heat": 1,
+      "ability": "overdrive"
     }
   },
   {
@@ -59,7 +60,8 @@
     "grid": {
       "damage": 1,
       "heat": 1,
-      "heat_cap": 1
+      "heat_cap": 1,
+      "ability": "overdrive"
     }
   },
   {
@@ -74,7 +76,8 @@
     "mesh": "res://art/parts/mo_servo.glb",
     "flavour": "Acts sooner and more often. Pays for it in cooling.",
     "grid": {
-      "move": 1
+      "move": 1,
+      "ability": "dash"
     }
   },
   {
@@ -88,7 +91,8 @@
     "mesh": "res://art/parts/mo_coolant.glb",
     "flavour": "Sheds heat faster than any frame can build it. Nothing else.",
     "grid": {
-      "vent": 2
+      "vent": 2,
+      "ability": "flush"
     }
   },
   {
@@ -103,7 +107,8 @@
     "mesh": "res://art/parts/mo_reactive.glb",
     "flavour": "Enormous protection bolted on at the cost of every bit of tempo.",
     "grid": {
-      "armor": 1
+      "armor": 1,
+      "ability": "shield"
     }
   },
   {
@@ -135,7 +140,8 @@
     "grid": {
       "damage": 1,
       "move": 1,
-      "heat": 1
+      "heat": 1,
+      "ability": "overdrive"
     }
   },
   {
@@ -150,7 +156,8 @@
     "mesh": "res://art/parts/mo_scavenger.glb",
     "flavour": "Welded-on plate off three different machines. Cheap, and it works.",
     "grid": {
-      "hp": 2
+      "hp": 2,
+      "ability": "magnet"
     }
   }
 ]

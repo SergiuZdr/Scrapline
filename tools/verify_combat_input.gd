@@ -103,7 +103,7 @@ func _run() -> void:
 		_click_tile(target_cell.x, target_cell.y)
 		await _settle()
 		state = _scene.get("_state")
-		_check("first tap on a target only aims", not state.unit(0).acted and (_scene.get("_pending") as Array).size() == 4)
+		_check("first tap on a target only aims", not state.unit(0).acted and not (_scene.get("_pending") as Dictionary).is_empty())
 		_click_tile(target_cell.x, target_cell.y)
 		await _settle()
 		state = _scene.get("_state")

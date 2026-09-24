@@ -1,0 +1,77 @@
+{
+  "_comment": "Active abilities granted by parts (a part's grid.ability names one of these). `free` abilities do not use the machine's action. `cooldown` is in rounds, counted from the round it was used.",
+  "charge": {
+    "name": "Charge",
+    "kind": "charge",
+    "cooldown": 3,
+    "free": false,
+    "range": 3,
+    "damage": 3,
+    "text": "Run up to 3 hexes in a straight line. Slam into the first thing in the way for 3 damage and shove it."
+  },
+  "grapple": {
+    "name": "Grapple",
+    "kind": "grapple",
+    "cooldown": 3,
+    "free": false,
+    "range": 3,
+    "text": "Hook a unit up to 3 hexes away in a straight line and drag it next to you. Dragged over a pit, it falls."
+  },
+  "barricade": {
+    "name": "Barricade",
+    "kind": "barricade",
+    "cooldown": 3,
+    "free": false,
+    "hp": 3,
+    "text": "Drop a crate wall on an empty neighbouring hex. It blocks movement and shots until broken (3 HP)."
+  },
+  "focus": {
+    "name": "Focus",
+    "kind": "boost",
+    "cooldown": 2,
+    "free": true,
+    "damage": 2,
+    "heat": 0,
+    "text": "Free. This machine's next attack this turn deals +2."
+  },
+  "dash": {
+    "name": "Dash",
+    "kind": "dash",
+    "cooldown": 2,
+    "free": true,
+    "range": 2,
+    "text": "Free. Move again, up to 2 hexes, even after attacking."
+  },
+  "overdrive": {
+    "name": "Overdrive",
+    "kind": "boost",
+    "cooldown": 3,
+    "free": true,
+    "damage": 2,
+    "heat": 2,
+    "text": "Free. Next attack this turn +2 damage, +2 heat."
+  },
+  "flush": {
+    "name": "Flush",
+    "kind": "flush",
+    "cooldown": 3,
+    "free": true,
+    "text": "Free. Dump all heat."
+  },
+  "shield": {
+    "name": "Shield",
+    "kind": "shield",
+    "cooldown": 3,
+    "free": false,
+    "armor": 2,
+    "text": "This machine and every ally next to it take 2 less from each hit until your next turn."
+  },
+  "magnet": {
+    "name": "Magnet",
+    "kind": "magnet",
+    "cooldown": 2,
+    "free": true,
+    "range": 2,
+    "text": "Free. Pull in a scrap pile up to 2 hexes away: its scrap and 2 HP, without moving."
+  }
+}

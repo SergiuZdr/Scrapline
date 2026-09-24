@@ -21,6 +21,11 @@ var outcome: int = ONGOING
 var intents: Array[Dictionary] = []
 ## Scrap piles on the board: `Vector2i -> scrap value`.
 var piles: Dictionary = {}
+## Objects: `Vector2i -> { "kind": "barrel"|"crate", "hp": int }`. They block movement and
+## shots, take damage, and a barrel explodes when it breaks.
+var props: Dictionary = {}
+## A hive's marked spawn hex: `hive ref -> Vector2i`.
+var spawn_marks: Dictionary = {}
 ## What the player has collected this fight.
 var piles_collected: int = 0
 var scrap_collected: int = 0
@@ -64,6 +69,15 @@ func range_bonus(x: int, y: int) -> int:
 
 func hazard(x: int, y: int) -> int:
 	return setup.hazard[y * width + x]
+
+
+func is_pit(c: Vector2i) -> bool:
+	return setup.pit[c.y * width + c.x] == 1
+
+
+## Anything that stops a shot or a walker on this hex that is not a unit: scrap or a prop.
+func solid(c: Vector2i) -> bool:
+	return tile_blocks(c.x, c.y) or props.has(c)
 
 
 func unit(ref: int) -> GridUnit:
@@ -123,6 +137,28 @@ func pile_cells() -> Array:
 	var cells: Array = piles.keys()
 	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
 	return cells
+
+
+## A copy to try something on: the dry-run preview executes a real attack or ability here
+## and reports what changed. Everything the rules touch is copied; the event log starts
+## empty so the preview reads only what it caused.
+func clone() -> CombatState:
+	var c := CombatState.new()
+	c.setup = setup
+	c.width = width
+	c.height = height
+	for u: GridUnit in units:
+		c.units.append(u.copy())
+	c.round_number = round_number
+	c.outcome = outcome
+	for intent: Dictionary in intents:
+		c.intents.append(intent.duplicate())
+	c.piles = piles.duplicate()
+	c.props = props.duplicate(true)
+	c.spawn_marks = spawn_marks.duplicate()
+	c.piles_collected = piles_collected
+	c.scrap_collected = scrap_collected
+	return c
 
 
 ## FNV-1a over the whole event stream. Two runs of the same fight with the same actions

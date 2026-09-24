@@ -2,6 +2,22 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [006] Fight depth — 2026-09-24 ([detail](iterations/006-fight-depth.md))
+
+Answers play-test 1: PT1-1 (the chore), with the user's picks.
+
+### Added
+- Terrain that acts: fuel drums (chain explosions), crate walls (breakable cover), pits (shove or drag in = gone).
+- Nine part abilities with cooldowns: charge, grapple, barricade, focus, dash, overdrive, flush, shield, magnet.
+- Four enemy kinds: tracker (locked shots), bomber (death blast), warden (shields neighbours), hive (builds drones; block the hex).
+- Dry-run previews: every attack and ability preview is the real rules run on a copy.
+- Tap any hex to learn what is on it.
+
+### Changed
+- Enemy AI re-scores its best candidates by dry run; uses barrels and pits.
+- Generated fights scatter terrain and roll enemy kinds by column.
+- `verify_combat.gd` 68 → 103.
+
 ## [005] Hex combat core — 2026-09-24 ([detail](iterations/005-hex-core.md))
 
 Answers play-test 1: PT1-2 (diagonals), PT1-3 (the Crawler), PT1-4 (death, wrecks), PT1-5 (lag).

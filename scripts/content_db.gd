@@ -28,6 +28,9 @@ var combat_rules: Dictionary = {}
 var fights: Dictionary = {}
 ## `data/run/run.json`: every number a run reads.
 var run_rules: Dictionary = {}
+## `data/combat/abilities.json` and `data/combat/enemy_kinds.json`.
+var combat_abilities: Dictionary = {}
+var enemy_kinds: Dictionary = {}
 var bosses: Dictionary = {}
 var balance: Balance = null
 
@@ -59,9 +62,18 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	if run_data is Dictionary:
 		db.run_rules = run_data as Dictionary
 
+	for pair: Array in [["abilities", "combat_abilities"], ["enemy_kinds", "enemy_kinds"]]:
+		var data: Variant = db._read_json("%s/combat/%s.json" % [root, pair[0]])
+		if data is Dictionary:
+			db.set(pair[1], data)
+
 	var rules_data: Variant = db._read_json("%s/combat/rules.json" % root)
 	if rules_data is Dictionary:
 		db.combat_rules = rules_data as Dictionary
+	# Abilities and enemy kinds travel inside the combat rules, so the sim reads them from
+	# the one dictionary it is already handed.
+	db.combat_rules["abilities"] = db.combat_abilities
+	db.combat_rules["enemy_kinds"] = db.enemy_kinds
 
 	# Sorted, so which file wins a duplicate id never depends on the filesystem.
 	var fight_files: PackedStringArray = DirAccess.get_files_at("%s/fights" % root)
@@ -107,6 +119,8 @@ func content_version() -> String:
 	hash_value = _hash_value(hash_value, combat_rules)
 	hash_value = _hash_value(hash_value, fights)
 	hash_value = _hash_value(hash_value, run_rules)
+	hash_value = _hash_value(hash_value, combat_abilities)
+	hash_value = _hash_value(hash_value, enemy_kinds)
 	hash_value = _hash_value(hash_value, balance.to_dict())
 	return "%08x" % hash_value
 

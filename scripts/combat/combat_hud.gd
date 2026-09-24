@@ -170,7 +170,8 @@ func set_weapons(weapons: Array, selected: int, vent: String) -> void:
 			_weapon_bar.add_child(plate)
 			continue
 		var button := Button.new()
-		button.custom_minimum_size = WEAPON_SIZE
+		button.custom_minimum_size = WEAPON_SIZE if not bool(info.get("ability", false)) else Vector2(200, WEAPON_SIZE.y)
+		button.tooltip_text = String(info["detail"])
 		button.focus_mode = Control.FOCUS_NONE
 		var style: StyleBoxFlat = UIKit.choice() if w == selected else UIKit.secondary()
 		if w == selected:
@@ -187,7 +188,10 @@ func set_weapons(weapons: Array, selected: int, vent: String) -> void:
 		button.add_child(box)
 		box.add_child(_label(String(info["name"]).to_upper(), UIKit.SIZE_BODY,
 			UIKit.AMBER if w == selected else UIKit.TEXT, UIKit.font_strong()))
-		box.add_child(_label(String(info["detail"]), UIKit.SIZE_LABEL, UIKit.TEXT_DIM))
+		var detail := _label(String(info["detail"]), UIKit.SIZE_LABEL, UIKit.TEXT_DIM)
+		detail.clip_text = true
+		detail.custom_minimum_size = Vector2(button.custom_minimum_size.x - UIKit.SPACE_LG * 2, 0)
+		box.add_child(detail)
 		_weapon_bar.add_child(button)
 	if not vent.is_empty():
 		var vent_button := _button("VENT", UIKit.secondary(), UIKit.BLUE, Vector2(130, WEAPON_SIZE.y))
