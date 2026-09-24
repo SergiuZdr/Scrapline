@@ -53,8 +53,7 @@ func _go() -> void:
 	_check("ENTER FIGHT opens the combat scene in run mode", combat != null and bool(combat.get("_run_mode")))
 	await _settle(combat)
 	var combat_state: CombatState = combat.get("_state")
-	var crawler: GridUnit = combat_state.crawler()
-	_check("the Crawler arrives with the run's HP", crawler != null and crawler.hp == state.crawler_hp)
+	_check("each machine arrives with its run HP", combat_state.unit(0).hp == int(state.crew[0]["hp"]))
 	var opening: Array = CombatBot.plan_unit(combat_state, 0, false)
 	if not opening.is_empty():
 		combat.call("_act", opening[0])

@@ -27,7 +27,7 @@ static func next_action(state: RunState, setup: RunSetup) -> Array:
 			for i: int in state.crew.size():
 				if not bool(state.crew[i]["alive"]) and state.scrap >= int((setup.rules["workshop"] as Dictionary)["rebuild_cost"]):
 					return [RunSim.REBUILD, i]
-			if state.crawler_hp < state.crawler_max and state.scrap >= int((setup.rules["workshop"] as Dictionary)["repair_cost"]):
+			if RunSim.needs_repair(state, setup) and state.scrap >= int((setup.rules["workshop"] as Dictionary)["repair_cost"]):
 				return [RunSim.REPAIR]
 			var refit: Array = _best_refit(state, setup)
 			return refit if not refit.is_empty() else [RunSim.LEAVE]
@@ -109,7 +109,13 @@ static func _choose_site(state: RunState, setup: RunSetup) -> int:
 	var options: Array[int] = RunSim.destinations(state)
 	var best: int = options[0] if not options.is_empty() else state.current
 	var best_score: int = -1000000
-	var hurt: bool = state.crawler_hp * 2 < state.crawler_max
+	var hp: int = 0
+	var full: int = 0
+	for member: Dictionary in state.crew:
+		if bool(member["alive"]):
+			hp += int(member["hp"])
+			full += RunSim.max_hp(setup, member)
+	var hurt: bool = hp * 2 < full
 	for id: int in options:
 		var s: Dictionary = state.site(id)
 		var score: int = int(s["col"]) * 12

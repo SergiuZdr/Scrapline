@@ -37,6 +37,14 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-24 | A run is one action list; a fight is reported as ITS action list, which the run replays | The save cannot disagree with the game, and a run cannot be told a false fight result |
 | 2026-09-24 | Enemy squads are generated from the parts pool by column and site type | Every run differs; authored rosters come with 005 |
 | 2026-09-24 | Gold marks rare salvage | The premium currency it was reserved for no longer exists |
+| 2026-09-24 | **PLAY-TEST 1 (see `docs/playtests/2026-09-24-playtest-1.md`)**: combat is a chore, the run has no build progression, jargon is unexplained, the map and refit screens are bad | The first human play. It overrides the bot's numbers |
+| 2026-09-24 | ~~The Crawler~~ → **REMOVED** (user) | Unclear what it was for; an escort is not a decision |
+| 2026-09-24 | **Hex grid** (user), with **free aim**: ranged weapons target any hex in range with line of sight; shots travel the hex line and pierce/stop along it; melee reaches all 6 neighbours | Square lines left targets unreachable (PT1-2). Hex alone still leaves off-axis tiles at range, so aim is free |
+| 2026-09-24 | **Run attrition = machine HP carries between fights** (proposed with the Crawler's removal); repaired at workshops and by scrap piles; the run ends when all three machines are wrecks | The Crawler was the run's health bar; something has to be |
+| 2026-09-24 | Destroyed machines become **scrap piles** (walkable), not blocking wrecks; either team can collect one (user's suggestion, PT1-4) | A wreck that blocks for no visible reason reads as a bug; a pile is a contested resource |
+| 2026-09-24 | Progression: **perks (relics), manufacturer sets, part upgrades, machine levels** — all four (user) | "Not a true roguelike" (PT1-6): a run must build toward something |
+| 2026-09-24 | Fight depth: **active part abilities, interactive terrain, distinct enemy types, fight objectives** — all four (user) | "A boring chore" (PT1-1) |
+| 2026-09-24 | Process: **every iteration that changes how the game plays ends with the user playing it** | Three iterations passed on bot numbers alone; the bot cannot measure fun or clarity |
 | 2026-09-24 | ADAPT code that does not compile once CUT code is gone goes to `legacy/` (ignored by Godot through `.gdignore`), not straight to deletion | It stays greppable as reference while its replacement is written; it is deleted once replaced |
 
 ## Lessons carried over from the old codebase
@@ -81,6 +89,11 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-24 | JSON has no integers. A saved action comes back with floats and is a different action unless every number is turned back into an int (`RunStore._ints`) |
 | 2026-09-24 | Bot route preferences change pacing a lot: preferring scrapyards gave about 1 fight a run. Tool biases show up as design numbers, so read run_bot results with the bot's policy in mind |
 
+| 2026-09-24 | A hex line must be drawn in integers (fixed-point cube lerp + a constant nudge + floor-correct rounding) or the sim is no longer deterministic |
+| 2026-09-24 | Free aim + tile-targeted intents make dodging free again: 005 bot runs won 100%. Objectives (defend) are the only pressure until enemy types and terrain arrive (006) |
+| 2026-09-24 | Spawn fight models from the SETUP when animating from event 0; the state after `start` already has the enemies' opening moves applied |
+| 2026-09-24 | Validate authored AND generated fights for overlapping starts: a clash does not crash, it just draws wrong |
+
 ## Open questions
 
 All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decisions above).
@@ -95,5 +108,5 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-24 | **How do intents create pressure when dodging is free?** (see 002 result) | Try in 003: area attacks (mortar splash, cone), a salvage objective the crew must hold, enemies whose shot follows the unit's dodge tile, and reinforcements that close escape routes. Judge by the bot's damage taken and by the user play-testing | **003: the Crawler + lob/pierce weapons. 600 random fights: bot wins 73.8%, and every loss is the Crawler. Awaiting the user's play-test** |
 | 2026-09-24 | Does the enemy damage share (22%) need to rise once HP carries across a run? | Re-measure in 004 with Crawler HP persisting | **004: runs are lost mostly to the Crawler (63 of 95 losses); pressure carries. Closed unless play-testing disagrees** |
 | 2026-09-24 | Act length: the bot wins 3.2 fights per act; the plan said 4–5 | The front's speed is the dial. Decide after the user plays | |
-| 2026-09-24 | The four 004 design calls (repair between fights, restored arms, front damage per move, generated squads) | Proposed; awaiting the user's veto | |
+| 2026-09-24 | The four 004 design calls (repair between fights, restored arms, front damage per move, generated squads) | Proposed; awaiting the user's veto | **Superseded by play-test 1**: the Crawler is gone and HP now carries; revisit the rest in 005 |
 | 2026-09-23 | Keep 3D or go 2D? | Keep 3D. The whole art pipeline exists, and a tilted camera suits a grid |agree with the propose |

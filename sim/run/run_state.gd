@@ -15,11 +15,10 @@ var moves: int = 0
 ## Columns at or below this are consumed by the Reclaimer.
 var front_col: int = -1
 
-var crawler_hp: int = 16
-var crawler_max: int = 16
 var scrap: int = 0
-## `{ "name", "parts": [chassis, core, arm_l, arm_r, module], "alive": bool }`.
-## "" is an empty socket. A wreck keeps only its chassis.
+## `{ "name", "parts": [chassis, core, arm_l, arm_r, module], "alive": bool, "hp": int }`.
+## "" is an empty socket. A wreck keeps only its chassis. HP carries from fight to fight:
+## it is the run's health, now that there is no Crawler.
 var crew: Array[Dictionary] = []
 var cargo: Array[String] = []
 
@@ -58,10 +57,10 @@ func alive_crew() -> int:
 func fingerprint() -> String:
 	var crew_text: PackedStringArray = []
 	for member: Dictionary in crew:
-		crew_text.append("%s:%s:%s" % [member["name"], ",".join(member["parts"]), member["alive"]])
+		crew_text.append("%s:%s:%s:%d" % [member["name"], ",".join(member["parts"]), member["alive"], int(member["hp"])])
 	var visited: PackedStringArray = []
 	for s: Dictionary in sites:
 		visited.append("1" if bool(s["visited"]) else "0")
-	return "cur=%d moves=%d front=%d hp=%d/%d scrap=%d crew=[%s] cargo=[%s] visited=%s pending=%s outcome=%d" % [
-		current, moves, front_col, crawler_hp, crawler_max, scrap, ";".join(crew_text),
+	return "cur=%d moves=%d front=%d scrap=%d crew=[%s] cargo=[%s] visited=%s pending=%s outcome=%d" % [
+		current, moves, front_col, scrap, ";".join(crew_text),
 		",".join(cargo), "".join(visited), str(pending.get("kind", "")), outcome]

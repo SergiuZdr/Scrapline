@@ -2,6 +2,26 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [005] Hex combat core — 2026-09-24 ([detail](iterations/005-hex-core.md))
+
+Answers play-test 1: PT1-2 (diagonals), PT1-3 (the Crawler), PT1-4 (death, wrecks), PT1-5 (lag).
+
+### Added
+- Hex board (odd-r offset, integer hex lines) with free aim and true line of sight.
+- Fight objectives: rout, defend (salvage caches), salvage (scrap piles), on an always-visible plate.
+- Scrap piles: destroyed machines burst into walkable piles worth scrap and 2 HP.
+- `tools/verify_combat.gd` rewritten for hexes (68 checks). `verify_run` sweeps 370 generated fights.
+
+### Changed
+- Machine HP carries through the run; workshops patch the crew; the front bites every machine.
+- Intents target a hex; shoving an enemy out of reach makes it miss (shown on the board).
+- Faster playback: one glide per move, shorter waits; a burst death instead of a topple.
+- `CombatSetup` rejects overlapping, off-board or on-scrap starts.
+
+### Removed
+- The Crawler.
+- Wrecks that block hexes.
+
 ## [004] The run loop — 2026-09-24 ([detail](iterations/004-run-loop.md))
 
 ### Added

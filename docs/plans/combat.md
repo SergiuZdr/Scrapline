@@ -1,11 +1,16 @@
 # Plan — Combat
 
-**Status:** built through 003 (2026-09-24). Everything below is implemented unless marked
-*later*. Numbers live in `data/parts/*.json` (`grid`), `data/terrain/tiles.json` (`grid`) and
-`data/combat/rules.json`.
+**Status:** rebuilt on hexes in 005 (2026-09-24) after play-test 1. **Authoritative
+description of the rules: `sim/combat/combat_sim.gd` and `docs/iterations/005-hex-core.md`**.
+Sections below that still say "square", "line" or "Crawler" are history, kept for their
+reasoning; the table in *Weapons* and the sections marked (005) are current.
 
-> **Pressure (002's open problem) is answered by the Crawler**: an immobile objective the
-> enemy targets, which the crew must shield, kill for, or shove for. See MEMORY.
+(005) The board is **pointy-top hexes** in odd-r offset. Aim is **free**: melee hits any of
+the 6 neighbours; shots target any hex in reach and travel the hex line, stopping at the
+first unit or scrap heap (piercing shots continue to full reach); lobs land on their hex
+over everything, splashing the 6 around it. **Intents target a hex.** Every fight has an
+**objective** (rout / defend caches / salvage piles). Destroyed machines become **scrap
+piles**. The Crawler is gone.
 
 ## Design goals
 
