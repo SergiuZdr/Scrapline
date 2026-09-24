@@ -96,8 +96,9 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 
 	var crawler_spec: Dictionary = fight.get("crawler", {})
 	if not crawler_spec.is_empty():
+		var crawler_max: int = int(crawler_spec.get("hp", rules.get("crawler_hp", 12)))
 		setup.units.append(_build_crawler(crawler_spec, (slot_lists[0] as Array).size(),
-			int(crawler_spec.get("hp", rules.get("crawler_hp", 12))), rules))
+			crawler_max, int(crawler_spec.get("hp_now", crawler_max)), rules))
 	return setup
 
 
@@ -117,6 +118,8 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 		errors.append("%s: needs 5 parts (chassis, core, arm_l, arm_r, module), has %d" % [u.name, u.part_ids.size()])
 		return u
 
+	# A rebuilt wreck arrives with only its chassis: the other four sockets may be "" until
+	# the player refits them from cargo, and each empty one simply contributes nothing.
 	var chassis: Dictionary = _part(parts, u.part_ids[0], "chassis", u.name, errors)
 	var core: Dictionary = _part(parts, u.part_ids[1], "core", u.name, errors)
 	var module: Dictionary = _part(parts, u.part_ids[4], "module", u.name, errors)
@@ -168,11 +171,14 @@ static func weapon_from(arm: Dictionary) -> Dictionary:
 		"chain": int(g.get("chain", 0)),
 		"mark": bool(g.get("mark", false)),
 		"tears": bool(g.get("tears", false)),
-		"torn": false,
+		# An empty socket is a weapon that was never there: it counts as torn, so every
+		# rule that skips a torn arm skips it too and nothing needs a second case.
+		"torn": arm.is_empty(),
+		"empty": arm.is_empty(),
 	}
 
 
-static func _build_crawler(spec: Dictionary, slot: int, hp: int, rules: Dictionary) -> GridUnit:
+static func _build_crawler(spec: Dictionary, slot: int, hp: int, hp_now: int, rules: Dictionary) -> GridUnit:
 	var u := GridUnit.new()
 	u.team = GridUnit.TEAM_PLAYER
 	u.slot = slot
@@ -182,7 +188,8 @@ static func _build_crawler(spec: Dictionary, slot: int, hp: int, rules: Dictiona
 	u.x = int(spec.get("x", 0))
 	u.y = int(spec.get("y", 0))
 	u.max_hp = hp
-	u.hp = hp
+	# The run's Crawler arrives with whatever the previous fights left it.
+	u.hp = clampi(hp_now, 1, hp)
 	u.move = 0
 	u.unshovable = true
 	var armor_types: Array = rules.get("armor_types", [])
@@ -192,6 +199,8 @@ static func _build_crawler(spec: Dictionary, slot: int, hp: int, rules: Dictiona
 
 static func _part(parts: Dictionary, id: String, what: String, owner: String,
 		errors: PackedStringArray) -> Dictionary:
+	if id.is_empty() and what != "chassis":
+		return {}
 	if not parts.has(id):
 		errors.append("%s: unknown %s '%s'" % [owner, what, id])
 		return {}
