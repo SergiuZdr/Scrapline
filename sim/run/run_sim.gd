@@ -14,7 +14,7 @@ extends RefCounted
 ##   [TRAVEL,  site_id]
 ##   [FIGHT,   combat_actions]           resolves a pending fight
 ##   [PICK,    index]                    reward / scrapyard; -1 = take nothing (or the scrap)
-##   [REPAIR]                            workshop: patch the Crawler
+##   [REPAIR]                            workshop: patch every machine
 ##   [REBUILD, crew_index]               workshop: rebuild a wreck
 ##   [LEAVE]                             leave the workshop
 ##   [REFIT,   crew_index, socket, cargo_index]   swap a socket with cargo; -1 = unfit into cargo
@@ -33,18 +33,18 @@ const FIGHT_TYPES: PackedStringArray = ["skirmish", "elite", "boss"]
 static func start(setup: RunSetup) -> RunState:
 	var state := RunState.new()
 	var rules: Dictionary = setup.rules
-	state.crawler_max = int((rules.get("crawler", {}) as Dictionary).get("max_hp", 16))
-	state.crawler_hp = state.crawler_max
 	state.scrap = int(rules.get("starting_scrap", 0))
 	for spec: Dictionary in (rules.get("starting_crew", []) as Array):
 		var parts: Array = []
 		for id: Variant in spec.get("parts", []):
 			parts.append(String(id))
-		state.crew.append({"name": String(spec.get("name", "")), "parts": parts, "alive": true})
+		var member: Dictionary = {"name": String(spec.get("name", "")), "parts": parts, "alive": true, "hp": 0}
+		member["hp"] = max_hp(setup, member)
+		state.crew.append(member)
 	_generate_region(state, setup)
 	state.current = 0
 	state.sites[0]["visited"] = true
-	state.log.append("The Crawler rolls into the yard. The Reclaimer is somewhere behind.")
+	state.log.append("The crew rolls into the yard. The Reclaimer is somewhere behind.")
 	return state
 
 
@@ -82,7 +82,7 @@ static func apply(state: RunState, setup: RunSetup, action: Array) -> bool:
 
 # --- Queries -----------------------------------------------------------------
 
-## Sites the Crawler can travel to right now.
+## Sites the crew can travel to right now.
 static func destinations(state: RunState) -> Array[int]:
 	var out: Array[int] = []
 	if not state.pending.is_empty() or state.outcome != RunState.ONGOING:
@@ -95,7 +95,7 @@ static func destinations(state: RunState) -> Array[int]:
 
 
 ## Whether the player knows what a site is. Fog lifts from every site next to one the
-## Crawler has visited.
+## crew has visited.
 static func revealed(state: RunState, id: int) -> bool:
 	var s: Dictionary = state.site(id)
 	if bool(s["visited"]) or String(s["type"]) == "boss":
@@ -114,6 +114,14 @@ static func fight_setup(state: RunState, setup: RunSetup) -> CombatSetup:
 		setup.wheel, IntentAI.mix(setup.rng_seed, state.current, 17, 0))
 
 
+## A machine's full HP: its chassis plus its module, the same sum `CombatSetup` makes.
+static func max_hp(setup: RunSetup, member: Dictionary) -> int:
+	var parts: Array = member["parts"]
+	var cg: Dictionary = (setup.parts.get(String(parts[0]), {}) as Dictionary).get("grid", {})
+	var mg: Dictionary = (setup.parts.get(String(parts[4]), {}) as Dictionary).get("grid", {})
+	return int(cg.get("hp", 8)) + int(mg.get("hp", 0))
+
+
 static func can_refit(state: RunState) -> bool:
 	return state.outcome == RunState.ONGOING and String(state.pending.get("kind", "")) != "fight"
 
@@ -124,14 +132,14 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 	if not destinations(state).has(to):
 		return false
 	var front: Dictionary = setup.rules.get("front", {})
-	# Lingering in consumed ground costs the Crawler, move by move.
+	# Lingering in consumed ground costs the whole crew, move by move. It wears machines
+	# down but never finishes one: the front pushes, it does not execute.
 	if state.consumed(state.current):
-		var bite: int = int(front.get("damage", 3))
-		state.crawler_hp = maxi(0, state.crawler_hp - bite)
-		state.log.append("The Reclaimer tears at the Crawler as it pulls out: -%d." % bite)
-		if state.crawler_hp == 0:
-			_end(state, RunState.LOST, "The Reclaimer caught the Crawler.")
-			return true
+		var bite: int = int(front.get("damage", 2))
+		for member: Dictionary in state.crew:
+			if bool(member["alive"]):
+				member["hp"] = maxi(1, int(member["hp"]) - bite)
+		state.log.append("The Reclaimer tears at the crew as it pulls out: -%d each." % bite)
 	state.current = to
 	state.moves += 1
 	if state.moves % maxi(1, int(front.get("every", 2))) == 0:
@@ -164,37 +172,45 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 	if result.outcome == CombatState.ONGOING:
 		return false   # a fight is only reported once it has ended
 	var kind: String = String(state.pending["site_type"])
-	var crawler: GridUnit = result.crawler()
-	state.crawler_hp = crawler.hp if crawler != null else state.crawler_hp
 
-	# Constructs are repaired between fights and torn arms are bolted back on. A construct
-	# DESTROYED in the fight is a wreck: it keeps its chassis and loses everything else.
+	# HP carries: each machine leaves with what the fight left it. Torn arms are bolted back
+	# on. A machine DESTROYED in the fight is a wreck: it keeps its chassis, nothing else.
 	var fielded: Array = _fielded_crew(state)
 	for slot: int in fielded.size():
 		var unit: GridUnit = result.unit(slot)
-		if unit != null and not unit.alive:
-			var member: Dictionary = state.crew[int(fielded[slot])]
+		var member: Dictionary = state.crew[int(fielded[slot])]
+		if unit == null:
+			continue
+		if unit.alive:
+			member["hp"] = unit.hp
+		else:
 			member["alive"] = false
+			member["hp"] = 0
 			member["parts"] = [String(member["parts"][0]), "", "", "", ""]
 			state.log.append("%s was wrecked. Its parts are gone." % member["name"])
+	# Scrap piles collected during the fight are banked whatever the outcome.
+	state.scrap += result.scrap_collected
 
-	if result.outcome == CombatState.LOST:
-		var reason: String = "The Crawler was destroyed." if crawler != null and not crawler.alive else "The crew was wiped out."
-		_end(state, RunState.LOST, reason)
-		return true
 	if state.alive_crew() == 0:
-		_end(state, RunState.LOST, "No working construct left to fight with.")
+		_end(state, RunState.LOST, "The whole crew is wrecked.")
+		return true
+	if result.outcome == CombatState.LOST:
+		# The objective failed but the crew lives: no salvage, and the road goes on.
+		state.pending = {}
+		state.log.append("Driven off. No salvage from this one.")
 		return true
 	state.fights_won += 1
 	if kind == "boss":
-		_end(state, RunState.WON, "Act 1 cleared: the Crawler is through the gate.")
+		_end(state, RunState.WON, "Act 1 cleared: the crew is through the gate.")
 		return true
 	var rewards: Dictionary = setup.rules.get("rewards", {})
 	var gained: int = int(rewards.get("elite_scrap" if kind == "elite" else "skirmish_scrap", 10))
+	gained += result.caches().size() * int(rewards.get("cache_scrap", 6))
 	state.scrap += gained
 	var min_rarity: int = int(rewards.get("elite_min_rarity", 2)) if kind == "elite" else 1
 	state.pending = {"kind": "reward", "options": _roll_parts(setup, _rng(setup, state.current, 5), min_rarity)}
-	state.log.append("Won. +%d scrap, and salvage to pick through." % gained)
+	state.log.append("Won. +%d scrap%s, and salvage to pick through." % [gained,
+		" (+%d from piles)" % result.scrap_collected if result.scrap_collected > 0 else ""])
 	return true
 
 
@@ -220,15 +236,25 @@ static func _pick(state: RunState, setup: RunSetup, index: int) -> bool:
 	return true
 
 
+## Patches every living machine by `repair_amount`, for one price.
 static func _repair(state: RunState, setup: RunSetup) -> bool:
 	var shop: Dictionary = setup.rules.get("workshop", {})
 	var cost: int = int(shop.get("repair_cost", 8))
-	if String(state.pending.get("kind", "")) != "workshop" or state.scrap < cost or state.crawler_hp >= state.crawler_max:
+	if String(state.pending.get("kind", "")) != "workshop" or state.scrap < cost or not needs_repair(state, setup):
 		return false
 	state.scrap -= cost
-	state.crawler_hp = mini(state.crawler_max, state.crawler_hp + int(shop.get("repair_amount", 4)))
-	state.log.append("Patched the Crawler: %d/%d." % [state.crawler_hp, state.crawler_max])
+	for member: Dictionary in state.crew:
+		if bool(member["alive"]):
+			member["hp"] = mini(max_hp(setup, member), int(member["hp"]) + int(shop.get("repair_amount", 3)))
+	state.log.append("Patched the crew.")
 	return true
+
+
+static func needs_repair(state: RunState, setup: RunSetup) -> bool:
+	for member: Dictionary in state.crew:
+		if bool(member["alive"]) and int(member["hp"]) < max_hp(setup, member):
+			return true
+	return false
 
 
 static func _rebuild(state: RunState, setup: RunSetup, index: int) -> bool:
@@ -240,7 +266,8 @@ static func _rebuild(state: RunState, setup: RunSetup, index: int) -> bool:
 		return false
 	state.scrap -= cost
 	member["alive"] = true
-	state.log.append("Rebuilt %s on its old frame. Its sockets are empty." % member["name"])
+	member["hp"] = maxi(1, max_hp(setup, member) / 2)
+	state.log.append("Rebuilt %s on its old frame at half strength. Its sockets are empty." % member["name"])
 	return true
 
 
@@ -258,6 +285,7 @@ static func _refit(state: RunState, setup: RunSetup, index: int, socket: int, ca
 			return false
 		parts[socket] = ""
 		state.cargo.append(old)
+		_clamp_hp(setup, member)
 		return true
 	if cargo_index < 0 or cargo_index >= state.cargo.size():
 		return false
@@ -269,7 +297,13 @@ static func _refit(state: RunState, setup: RunSetup, index: int, socket: int, ca
 		state.cargo.remove_at(cargo_index)
 	else:
 		state.cargo[cargo_index] = old
+	_clamp_hp(setup, member)
 	return true
+
+
+## A refit can lower a machine's full HP (a lighter chassis, losing an HP module).
+static func _clamp_hp(setup: RunSetup, member: Dictionary) -> void:
+	member["hp"] = mini(int(member["hp"]), max_hp(setup, member))
 
 
 static func _end(state: RunState, outcome: int, reason: String) -> void:
@@ -424,10 +458,7 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 
 	var fight: Dictionary = {"id": "run_site_%d" % site_id, "name": String(template.get("name", "")),
 		"rows": template["rows"]}
-	var crawler: Dictionary = (template.get("crawler", {"x": 3, "y": 7}) as Dictionary).duplicate()
-	crawler["hp"] = state.crawler_max
-	crawler["hp_now"] = state.crawler_hp
-	fight["crawler"] = crawler
+	fight["objective"] = _roll_objective(setup, rng, template, kind)
 
 	var player: Array = []
 	var slots: Array = template.get("player", [])
@@ -435,7 +466,7 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 	for i: int in mini(fielded.size(), slots.size()):
 		var member: Dictionary = state.crew[int(fielded[i])]
 		player.append({"name": String(member["name"]), "parts": (member["parts"] as Array).duplicate(),
-			"x": int(slots[i]["x"]), "y": int(slots[i]["y"])})
+			"x": int(slots[i]["x"]), "y": int(slots[i]["y"]), "hp_now": int(member["hp"])})
 	fight["player"] = player
 
 	var positions: Array = _enemy_positions(template, count)
@@ -453,6 +484,60 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 		enemy.append(spec)
 	fight["enemy"] = enemy
 	return fight
+
+
+## What this fight asks for. A boss is always a rout. Otherwise rolled by weight; a defend
+## fight puts caches in the player's half, a salvage fight scatters piles in the middle.
+static func _roll_objective(setup: RunSetup, rng: SimRNG, template: Dictionary, kind: String) -> Dictionary:
+	if kind == "boss":
+		return {"type": "rout"}
+	var weights: Dictionary = setup.rules.get("objective_weights", {"rout": 1})
+	var kinds: Array = weights.keys()
+	kinds.sort()
+	var total: int = 0
+	for k: Variant in kinds:
+		total += int(weights[k])
+	var roll: int = rng.range_int(1, maxi(1, total))
+	var chosen: String = "rout"
+	for k: Variant in kinds:
+		roll -= int(weights[k])
+		if roll <= 0:
+			chosen = String(k)
+			break
+	var o: Dictionary = setup.rules.get("objectives", {})
+	var rows: Array = template["rows"]
+	var taken: Array = []
+	for spec: Dictionary in (template.get("player", []) as Array) + (template.get("enemy", []) as Array):
+		taken.append(Vector2i(int(spec["x"]), int(spec["y"])))
+	match chosen:
+		"defend":
+			var caches: Array = []
+			for cell: Vector2i in _free_cells(rng, rows, taken, [rows.size() - 1, rows.size() - 2], int(o.get("defend_caches", 2))):
+				caches.append({"x": cell.x, "y": cell.y})
+				taken.append(cell)
+			return {"type": "defend", "rounds": int(o.get("defend_rounds", 4)), "caches": caches}
+		"salvage":
+			var piles: Array = []
+			for cell: Vector2i in _free_cells(rng, rows, taken, [2, 3, 4, 5], int(o.get("salvage_piles", 4))):
+				piles.append({"x": cell.x, "y": cell.y})
+				taken.append(cell)
+			return {"type": "salvage", "need": mini(int(o.get("salvage_need", 3)), piles.size()), "piles": piles}
+	return {"type": "rout"}
+
+
+## `count` open cells from the given rows, chosen by the RNG from a sorted candidate list.
+static func _free_cells(rng: SimRNG, rows: Array, taken: Array, row_ids: Array, count: int) -> Array:
+	var candidates: Array = []
+	for y: Variant in row_ids:
+		var row: String = String(rows[int(y)])
+		for x: int in row.length():
+			var cell := Vector2i(x, int(y))
+			if row[x] == "." and not taken.has(cell):
+				candidates.append(cell)
+	var out: Array = []
+	while out.size() < count and not candidates.is_empty():
+		out.append(candidates.pop_at(rng.range_int(0, candidates.size() - 1)))
+	return out
 
 
 ## The template's enemy positions, then free cells from the top rows if more are needed.

@@ -6,13 +6,34 @@
   "bump_damage": 1,
   "mark_bonus": 2,
   "base_vent": 1,
-  "crawler_hp": 10,
   "roles": {
-    "brawler":  { "melee_damage": 1 },
-    "line":     { "move_after_attack": true },
-    "marksman": { "line_range": 1 },
-    "anchor":   { "unshovable": true }
+    "brawler": {
+      "melee_damage": 1
+    },
+    "line": {
+      "move_after_attack": true
+    },
+    "marksman": {
+      "line_range": 1
+    },
+    "anchor": {
+      "unshovable": true
+    }
   },
-  "damage_types": ["kinetic", "thermal", "emp", "corrosive"],
-  "armor_types": ["plate", "composite", "reactive", "shielded"]
+  "damage_types": [
+    "kinetic",
+    "thermal",
+    "emp",
+    "corrosive"
+  ],
+  "armor_types": [
+    "plate",
+    "composite",
+    "reactive",
+    "shielded"
+  ],
+  "pile_value": 4,
+  "pile_heal": 2,
+  "cache_hp": 5,
+  "_objectives": "rout: destroy every enemy. defend: caches (immobile) on the board; survive `rounds` rounds or rout; every cache left pays out. salvage: piles on the board; collect `need` of them or rout. A destroyed machine always bursts into a scrap pile."
 }

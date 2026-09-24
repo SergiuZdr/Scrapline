@@ -32,7 +32,7 @@
     "range": 780,
     "weapon_class": "lance",
     "grid": {
-      "shape": "line",
+      "shape": "shot",
       "range": 3,
       "damage": 3,
       "heat": 1,
@@ -52,7 +52,7 @@
     "range": 620,
     "weapon_class": "scanner",
     "grid": {
-      "shape": "line",
+      "shape": "shot",
       "range": 5,
       "damage": 1,
       "heat": 0,
@@ -92,7 +92,7 @@
     "range": 430,
     "weapon_class": "coil",
     "grid": {
-      "shape": "line",
+      "shape": "shot",
       "range": 3,
       "damage": 2,
       "heat": 1,
@@ -150,7 +150,7 @@
     "flavour": "Close-mid. Loud, imprecise, and it puts things on the back foot.",
     "weapon_class": "scattergun",
     "grid": {
-      "shape": "line",
+      "shape": "shot",
       "range": 2,
       "damage": 3,
       "heat": 1,
@@ -191,7 +191,7 @@
     "flavour": "Reaches the far baseline. Needs a ridge and time you may not have.",
     "weapon_class": "railgun",
     "grid": {
-      "shape": "line",
+      "shape": "shot",
       "range": 6,
       "damage": 3,
       "heat": 2,

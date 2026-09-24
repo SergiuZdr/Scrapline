@@ -33,7 +33,9 @@ func _initialize() -> void:
 		while state.outcome == RunState.ONGOING and guard < 400:
 			var action: Array = RunBot.next_action(state, setup)
 			var was_boss: bool = String(state.pending.get("site_type", "")) == "boss"
-			var hp_before: int = state.crawler_hp
+			var hp_before: int = 0
+			for member: Dictionary in state.crew:
+				hp_before += int(member["hp"])
 			if not RunSim.apply(state, setup, action):
 				errors += 1
 				print("  run %d: illegal bot action %s (pending %s)" % [r, str(action).left(80), state.pending.get("kind", "")])
@@ -55,7 +57,7 @@ func _initialize() -> void:
 	print("=== %d bot runs (%.1fs) ===" % [runs, (Time.get_ticks_msec() - start_ms) / 1000.0])
 	print("  won %d (%.1f%%)   illegal actions %d" % [won, 100.0 * won / maxf(1.0, runs), errors])
 	print("  per run: %.1f moves, %.1f fights won" % [float(moves) / runs, float(fights) / runs])
-	print("  reached the boss: %d, Crawler HP going in: %.1f avg" % [reached_boss, float(boss_hp) / maxf(1.0, reached_boss)])
+	print("  reached the boss: %d, crew HP going in: %.1f avg (total of the three)" % [reached_boss, float(boss_hp) / maxf(1.0, reached_boss)])
 	print("  losses by cause:")
 	for reason: Variant in reasons:
 		print("    %3d  %s" % [reasons[reason], reason])

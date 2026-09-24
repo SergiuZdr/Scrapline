@@ -29,6 +29,13 @@ var min_damage: int = 1
 var tear_threshold: int = 5
 var bump_damage: int = 1
 var mark_bonus: int = 2
+## A destroyed machine's scrap pile: what it is worth, and what collecting it patches.
+var pile_value: int = 4
+var pile_heal: int = 2
+## `{ "type": "rout"|"defend"|"salvage", "rounds": int, "need": int }` -- see CombatSim.
+var objective: Dictionary = {"type": "rout"}
+## Scrap piles on the board at the start: `[{ "x", "y", "value" }]`.
+var start_piles: Array = []
 ## Percent effectiveness, `[damage_type][armor_type]`.
 var wheel: Array = []
 var units: Array[GridUnit] = []
@@ -48,7 +55,15 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 	setup.tear_threshold = int(rules.get("tear_threshold", 5))
 	setup.bump_damage = int(rules.get("bump_damage", 1))
 	setup.mark_bonus = int(rules.get("mark_bonus", 2))
+	setup.pile_value = int(rules.get("pile_value", 4))
+	setup.pile_heal = int(rules.get("pile_heal", 2))
 	setup.wheel = wheel
+	var objective: Dictionary = fight.get("objective", {"type": "rout"})
+	setup.objective = {"type": String(objective.get("type", "rout")),
+		"rounds": int(objective.get("rounds", 0)), "need": int(objective.get("need", 0))}
+	for pile: Dictionary in (objective.get("piles", []) as Array):
+		setup.start_piles.append({"x": int(pile["x"]), "y": int(pile["y"]),
+			"value": int(pile.get("value", setup.pile_value))})
 
 	var glyph_to_tile: Dictionary = {}
 	for index: int in tile_defs.size():
@@ -94,11 +109,25 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 			setup.units.append(_build_unit(specs[slot], team, slot, parts, roles,
 				damage_types, armor_types, setup.errors))
 
-	var crawler_spec: Dictionary = fight.get("crawler", {})
-	if not crawler_spec.is_empty():
-		var crawler_max: int = int(crawler_spec.get("hp", rules.get("crawler_hp", 12)))
-		setup.units.append(_build_crawler(crawler_spec, (slot_lists[0] as Array).size(),
-			crawler_max, int(crawler_spec.get("hp_now", crawler_max)), rules))
+	# Salvage caches (the defend objective): immobile, unarmed, on the player's side. They
+	# take refs after the crew, so the crew's refs are always 0..2.
+	var caches: Array = objective.get("caches", [])
+	for i: int in caches.size():
+		setup.units.append(_build_cache(caches[i], (slot_lists[0] as Array).size() + i,
+			int((caches[i] as Dictionary).get("hp", rules.get("cache_hp", 5))), rules))
+
+	# Two things on one hex is a broken fight file, not a rule: say so instead of letting a
+	# cache and a machine share a hex and draw two health tags on top of each other.
+	var seen: Dictionary = {}
+	for u: GridUnit in setup.units:
+		var cell := Vector2i(u.x, u.y)
+		if seen.has(cell):
+			setup.errors.append("%s and %s both start on (%d,%d)" % [seen[cell], u.name, cell.x, cell.y])
+		seen[cell] = u.name
+		if setup.width > 0 and (cell.x < 0 or cell.y < 0 or cell.x >= setup.width or cell.y >= setup.height):
+			setup.errors.append("%s starts off the board at (%d,%d)" % [u.name, cell.x, cell.y])
+		elif setup.width > 0 and setup.blocks[cell.y * setup.width + cell.x] == 1:
+			setup.errors.append("%s starts on a blocking hex at (%d,%d)" % [u.name, cell.x, cell.y])
 	return setup
 
 
@@ -129,7 +158,8 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 
 	u.role = String(chassis.get("role", "line"))
 	u.max_hp = int(spec.get("hp", int(cg.get("hp", 8)) + int(mg.get("hp", 0))))
-	u.hp = u.max_hp
+	# A run's machine arrives with whatever the last fight left it.
+	u.hp = clampi(int(spec.get("hp_now", u.max_hp)), 1, u.max_hp)
 	u.move = int(cg.get("move", 3)) + int(mg.get("move", 0))
 	u.heat_cap = int(cg.get("heat_cap", 6)) + int(mg.get("heat_cap", 0))
 	u.armor = int(mg.get("armor", 0))
@@ -178,18 +208,17 @@ static func weapon_from(arm: Dictionary) -> Dictionary:
 	}
 
 
-static func _build_crawler(spec: Dictionary, slot: int, hp: int, hp_now: int, rules: Dictionary) -> GridUnit:
+static func _build_cache(spec: Dictionary, slot: int, hp: int, rules: Dictionary) -> GridUnit:
 	var u := GridUnit.new()
 	u.team = GridUnit.TEAM_PLAYER
 	u.slot = slot
 	u.ref = slot
-	u.name = "Crawler"
+	u.name = "Cache"
 	u.objective = true
 	u.x = int(spec.get("x", 0))
 	u.y = int(spec.get("y", 0))
 	u.max_hp = hp
-	# The run's Crawler arrives with whatever the previous fights left it.
-	u.hp = clampi(hp_now, 1, hp)
+	u.hp = hp
 	u.move = 0
 	u.unshovable = true
 	var armor_types: Array = rules.get("armor_types", [])

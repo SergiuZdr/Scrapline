@@ -86,10 +86,16 @@ func _build_top_bar() -> void:
 
 func _refresh() -> void:
 	var state: RunState = Run.state
-	_top_hp_label.text = "CRAWLER  %d / %d" % [state.crawler_hp, state.crawler_max]
-	_top_hp.max_value = state.crawler_max
-	_top_hp.value = state.crawler_hp
-	_top_hp.add_theme_stylebox_override("fill", UIKit.plain(UIKit.RED if state.crawler_hp * 3 <= state.crawler_max else UIKit.GREEN, 2))
+	var hp: int = 0
+	var full: int = 0
+	for member: Dictionary in state.crew:
+		if bool(member["alive"]):
+			hp += int(member["hp"])
+			full += RunSim.max_hp(Run.setup, member)
+	_top_hp_label.text = "CREW HP  %d / %d" % [hp, full]
+	_top_hp.max_value = maxi(1, full)
+	_top_hp.value = hp
+	_top_hp.add_theme_stylebox_override("fill", UIKit.plain(UIKit.RED if hp * 3 <= full else UIKit.GREEN, 2))
 	_top_scrap.text = "SCRAP %d" % state.scrap
 	_build_site_buttons()
 	_map.queue_redraw()
@@ -189,8 +195,8 @@ func _build_side() -> void:
 		var box := VBoxContainer.new()
 		card.add_child(box)
 		var alive: bool = bool(member["alive"])
-		box.add_child(_label(String(member["name"]) + ("" if alive else "  ·  WRECK"), UIKit.SIZE_HEADING,
-			UIKit.TEXT if alive else UIKit.RED, UIKit.font_strong()))
+		box.add_child(_label(String(member["name"]) + (("  ·  %d / %d HP" % [int(member["hp"]), RunSim.max_hp(Run.setup, member)])
+			if alive else "  ·  WRECK"), UIKit.SIZE_HEADING, UIKit.TEXT if alive else UIKit.RED, UIKit.font_strong()))
 		var parts: Array = member["parts"]
 		box.add_child(_label("%s  ·  %s" % [PartText.name_of(Run.db.parts, parts[2]), PartText.name_of(Run.db.parts, parts[3])],
 			UIKit.SIZE_BODY, UIKit.TEXT_DIM))
@@ -211,7 +217,7 @@ func _build_side() -> void:
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_side.add_child(line)
 	if RunSim.destinations(state).size() > 0:
-		var hint := _label("Tap a blue-ringed site to move there. The Reclaimer advances every %d moves; lingering in its path damages the Crawler." % int((Run.setup.rules["front"] as Dictionary)["every"]),
+		var hint := _label("Tap a blue-ringed site to move there. The Reclaimer advances every %d moves; moving out of ground it has taken damages every machine." % int((Run.setup.rules["front"] as Dictionary)["every"]),
 			UIKit.SIZE_LABEL, UIKit.TEXT_FAINT)
 		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_side.add_child(hint)
@@ -280,9 +286,16 @@ func _fight_panel() -> void:
 	var enemies: PackedStringArray = []
 	for spec: Dictionary in (fight["enemy"] as Array):
 		enemies.append(String(spec["name"]))
+	var objective: Dictionary = fight.get("objective", {"type": "rout"})
+	var goals: Dictionary = {
+		"rout": "ROUT: destroy every enemy.",
+		"defend": "DEFEND: keep the salvage caches standing for %d rounds (or destroy every enemy). Each cache you save pays out scrap." % int(objective.get("rounds", 0)),
+		"salvage": "SALVAGE: collect %d scrap piles before the enemy carries them off (or destroy every enemy)." % int(objective.get("need", 0)),
+	}
 	var box := _modal(String(titles.get(kind, "FIGHT")),
-		"%s.  %d enemies: %s.\nThe Crawler goes in at %d / %d HP. Lose it and the run is over." % [
-			String(fight.get("name", "")), enemies.size(), ", ".join(enemies), state.crawler_hp, state.crawler_max], 900)
+		"%s\n\n%s.  %d enemies: %s.\nDamage your machines take here stays with them after the fight." % [
+			String(goals.get(String(objective.get("type", "rout")), "")), String(fight.get("name", "")),
+			enemies.size(), ", ".join(enemies)], 900)
 	if Run.fight_actions.size() > 0:
 		box.add_child(_label("This fight is in progress. It resumes where you left it.", UIKit.SIZE_BODY, UIKit.GOLD))
 	var row := _row(box)
@@ -317,15 +330,15 @@ func _workshop_panel() -> void:
 	var shop: Dictionary = Run.setup.rules.get("workshop", {})
 	var box := _modal("WORKSHOP", "Scrap buys repairs here. You have %d." % state.scrap, 900)
 	var cost: int = int(shop["repair_cost"])
-	if state.crawler_hp < state.crawler_max:
+	if RunSim.needs_repair(state, Run.setup):
 		if state.scrap >= cost:
-			var repair := _button("PATCH THE CRAWLER  +%d HP  ·  %d SCRAP" % [int(shop["repair_amount"]), cost], UIKit.choice(), UIKit.TEXT, Vector2(560, 60))
+			var repair := _button("PATCH THE CREW  +%d HP EACH  ·  %d SCRAP" % [int(shop["repair_amount"]), cost], UIKit.choice(), UIKit.TEXT, Vector2(600, 60))
 			repair.pressed.connect(func() -> void: _apply([RunSim.REPAIR]))
 			box.add_child(repair)
 		else:
-			box.add_child(_label("Patching the Crawler costs %d scrap." % cost, UIKit.SIZE_BODY, UIKit.RED))
+			box.add_child(_label("Patching the crew costs %d scrap." % cost, UIKit.SIZE_BODY, UIKit.RED))
 	else:
-		box.add_child(_label("The Crawler is in one piece.", UIKit.SIZE_BODY, UIKit.GREEN))
+		box.add_child(_label("Every machine is in one piece.", UIKit.SIZE_BODY, UIKit.GREEN))
 	for i: int in state.crew.size():
 		var member: Dictionary = state.crew[i]
 		if bool(member["alive"]):
@@ -398,8 +411,8 @@ func _run_over() -> void:
 	var state: RunState = Run.state
 	var won: bool = state.outcome == RunState.WON
 	var box := _modal("ACT 1 CLEARED" if won else "RUN OVER",
-		"%s\n\n%d fights won  ·  %d moves  ·  Crawler %d / %d" % [state.end_reason, state.fights_won,
-			state.moves, state.crawler_hp, state.crawler_max], 900)
+		"%s\n\n%d fights won  ·  %d moves  ·  %d scrap" % [state.end_reason, state.fights_won,
+			state.moves, state.scrap], 900)
 	var row := _row(box)
 	var title := _button("TITLE", UIKit.secondary(), UIKit.TEXT, Vector2(200, 64))
 	title.pressed.connect(func() -> void:

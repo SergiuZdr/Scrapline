@@ -26,9 +26,8 @@ const PANEL_WIDTH: int = 360
 var _banner: Label
 var _cards: Dictionary = {}
 var _card_column: VBoxContainer
-var _crawler_plate: PanelContainer
-var _crawler_bar: ProgressBar
-var _crawler_label: Label
+var _objective_plate: PanelContainer
+var _objective_label: Label
 var _weapon_bar: HBoxContainer
 var _weapon_row: CenterContainer
 var _info_title: Label
@@ -63,7 +62,7 @@ func _ready() -> void:
 	_card_column.position = Vector2(UIKit.SPACE_XL, 96)
 	_card_column.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	add_child(_card_column)
-	_build_crawler_plate()
+	_build_objective_plate()
 
 	# The selected construct's arms, as buttons: what it can DO comes from what is bolted
 	# onto it, so the choice of attack is a choice of part.
@@ -144,15 +143,11 @@ func set_crew(cards: Array) -> void:
 		_fill_card(_cards[ref], card)
 
 
-## The Crawler is not a construct the player commands, so it is a plate, not a card:
-## a button that never does anything would be a label pretending to be a control.
-func set_crawler(hp: int, max_hp: int) -> void:
-	_crawler_plate.visible = max_hp > 0
-	_crawler_bar.max_value = max_hp
-	_crawler_bar.value = hp
-	_crawler_label.text = "CRAWLER   %d / %d" % [hp, max_hp]
-	var low: bool = hp * 3 <= max_hp
-	_crawler_bar.add_theme_stylebox_override("fill", UIKit.plain(UIKit.RED if low else UIKit.GREEN, 2))
+## What this fight asks for, always on screen: the play-test found a goal nobody explains
+## is not a goal. `text` comes from `CombatSim.objective_status`.
+func set_objective(text: String, urgent: bool) -> void:
+	_objective_label.text = text
+	_objective_label.add_theme_color_override("font_color", UIKit.RED if urgent else UIKit.AMBER)
 
 
 ## `weapons`: `{ "name", "detail", "available", "reason" }` per arm, in arm order.
@@ -328,24 +323,20 @@ func _chip(label: Label, available: bool) -> void:
 	label.add_theme_color_override("font_color", UIKit.GREEN if available else UIKit.TEXT_FAINT)
 
 
-func _build_crawler_plate() -> void:
-	_crawler_plate = PanelContainer.new()
-	_crawler_plate.custom_minimum_size = Vector2(CARD_SIZE.x, 0)
-	_crawler_plate.add_theme_stylebox_override("panel", UIKit.inset(UIKit.SURFACE, UIKit.RADIUS_CARD, UIKit.SPACE_LG, UIKit.SPACE_SM))
-	_crawler_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_card_column.add_child(_crawler_plate)
+func _build_objective_plate() -> void:
+	_objective_plate = PanelContainer.new()
+	_objective_plate.custom_minimum_size = Vector2(CARD_SIZE.x, 0)
+	_objective_plate.add_theme_stylebox_override("panel", UIKit.inset(UIKit.SURFACE, UIKit.RADIUS_CARD, UIKit.SPACE_LG, UIKit.SPACE_SM))
+	_objective_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card_column.add_child(_objective_plate)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", UIKit.SPACE_XS)
-	_crawler_plate.add_child(box)
-	_crawler_label = _label("", UIKit.SIZE_LABEL, UIKit.TEXT, UIKit.font_strong())
-	box.add_child(_crawler_label)
-	_crawler_bar = ProgressBar.new()
-	_crawler_bar.show_percentage = false
-	_crawler_bar.custom_minimum_size = Vector2(0, 10)
-	_crawler_bar.add_theme_stylebox_override("background", UIKit.plain(UIKit.SURFACE_SUNK, 2))
-	_crawler_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(_crawler_bar)
-	box.add_child(_label("Lose it and the fight is lost", UIKit.SIZE_MICRO, UIKit.TEXT_FAINT))
+	_objective_plate.add_child(box)
+	box.add_child(_label("OBJECTIVE", UIKit.SIZE_MICRO, UIKit.TEXT_FAINT, UIKit.font_strong()))
+	_objective_label = _label("", UIKit.SIZE_LABEL, UIKit.AMBER, UIKit.font_strong())
+	_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_objective_label.custom_minimum_size = Vector2(CARD_SIZE.x - UIKit.SPACE_LG * 2, 0)
+	box.add_child(_objective_label)
 
 
 func _build_result() -> void:
