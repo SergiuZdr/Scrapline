@@ -29,7 +29,9 @@ const COL_SPAWN := Color(0.62, 0.36, 0.86, 0.55)
 const COL_PAD := Color("a070e0")
 const COL_PAD_DANGER := Color("ff3b30")
 const COL_THREAT := Color(0.86, 0.30, 0.20, 0.50)
-const COL_CACHE := Color("e5b33d")
+## A defend cache is YOURS to protect, so it wears your colour (docs/plans/art-and-audio.md:
+## amber means "your action", and a cache is not one).
+const COL_CACHE := Color("4fa8d8")
 ## Damage-type colours for impacts, indexed like the rules' `damage_types`.
 const DAMAGE_COLOURS: Array[Color] = [Color("ffcf9a"), Color("ff7a3c"), Color("7fd4ff"), Color("b5e05a")]
 
