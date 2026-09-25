@@ -19,6 +19,7 @@ const SCORE_KILL: int = 60
 const SCORE_OBJECTIVE: int = 90
 ## Ending a move on a scrap pile: grabbing it denies the player (and heals). On a salvage
 ## fight it is the whole point.
+const SCORE_PAD: int = -40
 const SCORE_PILE: int = 14
 const SCORE_PILE_SALVAGE: int = 70
 const SCORE_MARK: int = 25
@@ -224,6 +225,9 @@ static func _tile_value(state: CombatState, cell: Vector2i, steps: int, danger: 
 		+ SCORE_DANGER * int(danger.get(cell, 0)) + int(shield.get(cell, 0))
 	if state.piles.has(cell):
 		value += SCORE_PILE_SALVAGE if String(state.objective().get("type", "")) == "salvage" else SCORE_PILE
+	# Never park on a hive's pad: it would block the enemy's own drone.
+	if state.spawn_marks.values().has(cell):
+		value += SCORE_PAD
 	return value
 
 

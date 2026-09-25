@@ -18,13 +18,17 @@ Iterations further ahead are sketches and get refined as we get closer.
 | — | [Play-test 2](playtests/2026-09-25-playtest-2.md) | Terrain combos praised; map/refit unchanged, hold too small, HUD overflow, hexes touching at corners, range confusion | ✅ |
 | 007 | [Play-test 2 fixes](iterations/007-playtest-2-fixes.md) | Every play-test 2 issue: hex orientation, grapple/range trust, selling and hold size, battle bar, intents, spawns, rarity, **map and refit redesign**; **user play-test** | ✅ (play-test 3) |
 | — | [Play-test 3](playtests/2026-09-25-playtest-3.md) | Starting to like it; map weak and 2D, two clicks to move, no story, refit screen, charge weak, chain ignores terrain, piles not collected on the way, scrap useless | ✅ |
-| 008 | [The yard and the garage](iterations/008-yard-and-garage.md) | Every play-test 3 issue: the story; a 3D map with the Reclaimer as a thing; one click to travel; the garage (machine whole in 3D, parts/stats, hover glow, sorted hold); machine levels as the scrap sink; charge, chain and pile fixes; **user play-test** | ✅ (awaiting play-test 4) |
-| 009 | Build progression | Part upgrades, perks, manufacturer sets; rewards that are always a real choice; **user play-test** | ⬜ |
-| 010 | Onboarding | Tutorial first fight; glossary; tap-for-info everywhere | ⬜ |
-| 011 | Act 1 content | Real bosses, enemy roster with identity, parts toward 25 arms, events, the Reclaimer's drones in fights | ⬜ |
-| 012 | Acts 2–3 | The Slag Flats and the Crucible, traders, events, bosses | ⬜ |
-| 013 | Feel pass | Art on the board, VFX, audio, camera | ⬜ |
-| 014 | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
+| 008 | [The yard and the garage](iterations/008-yard-and-garage.md) | Every play-test 3 issue: the story; a 3D map with the Reclaimer as a thing; one click to travel; the garage (machine whole in 3D, parts/stats, hover glow, sorted hold); machine levels as the scrap sink; charge, chain and pile fixes; **user play-test** | ✅ (play-test 4) |
+| — | [Play-test 4](playtests/2026-09-25-playtest-4.md) | A jump forward; wants a visual level-up of everything (with sourcing tested), the next three iterations, and a list of garage, map and combat fixes | ✅ |
+| — | [Art sourcing spike](plans/art-sourcing.md) | Sources and skills tried in-engine and judged: Poly Haven adopted, Kenney/Quaternius as re-materialed shapes, free AI art rejected | ✅ |
+| 009 | [Play-test 4 fixes](iterations/009-playtest-4-fixes.md) | Both-leaning shots, pierce overshoot, double chain, scrap carriers, a fixed hive pad with a countdown, board edges; garage scrap button, no black flash, a real bay, levelling up as an event with levels on the model; a bigger fogged map with the crew in it, a Reclaimer gauge and ghost wall, ambient life; assembling the crew at run start | 🔨 |
+| 010 | The look | Visual overhaul of everything, from the tested sources: HDRI light and PBR surfaces everywhere, props, machine detail, UI, effects, title screen | ⬜ |
+| 011 | Build progression | Part upgrades, perks, manufacturer sets; rewards that are always a real choice | ⬜ |
+| 012 | Onboarding | Tutorial first fight; glossary; tap-for-info everywhere | ⬜ |
+| 013 | Act 1 content | Real boss, the Reclaimer's drones in fights, more fight maps, more parts, events, traders, watchtowers; **user play-test of 009–013** | ⬜ |
+| 014 | Acts 2–3 | The Slag Flats and the Crucible | ⬜ |
+| 015 | Feel pass | Audio, camera, final VFX | ⬜ |
+| 016 | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
 

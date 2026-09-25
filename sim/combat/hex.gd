@@ -49,7 +49,12 @@ static func distance(a: Vector2i, b: Vector2i) -> int:
 
 ## The hexes a straight line passes through from `a` to `b`, excluding `a`, including `b`.
 ## Cube lerp in fixed point with a constant nudge, rounded back to the nearest hex.
-static func line(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
+##
+## `lean` (+1 or -1) is which way that nudge pushes. A line that runs exactly along the
+## edge between two hexes has two equally good paths, and the nudge alone picks one.
+## Play-test 4 found shots always leaning the same way -- into a scrap heap or an ally --
+## so rules that care ask for both leanings and take the better (`CombatSim.best_line`).
+static func line(a: Vector2i, b: Vector2i, lean: int = 1) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	var n: int = distance(a, b)
 	if n == 0:
@@ -59,16 +64,16 @@ static func line(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
 	var m: int = n * LINE_SCALE
 	for i: int in range(1, n + 1):
 		# Scaled cube coordinates: exact integers, sum zero, nudged (+1, +1, -2).
-		var x: int = ca.x * m + (cb.x - ca.x) * i * LINE_SCALE + 1
-		var y: int = ca.y * m + (cb.y - ca.y) * i * LINE_SCALE + 1
-		var z: int = ca.z * m + (cb.z - ca.z) * i * LINE_SCALE - 2
+		var x: int = ca.x * m + (cb.x - ca.x) * i * LINE_SCALE + lean
+		var y: int = ca.y * m + (cb.y - ca.y) * i * LINE_SCALE + lean
+		var z: int = ca.z * m + (cb.z - ca.z) * i * LINE_SCALE - 2 * lean
 		out.append(from_cube(_round(x, y, z, m)))
 	return out
 
 
 ## Extends the line from `a` through `b` out to `reach` hexes from `a`: where a piercing
 ## shot aimed at `b` actually travels.
-static func ray(a: Vector2i, b: Vector2i, reach: int) -> Array[Vector2i]:
+static func ray(a: Vector2i, b: Vector2i, reach: int, lean: int = 1) -> Array[Vector2i]:
 	var n: int = distance(a, b)
 	if n == 0:
 		return []
@@ -80,9 +85,9 @@ static func ray(a: Vector2i, b: Vector2i, reach: int) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	var m: int = reach * n * LINE_SCALE
 	for i: int in range(1, reach + 1):
-		var x: int = ca.x * m + (far.x - ca.x * n) * i * LINE_SCALE + 1
-		var y: int = ca.y * m + (far.y - ca.y * n) * i * LINE_SCALE + 1
-		var z: int = ca.z * m + (far.z - ca.z * n) * i * LINE_SCALE - 2
+		var x: int = ca.x * m + (far.x - ca.x * n) * i * LINE_SCALE + lean
+		var y: int = ca.y * m + (far.y - ca.y * n) * i * LINE_SCALE + lean
+		var z: int = ca.z * m + (far.z - ca.z * n) * i * LINE_SCALE - 2 * lean
 		out.append(from_cube(_round(x, y, z, m)))
 	return out
 

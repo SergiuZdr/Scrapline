@@ -24,8 +24,10 @@ var piles: Dictionary = {}
 ## Objects: `Vector2i -> { "kind": "barrel"|"crate", "hp": int }`. They block movement and
 ## shots, take damage, and a barrel explodes when it breaks.
 var props: Dictionary = {}
-## A hive's marked spawn hex: `hive ref -> Vector2i`.
+## A hive's fabricator pad, set down once and never moved: `hive ref -> Vector2i`.
 var spawn_marks: Dictionary = {}
+## Hive ref -> the round its pad builds the next drone.
+var spawn_due: Dictionary = {}
 ## What the player has collected this fight.
 var piles_collected: int = 0
 var scrap_collected: int = 0
@@ -156,6 +158,7 @@ func clone() -> CombatState:
 	c.piles = piles.duplicate()
 	c.props = props.duplicate(true)
 	c.spawn_marks = spawn_marks.duplicate()
+	c.spawn_due = spawn_due.duplicate()
 	c.piles_collected = piles_collected
 	c.scrap_collected = scrap_collected
 	return c
