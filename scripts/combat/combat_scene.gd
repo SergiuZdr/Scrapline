@@ -1347,6 +1347,7 @@ func _refresh_hud(threats: Dictionary) -> void:
 			"can_move": not CombatSim.reachable(_state, u.ref).is_empty(),
 			"can_act": not u.acted and not u.seized and u.has_weapon(),
 			"selected": u.ref == _selected,
+			"parts": Array(u.part_ids), "level": u.level, "number": u.slot + 1,
 		})
 	_hud.set_crew(cards)
 	var status: Dictionary = CombatSim.objective_status(_state)
@@ -1413,7 +1414,7 @@ func _refresh_weapon_bar(sel: GridUnit) -> void:
 		if _armed and _ability < 0 and w == _weapon:
 			selected = list.size()
 		list.append({"name": String(weapon["name"]), "detail": _weapon_detail(sel, w),
-			"available": reason.is_empty(), "reason": reason})
+			"available": reason.is_empty(), "reason": reason, "part": String(weapon.get("id", ""))})
 		_bar_items.append(["weapon", w])
 	# Abilities after the arms: what the chassis and module can DO besides shoot.
 	for i: int in sel.abilities.size():
