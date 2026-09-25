@@ -293,7 +293,7 @@ func _rebuild_model() -> void:
 	_model_key = key
 	if _model != null:
 		_model.queue_free()
-	_model = ConstructView.build_parts(PackedStringArray(member["parts"]), Run.db, TEAM, int(member.get("level", 0)))
+	_model = ConstructView.build_parts(PackedStringArray(member["parts"]), Run.db, TEAM, int(member.get("level", 0)), selected + 1)
 	_pivot.add_child(_model)
 	# Framed by the machine's own height, so a squat anchor and a tall marksman both fill
 	# the stage; nudged right because the name sits over the left of it.

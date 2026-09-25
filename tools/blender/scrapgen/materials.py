@@ -42,6 +42,11 @@ PALETTE = {
     # Bare copper: cable ends, coils, bus bars. The only warm accent that is a PIGMENT
     # rather than a light, which is why it is used sparingly.
     "Copper":     ("b87333", 0.35, 1.00, 0.0),
+    # Dirty aluminium: hydraulic rods, rams, polished cylinders. THE LIGHT VALUE of the
+    # reference sheets (art/reference/STYLE.md: "the finding that matters most") -- a
+    # genuinely light material against near-black mechanism is what makes those machines
+    # read, and the roster had none. Rods only: spread wider, it stops being an accent.
+    "Aluminium":  ("c7c3ba", 0.34, 0.95, 0.0),
     # Hoses, tracks, grommets, bushings. Near-black and never shiny.
     "Rubber":     ("1b1a19", 0.95, 0.00, 0.0),
     # Lenses and eyes. Emissive rather than transmissive: real glass needs refraction
@@ -70,6 +75,7 @@ ZONE_OF = {
     "OldSteel":   "metal",
     "Copper":     "metal",
     "Rubber":     "tread",
+    "Aluminium":  "alu",
     "Glass":      "glow_visor",
     "DirtyMetal": "paint",
 }

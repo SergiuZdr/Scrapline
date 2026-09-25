@@ -685,6 +685,7 @@ def setup_thumb_render():
 # If the palette changes, change it there and mirror it in both.
 GAME_ALBEDO = {
     "metal": "8a8074",
+    "alu": "bdb8ad",
     "rust": "8c4a26",
     "dark": "3c3c45",
     "tread": "2a2825",
@@ -696,6 +697,7 @@ GAME_ALBEDO = {
 ## roughness, metallic.
 GAME_SURFACE = {
     "paint": (0.62, 0.05),
+    "alu": (0.34, 0.95),
     "metal": (0.52, 0.88),
     "rust": (0.92, 0.10),
     "dark": (0.58, 0.70),

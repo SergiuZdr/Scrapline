@@ -61,6 +61,7 @@ from mathutils import Matrix, Vector
 ZONE_SURFACE = {
     "paint":      dict(roughness=0.62, metallic=0.0, coat=0.25),
     "metal":      dict(roughness=0.40, metallic=1.0),
+    "alu":        dict(roughness=0.30, metallic=1.0),
     "rust":       dict(roughness=0.92, metallic=0.0),
     "dark":       dict(roughness=0.50, metallic=1.0),
     "tread":      dict(roughness=0.95, metallic=0.0),
@@ -93,6 +94,8 @@ WEAR_RUST = "6d3a1f"
 # close range and wants those zones to read as recesses. This is a render-time lift only,
 # and it is why these live here rather than in `part_materials.gd`.
 HERO_ALBEDO = {
+    # Dirty aluminium, mirroring `PartMaterials.ZONE_ALBEDO["alu"]`.
+    "alu": "bdb8ad",
     "dark": "55555e",
     "tread": "302e2c",
 }

@@ -58,14 +58,14 @@ func _init(size: Vector2i = Vector2i(112, 112), frame: String = "portrait") -> v
 
 
 ## Shows this machine; does nothing if it is the one already shown.
-func show_machine(parts: Array, level: int, alive: bool = true) -> void:
-	var key: String = "%s:%d:%s" % [",".join(parts), level, alive]
+func show_machine(parts: Array, level: int, alive: bool = true, number: int = -1) -> void:
+	var key: String = "%s:%d:%s:%d" % [",".join(parts), level, alive, number]
 	if key == _key:
 		return
 	_key = key
 	for child: Node in _pivot.get_children():
 		child.queue_free()
-	var model: Node3D = ConstructView.build_parts(PackedStringArray(parts), Run.db, Color("4fa8d8"), level)
+	var model: Node3D = ConstructView.build_parts(PackedStringArray(parts), Run.db, Color("4fa8d8"), level, number)
 	_pivot.add_child(model)
 	var h: float = ConstructView.height_of(model)
 	# Head and shoulders, the way a crew photo is framed: the top two thirds of the machine.
