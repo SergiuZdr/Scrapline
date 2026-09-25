@@ -47,6 +47,8 @@ const AMBER_DEEP := Color("b88a25")
 const BLUE := Color("62b3de")
 const GREEN := Color("98ae58")
 const RED := Color("cf5638")
+## Copper, despite the name: heat and machine condition in the HUD, rare parts on cards.
+## (It was "premium" in the old game; there is no premium now.) See art-and-audio.md.
 const GOLD := Color("d68b52")
 
 # --- Spacing -----------------------------------------------------------------
