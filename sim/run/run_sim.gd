@@ -134,6 +134,18 @@ static func max_hp(setup: RunSetup, member: Dictionary) -> int:
 	return int(cg.get("hp", 8)) + int(mg.get("hp", 0)) + level_bonus(setup, member, "hp")
 
 
+## A crew member as a fight's unit spec: parts, HP now, and its levels as bonuses.
+static func machine_spec(setup: RunSetup, member: Dictionary) -> Dictionary:
+	return {"name": String(member["name"]), "parts": (member["parts"] as Array).duplicate(),
+		"hp_now": maxi(1, int(member["hp"])), "bonus_hp": level_bonus(setup, member, "hp"),
+		"bonus_damage": level_bonus(setup, member, "damage")}
+
+
+## The machine as the next fight will field it, for the garage's numbers.
+static func preview_machine(setup: RunSetup, member: Dictionary) -> GridUnit:
+	return CombatSetup.unit_from(machine_spec(setup, member), setup.combat_rules, setup.parts)
+
+
 ## What a machine's levels add: `what` is "hp" or "damage" (per level, from `run.json`).
 static func level_bonus(setup: RunSetup, member: Dictionary, what: String) -> int:
 	var levels: Dictionary = setup.rules.get("levels", {})
@@ -548,9 +560,10 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 	var fielded: Array = _fielded_crew(state)
 	for i: int in mini(fielded.size(), slots.size()):
 		var member: Dictionary = state.crew[int(fielded[i])]
-		player.append({"name": String(member["name"]), "parts": (member["parts"] as Array).duplicate(),
-			"x": int(slots[i]["x"]), "y": int(slots[i]["y"]), "hp_now": int(member["hp"]),
-			"bonus_hp": level_bonus(setup, member, "hp"), "bonus_damage": level_bonus(setup, member, "damage")})
+		var spec: Dictionary = machine_spec(setup, member)
+		spec["x"] = int(slots[i]["x"])
+		spec["y"] = int(slots[i]["y"])
+		player.append(spec)
 	fight["player"] = player
 
 	var positions: Array = _enemy_positions(template, count)

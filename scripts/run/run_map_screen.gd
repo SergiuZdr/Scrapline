@@ -13,7 +13,7 @@ extends Control
 ##
 ## Reads `Run.state`; changes it only through `Run.apply`.
 
-const GaragePanel := preload("res://scripts/run/refit_panel.gd")
+const GaragePanel := preload("res://scripts/run/garage_panel.gd")
 
 const SITE_NAMES: Dictionary = {"start": "CAMP", "skirmish": "FIGHT", "elite": "ELITE",
 	"scrapyard": "SCRAPYARD", "workshop": "WORKSHOP", "boss": "THE GATE"}

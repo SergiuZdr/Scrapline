@@ -150,7 +150,7 @@
   },
   "levels": {
     "_comment": "Play-test 3: scrap needs something to buy. In the garage a machine buys its next level at costs[level] (so 3 levels). Each level: +hp max HP (and that much HP now) and +damage on every weapon and Charge.",
-    "costs": [12, 20, 30],
+    "costs": [15, 25, 40],
     "hp": 2,
     "damage": 1
   },
