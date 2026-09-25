@@ -317,7 +317,7 @@ func _crew_card(i: int) -> Control:
 	if portrait.get_parent() != null:
 		portrait.get_parent().remove_child(portrait)
 	row.add_child(portrait)
-	portrait.show_machine(member["parts"], int(member.get("level", 0)), alive)
+	portrait.show_machine(member["parts"], int(member.get("level", 0)), alive, i + 1)
 	var text := VBoxContainer.new()
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	text.add_theme_constant_override("separation", 2)

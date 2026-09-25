@@ -656,7 +656,10 @@ func _build_view(u: GridUnit) -> Dictionary:
 	_units_root.add_child(root)
 
 	var colour: Color = COL_PLAYER if u.team == GridUnit.TEAM_PLAYER else COL_ENEMY
-	var model: Node3D = _cache_model() if u.objective else ConstructView.build_parts(u.part_ids, _db, colour, u.level)
+	# Crew machines carry their crew number; an enemy a two-digit number from the fight's
+	# seed, the same every replay (presentation only).
+	var number: int = u.slot + 1 if u.team == GridUnit.TEAM_PLAYER else 10 + IntentAI.mix(_setup.rng_seed, u.ref, 7, 29) % 89
+	var model: Node3D = _cache_model() if u.objective else ConstructView.build_parts(u.part_ids, _db, colour, u.level, number)
 	model.scale = Vector3.ONE * (1.0 if u.objective else MODEL_SCALE)
 	root.add_child(model)
 	var ring: MeshInstance3D = _team_ring(COL_CACHE if u.objective else colour)
@@ -981,6 +984,7 @@ func _animate(e: Array) -> void:
 			_vfx.destruction(_to_world(cell.x, cell.y) + Vector3(0, 0.3, 0), Color("9a9a9a"))
 		GridEv.EXPLOSION:
 			var at: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, 0.4, 0)
+			_vfx.fireball(_to_world(cell.x, cell.y), 1.0)
 			_vfx.burst(at, Color("ff8a3c"), 2.2)
 			_vfx.shake(0.55)
 			_float_text(at + Vector3(0, 1.2, 0), "BOOM", Color("ffb04a"))
@@ -1197,13 +1201,29 @@ func _face(root: Node3D, toward: Vector3) -> void:
 
 
 func _tracer(from: Vector3, to: Vector3, colour: Color) -> void:
+	# A hot core inside a soft glow (010): one thin opaque bar read as a stick, not a shot.
+	var glow := MeshInstance3D.new()
+	var glow_box := BoxMesh.new()
+	glow_box.size = Vector3(0.16, 0.16, from.distance_to(to))
+	glow.mesh = glow_box
+	var haze := StandardMaterial3D.new()
+	haze.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	haze.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	haze.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	haze.albedo_color = Color(colour, 0.35)
+	glow.material_override = haze
+	_marks_root.add_child(glow)
+	glow.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
+	var haze_fade := create_tween()
+	haze_fade.tween_property(haze, "albedo_color:a", 0.0, 0.3)
+	haze_fade.tween_callback(glow.queue_free)
 	var beam := MeshInstance3D.new()
 	var box := BoxMesh.new()
-	box.size = Vector3(0.05, 0.05, from.distance_to(to))
+	box.size = Vector3(0.04, 0.04, from.distance_to(to))
 	beam.mesh = box
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.albedo_color = colour
+	material.albedo_color = colour.lerp(Color.WHITE, 0.5)
 	material.emission_enabled = true
 	material.emission = colour
 	material.emission_energy_multiplier = 2.5
