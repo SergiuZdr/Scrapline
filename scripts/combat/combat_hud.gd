@@ -15,12 +15,17 @@ signal vent_pressed
 signal undo_pressed
 signal end_turn_pressed
 signal rotate_pressed(step: int)
+signal lines_pressed
 signal retry_pressed
 signal title_pressed
 signal continue_pressed
 
 const CARD_SIZE := Vector2(320, 140)
-const WEAPON_SIZE := Vector2(250, 76)
+const WEAPON_SIZE := Vector2(270, 76)
+const ABILITY_SIZE := Vector2(176, 58)
+## The action bar's box: right of the camera buttons, left of UNDO / END TURN.
+const BAR_LEFT: float = 300.0
+const BAR_WIDTH: float = 1150.0
 const PANEL_WIDTH: int = 360
 
 var _banner: Label
@@ -29,7 +34,9 @@ var _card_column: VBoxContainer
 var _objective_plate: PanelContainer
 var _objective_label: Label
 var _weapon_bar: HBoxContainer
-var _weapon_row: CenterContainer
+var _ability_bar: HBoxContainer
+var _bar_area: VBoxContainer
+var _lines_button: Button
 var _info_title: Label
 var _info_body: Label
 var _hint: Label
@@ -64,20 +71,20 @@ func _ready() -> void:
 	add_child(_card_column)
 	_build_objective_plate()
 
-	# The selected construct's arms, as buttons: what it can DO comes from what is bolted
-	# onto it, so the choice of attack is a choice of part.
-	# A full-width centring row, so the bar stays centred however many buttons it holds.
-	# Anchoring the bar itself was computed from its size mid-rebuild and landed it in the
-	# bottom-left corner, half off the screen.
-	_weapon_row = CenterContainer.new()
-	_weapon_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_weapon_row)
-	_weapon_row.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	_weapon_row.offset_top = -WEAPON_SIZE.y - UIKit.SPACE_XL
-	_weapon_row.offset_bottom = -UIKit.SPACE_XL
-	_weapon_bar = HBoxContainer.new()
-	_weapon_bar.add_theme_constant_override("separation", UIKit.SPACE_SM)
-	_weapon_row.add_child(_weapon_bar)
+	# What the selected machine can do, in two labelled rows inside a FIXED area between
+	# the camera buttons and UNDO: abilities above, weapons below. A single centred row
+	# grew with every ability and ran under UNDO and END TURN (play-test 2).
+	_bar_area = VBoxContainer.new()
+	_bar_area.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	_bar_area.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_bar_area)
+	_bar_area.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	_bar_area.offset_left = BAR_LEFT
+	_bar_area.offset_right = BAR_LEFT + BAR_WIDTH
+	_bar_area.offset_top = -(WEAPON_SIZE.y + ABILITY_SIZE.y + UIKit.SPACE_SM + UIKit.SPACE_XL)
+	_bar_area.offset_bottom = -UIKit.SPACE_XL
+	_ability_bar = _bar_row("ABILITIES", UIKit.BLUE)
+	_weapon_bar = _bar_row("WEAPONS", UIKit.AMBER)
 
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", UIKit.card())
@@ -103,8 +110,8 @@ func _ready() -> void:
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_hint)
 	_hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	_hint.offset_top = -148
-	_hint.offset_bottom = -120
+	_hint.offset_top = -(WEAPON_SIZE.y + ABILITY_SIZE.y + 60)
+	_hint.offset_bottom = -(WEAPON_SIZE.y + ABILITY_SIZE.y + 34)
 
 	var actions := HBoxContainer.new()
 	actions.add_theme_constant_override("separation", UIKit.SPACE_MD)
@@ -122,12 +129,19 @@ func _ready() -> void:
 	add_child(camera)
 	# Plain text: the bundled faces have no rotation arrows, and a missing glyph renders
 	# as a speck that reads as a broken button.
-	var left := _button("< TURN", UIKit.secondary(), UIKit.TEXT, Vector2(120, 64))
+	var left := _button("<", UIKit.secondary(), UIKit.TEXT, Vector2(64, 64))
+	left.tooltip_text = "Turn the camera (Q)"
 	left.pressed.connect(func() -> void: rotate_pressed.emit(-1))
 	camera.add_child(left)
-	var right := _button("TURN >", UIKit.secondary(), UIKit.TEXT, Vector2(120, 64))
+	var right := _button(">", UIKit.secondary(), UIKit.TEXT, Vector2(64, 64))
+	right.tooltip_text = "Turn the camera (E)"
 	right.pressed.connect(func() -> void: rotate_pressed.emit(1))
 	camera.add_child(right)
+	# Every enemy's full line of fire at once, for when the quiet default is not enough (L).
+	_lines_button = _button("LINES", UIKit.secondary(), UIKit.TEXT, Vector2(118, 64))
+	_lines_button.add_theme_font_size_override("font_size", UIKit.SIZE_LABEL)
+	_lines_button.pressed.connect(func() -> void: lines_pressed.emit())
+	camera.add_child(_lines_button)
 	camera.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, UIKit.SPACE_XL)
 
 	_build_result()
@@ -150,54 +164,81 @@ func set_objective(text: String, urgent: bool) -> void:
 	_objective_label.add_theme_color_override("font_color", UIKit.RED if urgent else UIKit.AMBER)
 
 
-## `weapons`: `{ "name", "detail", "available", "reason" }` per arm, in arm order.
-## `selected`: index of the ARMED weapon, or -1 when the construct is in move mode.
-## `vent`: "" to hide VENT, else its label.
-func set_weapons(weapons: Array, selected: int, vent: String) -> void:
-	for child: Node in _weapon_bar.get_children():
-		child.queue_free()
-	for w: int in weapons.size():
-		var info: Dictionary = weapons[w]
-		if not bool(info["available"]):
-			# A weapon that cannot fire is a plate that says why, not a disabled button.
-			var plate := PanelContainer.new()
-			plate.custom_minimum_size = WEAPON_SIZE
-			plate.add_theme_stylebox_override("panel", UIKit.inset(UIKit.SURFACE_SUNK))
-			var box := VBoxContainer.new()
-			plate.add_child(box)
-			box.add_child(_label(String(info["name"]).to_upper(), UIKit.SIZE_LABEL, UIKit.TEXT_FAINT, UIKit.font_strong()))
-			box.add_child(_label(String(info["reason"]), UIKit.SIZE_LABEL, UIKit.RED))
-			_weapon_bar.add_child(plate)
-			continue
-		var button := Button.new()
-		button.custom_minimum_size = WEAPON_SIZE if not bool(info.get("ability", false)) else Vector2(200, WEAPON_SIZE.y)
-		button.tooltip_text = String(info["detail"])
-		button.focus_mode = Control.FOCUS_NONE
-		var style: StyleBoxFlat = UIKit.choice() if w == selected else UIKit.secondary()
-		if w == selected:
-			style.set_border_width_all(2)
-		for state: String in ["normal", "hover", "pressed", "focus"]:
-			button.add_theme_stylebox_override(state, style)
-		var index: int = w
-		button.pressed.connect(func() -> void: weapon_pressed.emit(index))
-		var box := VBoxContainer.new()
-		box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		box.offset_left = UIKit.SPACE_MD
-		box.offset_top = UIKit.SPACE_SM
-		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		button.add_child(box)
-		box.add_child(_label(String(info["name"]).to_upper(), UIKit.SIZE_BODY,
-			UIKit.AMBER if w == selected else UIKit.TEXT, UIKit.font_strong()))
-		var detail := _label(String(info["detail"]), UIKit.SIZE_LABEL, UIKit.TEXT_DIM)
-		detail.clip_text = true
-		detail.custom_minimum_size = Vector2(button.custom_minimum_size.x - UIKit.SPACE_LG * 2, 0)
-		box.add_child(detail)
-		_weapon_bar.add_child(button)
+## `items`: `{ "name", "detail", "available", "reason", "ability": bool, "free": bool,
+## "cooldown": int }`, weapons first. `selected`: the armed item's index, or -1.
+## `vent`: "" to hide VENT. Pressing an item emits `weapon_pressed(index into items)`.
+func set_weapons(items: Array, selected: int, vent: String) -> void:
+	for bar: HBoxContainer in [_weapon_bar, _ability_bar]:
+		for child: Node in bar.get_children():
+			if child.has_meta("item"):
+				child.queue_free()
+	for i: int in items.size():
+		var info: Dictionary = items[i]
+		var ability: bool = bool(info.get("ability", false))
+		(_ability_bar if ability else _weapon_bar).add_child(_action_button(info, i, i == selected, ability))
 	if not vent.is_empty():
-		var vent_button := _button("VENT", UIKit.secondary(), UIKit.BLUE, Vector2(130, WEAPON_SIZE.y))
-		vent_button.tooltip_text = vent
+		var vent_button := _button("VENT HEAT", UIKit.secondary(), UIKit.BLUE, ABILITY_SIZE)
+		vent_button.set_meta("item", true)
+		vent_button.add_theme_font_size_override("font_size", UIKit.SIZE_LABEL)
 		vent_button.pressed.connect(func() -> void: vent_pressed.emit())
-		_weapon_bar.add_child(vent_button)
+		_ability_bar.add_child(vent_button)
+	(_ability_bar.get_parent() as Control).visible = items.any(func(x: Dictionary) -> bool: return bool(x.get("ability", false))) or not vent.is_empty()
+	(_weapon_bar.get_parent() as Control).visible = not items.is_empty()
+
+
+## One row with a small caption plate on its left, so the two rows name themselves.
+func _bar_row(caption: String, colour: Color) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bar_area.add_child(row)
+	var tag := _label(caption, UIKit.SIZE_MICRO, colour, UIKit.font_strong())
+	tag.custom_minimum_size = Vector2(76, 0)
+	tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(tag)
+	return row
+
+
+## A weapon is a steel card with an amber mark when armed; an ability is a smaller
+## blue-edged card that says what it costs and when it is back. Unavailable ones say why.
+func _action_button(info: Dictionary, index: int, selected: bool, ability: bool) -> Control:
+	var size: Vector2 = ABILITY_SIZE if ability else WEAPON_SIZE
+	var available: bool = bool(info["available"])
+	var button := Button.new()
+	button.set_meta("item", true)
+	button.custom_minimum_size = size
+	button.focus_mode = Control.FOCUS_NONE
+	button.disabled = not available
+	var style: StyleBoxFlat = UIKit.secondary(UIKit.SURFACE_HIGH if available else UIKit.SURFACE_SUNK)
+	style.border_width_left = 5
+	style.border_color = (UIKit.BLUE if ability else UIKit.AMBER_DEEP).darkened(0.0 if available else 0.5)
+	if selected:
+		style.set_border_width_all(2)
+		style.border_width_left = 5
+		style.border_color = UIKit.AMBER
+	for key: String in ["normal", "hover", "pressed", "focus", "disabled"]:
+		button.add_theme_stylebox_override(key, style)
+	button.pressed.connect(func() -> void: weapon_pressed.emit(index))
+	var box := VBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_theme_constant_override("separation", 0)
+	button.add_child(box)
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = UIKit.SPACE_MD + 4
+	box.offset_right = -UIKit.SPACE_SM
+	box.offset_top = UIKit.SPACE_XS
+	var name_colour: Color = UIKit.AMBER if selected else (UIKit.BLUE.lightened(0.3) if ability else UIKit.TEXT)
+	box.add_child(_label(String(info["name"]).to_upper(), UIKit.SIZE_BODY if not ability else UIKit.SIZE_LABEL,
+		name_colour if available else UIKit.TEXT_FAINT, UIKit.font_strong()))
+	var line: String = String(info["detail"]) if available else String(info["reason"])
+	var detail := _label(line, UIKit.SIZE_MICRO if ability else UIKit.SIZE_LABEL,
+		(UIKit.TEXT_DIM if available else UIKit.RED))
+	# Wrapped inside the button's own width: nothing runs off its right edge.
+	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	detail.custom_minimum_size = Vector2(size.x - UIKit.SPACE_MD - 4 - UIKit.SPACE_SM, 0)
+	detail.max_lines_visible = 2
+	box.add_child(detail)
+	return button
 
 
 func set_banner(text: String, colour: Color = UIKit.TEXT) -> void:

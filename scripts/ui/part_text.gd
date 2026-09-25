@@ -20,7 +20,8 @@ static func slot_label(parts: Dictionary, id: String) -> String:
 	return String((parts.get(id, {}) as Dictionary).get("slot", "")).to_upper()
 
 
-static func summary(parts: Dictionary, id: String) -> String:
+## `abilities`: ContentDB.combat_abilities, to name the ability a chassis or module gives.
+static func summary(parts: Dictionary, id: String, abilities: Dictionary = {}) -> String:
 	if id.is_empty():
 		return "Nothing fitted"
 	var part: Dictionary = parts.get(id, {})
@@ -54,7 +55,13 @@ static func summary(parts: Dictionary, id: String) -> String:
 			bits.append("vent %d" % int(g.get("vent", 1)))
 		"module":
 			for key: Variant in g.keys():
-				bits.append("+%d %s" % [int(g[key]), String(key).replace("_", " ")])
+				if String(key) != "ability":
+					bits.append("+%d %s" % [int(g[key]), String(key).replace("_", " ")])
+	# The ability is named, never shown as a number ("+0 ability" was play-test 2).
+	var ability_id: String = String(g.get("ability", ""))
+	if not ability_id.is_empty():
+		var ability: Dictionary = abilities.get(ability_id, {})
+		bits.append("ability: %s" % String(ability.get("name", ability_id.capitalize())))
 	return " · ".join(bits)
 
 

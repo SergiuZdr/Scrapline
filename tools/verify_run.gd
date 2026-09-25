@@ -19,6 +19,7 @@ func _initialize() -> void:
 	_test_sites()
 	_test_fight_feeds_the_run()
 	_test_wreck_and_rebuild()
+	_test_boss_held()
 	_test_refit()
 	_test_determinism_and_save()
 	print("")
@@ -129,10 +130,17 @@ func _test_sites() -> void:
 	_check("scrapyard: taking the scrap instead", RunSim.apply(state, setup, [RunSim.PICK, -1]) and state.scrap == scrap + 15)
 	state.pending = {"kind": "reward", "options": ["ar_railgun", "co_mag", "mo_servo"]}
 	_check("reward: picking a part puts it in the hold", RunSim.apply(state, setup, [RunSim.PICK, 0]) and state.cargo.has("ar_railgun"))
+	_check("the hold starts at 8", state.hold_size == 8)
 	state.pending = {"kind": "reward", "options": ["ar_railgun"]}
-	for i: int in 10:
+	while state.cargo.size() < state.hold_size:
 		state.cargo.append("mo_servo")
-	_check("reward: a full hold refuses the part", not RunSim.apply(state, setup, [RunSim.PICK, 0]))
+	_check("reward: a full hold still takes the part (play-test 2)", RunSim.apply(state, setup, [RunSim.PICK, 0]) and state.overfull())
+	_check("an overfull hold blocks travel", RunSim.destinations(state).is_empty())
+	var before_scrap: int = state.scrap
+	_check("scrapping a part pays by rarity (servo, uncommon: 6)", RunSim.apply(state, setup, [RunSim.SCRAP_PART, 1])
+		and state.scrap == before_scrap + 6)
+	_check("and once the hold fits, travel is open again", not state.overfull() and not RunSim.destinations(state).is_empty())
+	state.pending = {"kind": "reward", "options": ["ar_railgun"]}
 	_check("reward: skipping is always allowed", RunSim.apply(state, setup, [RunSim.PICK, -1]) and state.pending.is_empty())
 	# Workshop.
 	state.pending = {"kind": "workshop"}
@@ -144,6 +152,10 @@ func _test_sites() -> void:
 	for member: Dictionary in state.crew:
 		member["hp"] = RunSim.max_hp(setup, member)
 	_check("workshop: nothing to repair at full HP", not RunSim.apply(state, setup, [RunSim.REPAIR]))
+	state.scrap = 50
+	_check("workshop: expanding the hold costs 10 and adds 2", RunSim.apply(state, setup, [RunSim.EXPAND_HOLD])
+		and state.hold_size == 10 and state.scrap == 40)
+	_check("workshop: the next expansion costs more (16)", RunSim.expand_cost(state, setup) == 16)
 	_check("workshop: leave", RunSim.apply(state, setup, [RunSim.LEAVE]) and state.pending.is_empty())
 
 
@@ -196,6 +208,27 @@ func _test_wreck_and_rebuild() -> void:
 	var built: CombatSetup = CombatSetup.build(fight, setup.combat_rules, setup.parts, setup.tiles, setup.wheel, 1)
 	_check("a construct with empty sockets still builds into a fight %s" % [built.errors], built.errors.is_empty())
 	_check("its empty arms cannot fire", not built.units[1].has_weapon())
+
+
+## A boss fight that ends without a win (out of rounds) must end the run. It used to leave
+## the crew at the gate with no road forward and the road back reclaimed (bot: 3 in 150).
+func _test_boss_held() -> void:
+	var setup: RunSetup = _setup(33)
+	setup.combat_rules = setup.combat_rules.duplicate(true)
+	setup.combat_rules["max_rounds"] = 1
+	var state: RunState = RunSim.start(setup)
+	var boss: int = state.sites.size() - 1
+	_check("the last site is the boss", String(state.site(boss)["type"]) == "boss")
+	state.current = boss
+	state.site(boss)["visited"] = true
+	state.pending = {"kind": "fight", "site_type": "boss", "fight": RunSim._make_fight(state, setup, boss, "boss")}
+	var combat_setup: CombatSetup = RunSim.fight_setup(state, setup)
+	var actions: Array = [[CombatSim.ACT_END, 0, 0, 0]]
+	var result: CombatState = CombatSim.replay(combat_setup, actions)
+	_check("the boss fight times out with the crew alive (precondition)",
+		result.outcome == CombatState.LOST and not result.crew(GridUnit.TEAM_PLAYER).is_empty())
+	RunSim.apply(state, setup, [RunSim.FIGHT, actions])
+	_check("a boss fight that is not won ends the run", state.outcome == RunState.LOST)
 
 
 func _test_refit() -> void:

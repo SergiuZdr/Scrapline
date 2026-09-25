@@ -37,6 +37,23 @@ func _run() -> void:
 	var state: CombatState = _scene.get("_state")
 	_check("fight starts on the player's turn", state.round_number == 1 and not _scene.get("_busy"))
 
+	# --- The board is drawn the way the rules count it (play-test 2: tiles met at their
+	# corners). A pointy-top hex reaches further north-south (a corner) than east-west (a
+	# side), and two neighbours' centres sit one tile-width apart, so their sides touch.
+	var slab: MeshInstance3D = null
+	for child: Node in (_scene.get("_board") as Node).get_children():
+		if child is MeshInstance3D and child.has_meta("tile"):
+			slab = child
+			break
+	var extent := Vector2.ZERO
+	for v: Vector3 in (slab.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array):
+		var w: Vector3 = slab.transform.basis * v
+		extent = Vector2(maxf(extent.x, absf(w.x)), maxf(extent.y, absf(w.z)))
+	_check("tiles are pointy-top: a corner points north (z reach %.2f > x reach %.2f)" % [extent.y, extent.x], extent.y > extent.x + 0.05)
+	var a: Vector3 = _scene.call("_to_world", 3, 3)
+	var b: Vector3 = _scene.call("_to_world", 4, 3)
+	_check("side neighbours sit one tile-width apart, so their sides meet", absf(a.distance_to(b) - extent.x * 2.0 / 0.96) < 0.02)
+
 	# --- Move by clicking a tile.
 	var brute: GridUnit = state.unit(0)
 	var start := Vector2i(brute.x, brute.y)

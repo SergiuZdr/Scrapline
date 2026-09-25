@@ -31,6 +31,11 @@
 └───────────────────────────────────────────────────┘
 ```
 
+- **The action bar (007)** is two rows between the camera buttons and UNDO, so it can never
+  run under them: ABILITIES (compact, blue edge) above WEAPONS (large, amber edge). Each
+  button says FREE / USES ACTION and COOLDOWN n, or why it cannot be used; text wraps.
+- **Intents are quiet by default (007)**: red target hexes and numbered badges. Full lines
+  only for the enemy you tap or intents aimed at the selected machine; LINES (L) shows all.
 - Crew cards reuse the **part-thumbnail strip** idea from the old Order Phase HUD.
 - The damage preview shows the final number *after* the type wheel, cover and marks, with
   the part that will take damage highlighted.
@@ -41,9 +46,10 @@
 |---|---|
 | Title | continue run / new run / workshop / settings |
 | Workshop (meta) | pick crew and tier, codex, run history |
-| Region map | move between sites, see the front, fog, cargo |
+| Region map | zones, the Reclaimer countdown, FORWARD/SIDEWAYS/BACK, preview then TRAVEL, crew (007) |
 | Combat | as above |
-| Salvage/refit | pick rewards; drag or tap parts between constructs and cargo (reuses the old loadout screen's 3D preview) |
+| Salvage | part cards with a rarity banner and a verdict; always takeable (007) |
+| Refit | its own screen: drag or tap parts between sockets, the hold and SCRAP (007) |
 | Site screens | workshop, trader, event text |
 
 ## Carried over from the old UI

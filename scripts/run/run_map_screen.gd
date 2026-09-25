@@ -1,24 +1,35 @@
 extends Control
 
-## The region map: where the Crawler is, where it can go, what the Reclaimer has eaten, and
-## whatever the current site is asking for (a fight, salvage, a workshop).
+## The region map: where the crew is, where it can go, and how long before the Reclaimer
+## takes the ground it stands on.
+##
+## Rebuilt after play-tests 1 and 2 ("you cannot tell when you need to move ahead or can
+## move sideways"). The map now answers that question directly:
+##   - the region is drawn as ZONES (columns), named across the top;
+##   - the Reclaimer is a wall over the zones it has taken, with the NEXT zone to fall
+##     striped and a countdown in moves;
+##   - every site you can reach is labelled FORWARD, SIDEWAYS or BACK;
+##   - tapping a site previews it -- what it is, and what this move costs -- before TRAVEL.
 ##
 ## Reads `Run.state`; changes it only through `Run.apply`. Every panel is rebuilt from the
 ## state after each action, so nothing on screen can disagree with the run.
 
-const MAP_RECT := Rect2(40, 118, 1250, 800)
-const MAP_PAD: float = 80.0
-const NODE_SIZE: float = 92.0
+const RefitPanel := preload("res://scripts/run/refit_panel.gd")
+
+const MAP_RECT := Rect2(40, 150, 1250, 780)
+const MAP_PAD := Vector2(90, 110)
+const NODE_SIZE: float = 96.0
 const SIDE_X: float = 1320.0
 const SIDE_W: float = 560.0
 
-const SITE_LOOK: Dictionary = {
-	"start":     ["START", Color("3a362d")],
-	"skirmish":  ["FIGHT", Color("7a3a2a")],
-	"elite":     ["ELITE", Color("9c2f22")],
-	"scrapyard": ["SCRAPYARD", Color("3f5a2e")],
-	"workshop":  ["WORKSHOP", Color("2e4f66")],
-	"boss":      ["BOSS", Color("5c1f1a")],
+## `type -> [name, icon, colour, what it is]`.
+const SITES: Dictionary = {
+	"start":     ["START", "yard", Color("3a362d"), "Where the crew rolled in."],
+	"skirmish":  ["FIGHT", "fight", Color("7a3a2a"), "A fight. Win for scrap and a pick of salvage."],
+	"elite":     ["ELITE", "colossus", Color("9c2f22"), "A hard fight. One salvage pick is guaranteed uncommon or better."],
+	"scrapyard": ["SCRAPYARD", "scrap", Color("3f5a2e"), "No fight. Take one part, or strip the yard for scrap."],
+	"workshop":  ["WORKSHOP", "foundry", Color("2e4f66"), "Repair the crew, rebuild a wreck, or buy room in the hold."],
+	"boss":      ["THE GATE", "gauntlet", Color("5c1f1a"), "The act boss. Win to clear the act."],
 }
 
 var _map: Control
@@ -27,10 +38,11 @@ var _side: VBoxContainer
 var _top_hp: ProgressBar
 var _top_hp_label: Label
 var _top_scrap: Label
+var _front_label: Label
 var _overlay: Control
-var _refit_open: bool = false
-## The socket picked on the refit screen: `[crew_index, socket]`, or empty.
-var _refit_socket: Array = []
+var _refit: Control
+## The site tapped but not yet travelled to, or -1.
+var _chosen: int = -1
 
 
 func _ready() -> void:
@@ -46,8 +58,8 @@ func _ready() -> void:
 	_map.draw.connect(_draw_map)
 	add_child(_map)
 	var side_scroll := ScrollContainer.new()
-	side_scroll.position = Vector2(SIDE_X, MAP_RECT.position.y)
-	side_scroll.size = Vector2(SIDE_W, MAP_RECT.size.y)
+	side_scroll.position = Vector2(SIDE_X, 118)
+	side_scroll.size = Vector2(SIDE_W, 1080 - 118 - 30)
 	side_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(side_scroll)
 	_side = VBoxContainer.new()
@@ -57,14 +69,17 @@ func _ready() -> void:
 	_refresh()
 
 
-# --- Building ---------------------------------------------------------------
+# --- Top bar ------------------------------------------------------------------
 
 func _build_top_bar() -> void:
 	var title := _label("ACT 1  ·  THE CRANE YARDS", 40, UIKit.TEXT, UIKit.font_display())
-	title.position = Vector2(40, 30)
+	title.position = Vector2(40, 26)
 	add_child(title)
+	_front_label = _label("", UIKit.SIZE_HEADING, UIKit.RED.lightened(0.2), UIKit.font_strong())
+	_front_label.position = Vector2(40, 84)
+	add_child(_front_label)
 	var bar := HBoxContainer.new()
-	bar.position = Vector2(1060, 40)
+	bar.position = Vector2(1060, 36)
 	bar.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	add_child(bar)
 	var hp_box := VBoxContainer.new()
@@ -97,16 +112,47 @@ func _refresh() -> void:
 	_top_hp.value = hp
 	_top_hp.add_theme_stylebox_override("fill", UIKit.plain(UIKit.RED if hp * 3 <= full else UIKit.GREEN, 2))
 	_top_scrap.text = "SCRAP %d" % state.scrap
+	_front_label.text = _front_text()
+	if _chosen >= 0 and not RunSim.destinations(state).has(_chosen):
+		_chosen = -1
 	_build_site_buttons()
 	_map.queue_redraw()
 	_build_side()
 	_show_overlay()
 
 
+## "The Reclaimer takes ZONE 3 in 2 moves." The one number that says how long you have.
+func _front_text() -> String:
+	var state: RunState = Run.state
+	var every: int = maxi(1, int((Run.setup.rules["front"] as Dictionary)["every"]))
+	var left: int = every - state.moves % every
+	var zone: int = state.front_col + 2
+	var text: String = "THE RECLAIMER TAKES %s IN %d MOVE%s" % ["THE START" if zone == 1 else "ZONE %d" % zone, left, "" if left == 1 else "S"]
+	if state.consumed(state.current):
+		text += "  ·  YOU ARE IN ITS GROUND: LEAVING COSTS EVERY MACHINE %d HP" % int((Run.setup.rules["front"] as Dictionary)["damage"])
+	return text
+
+
+# --- The map ------------------------------------------------------------------
+
+func _columns() -> int:
+	return int((Run.setup.rules.get("region", {}) as Dictionary).get("columns", 7))
+
+
 func _to_map(site: Dictionary) -> Vector2:
-	var w: float = MAP_RECT.size.x - MAP_PAD * 2.0
-	var h: float = MAP_RECT.size.y - MAP_PAD * 2.0
-	return Vector2(MAP_PAD + float(site["x"]) / 100.0 * w, MAP_PAD + float(site["y"]) / 100.0 * h)
+	var w: float = MAP_RECT.size.x - MAP_PAD.x * 2.0
+	var h: float = MAP_RECT.size.y - MAP_PAD.y - 60.0
+	return Vector2(MAP_PAD.x + float(site["x"]) / 100.0 * w, MAP_PAD.y + float(site["y"]) / 100.0 * h)
+
+
+func _column_x(col: float) -> float:
+	return MAP_PAD.x + col / float(_columns() - 1) * (MAP_RECT.size.x - MAP_PAD.x * 2.0)
+
+
+func _direction(to: int) -> String:
+	var here: int = int(Run.state.site(Run.state.current)["col"])
+	var there: int = int(Run.state.site(to)["col"])
+	return "FORWARD" if there > here else ("SIDEWAYS" if there == here else "BACK")
 
 
 func _build_site_buttons() -> void:
@@ -118,50 +164,103 @@ func _build_site_buttons() -> void:
 	for site: Dictionary in state.sites:
 		var id: int = int(site["id"])
 		var known: bool = RunSim.revealed(state, id)
-		var look: Array = SITE_LOOK.get(String(site["type"]), ["?", UIKit.SURFACE_HIGH]) if known else ["?", UIKit.SURFACE_HIGH]
+		var look: Array = SITES.get(String(site["type"]), ["?", "", UIKit.SURFACE_HIGH, ""]) if known \
+			else ["UNKNOWN", "", UIKit.SURFACE_HIGH, ""]
+		var at: Vector2 = _to_map(site)
 		var button := Button.new()
-		button.text = String(look[0])
 		button.custom_minimum_size = Vector2(NODE_SIZE, NODE_SIZE)
 		button.size = Vector2(NODE_SIZE, NODE_SIZE)
-		button.position = _to_map(site) - Vector2(NODE_SIZE, NODE_SIZE) * 0.5
+		button.position = at - Vector2(NODE_SIZE, NODE_SIZE) * 0.5
 		button.focus_mode = Control.FOCUS_NONE
-		button.add_theme_font_override("font", UIKit.font_strong())
-		button.add_theme_font_size_override("font_size", UIKit.SIZE_LABEL)
-		var style := UIKit.plain(look[1] as Color, int(NODE_SIZE / 2.0))
+		var style := UIKit.plain(look[2] as Color, int(NODE_SIZE / 2.0))
 		style.set_border_width_all(2)
 		style.border_color = UIKit.HAIRLINE
 		if id == state.current:
 			style.border_color = UIKit.AMBER
+			style.set_border_width_all(5)
+		elif id == _chosen:
+			style.border_color = UIKit.AMBER
 			style.set_border_width_all(4)
 		elif targets.has(id):
 			style.border_color = UIKit.BLUE
-			style.set_border_width_all(3)
+			style.set_border_width_all(4)
 		if bool(site["visited"]) and id != state.current:
-			style.bg_color = style.bg_color.darkened(0.45)
+			style.bg_color = style.bg_color.darkened(0.5)
 		for key: String in ["normal", "hover", "pressed", "disabled", "focus"]:
 			button.add_theme_stylebox_override(key, style)
-		button.add_theme_color_override("font_color", UIKit.TEXT)
-		button.add_theme_color_override("font_disabled_color", UIKit.TEXT_DIM)
-		# Only somewhere the Crawler can go is a button; everywhere else is a marker.
 		button.disabled = not targets.has(id)
 		if state.consumed(id):
-			button.modulate = Color(1, 1, 1, 0.35)
-		button.pressed.connect(_travel.bind(id))
+			button.modulate = Color(1, 1, 1, 0.3)
+		button.pressed.connect(_choose.bind(id))
 		_map.add_child(button)
 		_site_buttons[id] = button
+		if known and not String(look[1]).is_empty():
+			var icon: TextureRect = UIKit.icon(String(look[1]), 52, UIKit.TEXT if not bool(site["visited"]) or id == state.current else UIKit.TEXT_FAINT)
+			button.add_child(icon)
+			icon.position = Vector2(NODE_SIZE - 52, NODE_SIZE - 52) * 0.5
+		elif not known:
+			var q := _label("?", 40, UIKit.TEXT_FAINT, UIKit.font_display())
+			button.add_child(q)
+			q.size = Vector2(NODE_SIZE, NODE_SIZE)
+			q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		# Name under the circle; the direction above it for every site you can go to.
+		var done: bool = bool(site["visited"]) and id != state.current and String(site["type"]) != "start"
+		var name := _label(String(look[0]) + ("  ·  DONE" if done else ""),
+			UIKit.SIZE_LABEL, UIKit.TEXT if targets.has(id) or id == state.current else UIKit.TEXT_DIM, UIKit.font_strong())
+		name.position = at + Vector2(-70, NODE_SIZE * 0.5 + 2)
+		name.custom_minimum_size = Vector2(140, 0)
+		name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_map.add_child(name)
+		var over: String = ""
+		if targets.has(id):
+			over = _direction(id)
+		elif id == state.current:
+			over = "YOU ARE HERE"
+		if not over.is_empty():
+			var tag := _label(over, UIKit.SIZE_LABEL, UIKit.AMBER if id == state.current else UIKit.BLUE.lightened(0.3), UIKit.font_strong())
+			tag.position = at + Vector2(-70, -NODE_SIZE * 0.5 - 24)
+			tag.custom_minimum_size = Vector2(140, 0)
+			tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			_map.add_child(tag)
 
 
 func _draw_map() -> void:
 	var state: RunState = Run.state
-	_map.draw_style_box(UIKit.card(UIKit.SURFACE.darkened(0.1)), Rect2(Vector2.ZERO, MAP_RECT.size))
-	# The Reclaimer: everything up to the column it has swallowed.
+	var columns: int = _columns()
+	_map.draw_style_box(UIKit.card(UIKit.SURFACE.darkened(0.15)), Rect2(Vector2.ZERO, MAP_RECT.size))
+	var half: float = (_column_x(1) - _column_x(0)) * 0.5
+	var here_col: int = int(state.site(state.current)["col"])
+	# Zones: one band per column, named across the top.
+	for col: int in columns:
+		var x0: float = _column_x(col) - half
+		var band := Rect2(x0, 50, half * 2.0, MAP_RECT.size.y - 60)
+		if col % 2 == 0:
+			_map.draw_rect(band, Color(1, 1, 1, 0.025))
+		if col == here_col:
+			_map.draw_rect(band, Color(0.9, 0.7, 0.24, 0.05))
+		var zone: String = "START" if col == 0 else ("GATE" if col == columns - 1 else "ZONE %d" % (col + 1))
+		_map.draw_string(UIKit.font_strong(), Vector2(x0, 36), zone, HORIZONTAL_ALIGNMENT_CENTER, half * 2.0, 16,
+			UIKit.AMBER if col == here_col else UIKit.TEXT_DIM)
+	# The Reclaimer: a wall over what it has taken, and stripes over what it takes next.
+	var taken_to: float = _column_x(state.front_col) + half if state.front_col >= 0 else _column_x(0) - half
 	if state.front_col >= 0:
-		var columns: int = int((Run.setup.rules.get("region", {}) as Dictionary).get("columns", 7))
-		var edge: float = (float(state.front_col) + 0.5) / float(columns - 1)
-		var w: float = MAP_PAD + edge * (MAP_RECT.size.x - MAP_PAD * 2.0)
-		_map.draw_rect(Rect2(0, 0, w, MAP_RECT.size.y), Color(0.55, 0.12, 0.08, 0.28))
-		_map.draw_line(Vector2(w, 0), Vector2(w, MAP_RECT.size.y), Color(0.85, 0.3, 0.2, 0.8), 3.0)
-		_map.draw_string(UIKit.font_display(), Vector2(18, 44), "THE RECLAIMER", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(0.9, 0.4, 0.3, 0.9))
+		_map.draw_rect(Rect2(0, 50, taken_to, MAP_RECT.size.y - 60), Color(0.55, 0.12, 0.08, 0.35))
+		_map.draw_string(UIKit.font_display(), Vector2(14, MAP_RECT.size.y - 24), "RECLAIMED", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(0.95, 0.45, 0.35, 0.9))
+	if state.front_col + 1 < columns - 1:
+		var next := Rect2(maxf(taken_to, 0.0), 50, half * 2.0, MAP_RECT.size.y - 60)
+		var y: float = next.position.y - next.size.x
+		while y < next.end.y:
+			var a := Vector2(next.position.x, maxf(y, next.position.y))
+			var b := Vector2(minf(next.end.x, next.position.x + (next.end.y - y)), minf(y + next.size.x, next.end.y))
+			if y < next.position.y:
+				a = Vector2(next.position.x + (next.position.y - y), next.position.y)
+			_map.draw_line(a, b, Color(0.9, 0.35, 0.2, 0.2), 6.0)
+			y += 30.0
+		_map.draw_string(UIKit.font_strong(), Vector2(next.position.x, MAP_RECT.size.y - 24), "FALLS NEXT", HORIZONTAL_ALIGNMENT_CENTER, next.size.x, 16, Color(0.95, 0.5, 0.35))
+	if taken_to > 0.0:
+		_map.draw_line(Vector2(taken_to, 50), Vector2(taken_to, MAP_RECT.size.y - 10), Color(0.95, 0.35, 0.2, 0.9), 4.0)
+	# Roads: thick, and the ones you can take now in blue.
 	var targets: Array[int] = RunSim.destinations(state)
 	for site: Dictionary in state.sites:
 		for other: Variant in (site["links"] as Array):
@@ -171,13 +270,25 @@ func _draw_map() -> void:
 			var b: Vector2 = _to_map(state.site(int(other)))
 			var live: bool = (int(site["id"]) == state.current and targets.has(int(other))) \
 				or (int(other) == state.current and targets.has(int(site["id"])))
-			_map.draw_line(a, b, UIKit.BLUE if live else UIKit.EDGE_LIGHT, 4.0 if live else 2.0, true)
+			var chosen: bool = live and (int(site["id"]) == _chosen or int(other) == _chosen)
+			_map.draw_line(a, b, Color(0.05, 0.05, 0.05, 0.6), 12.0, true)
+			_map.draw_line(a, b, UIKit.AMBER if chosen else (UIKit.BLUE if live else UIKit.EDGE_LIGHT), 6.0 if live else 3.0, true)
 
+
+# --- Side panel ---------------------------------------------------------------
 
 func _build_side() -> void:
 	for child: Node in _side.get_children():
 		child.queue_free()
 	var state: RunState = Run.state
+	if state.overfull():
+		var warn := _plate(UIKit.RED.darkened(0.55))
+		var over: int = state.cargo.size() - state.hold_size
+		warn.add_child(_wrap("HOLD OVERFULL (%d / %d). Fit or scrap %d part%s in REFIT before moving on." % [
+			state.cargo.size(), state.hold_size, over, "" if over == 1 else "s"], UIKit.SIZE_BODY, UIKit.TEXT))
+		_side.add_child(warn)
+	_side.add_child(_preview_plate())
+
 	var head := HBoxContainer.new()
 	_side.add_child(head)
 	head.add_child(_label("CREW", UIKit.SIZE_HEADING, UIKit.TEXT, UIKit.font_display()))
@@ -185,45 +296,96 @@ func _build_side() -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(spacer)
 	if RunSim.can_refit(state):
-		var refit := _button("REFIT", UIKit.secondary(), UIKit.TEXT, Vector2(140, 48))
+		var refit := _button("REFIT  ·  HOLD %d/%d" % [state.cargo.size(), state.hold_size],
+			UIKit.primary() if state.overfull() else UIKit.secondary(), UIKit.BG if state.overfull() else UIKit.TEXT, Vector2(260, 48))
+		refit.add_theme_font_size_override("font_size", UIKit.SIZE_BODY)
 		refit.pressed.connect(_open_refit)
 		head.add_child(refit)
 	for member: Dictionary in state.crew:
-		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", UIKit.card())
-		_side.add_child(card)
-		var box := VBoxContainer.new()
-		card.add_child(box)
-		var alive: bool = bool(member["alive"])
-		box.add_child(_label(String(member["name"]) + (("  ·  %d / %d HP" % [int(member["hp"]), RunSim.max_hp(Run.setup, member)])
-			if alive else "  ·  WRECK"), UIKit.SIZE_HEADING, UIKit.TEXT if alive else UIKit.RED, UIKit.font_strong()))
-		var parts: Array = member["parts"]
-		box.add_child(_label("%s  ·  %s" % [PartText.name_of(Run.db.parts, parts[2]), PartText.name_of(Run.db.parts, parts[3])],
-			UIKit.SIZE_BODY, UIKit.TEXT_DIM))
-		box.add_child(_label("%s  ·  %s  ·  %s" % [PartText.name_of(Run.db.parts, parts[0]), PartText.name_of(Run.db.parts, parts[1]),
-			PartText.name_of(Run.db.parts, parts[4])], UIKit.SIZE_LABEL, UIKit.TEXT_FAINT))
-	var hold: PackedStringArray = []
-	for id: String in state.cargo:
-		hold.append(PartText.name_of(Run.db.parts, id))
-	_side.add_child(_label("HOLD  %d / %d" % [state.cargo.size(), int(Run.setup.rules.get("cargo_size", 6))],
-		UIKit.SIZE_LABEL, UIKit.TEXT, UIKit.font_strong()))
-	var hold_text := _label(", ".join(hold) if not hold.is_empty() else "Empty", UIKit.SIZE_LABEL, UIKit.TEXT_DIM)
-	hold_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_side.add_child(hold_text)
-	_side.add_child(_label("LOG", UIKit.SIZE_LABEL, UIKit.TEXT, UIKit.font_strong()))
-	var start: int = maxi(0, state.log.size() - 6)
-	for i: int in range(start, state.log.size()):
-		var line := _label(state.log[i], UIKit.SIZE_LABEL, UIKit.TEXT_DIM if i < state.log.size() - 1 else UIKit.TEXT)
-		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_side.add_child(line)
-	if RunSim.destinations(state).size() > 0:
-		var hint := _label("Tap a blue-ringed site to move there. The Reclaimer advances every %d moves; moving out of ground it has taken damages every machine." % int((Run.setup.rules["front"] as Dictionary)["every"]),
-			UIKit.SIZE_LABEL, UIKit.TEXT_FAINT)
-		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_side.add_child(hint)
+		_side.add_child(_crew_card(member))
 
 
-# --- Overlays ---------------------------------------------------------------
+## What the chosen site is and what travelling there costs, with TRAVEL. Without a
+## choice, how to make one.
+func _preview_plate() -> Control:
+	var state: RunState = Run.state
+	var plate := _plate(UIKit.SURFACE)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	plate.add_child(box)
+	if _chosen < 0:
+		var targets: Array[int] = RunSim.destinations(state)
+		box.add_child(_label("WHERE NEXT?", UIKit.SIZE_HEADING, UIKit.TEXT, UIKit.font_strong()))
+		box.add_child(_wrap("Tap a blue-ringed site to see what it is and what the move costs. FORWARD heads for the gate; SIDEWAYS and BACK spend a move while the Reclaimer keeps coming."
+			if not targets.is_empty() else "Nowhere to go right now.", UIKit.SIZE_LABEL, UIKit.TEXT_DIM))
+		return plate
+	var site: Dictionary = state.site(_chosen)
+	var known: bool = RunSim.revealed(state, _chosen)
+	var look: Array = SITES.get(String(site["type"]), ["?", "", UIKit.SURFACE_HIGH, ""]) if known \
+		else ["UNKNOWN", "", UIKit.SURFACE_HIGH, "Not scouted yet: you find out when you get there."]
+	box.add_child(_label("%s  ·  %s" % [_direction(_chosen), String(look[0])], UIKit.SIZE_HEADING, UIKit.AMBER, UIKit.font_strong()))
+	box.add_child(_wrap(String(look[3]) if not bool(site["visited"]) else "Already cleared: nothing happens there now.", UIKit.SIZE_BODY, UIKit.TEXT))
+	for line: String in _move_costs(_chosen):
+		box.add_child(_wrap(line, UIKit.SIZE_LABEL, UIKit.RED.lightened(0.25)))
+	var go := _button("TRAVEL", UIKit.primary(), UIKit.BG, Vector2(220, 60))
+	go.pressed.connect(func() -> void: _apply([RunSim.TRAVEL, _chosen]))
+	box.add_child(go)
+	return plate
+
+
+## What this move does to the crew and the front, in words.
+func _move_costs(to: int) -> PackedStringArray:
+	var state: RunState = Run.state
+	var front: Dictionary = Run.setup.rules["front"]
+	var every: int = maxi(1, int(front["every"]))
+	var out: PackedStringArray = []
+	if state.consumed(state.current):
+		out.append("Leaving reclaimed ground: every machine loses %d HP." % int(front["damage"]))
+	if (state.moves + 1) % every == 0:
+		var zone: int = state.front_col + 2
+		out.append("This move lets the Reclaimer take %s." % ("the start" if zone == 1 else "ZONE %d" % zone))
+		if int(state.site(to)["col"]) <= state.front_col + 1:
+			out.append("You will be standing in its ground: your next move out costs every machine %d HP." % int(front["damage"]))
+	return out
+
+
+func _crew_card(member: Dictionary) -> Control:
+	var plate := _plate(UIKit.SURFACE)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	plate.add_child(box)
+	var alive: bool = bool(member["alive"])
+	var full: int = RunSim.max_hp(Run.setup, member)
+	box.add_child(_label(String(member["name"]) + ("" if alive else "  ·  WRECK: rebuild at a workshop"), UIKit.SIZE_HEADING,
+		UIKit.TEXT if alive else UIKit.RED, UIKit.font_strong()))
+	if alive:
+		var bar := ProgressBar.new()
+		bar.show_percentage = false
+		bar.custom_minimum_size = Vector2(0, 10)
+		bar.max_value = full
+		bar.value = int(member["hp"])
+		bar.add_theme_stylebox_override("background", UIKit.plain(UIKit.SURFACE_SUNK, 2))
+		bar.add_theme_stylebox_override("fill", UIKit.plain(UIKit.GREEN if int(member["hp"]) * 3 > full else UIKit.RED, 2))
+		box.add_child(bar)
+		box.add_child(_label("%d / %d HP" % [int(member["hp"]), full], UIKit.SIZE_LABEL, UIKit.TEXT_DIM, UIKit.font_numbers()))
+	var thumbs := HBoxContainer.new()
+	thumbs.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	box.add_child(thumbs)
+	for part: Variant in (member["parts"] as Array):
+		var well := PanelContainer.new()
+		well.custom_minimum_size = Vector2(90, 64)
+		well.add_theme_stylebox_override("panel", UIKit.inset(UIKit.SURFACE_HIGH, UIKit.RADIUS_CONTROL, 2, 2))
+		well.tooltip_text = PartText.name_of(Run.db.parts, String(part))
+		thumbs.add_child(well)
+		var tex := TextureRect.new()
+		tex.texture = PartText.thumb(String(part))
+		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		well.add_child(tex)
+	return plate
+
+
+# --- Site panels --------------------------------------------------------------
 
 func _show_overlay() -> void:
 	if _overlay != null:
@@ -232,9 +394,6 @@ func _show_overlay() -> void:
 	var state: RunState = Run.state
 	if state.outcome != RunState.ONGOING:
 		_run_over()
-		return
-	if _refit_open:
-		_refit()
 		return
 	match String(state.pending.get("kind", "")):
 		"fight":
@@ -265,9 +424,7 @@ func _modal(title: String, subtitle: String, width: float = 1100.0) -> VBoxConta
 	panel.add_child(box)
 	box.add_child(_label(title, UIKit.SIZE_DISPLAY, UIKit.TEXT, UIKit.font_display()))
 	if not subtitle.is_empty():
-		var sub := _label(subtitle, UIKit.SIZE_BODY, UIKit.TEXT_DIM)
-		sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		box.add_child(sub)
+		box.add_child(_wrap(subtitle, UIKit.SIZE_BODY, UIKit.TEXT_DIM, width - 100))
 	return box
 
 
@@ -282,10 +439,11 @@ func _fight_panel() -> void:
 	var state: RunState = Run.state
 	var kind: String = String(state.pending["site_type"])
 	var fight: Dictionary = state.pending["fight"]
-	var titles: Dictionary = {"skirmish": "SKIRMISH", "elite": "ELITE WRECK-FIELD", "boss": "THE GATE"}
+	var titles: Dictionary = {"skirmish": "FIGHT", "elite": "ELITE FIGHT", "boss": "THE GATE"}
 	var enemies: PackedStringArray = []
 	for spec: Dictionary in (fight["enemy"] as Array):
-		enemies.append(String(spec["name"]))
+		var kind_name: String = String(spec.get("kind", ""))
+		enemies.append(String(spec["name"]) + ((" (%s)" % kind_name.to_upper()) if not kind_name.is_empty() else ""))
 	var objective: Dictionary = fight.get("objective", {"type": "rout"})
 	var goals: Dictionary = {
 		"rout": "ROUT: destroy every enemy.",
@@ -293,9 +451,8 @@ func _fight_panel() -> void:
 		"salvage": "SALVAGE: collect %d scrap piles before the enemy carries them off (or destroy every enemy)." % int(objective.get("need", 0)),
 	}
 	var box := _modal(String(titles.get(kind, "FIGHT")),
-		"%s\n\n%s.  %d enemies: %s.\nDamage your machines take here stays with them after the fight." % [
-			String(goals.get(String(objective.get("type", "rout")), "")), String(fight.get("name", "")),
-			enemies.size(), ", ".join(enemies)], 900)
+		"%s\n\n%d enemies: %s.\nDamage your machines take here stays with them after the fight." % [
+			String(goals.get(String(objective.get("type", "rout")), "")), enemies.size(), ", ".join(enemies)], 960)
 	if Run.fight_actions.size() > 0:
 		box.add_child(_label("This fight is in progress. It resumes where you left it.", UIKit.SIZE_BODY, UIKit.GOLD))
 	var row := _row(box)
@@ -307,49 +464,41 @@ func _fight_panel() -> void:
 func _pick_panel() -> void:
 	var state: RunState = Run.state
 	var scrapyard: bool = String(state.pending["kind"]) == "scrapyard"
-	var full: bool = state.cargo.size() >= int(Run.setup.rules.get("cargo_size", 6))
-	var box := _modal("SCRAPYARD" if scrapyard else "SALVAGE",
-		("Take one part into the hold, or strip the yard for scrap." if scrapyard else "Pick one part off the wrecks.")
-		+ ("\nThe hold is full: refit something out of it first, or leave this." if full else ""))
+	var note: String = ("Take one part into the hold, or strip the yard for scrap." if scrapyard else "Take one part off the wrecks.")
+	note += "  Hold: %d / %d." % [state.cargo.size(), state.hold_size]
+	if state.cargo.size() >= state.hold_size:
+		note += "  It is full: you can still take a part, then fit or scrap something in REFIT before moving on."
+	var box := _modal("SCRAPYARD" if scrapyard else "SALVAGE", note, 1240)
 	var row := _row(box)
 	var options: Array = state.pending["options"]
 	for i: int in options.size():
-		row.add_child(_part_card(String(options[i]), Vector2(330, 300), not full, _pick.bind(i)))
+		var card: Button = PartCard.build(Run.db, String(options[i]), Vector2(380, 236), state.crew)
+		card.pressed.connect(_pick.bind(i))
+		row.add_child(card)
 	var actions := _row(box)
-	var skip := _button(("TAKE %d SCRAP" % int(state.pending["scrap"])) if scrapyard else "LEAVE IT",
-		UIKit.secondary(), UIKit.TEXT, Vector2(260, 60))
+	var skip := _button(("TAKE %d SCRAP INSTEAD" % int(state.pending["scrap"])) if scrapyard else "LEAVE IT",
+		UIKit.secondary(), UIKit.TEXT, Vector2(320, 60))
 	skip.pressed.connect(_pick.bind(-1))
 	actions.add_child(skip)
-	var refit := _button("REFIT", UIKit.secondary(), UIKit.TEXT, Vector2(160, 60))
-	refit.pressed.connect(_open_refit)
-	actions.add_child(refit)
 
 
 func _workshop_panel() -> void:
 	var state: RunState = Run.state
 	var shop: Dictionary = Run.setup.rules.get("workshop", {})
-	var box := _modal("WORKSHOP", "Scrap buys repairs here. You have %d." % state.scrap, 900)
-	var cost: int = int(shop["repair_cost"])
+	var box := _modal("WORKSHOP", "Scrap buys work here. You have %d." % state.scrap, 960)
 	if RunSim.needs_repair(state, Run.setup):
-		if state.scrap >= cost:
-			var repair := _button("PATCH THE CREW  +%d HP EACH  ·  %d SCRAP" % [int(shop["repair_amount"]), cost], UIKit.choice(), UIKit.TEXT, Vector2(600, 60))
-			repair.pressed.connect(func() -> void: _apply([RunSim.REPAIR]))
-			box.add_child(repair)
-		else:
-			box.add_child(_label("Patching the crew costs %d scrap." % cost, UIKit.SIZE_BODY, UIKit.RED))
+		box.add_child(_offer("PATCH THE CREW  +%d HP EACH" % int(shop["repair_amount"]), int(shop["repair_cost"]), state.scrap, [RunSim.REPAIR]))
 	else:
 		box.add_child(_label("Every machine is in one piece.", UIKit.SIZE_BODY, UIKit.GREEN))
 	for i: int in state.crew.size():
 		var member: Dictionary = state.crew[i]
-		if bool(member["alive"]):
-			continue
-		var rebuild_cost: int = int(shop["rebuild_cost"])
-		if state.scrap >= rebuild_cost:
-			var rebuild := _button("REBUILD %s  ·  %d SCRAP" % [String(member["name"]).to_upper(), rebuild_cost], UIKit.choice(), UIKit.TEXT, Vector2(560, 60))
-			rebuild.pressed.connect(func() -> void: _apply([RunSim.REBUILD, i]))
-			box.add_child(rebuild)
-		else:
-			box.add_child(_label("Rebuilding %s costs %d scrap." % [member["name"], rebuild_cost], UIKit.SIZE_BODY, UIKit.RED))
+		if not bool(member["alive"]):
+			box.add_child(_offer("REBUILD %s AT HALF HP (sockets empty)" % String(member["name"]).to_upper(),
+				int(shop["rebuild_cost"]), state.scrap, [RunSim.REBUILD, i]))
+	var expand: int = RunSim.expand_cost(state, Run.setup)
+	if expand >= 0:
+		box.add_child(_offer("MORE ROOM IN THE HOLD  %d TO %d" % [state.hold_size,
+			state.hold_size + int((Run.setup.rules["hold"] as Dictionary)["expand_by"])], expand, state.scrap, [RunSim.EXPAND_HOLD]))
 	var row := _row(box)
 	var refit := _button("REFIT", UIKit.secondary(), UIKit.TEXT, Vector2(160, 60))
 	refit.pressed.connect(_open_refit)
@@ -359,60 +508,20 @@ func _workshop_panel() -> void:
 	row.add_child(leave)
 
 
-func _refit() -> void:
-	var state: RunState = Run.state
-	var box := _modal("REFIT", "Tap a socket, then a part from the hold that fits it.", 1700)
-	var columns := _row(box)
-	for i: int in state.crew.size():
-		var member: Dictionary = state.crew[i]
-		var col := VBoxContainer.new()
-		col.custom_minimum_size = Vector2(530, 0)
-		col.add_theme_constant_override("separation", UIKit.SPACE_XS)
-		columns.add_child(col)
-		col.add_child(_label(String(member["name"]).to_upper() + ("" if bool(member["alive"]) else "  ·  WRECK"),
-			UIKit.SIZE_HEADING, UIKit.TEXT, UIKit.font_strong()))
-		for socket: int in 5:
-			var part: String = String(member["parts"][socket])
-			var selected: bool = _refit_socket.size() == 2 and int(_refit_socket[0]) == i and int(_refit_socket[1]) == socket
-			var slot_name: String = ["CHASSIS", "CORE", "LEFT ARM", "RIGHT ARM", "MODULE"][socket]
-			var button := _socket_button(slot_name, part, selected)
-			button.disabled = not bool(member["alive"])
-			button.pressed.connect(func() -> void:
-				_refit_socket = [i, socket]
-				_show_overlay())
-			col.add_child(button)
-	box.add_child(_label("HOLD  %d / %d" % [state.cargo.size(), int(Run.setup.rules.get("cargo_size", 6))],
-		UIKit.SIZE_HEADING, UIKit.TEXT, UIKit.font_strong()))
-	var hold := _row(box)
-	var want: String = RunSetup.socket_slot(int(_refit_socket[1])) if _refit_socket.size() == 2 else ""
-	for c: int in state.cargo.size():
-		var id: String = state.cargo[c]
-		var fits: bool = want.is_empty() or String((Run.db.parts[id] as Dictionary).get("slot", "")) == want
-		var card: Control = _part_card(id, Vector2(260, 200), fits and not want.is_empty(), _fit.bind(c))
-		card.modulate = Color(1, 1, 1, 1.0 if fits else 0.35)
-		hold.add_child(card)
-	if state.cargo.is_empty():
-		hold.add_child(_label("Nothing in the hold. Salvage from fights and scrapyards ends up here.", UIKit.SIZE_BODY, UIKit.TEXT_DIM))
-	var row := _row(box)
-	if _refit_socket.size() == 2 and int(_refit_socket[1]) != 0 \
-			and not String(state.crew[int(_refit_socket[0])]["parts"][int(_refit_socket[1])]).is_empty():
-		var unfit := _button("UNFIT INTO HOLD", UIKit.secondary(), UIKit.TEXT, Vector2(260, 60))
-		unfit.pressed.connect(func() -> void: _fit(-1))
-		row.add_child(unfit)
-	var done := _button("DONE", UIKit.primary(), UIKit.BG, Vector2(220, 60))
-	done.pressed.connect(func() -> void:
-		_refit_open = false
-		_refit_socket = []
-		_refresh())
-	row.add_child(done)
+## A priced offer: a button when affordable, a label saying what it would cost when not.
+func _offer(text: String, cost: int, scrap: int, action: Array) -> Control:
+	if scrap < cost:
+		return _label("%s  ·  %d SCRAP (you have %d)" % [text, cost, scrap], UIKit.SIZE_BODY, UIKit.TEXT_FAINT)
+	var button := _button("%s  ·  %d SCRAP" % [text, cost], UIKit.choice(), UIKit.TEXT, Vector2(700, 60))
+	button.pressed.connect(func() -> void: _apply(action))
+	return button
 
 
 func _run_over() -> void:
 	var state: RunState = Run.state
 	var won: bool = state.outcome == RunState.WON
 	var box := _modal("ACT 1 CLEARED" if won else "RUN OVER",
-		"%s\n\n%d fights won  ·  %d moves  ·  %d scrap" % [state.end_reason, state.fights_won,
-			state.moves, state.scrap], 900)
+		"%s\n\n%d fights won  ·  %d moves  ·  %d scrap" % [state.end_reason, state.fights_won, state.moves, state.scrap], 900)
 	var row := _row(box)
 	var title := _button("TITLE", UIKit.secondary(), UIKit.TEXT, Vector2(200, 64))
 	title.pressed.connect(func() -> void:
@@ -427,7 +536,17 @@ func _run_over() -> void:
 	row.add_child(again)
 
 
-# --- Actions ----------------------------------------------------------------
+# --- Actions ------------------------------------------------------------------
+
+## First tap previews a site; the TRAVEL button (or a second tap) goes.
+func _choose(id: int) -> void:
+	if _chosen == id:
+		_apply([RunSim.TRAVEL, id])
+		return
+	_chosen = id
+	Audio.play("ui_confirm", -16.0)
+	_refresh()
+
 
 func _travel(id: int) -> void:
 	_apply([RunSim.TRAVEL, id])
@@ -437,95 +556,40 @@ func _pick(index: int) -> void:
 	_apply([RunSim.PICK, index])
 
 
-func _fit(cargo_index: int) -> void:
-	if _refit_socket.size() != 2:
-		return
-	if Run.apply([RunSim.REFIT, int(_refit_socket[0]), int(_refit_socket[1]), cargo_index]):
-		Audio.play("ui_confirm", -12.0)
-	else:
-		Audio.play("ui_deny", -10.0)
-	_refresh()
-
-
 func _open_refit() -> void:
-	_refit_open = true
-	_refit_socket = []
-	_show_overlay()
+	if _refit != null:
+		return
+	_refit = RefitPanel.new()
+	add_child(_refit)
+	_refit.closed.connect(func() -> void:
+		_refit.queue_free()
+		_refit = null
+		_refresh())
 
 
 func _apply(action: Array) -> void:
 	if Run.apply(action):
 		Audio.play("ui_confirm", -12.0)
+		if int(action[0]) == RunSim.TRAVEL:
+			_chosen = -1
 	else:
 		Audio.play("ui_deny", -10.0)
 	_refresh()
 
 
-# --- Pieces -----------------------------------------------------------------
+# --- Pieces -------------------------------------------------------------------
 
-## A part as a card: picture, name in its rarity colour, slot, and what it does.
-## `on_press` is null for a card that is only shown.
-func _part_card(id: String, size: Vector2, enabled: bool, on_press: Callable) -> Control:
-	var button := Button.new()
-	button.custom_minimum_size = size
-	button.focus_mode = Control.FOCUS_NONE
-	var style := UIKit.inset(UIKit.SURFACE_HIGH, UIKit.RADIUS_CARD, UIKit.SPACE_MD, UIKit.SPACE_MD)
-	style.border_color = PartText.rarity_colour(Run.db.parts, id).darkened(0.2)
-	for key: String in ["normal", "hover", "pressed", "disabled", "focus"]:
-		button.add_theme_stylebox_override(key, style)
-	button.disabled = not enabled
-	if enabled:
-		button.pressed.connect(on_press)
-	var box := VBoxContainer.new()
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	button.add_child(box)
-	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_MD)
-	var tex := PartText.thumb(id)
-	if tex != null:
-		var picture := TextureRect.new()
-		picture.texture = tex
-		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		picture.custom_minimum_size = Vector2(0, size.y * 0.42)
-		picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		box.add_child(picture)
-	box.add_child(_label(PartText.name_of(Run.db.parts, id), UIKit.SIZE_HEADING, PartText.rarity_colour(Run.db.parts, id).lightened(0.2), UIKit.font_strong()))
-	box.add_child(_label(PartText.slot_label(Run.db.parts, id), UIKit.SIZE_MICRO, UIKit.TEXT_FAINT, UIKit.font_strong()))
-	var text := _label(PartText.summary(Run.db.parts, id), UIKit.SIZE_LABEL, UIKit.TEXT_DIM)
-	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(text)
-	return button
+func _plate(fill: Color) -> PanelContainer:
+	var plate := PanelContainer.new()
+	plate.add_theme_stylebox_override("panel", UIKit.card(fill))
+	return plate
 
 
-func _socket_button(slot_name: String, part: String, selected: bool) -> Button:
-	var button := Button.new()
-	button.custom_minimum_size = Vector2(520, 76)
-	button.focus_mode = Control.FOCUS_NONE
-	var style := UIKit.inset(UIKit.SURFACE_HIGH if selected else UIKit.SURFACE, UIKit.RADIUS_CONTROL, UIKit.SPACE_MD, UIKit.SPACE_SM)
-	if selected:
-		style.border_color = UIKit.AMBER
-		style.set_border_width_all(2)
-	for key: String in ["normal", "hover", "pressed", "disabled", "focus"]:
-		button.add_theme_stylebox_override(key, style)
-	var row := HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", UIKit.SPACE_MD)
-	button.add_child(row)
-	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_SM)
-	var picture := TextureRect.new()
-	picture.texture = PartText.thumb(part)
-	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	picture.custom_minimum_size = Vector2(60, 60)
-	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(picture)
-	var text := VBoxContainer.new()
-	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(text)
-	text.add_child(_label("%s  ·  %s" % [slot_name, PartText.name_of(Run.db.parts, part)], UIKit.SIZE_BODY,
-		PartText.rarity_colour(Run.db.parts, part).lightened(0.3) if not part.is_empty() else UIKit.RED, UIKit.font_strong()))
-	text.add_child(_label(PartText.summary(Run.db.parts, part), UIKit.SIZE_LABEL, UIKit.TEXT_DIM))
-	return button
+func _wrap(text: String, size: int, colour: Color, width: float = SIDE_W - 60) -> Label:
+	var label := _label(text, size, colour)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.custom_minimum_size = Vector2(width, 0)
+	return label
 
 
 func _label(text: String, size: int, colour: Color, face: Font = null) -> Label:

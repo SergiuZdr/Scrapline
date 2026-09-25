@@ -18,6 +18,8 @@ extends RefCounted
 ##   [REBUILD, crew_index]               workshop: rebuild a wreck
 ##   [LEAVE]                             leave the workshop
 ##   [REFIT,   crew_index, socket, cargo_index]   swap a socket with cargo; -1 = unfit into cargo
+##   [SCRAP_PART, cargo_index]           break a part in the hold down for scrap (any time but a fight)
+##   [EXPAND_HOLD]                       workshop: buy more room in the hold
 
 const TRAVEL: int = 0
 const FIGHT: int = 1
@@ -26,6 +28,8 @@ const REPAIR: int = 3
 const REBUILD: int = 4
 const LEAVE: int = 5
 const REFIT: int = 6
+const SCRAP_PART: int = 7
+const EXPAND_HOLD: int = 8
 
 const FIGHT_TYPES: PackedStringArray = ["skirmish", "elite", "boss"]
 
@@ -34,6 +38,7 @@ static func start(setup: RunSetup) -> RunState:
 	var state := RunState.new()
 	var rules: Dictionary = setup.rules
 	state.scrap = int(rules.get("starting_scrap", 0))
+	state.hold_size = int((rules.get("hold", {}) as Dictionary).get("start", 8))
 	for spec: Dictionary in (rules.get("starting_crew", []) as Array):
 		var parts: Array = []
 		for id: Variant in spec.get("parts", []):
@@ -77,6 +82,10 @@ static func apply(state: RunState, setup: RunSetup, action: Array) -> bool:
 			return true
 		REFIT:
 			return _refit(state, setup, int(action[1]), int(action[2]), int(action[3]))
+		SCRAP_PART:
+			return _scrap_part(state, setup, int(action[1]))
+		EXPAND_HOLD:
+			return _expand_hold(state, setup)
 	return false
 
 
@@ -85,7 +94,7 @@ static func apply(state: RunState, setup: RunSetup, action: Array) -> bool:
 ## Sites the crew can travel to right now.
 static func destinations(state: RunState) -> Array[int]:
 	var out: Array[int] = []
-	if not state.pending.is_empty() or state.outcome != RunState.ONGOING:
+	if not state.pending.is_empty() or state.outcome != RunState.ONGOING or state.overfull():
 		return out
 	for id: Variant in (state.site(state.current)["links"] as Array):
 		if not state.consumed(int(id)):
@@ -194,6 +203,11 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 	if state.alive_crew() == 0:
 		_end(state, RunState.LOST, "The whole crew is wrecked.")
 		return true
+	if result.outcome == CombatState.LOST and kind == "boss":
+		# There is no road past the gate to go on along, and the road back is reclaimed:
+		# a crew that survives but does not win here is stranded, so the run ends.
+		_end(state, RunState.LOST, "The gate held: the crew could not break through in time.")
+		return true
 	if result.outcome == CombatState.LOST:
 		# The objective failed but the crew lives: no salvage, and the road goes on.
 		state.pending = {}
@@ -227,8 +241,8 @@ static func _pick(state: RunState, setup: RunSetup, index: int) -> bool:
 			state.log.append("Stripped the yard for %d scrap." % int(state.pending["scrap"]))
 		state.pending = {}
 		return true
-	if state.cargo.size() >= int(setup.rules.get("cargo_size", 6)):
-		return false   # the hold is full: refit or skip first
+	# Always allowed. If the hold goes over, travel waits until something is fitted or
+	# scrapped -- the choice is made with the new part in hand, not before (play-test 2).
 	var part: String = String(options[index])
 	state.cargo.append(part)
 	state.log.append("Loaded %s into the hold." % String((setup.parts[part] as Dictionary).get("name", part)))
@@ -280,8 +294,8 @@ static func _refit(state: RunState, setup: RunSetup, index: int, socket: int, ca
 	var parts: Array = member["parts"]
 	var old: String = String(parts[socket])
 	if cargo_index == -1:
-		# Unfit into the hold. A construct cannot give up its chassis.
-		if socket == 0 or old.is_empty() or state.cargo.size() >= int(setup.rules.get("cargo_size", 6)):
+		# Unfit into the hold. A machine cannot give up its chassis.
+		if socket == 0 or old.is_empty():
 			return false
 		parts[socket] = ""
 		state.cargo.append(old)
@@ -304,6 +318,41 @@ static func _refit(state: RunState, setup: RunSetup, index: int, socket: int, ca
 ## A refit can lower a machine's full HP (a lighter chassis, losing an HP module).
 static func _clamp_hp(setup: RunSetup, member: Dictionary) -> void:
 	member["hp"] = mini(int(member["hp"]), max_hp(setup, member))
+
+
+## Scrap a part from the hold, by rarity (`scrap_value.by_rarity`).
+static func scrap_value(setup: RunSetup, part: String) -> int:
+	var values: Array = (setup.rules.get("scrap_value", {}) as Dictionary).get("by_rarity", [3, 6, 10])
+	return int(values[clampi(setup.rarity(part) - 1, 0, values.size() - 1)])
+
+
+static func _scrap_part(state: RunState, setup: RunSetup, index: int) -> bool:
+	if not can_refit(state) or index < 0 or index >= state.cargo.size():
+		return false
+	var part: String = state.cargo[index]
+	var value: int = scrap_value(setup, part)
+	state.cargo.remove_at(index)
+	state.scrap += value
+	state.log.append("Broke down %s for %d scrap." % [String((setup.parts[part] as Dictionary).get("name", part)), value])
+	return true
+
+
+## The price of the next hold expansion, or -1 when there are no more.
+static func expand_cost(state: RunState, setup: RunSetup) -> int:
+	var hold: Dictionary = setup.rules.get("hold", {})
+	var bought: int = (state.hold_size - int(hold.get("start", 8))) / maxi(1, int(hold.get("expand_by", 2)))
+	var costs: Array = hold.get("expand_costs", [])
+	return int(costs[bought]) if bought < costs.size() else -1
+
+
+static func _expand_hold(state: RunState, setup: RunSetup) -> bool:
+	var cost: int = expand_cost(state, setup)
+	if String(state.pending.get("kind", "")) != "workshop" or cost < 0 or state.scrap < cost:
+		return false
+	state.scrap -= cost
+	state.hold_size += int((setup.rules.get("hold", {}) as Dictionary).get("expand_by", 2))
+	state.log.append("Welded more racks into the hold: room for %d." % state.hold_size)
+	return true
 
 
 static func _end(state: RunState, outcome: int, reason: String) -> void:

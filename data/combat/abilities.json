@@ -7,7 +7,7 @@
     "free": false,
     "range": 3,
     "damage": 3,
-    "text": "Run up to 3 hexes in a straight line. Slam into the first thing in the way for 3 damage and shove it."
+    "text": "Run up to 3 hexes in a straight line and slam into the first thing in the way: 3 damage and a shove."
   },
   "grapple": {
     "name": "Grapple",
@@ -15,7 +15,7 @@
     "cooldown": 3,
     "free": false,
     "range": 3,
-    "text": "Hook a unit up to 3 hexes away in a straight line and drag it next to you. Dragged over a pit, it falls."
+    "text": "Hook any unit 2-3 hexes away that nothing blocks, and drag it next to you. Dragged over a pit, it falls. Anchored frames cannot be moved."
   },
   "barricade": {
     "name": "Barricade",
@@ -32,7 +32,7 @@
     "free": true,
     "damage": 2,
     "heat": 0,
-    "text": "Free. This machine's next attack this turn deals +2."
+    "text": "Free. Your next attack or Charge this turn deals +2."
   },
   "dash": {
     "name": "Dash",
@@ -49,7 +49,7 @@
     "free": true,
     "damage": 2,
     "heat": 2,
-    "text": "Free. Next attack this turn +2 damage, +2 heat."
+    "text": "Free. Your next attack or Charge this turn deals +2, for +2 heat."
   },
   "flush": {
     "name": "Flush",
@@ -72,6 +72,6 @@
     "cooldown": 2,
     "free": true,
     "range": 2,
-    "text": "Free. Pull in a scrap pile up to 2 hexes away: its scrap and 2 HP, without moving."
+    "text": "Free. Collect a scrap pile up to 2 hexes away (scrap and 2 HP) without moving."
   }
 }

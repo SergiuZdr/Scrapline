@@ -14,13 +14,15 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 004 | [Run loop](iterations/004-run-loop.md) | Region map, site types, fight → salvage → next site, Crawler HP carries, save and resume mid-run | ✅ |
 | — | [Play-test 1](playtests/2026-09-24-playtest-1.md) | The user plays the full loop: combat a chore, no build progression, bad map/refit, no tutorial | ✅ |
 | 005 | [Hex combat core](iterations/005-hex-core.md) | Hex board with free aim and line of sight; the Crawler removed; scrap piles; fight objectives (rout, defend caches, salvage); machine HP carries through the run; faster animations and a new death | ✅ |
-| 006 | [Fight depth](iterations/006-fight-depth.md) | Active part abilities with cooldowns; interactive terrain (barrels, pits, breakable cover); distinct enemy types; **user play-test of 005 + 006** | 🔨 built, awaiting play-test |
-| 007 | Build progression | Perks, manufacturer sets, part upgrades, machine levels; rewards that are always a real choice; **user play-test** | ⬜ |
-| 008 | Clarity | Tutorial first fight; glossary and tap-for-info on every term; map redesign (clear front, forward vs sideways); refit by drag and drop; no log; **user play-test** | ⬜ |
-| 009 | Act 1 content | Real bosses, enemy roster with identity, parts toward 25 arms, events | ⬜ |
-| 010 | Acts 2–3 | Two more regions, traders, events, bosses | ⬜ |
-| 011 | Feel pass | Art on the board, VFX, audio, camera | ⬜ |
-| 012 | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
+| 006 | [Fight depth](iterations/006-fight-depth.md) | Active part abilities with cooldowns; interactive terrain (barrels, pits, breakable cover); distinct enemy types; **user play-test of 005 + 006** | ✅ (play-test 2) |
+| — | [Play-test 2](playtests/2026-09-25-playtest-2.md) | Terrain combos praised; map/refit unchanged, hold too small, HUD overflow, hexes touching at corners, range confusion | ✅ |
+| 007 | [Play-test 2 fixes](iterations/007-playtest-2-fixes.md) | Every play-test 2 issue: hex orientation, grapple/range trust, selling and hold size, battle bar, intents, spawns, rarity, **map and refit redesign**; **user play-test** | ✅ (awaiting play-test 3) |
+| 008 | Build progression | Perks, manufacturer sets, part upgrades, machine levels; rewards that are always a real choice; **user play-test** | ⏭ |
+| 009 | Onboarding | Tutorial first fight; glossary; tap-for-info everywhere | ⬜ |
+| 010 | Act 1 content | Real bosses, enemy roster with identity, parts toward 25 arms, events | ⬜ |
+| 011 | Acts 2–3 | Two more regions, traders, events, bosses | ⬜ |
+| 012 | Feel pass | Art on the board, VFX, audio, camera | ⬜ |
+| 013 | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
 

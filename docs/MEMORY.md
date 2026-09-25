@@ -48,6 +48,13 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-24 | **Previews are dry runs**: an attack/ability is executed on `CombatState.clone()` and diffed | With explosions, chains, pits and bombers only the real rules can say what happens; a second calculation would eventually lie |
 | 2026-09-24 | Abilities are player-only; enemies express threat through intents and kinds | An enemy ability the player cannot see coming breaks the telegraph promise |
 | 2026-09-24 | Crate walls (and barricades) break into nothing, not rubble | Simpler, and a broken wall opening a lane is itself a decision |
+| 2026-09-25 | Everything merged to `main` (user); iterations continue on branches and merge when done | The user asked |
+| 2026-09-25 | **Reported problems are fixed before new features**, and anything deferred is told to the user in so many words | PT1-8/9 were quietly scheduled for 008 and the user saw them unchanged (PT2-1) |
+| 2026-09-25 | **The hold starts at 8**; a workshop sells +2 room for 10, then 16, then 24 scrap. Any part can be **scrapped** outside a fight for 3 / 6 / 10 by rarity | PT2-2: 6 was too small and useless parts could not be got rid of |
+| 2026-09-25 | Taking salvage is **always allowed**. An overfull hold blocks TRAVEL instead, until something is fitted or scrapped | PT2-3: refusing the pick left "leave it" as the only choice; blocking travel keeps the choice with the player |
+| 2026-09-25 | The map **previews before it travels**: first tap shows the site, its direction and what the move costs; TRAVEL (or a second tap) goes | PT1-8: the player could not tell forward from sideways, or what a move would cost |
+| 2026-09-25 | **A boss fight that is not won ends the run**, even with the crew alive | There is no road past the gate and the road back is reclaimed; the run bot found crews stranded there (3 in 150) |
+| 2026-09-25 | Refit is its **own screen** (opaque), with drag and drop plus tap-then-tap | PT1-9/PT2-1; the map showing through a translucent sheet read as clutter |
 | 2026-09-24 | ADAPT code that does not compile once CUT code is gone goes to `legacy/` (ignored by Godot through `.gdignore`), not straight to deletion | It stays greppable as reference while its replacement is written; it is deleted once replaced |
 
 ## Lessons carried over from the old codebase
@@ -98,6 +105,11 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-24 | Validate authored AND generated fights for overlapping starts: a clash does not crash, it just draws wrong |
 
 | 2026-09-24 | The bot barely uses the new tools, so bot numbers after 006 are a FLOOR on player power. A smarter bot (ability use) is needed before trusting balance numbers again |
+
+| 2026-09-25 | **A mesh has an orientation of its own.** `CylinderMesh` with 6 sides is already pointy-top; the extra 30° turn drew a flat-top board over pointy-top maths, so hexes met at their corners and every distance looked one short (PT2-10, and most of PT2-5/7). Check a board from its RENDERED geometry, not from the maths |
+| 2026-09-25 | "Works on an ally, not on an enemy" was a hidden rule (anchors cannot be moved) plus a board that lied about distance. A rule the player cannot see reads as a bug: tag it (ANCHORED) |
+| 2026-09-25 | Rebuilding a Control tree during a drag frees the node being dragged. During a drag only restyle; rebuild deferred, after the drop |
+| 2026-09-25 | A "the road goes on" rule has to hold at the END of the road. Losing the boss objective with the crew alive left the run with no legal action; only the whole-game bot found it |
 
 ## Open questions
 

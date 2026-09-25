@@ -40,17 +40,15 @@ static func targets(state: CombatState, u: GridUnit, i: int) -> Array[Vector2i]:
 					if state.solid(cell) or state.unit_at(cell.x, cell.y) != null:
 						break
 		"grapple":
-			for dir: int in 6:
-				var cell: Vector2i = here
-				for step: int in reach:
-					cell = Hex.neighbor(cell, dir)
-					if not state.inside(cell) or state.solid(cell):
-						break
-					var other: GridUnit = state.unit_at(cell.x, cell.y)
-					if other != null:
-						if not other.unshovable and step > 0:
-							out.append(cell)
-						break
+			# Free aim, like a shot: any unit in reach the hook can see (nothing solid or
+			# standing between), 2+ hexes away. Anchored frames cannot be moved at all.
+			for cell: Vector2i in Hex.within(here, reach):
+				if not state.inside(cell) or Hex.distance(here, cell) < 2:
+					continue
+				var other: GridUnit = state.unit_at(cell.x, cell.y)
+				if other == null or other.unshovable or not _clear_line(state, here, cell):
+					continue
+				out.append(cell)
 		"barricade":
 			for n: Vector2i in Hex.neighbors(here):
 				if state.inside(n) and not state.solid(n) and not state.is_pit(n) \
@@ -141,7 +139,11 @@ static func use(state: CombatState, ref: int, i: int, target: Vector2i) -> bool:
 static func _charge(state: CombatState, u: GridUnit, target: Vector2i, ability: Dictionary) -> void:
 	var here := Vector2i(u.x, u.y)
 	var dir: int = Hex.direction(here, target)
-	var dmg: int = int(ability.get("damage", 3))
+	# Focus / Overdrive boost the next damaging action, and a charge is one.
+	var dmg: int = int(ability.get("damage", 3)) + u.boost_damage
+	u.heat += u.boost_heat
+	u.boost_damage = 0
+	u.boost_heat = 0
 	var cell: Vector2i = here
 	for step: int in int(ability.get("range", 3)):
 		var next: Vector2i = Hex.neighbor(cell, dir)
@@ -166,18 +168,18 @@ static func _charge(state: CombatState, u: GridUnit, target: Vector2i, ability: 
 		CombatSim.collect(state, u)
 
 
-## Drag the unit on `target` toward `u` until it is adjacent or something stops it. Over a
-## pit, it falls.
+## Drag the unit on `target` toward `u` along the line between them, until it is adjacent
+## or something stops it. Over a pit, it falls.
 static func _grapple(state: CombatState, u: GridUnit, target: Vector2i) -> void:
 	var victim: GridUnit = state.unit_at(target.x, target.y)
 	if victim == null:
 		return
 	var here := Vector2i(u.x, u.y)
-	var dir: int = Hex.direction(target, here)
 	var from := Vector2i(victim.x, victim.y)
 	var cell: Vector2i = from
-	while Hex.distance(cell, here) > 1:
-		var next: Vector2i = Hex.neighbor(cell, dir)
+	for next: Vector2i in Hex.line(from, here):
+		if Hex.distance(cell, here) <= 1 or next == here:
+			break
 		if state.is_pit(next):
 			CombatSim.fall(state, u.ref, victim, next)
 			return
@@ -188,3 +190,13 @@ static func _grapple(state: CombatState, u: GridUnit, target: Vector2i) -> void:
 		victim.x = cell.x
 		victim.y = cell.y
 		state.emit(GridEv.PULLED, u.ref, victim.ref, cell.x, cell.y, from.x, from.y)
+
+
+## Nothing solid and nobody standing between `a` and `b` (exclusive).
+static func _clear_line(state: CombatState, a: Vector2i, b: Vector2i) -> bool:
+	for c: Vector2i in Hex.line(a, b):
+		if c == b:
+			return true
+		if state.solid(c) or state.unit_at(c.x, c.y) != null:
+			return false
+	return true
