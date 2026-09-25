@@ -69,6 +69,8 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-25 | **9-column region under fog**, a following camera, the crew walking it; the Reclaimer shown as a **gauge and a ghost wall**, not text | PT4-5/6/7 |
 | 2026-09-25 | **Assembly at run start** from a bench (commons free, default uncommons once): one `ASSEMBLE` action, before the first move | PT4-14 |
 | 2026-09-25 | **Levels show on the model** (armour, chest plate, stacks, a bigger frame) and levelling up is an event | PT4-4 |
+| 2026-09-26 | **The colour registry**: blue = yours, red = danger, amber = your action, copper = machine condition, green = a gain, purple = something being built, hazard ochre = overdrive, core lenses = damage type, rarity colours only on parts | 010, the art-direction skill: one meaning per signal colour. Caches moved from amber to blue |
+| 2026-09-26 | **Surfaces are photographed, tinted, low-frequency; machines stay the brightest solid things** — and that is measured (`measure_contrast.gd`), not argued | 010: fidelity creep is the named risk of photo textures |
 
 ## Lessons carried over from the old codebase
 
@@ -137,6 +139,9 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-25 | A counter that a first hit spends (`pierce_left`) must not also decide something about later hits. The overshoot test caught the far unit taking full damage |
 | 2026-09-25 | Headless frames outrun real time: wait for tweened things with timers, not frame counts |
 | 2026-09-25 | A class a `--script` tool names must not reference an autoload; pass what it needs in |
+| 2026-09-26 | **Photographed texture raised contrast rather than lowering it**, because it went in darker and lower-frequency than the flat colours it replaced. Measure before and after; intuition said the opposite |
+| 2026-09-26 | **The roster generator does not reproduce the committed roster.** Regenerating changed heads and dropped most pauldrons. Compare old and new thumbnails before trusting any regeneration, and restore on mismatch |
+| 2026-09-26 | A photograph carries its own hue: rusty RED paint multiplied by a yellow livery is brown. Bake it to a hue-free wear map (white paint, rust-orange chips) and let the livery colour it |
 
 ## Open questions
 
@@ -155,3 +160,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-24 | The four 004 design calls (repair between fights, restored arms, front damage per move, generated squads) | Proposed; awaiting the user's veto | **Superseded by play-test 1**: the Crawler is gone and HP now carries; revisit the rest in 005 |
 | 2026-09-23 | Keep 3D or go 2D? | Keep 3D. The whole art pipeline exists, and a tilted camera suits a grid |agree with the propose |
 | 2026-09-25 | **Difficulty after 008**: the run bot wins 88.7% (76.7% after 007), and it barely uses abilities | Dials, in order: enemy count by column (`run.json` enemies), the speed of the front (`front.every`), level costs. Decide after play-test 4 | |
+| 2026-09-26 | **Which roster is right: pauldrons on every arm (the shipped roster, CLAUDE.md) or per-archetype shoulders (`builders/arm.py` today)?** The generator no longer reproduces the roster, which blocks exporting the aluminium light value | Proposed: keep the shipped look (pauldrons everywhere), make the generator reproduce it, then export the aluminium. The user decides | |

@@ -2,6 +2,26 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [010] The look — 2026-09-26 ([detail](iterations/010-the-look.md))
+
+A visual pass over everything, from the sources the art spike tested, judged by the
+`art-direction-and-readability` frame: readability first, and measured.
+
+### Added
+- **The style bible and colour registry** ([art-and-audio](plans/art-and-audio.md)): named references, palette layers, one meaning per signal colour, a read contract per element.
+- `tools/measure_contrast.gd`: the machines' luminance over their surroundings (1.8–1.9 before, **2.1–2.3 after**).
+- **The board** in photographed surfaces by terrain, with rubble chunks, crusted slag, ridge lips, rusted pits; HDRI sky light.
+- **Worn paint on the machines** (a baked wear map from Poly Haven's rusty painted metal, with normals), plate grain on metal, **stencilled crew numbers**.
+- **Effects**: soft glows, streak sparks, fireballs with smoke and scorch, burning kills, glowing tracers.
+- **HUD**: crew cards with machine portraits and HP pips; weapon buttons show the arm.
+- **The title screen as a scene**: the crew under floodlights, the Reclaimer's beacons on the horizon.
+
+### Changed
+- Defend caches wear the player's blue (amber means your action); copper (`UIKit.GOLD`) means machine condition.
+
+### Not shipped
+- The dirty-aluminium zone is wired but not exported: the generator no longer reproduces the committed roster (an open question for the user).
+
 ## [009] Play-test 4 fixes — 2026-09-25 ([detail](iterations/009-playtest-4-fixes.md))
 
 Answers play-test 4 (all but the full visual overhaul, which is 010), after an art-source
