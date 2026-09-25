@@ -15,3 +15,6 @@ All CC0 (https://polyhaven.com/license). Fetched with `tools/fetch_polyhaven.py`
 | hdri | `rooftop_night` | 1k | https://polyhaven.com/a/rooftop_night | CC0 |
 | model | `concrete_road_barrier` | 1k | https://polyhaven.com/a/concrete_road_barrier | CC0 |
 | model | `old_tyre` | 1k | https://polyhaven.com/a/old_tyre | CC0 |
+| texture | `rocky_gravel` | 1k | https://polyhaven.com/a/rocky_gravel | CC0 |
+| texture | `damaged_concrete_floor` | 1k | https://polyhaven.com/a/damaged_concrete_floor | CC0 |
+| texture | `rock_ground` | 1k | https://polyhaven.com/a/rock_ground | CC0 |

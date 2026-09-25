@@ -194,19 +194,19 @@ func _build_world() -> void:
 	# opposite side. See CLAUDE.md, "The visual system".
 	var env := WorldEnvironment.new()
 	var environment := Environment.new()
-	environment.background_mode = Environment.BG_SKY
+	# The night HDRI lights and reflects (the metal finally has something to reflect); the
+	# camera sees the game's own dark sky (art-sourcing.md, mode c).
+	environment.background_mode = Environment.BG_COLOR
+	environment.background_color = Color("0d0e12")
 	var sky := Sky.new()
-	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color("10131b")
-	sky_material.sky_horizon_color = Color("3b3330")
-	sky_material.sky_curve = 0.18
-	sky_material.ground_bottom_color = Color("0e0c0a")
-	sky_material.ground_horizon_color = Color("382c22")
-	sky_material.energy_multiplier = 0.7
+	var sky_material := PanoramaSkyMaterial.new()
+	sky_material.panorama = load("res://art/thirdparty/polyhaven/hdris/dresden_station_night/dresden_station_night_1k.hdr")
+	sky_material.energy_multiplier = 0.5
 	sky.sky_material = sky_material
 	environment.sky = sky
+	environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	environment.ambient_light_sky_contribution = 0.35
+	environment.ambient_light_sky_contribution = 0.45
 	environment.ambient_light_color = Color("2f3a52")
 	environment.ambient_light_energy = 0.75
 	environment.fog_enabled = true
@@ -322,15 +322,14 @@ func _build_board() -> void:
 			var slab := MeshInstance3D.new()
 			slab.mesh = _hex_mesh(HEX * 0.96, 0.3 + top)
 			slab.position = _to_world(x, y) + Vector3(0, -0.15 + top * 0.5, 0)
-			# The ground sits UNDER the machines in value (CLAUDE.md).
-			var base: Color = Color(String(def.get("colour", "1a1e26")))
-			if (x + y) % 2 == 1:
-				base = base.lightened(0.04)
-			slab.material_override = _material(base, 0.95)
+			# The ground sits UNDER the machines in value (art-and-audio.md): a photographed
+			# surface per terrain type, at low frequency, tinted to its field colour.
+			slab.material_override = _tile_material(def, (x + y) % 2 == 1)
 			slab.set_meta("tile", Vector2i(x, y))
 			_board.add_child(slab)
 			if blocks:
 				_board.add_child(_scrap_heap(x, y))
+			_dress_tile(String(def.get("id", "open")), x, y, top)
 			_hint_quads[Vector2i(x, y)] = _quad(x, y, top + 0.012, HEX * 0.80)
 			_threat_quads[Vector2i(x, y)] = _quad(x, y, top + 0.008, HEX * 0.94)
 
@@ -361,6 +360,88 @@ func _build_edges() -> void:
 				segment.position = a + out * (SQRT3 * HEX * 0.5 + 0.05) + Vector3(0, 0.0, 0)
 				segment.rotation.y = atan2(out.x, out.z)
 				_board.add_child(segment)
+
+
+## Each terrain type's surface: what it IS reads from the photograph, what it DOES from the
+## field colour it is tinted to (art-and-audio.md, read contracts). Frequency is capped --
+## large texture scale, soft normals -- so the machines stay the busiest thing on screen.
+const TILE_SURFACES: Dictionary = {
+	"open": ["metal_plate_02", 2.3, 0.5, 0.45, 0.55],     # set, tint gain, texture scale, metallic, normal
+	"rubble": ["rocky_gravel", 1.9, 0.7, 0.0, 0.9],
+	"scrap": ["corrugated_iron_02", 1.6, 0.8, 0.4, 0.7],
+	"slag": ["rock_ground", 1.2, 0.6, 0.0, 0.8],
+	"ridge": ["damaged_concrete_floor", 2.0, 0.55, 0.0, 0.8],
+	"pit": ["rusty_painted_metal", 0.8, 0.9, 0.3, 0.6],
+	"barrel": ["metal_plate_02", 2.3, 0.5, 0.45, 0.55],
+	"crate": ["metal_plate_02", 2.3, 0.5, 0.45, 0.55],
+}
+
+
+func _tile_material(def: Dictionary, alternate: bool) -> StandardMaterial3D:
+	var id: String = String(def.get("id", "open"))
+	var surface: Array = TILE_SURFACES.get(id, TILE_SURFACES["open"])
+	var field: Color = Color(String(def.get("colour", "1a1e26")))
+	if alternate:
+		field = field.lightened(0.04)
+	var tint := Color(minf(1.0, field.r * float(surface[1])), minf(1.0, field.g * float(surface[1])), minf(1.0, field.b * float(surface[1])))
+	return Surfaces.pbr(String(surface[0]), tint, float(surface[2]), float(surface[3]), float(surface[4]))
+
+
+## What stands on a tile beyond its surface: rubble has chunks you could hide behind, slag a
+## glowing pool you should not stand in, a ridge a lit lip that says "higher".
+func _dress_tile(id: String, x: int, y: int, top: float) -> void:
+	var at: Vector3 = _to_world(x, y) + Vector3(0, top, 0)
+	var h: int = IntentAI.mix(x, y, 23, 5)
+	match id:
+		"rubble":
+			var chunk_material: StandardMaterial3D = Surfaces.pbr("damaged_concrete_floor", Color(0.55, 0.53, 0.5), 1.4, 0.0, 0.8)
+			for i: int in 5:
+				var chunk := MeshInstance3D.new()
+				var box := BoxMesh.new()
+				var s: float = 0.08 + float((h >> (i * 3)) & 7) * 0.018
+				box.size = Vector3(s * 1.4, s * 0.8, s)
+				chunk.mesh = box
+				var angle: float = float(i) / 5.0 * TAU + float(h & 15) * 0.1
+				var reach: float = HEX * (0.25 + float((h >> (i * 2)) & 3) * 0.12)
+				chunk.position = at + Vector3(cos(angle) * reach, box.size.y * 0.4, sin(angle) * reach)
+				chunk.rotation = Vector3(float((h >> i) & 3) * 0.25, angle, float((h >> (i + 1)) & 3) * 0.2)
+				chunk.material_override = chunk_material
+				_board.add_child(chunk)
+		"slag":
+			# A crusted glow, not a lamp: slag is a hazard to notice, but the brightest thing on
+			# the board must stay the machines (art-and-audio.md, value layers).
+			var pool := MeshInstance3D.new()
+			pool.mesh = _hex_mesh(HEX * 0.5, 0.02)
+			pool.position = at + Vector3(0, 0.012, 0)
+			var molten := StandardMaterial3D.new()
+			molten.albedo_color = Color("7a2a10")
+			molten.emission_enabled = true
+			molten.emission = Color("d8401a")
+			molten.emission_energy_multiplier = 0.55
+			molten.albedo_texture = load("res://art/thirdparty/polyhaven/textures/rock_ground/rock_ground_diff_1k.jpg")
+			molten.uv1_triplanar = true
+			molten.uv1_world_triplanar = true
+			molten.uv1_scale = Vector3.ONE * 1.2
+			pool.material_override = molten
+			_board.add_child(pool)
+			var heat := OmniLight3D.new()
+			heat.light_color = Color("ff6a2a")
+			heat.light_energy = 0.5
+			heat.omni_range = 1.6
+			heat.position = at + Vector3(0, 0.35, 0)
+			_board.add_child(heat)
+		"ridge":
+			var lip := MeshInstance3D.new()
+			var torus := TorusMesh.new()
+			torus.inner_radius = HEX * 0.88
+			torus.outer_radius = HEX * 0.96
+			torus.ring_segments = 6
+			torus.rings = 4
+			lip.mesh = torus
+			lip.scale = Vector3(1, 0.18, 1)
+			lip.position = at + Vector3(0, 0.0, 0)
+			lip.material_override = Surfaces.pbr("damaged_concrete_floor", Color(0.62, 0.64, 0.66), 1.4, 0.0, 0.6)
+			_board.add_child(lip)
 
 
 ## Beyond the curb: dark asphalt and a ring of yard -- containers, wrecks, tyres and
@@ -467,7 +548,8 @@ func _scrap_heap(x: int, y: int) -> Node3D:
 		piece.mesh = box
 		piece.position = Vector3(float(((h >> (i * 7)) & 7) - 3) * 0.05, box.size.y * 0.5 + i * 0.16, float(((h >> (i * 4)) & 7) - 3) * 0.05)
 		piece.rotation.y = float((h >> (i * 6)) & 15) * 0.2
-		piece.material_override = _material(Color("4a3526").lerp(Color("2d2f33"), float(i) * 0.4), 0.7, 0.4)
+		piece.material_override = Surfaces.pbr("rusty_painted_metal" if i % 2 == 0 else "corrugated_iron_02",
+			Color(0.7, 0.55, 0.45).lerp(Color(0.45, 0.47, 0.5), float(i) * 0.4), 1.8, 0.4, 0.8)
 		heap.add_child(piece)
 	return heap
 
@@ -535,7 +617,8 @@ func _spawn_prop(cell: Vector2i, kind: String) -> void:
 			cyl.height = 0.55
 			drum.mesh = cyl
 			drum.position = Vector3(-0.14 + i * 0.3, 0.28, -0.05 + i * 0.12)
-			drum.material_override = _material(Color("8c2a1a"), 0.55, 0.4)
+			# Red-rust: the danger family -- this thing explodes (art-and-audio.md).
+			drum.material_override = Surfaces.pbr("rusty_painted_metal", Color(0.85, 0.42, 0.34), 2.6, 0.35, 0.7)
 			root.add_child(drum)
 			var band := MeshInstance3D.new()
 			var band_mesh := CylinderMesh.new()
@@ -558,7 +641,8 @@ func _spawn_prop(cell: Vector2i, kind: String) -> void:
 			box.size = s[0]
 			crate.mesh = box
 			crate.position = s[1]
-			crate.material_override = _material(Color("4c5358"), 0.6, 0.6)
+			# Neutral steel: the container photograph is green paint, and green means a gain.
+			crate.material_override = Surfaces.pbr("corrugated_iron_02", Color(0.5, 0.5, 0.52), 1.6, 0.45, 0.7)
 			root.add_child(crate)
 	_units_root.add_child(root)
 	_prop_views[cell] = root
@@ -658,8 +742,21 @@ func _spawn_pile(cell: Vector2i) -> void:
 		var angle: float = float(i) / 6.0 * TAU + float(h & 7) * 0.2
 		bit.position = Vector3(cos(angle) * 0.2, box.size.y * 0.5 + float(i % 2) * 0.05, sin(angle) * 0.2)
 		bit.rotation = Vector3(float((h >> i) & 3) * 0.3, angle, 0.0)
-		bit.material_override = _material(Color("5c5146").lerp(Color("8a6a3a"), float(i % 3) * 0.35), 0.6, 0.7)
+		bit.material_override = Surfaces.pbr("metal_plate_02", Color(0.75, 0.7, 0.62).lerp(Color(0.9, 0.72, 0.45), float(i % 3) * 0.35), 3.0, 0.8, 0.6)
 		pile.add_child(bit)
+	# Scrap you can take is a gain: a faint green ring under it (art-and-audio.md).
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = HEX * 0.42
+	torus.outer_radius = HEX * 0.48
+	ring.mesh = torus
+	ring.scale = Vector3(1, 0.2, 1)
+	ring.position.y = 0.02
+	var gain := StandardMaterial3D.new()
+	gain.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	gain.albedo_color = Color(UIKit.GREEN, 0.9)
+	ring.material_override = gain
+	pile.add_child(ring)
 	var glint := OmniLight3D.new()
 	glint.light_color = Color("ffcf7a")
 	glint.light_energy = 0.6
