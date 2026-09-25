@@ -18,6 +18,9 @@ var fight_actions: Array = []
 var active: bool = false
 ## Why the last CONTINUE failed, for the title screen to say.
 var problem: String = ""
+## Whether this run's briefing has been read. A new run starts unbriefed; CONTINUE does not
+## show it again.
+var briefed: bool = true
 
 
 func _ready() -> void:
@@ -37,6 +40,7 @@ func new_run(seed_value: int = -1) -> void:
 	actions = []
 	fight_actions = []
 	active = true
+	briefed = false
 	_save()
 
 
