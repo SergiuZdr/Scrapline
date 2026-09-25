@@ -2,12 +2,16 @@ extends Control
 
 ## The region map: a 3D yard (`YardView`) under a thin layer of interface.
 ##
-## Play-test 3 rebuilt it again: the 2D diagram had dead space and a crew HP total nobody
-## used, and a site took two clicks. Now:
-##   - the yard is a place: landmarks, roads, and the Reclaimer as a wall you watch advance;
+## Play-tests 3 and 4 rebuilt it twice. Now:
+##   - the yard is a place: landmarks, roads, fog over everything not yet scouted, and the
+##     Reclaimer as a wall you watch advance, its ghost standing where it will be next;
+##   - the crew stands on the map and walks the road when it travels; the camera follows it
+##     (drag, keys and the wheel to look around; C to come back);
 ##   - ONE click travels. Hovering (PC) shows what a site is and what the move costs; the
 ##     direction and any cost are also written on the site itself, for touch;
-##   - the crew is a strip of machines with their own HP and level, each opening the garage;
+##   - how the Reclaimer moves is a GAUGE, not a sentence: a pip per move, the last one
+##     pulsing when your next move brings it;
+##   - a dock of crew portraits (the real machines, levels and all) opens the garage;
 ##   - the story: a briefing on a new run, the act and mission on screen, site text and
 ##     endings in the world's voice (`data/run/story.json`).
 ##
@@ -23,14 +27,22 @@ var _yard: YardView
 var _labels: Control
 var _site_labels: Dictionary = {}     # id -> Control
 var _preview: PanelContainer
-var _front_label: Label
+var _gauge_pips: HBoxContainer
+var _ground_chip: PanelContainer
 var _scrap_label: Label
 var _garage_button: Button
 var _warning: PanelContainer
-var _crew_strip: HBoxContainer
+var _dock: VBoxContainer
+var _portraits: Array[MachinePortrait] = []
 var _overlay: Control
 var _garage: Control
 var _hover: int = -1
+## Left-button press on the map: a click if it ends where it began, a pan if it moved.
+var _press_at := Vector2(-1, -1)
+var _panning: bool = false
+var _drag_pan: bool = false
+## True while the crew walks a road: the map takes no input until they arrive.
+var _busy: bool = false
 
 
 func _ready() -> void:
@@ -40,13 +52,20 @@ func _ready() -> void:
 		Run.new_run()
 	_yard = YardView.new()
 	add_child(_yard)
-	_yard.build(Run.state, int((Run.setup.rules.get("region", {}) as Dictionary).get("columns", 7)))
+	_yard.build(Run.state, int((Run.setup.rules.get("region", {}) as Dictionary).get("columns", 9)),
+		int((Run.setup.rules.get("front", {}) as Dictionary).get("every", 2)), Run.db)
+	# Every part model starts loading now, so the garage never waits for one.
+	ConstructView.warm(Run.db.parts.keys())
 	_labels = Control.new()
 	_labels.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_labels.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_labels)
 	_build_top_bar()
-	_build_crew_strip()
+	_build_crew_dock()
+	var hint := _label("Click a site to go  ·  drag to look around  ·  wheel to zoom  ·  C to come back",
+		UIKit.SIZE_LABEL, UIKit.TEXT_FAINT)
+	hint.position = Vector2(760, 1080 - 44)
+	add_child(hint)
 	_preview = PanelContainer.new()
 	_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_preview.add_theme_stylebox_override("panel", UIKit.card(UIKit.SURFACE))
@@ -59,34 +78,89 @@ func _ready() -> void:
 # --- Input: hover previews, one click travels ---------------------------------
 
 func _gui_input(event: InputEvent) -> void:
-	if _overlay != null or _garage != null:
+	if _overlay != null or _garage != null or _busy:
 		return
-	if event is InputEventMouseMotion:
-		var over: int = _yard.pick((event as InputEventMouseMotion).position)
+	if event is InputEventMouseButton:
+		var button := event as InputEventMouseButton
+		match button.button_index:
+			MOUSE_BUTTON_LEFT:
+				if button.pressed:
+					_press_at = button.position
+					_panning = false
+				else:
+					if not _panning and _press_at.x >= 0.0:
+						var id: int = _yard.pick(button.position)
+						if id >= 0:
+							_choose(id)
+					_press_at = Vector2(-1, -1)
+					_panning = false
+			MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE:
+				_drag_pan = button.pressed
+			MOUSE_BUTTON_WHEEL_UP:
+				if button.pressed:
+					_yard.zoom_by(-2.0)
+			MOUSE_BUTTON_WHEEL_DOWN:
+				if button.pressed:
+					_yard.zoom_by(2.0)
+	elif event is InputEventMouseMotion:
+		var motion := event as InputEventMouseMotion
+		var left_held: bool = (motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0
+		if left_held and _press_at.x >= 0.0 and motion.position.distance_to(_press_at) > 10.0:
+			_panning = true
+		if _panning or _drag_pan:
+			_yard.pan(motion.relative)
+			return
+		var over: int = _yard.pick(motion.position)
 		if over != _hover:
 			_hover = over
 			_yard.refresh(Run.state, RunSim.destinations(Run.state), _hover)
 			_show_preview()
-	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed \
-			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
-		var id: int = _yard.pick((event as InputEventMouseButton).position)
-		if id >= 0:
-			_choose(id)
+	elif event is InputEventMagnifyGesture:
+		_yard.zoom_by((1.0 - (event as InputEventMagnifyGesture).factor) * 20.0)
+	elif event is InputEventPanGesture:
+		_yard.pan(-(event as InputEventPanGesture).delta * 8.0)
 
 
-## One click (or tap): travel there if the road allows.
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event is InputEventKey and (event as InputEventKey).pressed and (event as InputEventKey).keycode == KEY_C:
+		_yard.recentre()
+
+
+## One click (or tap): travel there if the road allows. The crew walks the road first;
+## whatever waits at the site opens when they arrive.
 func _choose(id: int) -> void:
-	if RunSim.destinations(Run.state).has(id):
-		_apply([RunSim.TRAVEL, id])
-	elif id != Run.state.current:
-		Audio.play("ui_deny", -14.0)
+	if _busy:
+		return
+	if not RunSim.destinations(Run.state).has(id):
+		if id != Run.state.current:
+			Audio.play("ui_deny", -14.0)
+		return
+	var from: int = Run.state.current
+	if not Run.apply([RunSim.TRAVEL, id]):
+		Audio.play("ui_deny", -10.0)
+		return
+	Audio.play("ui_confirm", -12.0)
+	_busy = true
+	_hover = -1
+	_preview.visible = false
+	for child: Node in _labels.get_children():
+		(child as CanvasItem).visible = false
+	await _yard.travel(from, id)
+	_busy = false
+	_refresh()
 
 
 func _process(_delta: float) -> void:
-	# The camera is still, but the window may not be: keep the labels on their sites.
+	# The camera moves now: keep every label on its site, and off the screen's furniture.
 	for id: int in _site_labels:
 		var label: Control = _site_labels[id]
-		label.position = _yard.label_pos(id) + Vector2(-label.size.x * 0.5, 2)
+		var at: Vector2 = _yard.label_pos(id)
+		label.position = at + Vector2(-label.size.x * 0.5, 2)
+		label.visible = not _busy and at.y > 120.0 and at.y < size.y - 60.0 and at.x > 360.0 and at.x < size.x + 40.0
+	if not _busy and _overlay == null and _garage == null:
+		var keys := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+		if keys != Vector2.ZERO:
+			_yard.pan(-keys * 14.0)
 	if _preview.visible and _hover >= 0:
 		var at: Vector2 = _yard.screen_pos(_hover, 1.0) + Vector2(70, -80)
 		at.x = minf(at.x, size.x - _preview.size.x - 20)
@@ -98,7 +172,7 @@ func _process(_delta: float) -> void:
 
 func _build_top_bar() -> void:
 	var shade := ColorRect.new()
-	shade.color = Color(0.03, 0.03, 0.035, 0.72)
+	shade.color = Color(0.03, 0.03, 0.035, 0.9)
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	shade.position = Vector2.ZERO
 	shade.size = Vector2(1920, 118)
@@ -111,16 +185,36 @@ func _build_top_bar() -> void:
 	mission.position = Vector2(42, 74)
 	add_child(mission)
 
-	var front := PanelContainer.new()
+	# The Reclaimer as a gauge (play-test 4: "should not come from text"): its name, and one
+	# pip per move of its step. Pips fill as you move; the last pulses when your next move
+	# brings it forward -- and on the map its ghost pulses on the line it will take.
+	var gauge := PanelContainer.new()
 	var style := UIKit.card(Color("2a1210"))
 	style.border_color = RECLAIMER_RED.darkened(0.3)
 	style.set_border_width_all(2)
-	front.add_theme_stylebox_override("panel", style)
-	front.position = Vector2(760, 22)
-	front.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(front)
-	_front_label = _label("", UIKit.SIZE_HEADING, RECLAIMER_RED, UIKit.font_strong())
-	front.add_child(_front_label)
+	gauge.add_theme_stylebox_override("panel", style)
+	gauge.position = Vector2(760, 20)
+	gauge.tooltip_text = "The Reclaimer takes one zone every %d moves. Each lit pip is one of your moves; when the last lights, it advances to its red ghost line." \
+		% int((Run.setup.rules.get("front", {}) as Dictionary).get("every", 2))
+	add_child(gauge)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	gauge.add_child(row)
+	row.add_child(_label(String((Run.db.story.get("reclaimer", {}) as Dictionary).get("name", "THE RECLAIMER")), UIKit.SIZE_TITLE,
+		RECLAIMER_RED, UIKit.font_display()))
+	_gauge_pips = HBoxContainer.new()
+	_gauge_pips.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	_gauge_pips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_gauge_pips.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_child(_gauge_pips)
+	_ground_chip = PanelContainer.new()
+	_ground_chip.add_theme_stylebox_override("panel", UIKit.card(RECLAIMER_RED.darkened(0.6)))
+	_ground_chip.position = Vector2(760, 92)
+	_ground_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ground_chip.add_child(_label("IN RECLAIMED GROUND  ·  -%d HP EACH PER MOVE" % int((Run.setup.rules["front"] as Dictionary)["damage"]),
+		UIKit.SIZE_LABEL, UIKit.TEXT, UIKit.font_strong()))
+	add_child(_ground_chip)
 
 	var right := HBoxContainer.new()
 	right.position = Vector2(1320, 28)
@@ -138,7 +232,7 @@ func _build_top_bar() -> void:
 
 	_warning = PanelContainer.new()
 	_warning.add_theme_stylebox_override("panel", UIKit.card(UIKit.RED.darkened(0.55)))
-	_warning.position = Vector2(760, 130)
+	_warning.position = Vector2(760, 140)
 	_warning.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_warning)
 
@@ -148,52 +242,61 @@ func _act() -> Dictionary:
 	return acts[0] if not acts.is_empty() else {}
 
 
-func _front_text() -> String:
-	var state: RunState = Run.state
+func _refresh_gauge() -> void:
+	for child: Node in _gauge_pips.get_children():
+		child.queue_free()
 	var every: int = maxi(1, int((Run.setup.rules["front"] as Dictionary)["every"]))
-	var left: int = every - state.moves % every
-	var zone: int = state.front_col + 2
-	var name: String = String((Run.db.story.get("reclaimer", {}) as Dictionary).get("name", "THE RECLAIMER"))
-	var text: String = "%s TAKES %s IN %d MOVE%s" % [name, "THE CAMP" if zone == 1 else "ZONE %d" % zone, left, "" if left == 1 else "S"]
-	if state.consumed(state.current):
-		text += "\nYOU ARE IN ITS GROUND: LEAVING COSTS EVERY MACHINE %d HP" % int((Run.setup.rules["front"] as Dictionary)["damage"])
-	return text
+	var done: int = Run.state.moves % every
+	for i: int in every:
+		var pip := Panel.new()
+		pip.custom_minimum_size = Vector2(26, 26)
+		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var lit: bool = i < done
+		var next: bool = i == done and done == every - 1
+		var style := UIKit.plain(RECLAIMER_RED if lit else Color("1a0c0a"), 4)
+		style.border_color = RECLAIMER_RED if (lit or next) else RECLAIMER_RED.darkened(0.5)
+		style.set_border_width_all(2)
+		pip.add_theme_stylebox_override("panel", style)
+		_gauge_pips.add_child(pip)
+		if next:
+			# The one that fills on your next move, and brings it forward.
+			var pulse := pip.create_tween().set_loops()
+			pulse.tween_property(pip, "modulate", Color(1.6, 0.7, 0.6), 0.4)
+			pulse.tween_property(pip, "modulate", Color(1, 1, 1), 0.4)
+	_ground_chip.visible = Run.state.consumed(Run.state.current)
 
 
-# --- Crew strip ---------------------------------------------------------------
+# --- Crew dock ----------------------------------------------------------------
 
-func _build_crew_strip() -> void:
-	var shade := ColorRect.new()
-	shade.color = Color(0.03, 0.03, 0.035, 0.72)
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	shade.position = Vector2(0, 1080 - 150)
-	shade.size = Vector2(1920, 150)
-	add_child(shade)
-	_crew_strip = HBoxContainer.new()
-	_crew_strip.position = Vector2(40, 1080 - 136)
-	_crew_strip.add_theme_constant_override("separation", UIKit.SPACE_MD)
-	add_child(_crew_strip)
+func _build_crew_dock() -> void:
+	_dock = VBoxContainer.new()
+	_dock.position = Vector2(24, 140)
+	_dock.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	add_child(_dock)
 
 
 func _refresh_crew() -> void:
-	for child: Node in _crew_strip.get_children():
+	# The portraits outlive the cards (each is a small studio worth keeping): lift them out
+	# before the old cards go, then deal fresh cards around them.
+	for portrait: MachinePortrait in _portraits:
+		if portrait.get_parent() != null:
+			portrait.get_parent().remove_child(portrait)
+	for child: Node in _dock.get_children():
+		_dock.remove_child(child)
 		child.queue_free()
 	for i: int in Run.state.crew.size():
-		_crew_strip.add_child(_crew_card(i))
-	var hint := _label("Hover a site to see what it is. Click to go.", UIKit.SIZE_LABEL, UIKit.TEXT_FAINT)
-	hint.custom_minimum_size = Vector2(300, 0)
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_crew_strip.add_child(hint)
+		_dock.add_child(_crew_card(i))
 
 
-## A machine in the strip: its frame, name, level and HP. Opens the garage on it.
+## One machine in the dock: its portrait (the real model), name, level marks and HP as
+## pips. Opens the garage on that machine.
 func _crew_card(i: int) -> Control:
 	var member: Dictionary = Run.state.crew[i]
 	var alive: bool = bool(member["alive"])
 	var card := Button.new()
-	card.custom_minimum_size = Vector2(430, 120)
+	card.custom_minimum_size = Vector2(340, 124)
 	card.focus_mode = Control.FOCUS_NONE
-	var style := UIKit.card(UIKit.SURFACE)
+	var style := UIKit.card(Color(UIKit.SURFACE, 0.92))
 	for key: String in ["normal", "pressed", "focus"]:
 		card.add_theme_stylebox_override(key, style)
 	var hover: StyleBoxFlat = style.duplicate()
@@ -204,47 +307,71 @@ func _crew_card(i: int) -> Control:
 	card.pressed.connect(_open_garage.bind(i))
 	var row := HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	row.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	card.add_child(row)
-	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_SM)
-	var portrait := TextureRect.new()
-	portrait.texture = PartText.thumb(String(member["parts"][0]))
-	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	portrait.custom_minimum_size = Vector2(96, 96)
-	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if not alive:
-		portrait.modulate = Color(1, 0.4, 0.35, 0.6)
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_XS)
+	while _portraits.size() <= i:
+		_portraits.append(MachinePortrait.new(Vector2i(112, 112)))
+	var portrait: MachinePortrait = _portraits[i]
+	if portrait.get_parent() != null:
+		portrait.get_parent().remove_child(portrait)
 	row.add_child(portrait)
+	portrait.show_machine(member["parts"], int(member.get("level", 0)), alive)
 	var text := VBoxContainer.new()
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	text.add_theme_constant_override("separation", 2)
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(text)
-	var level: int = int(member.get("level", 0))
-	text.add_child(_label("%s%s" % [String(member["name"]).to_upper(), ("   LV %d" % level) if level > 0 else ""],
-		UIKit.SIZE_HEADING, UIKit.TEXT if alive else UIKit.RED, UIKit.font_strong()))
+	text.add_child(_label(String(member["name"]).to_upper(), UIKit.SIZE_HEADING, UIKit.TEXT if alive else UIKit.RED, UIKit.font_strong()))
+	text.add_child(_level_marks(int(member.get("level", 0))))
 	if alive:
 		var full: int = RunSim.max_hp(Run.setup, member)
-		var bar := ProgressBar.new()
-		bar.show_percentage = false
-		bar.custom_minimum_size = Vector2(280, 12)
-		bar.max_value = full
-		bar.value = int(member["hp"])
-		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		bar.add_theme_stylebox_override("background", UIKit.plain(UIKit.SURFACE_SUNK, 2))
-		bar.add_theme_stylebox_override("fill", UIKit.plain(UIKit.GREEN if int(member["hp"]) * 3 > full else UIKit.RED, 2))
-		text.add_child(bar)
+		text.add_child(_hp_pips(int(member["hp"]), full))
 		text.add_child(_label("%d / %d HP" % [int(member["hp"]), full], UIKit.SIZE_LABEL, UIKit.TEXT_DIM, UIKit.font_numbers()))
 	else:
 		text.add_child(_label("WRECK · rebuild at a workshop", UIKit.SIZE_LABEL, UIKit.RED))
 	return card
 
 
+## Three marks, lit up to the machine's level.
+func _level_marks(level: int) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 3)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var steps: int = maxi(3, ((Run.setup.rules.get("levels", {}) as Dictionary).get("costs", []) as Array).size())
+	for n: int in steps:
+		var mark := Panel.new()
+		mark.custom_minimum_size = Vector2(22, 7)
+		mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		mark.add_theme_stylebox_override("panel", UIKit.plain(UIKit.TEXT if n < level else UIKit.SURFACE_SUNK, 1))
+		row.add_child(mark)
+	var caption := _label("LV %d" % level if level > 0 else "", UIKit.SIZE_MICRO, UIKit.TEXT_DIM, UIKit.font_strong())
+	row.add_child(caption)
+	return row
+
+
+## HP as a row of pips, one per point, so a glance counts it.
+func _hp_pips(hp: int, full: int) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var low: bool = hp * 3 <= full
+	var width: float = clampf(190.0 / float(maxi(1, full)) - 2.0, 5.0, 14.0)
+	for n: int in full:
+		var pip := Panel.new()
+		pip.custom_minimum_size = Vector2(width, 12)
+		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var colour: Color = (UIKit.RED if low else UIKit.GREEN) if n < hp else UIKit.SURFACE_SUNK
+		pip.add_theme_stylebox_override("panel", UIKit.plain(colour, 1))
+		row.add_child(pip)
+	return row
+
+
 # --- Refresh ------------------------------------------------------------------
 
 func _refresh() -> void:
 	var state: RunState = Run.state
-	_front_label.text = _front_text()
+	_refresh_gauge()
 	_scrap_label.text = "SCRAP %d" % state.scrap
 	var over: bool = state.overfull()
 	_garage_button.text = "GARAGE  %d/%d" % [state.cargo.size(), state.hold_size]
@@ -261,6 +388,7 @@ func _refresh() -> void:
 	if _hover >= 0 and not RunSim.destinations(state).has(_hover) and _hover != state.current:
 		_hover = -1
 	_yard.refresh(state, RunSim.destinations(state), _hover)
+	_yard.set_crew(state.crew)
 	_build_site_labels()
 	_refresh_crew()
 	_show_preview()
@@ -277,11 +405,13 @@ func _build_site_labels() -> void:
 	for site: Dictionary in state.sites:
 		var id: int = int(site["id"])
 		var known: bool = RunSim.revealed(state, id)
+		if not known:
+			continue   # under fog: nothing to label
 		var box := VBoxContainer.new()
 		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		box.custom_minimum_size = Vector2(170, 0)
 		box.add_theme_constant_override("separation", 0)
-		var name: String = String(SITE_NAMES.get(String(site["type"]), "?")) if known else ""
+		var name: String = String(SITE_NAMES.get(String(site["type"]), "?"))
 		if bool(site["visited"]) and id != state.current and String(site["type"]) != "start":
 			name += " · DONE"
 		var reachable: bool = targets.has(id)
@@ -311,15 +441,13 @@ func _direction(to: int) -> String:
 	return "FORWARD" if there > here else ("SIDEWAYS" if there == here else "BACK")
 
 
-## What any move from here costs, short enough to sit under a site.
+## What any move from here costs, short enough to sit under a site. (Whether it brings the
+## Reclaimer forward is shown by the gauge and its ghost, not written.)
 func _cost_tag() -> String:
-	var bits: PackedStringArray = []
 	var front: Dictionary = Run.setup.rules["front"]
 	if Run.state.consumed(Run.state.current):
-		bits.append("-%d HP EACH" % int(front["damage"]))
-	if (Run.state.moves + 1) % maxi(1, int(front["every"])) == 0:
-		bits.append("RECLAIMER ADVANCES")
-	return " · ".join(bits)
+		return "-%d HP EACH" % int(front["damage"])
+	return ""
 
 
 ## The hover card: what the site is, in the world's words, and what going there costs.
@@ -362,11 +490,8 @@ func _move_costs(to: int) -> PackedStringArray:
 	var out: PackedStringArray = []
 	if state.consumed(state.current):
 		out.append("Leaving reclaimed ground: every machine loses %d HP." % int(front["damage"]))
-	if (state.moves + 1) % every == 0:
-		var zone: int = state.front_col + 2
-		out.append("This move lets the Reclaimer take %s." % ("the camp" if zone == 1 else "ZONE %d" % zone))
-		if int(state.site(to)["col"]) <= state.front_col + 1:
-			out.append("You will be standing in its ground: the next move out costs %d HP each." % int(front["damage"]))
+	if (state.moves + 1) % every == 0 and int(state.site(to)["col"]) <= state.front_col + 1:
+		out.append("The Reclaimer will take that ground as you arrive: the next move out costs %d HP each." % int(front["damage"]))
 	return out
 
 
