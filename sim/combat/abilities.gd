@@ -72,7 +72,8 @@ static func usable(state: CombatState, u: GridUnit, i: int) -> bool:
 		return false
 	match String(ability["kind"]):
 		"charge":
-			return not u.seized and not u.moved
+			# Usable after a move (play-test 3: charging INSTEAD of moving made it weak).
+			return not u.seized
 		"boost":
 			# A boost only matters if the machine still has an attack to spend it on.
 			return not u.acted and not u.seized
@@ -99,7 +100,7 @@ static func use(state: CombatState, ref: int, i: int, target: Vector2i) -> bool:
 			u.x = target.x
 			u.y = target.y
 			state.emit(GridEv.MOVED, u.ref, -1, u.x, u.y, here.x, here.y)
-			CombatSim.collect(state, u)
+			CombatSim.collect_path(state, u, path)
 		"charge":
 			_charge(state, u, target, ability)
 		"grapple":
@@ -140,16 +141,19 @@ static func _charge(state: CombatState, u: GridUnit, target: Vector2i, ability: 
 	var here := Vector2i(u.x, u.y)
 	var dir: int = Hex.direction(here, target)
 	# Focus / Overdrive boost the next damaging action, and a charge is one.
-	var dmg: int = int(ability.get("damage", 3)) + u.boost_damage
+	# The further the run, the harder the hit: `damage` + `per_hex` for every hex run first.
+	var dmg: int = int(ability.get("damage", 3)) + u.boost_damage + u.damage_bonus
 	u.heat += u.boost_heat
 	u.boost_damage = 0
 	u.boost_heat = 0
 	var cell: Vector2i = here
+	var run: Array[Vector2i] = []
 	for step: int in int(ability.get("range", 3)):
 		var next: Vector2i = Hex.neighbor(cell, dir)
 		if not state.inside(next) or state.is_pit(next):
 			break
 		var other: GridUnit = state.unit_at(next.x, next.y)
+		dmg += int(ability.get("per_hex", 0)) if step > 0 else 0
 		if other != null:
 			var hit: int = CombatSim.damage_to(state, u, other, dmg, false)
 			CombatSim.hurt(state, u.ref, other, hit)
@@ -160,12 +164,13 @@ static func _charge(state: CombatState, u: GridUnit, target: Vector2i, ability: 
 			CombatSim.damage_prop(state, u.ref, next, dmg)
 			break
 		cell = next
+		run.append(cell)
 		state.emit(GridEv.STEP, u.ref, -1, cell.x, cell.y)
 	if cell != here:
 		u.x = cell.x
 		u.y = cell.y
 		state.emit(GridEv.MOVED, u.ref, -1, u.x, u.y, here.x, here.y)
-		CombatSim.collect(state, u)
+		CombatSim.collect_path(state, u, run)
 
 
 ## Drag the unit on `target` toward `u` along the line between them, until it is adjacent
