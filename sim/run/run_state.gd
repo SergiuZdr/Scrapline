@@ -35,6 +35,8 @@ var outcome: int = ONGOING
 ## Why the run ended, for the run-over screen.
 var end_reason: String = ""
 var fights_won: int = 0
+## Whether the crew was built from the bench at the start (play-test 4). Once only.
+var assembled: bool = false
 ## Human-readable history, newest last. Deterministic like everything else.
 var log: PackedStringArray = []
 
@@ -67,6 +69,6 @@ func fingerprint() -> String:
 	var visited: PackedStringArray = []
 	for s: Dictionary in sites:
 		visited.append("1" if bool(s["visited"]) else "0")
-	return "cur=%d moves=%d front=%d scrap=%d hold=%d crew=[%s] cargo=[%s] visited=%s pending=%s outcome=%d" % [
+	return "cur=%d moves=%d front=%d scrap=%d hold=%d crew=[%s] cargo=[%s] visited=%s pending=%s outcome=%d built=%s" % [
 		current, moves, front_col, scrap, hold_size, ";".join(crew_text),
-		",".join(cargo), "".join(visited), str(pending.get("kind", "")), outcome]
+		",".join(cargo), "".join(visited), str(pending.get("kind", "")), outcome, assembled]

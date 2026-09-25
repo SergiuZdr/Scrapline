@@ -31,6 +31,7 @@ const REFIT: int = 6
 const SCRAP_PART: int = 7
 const EXPAND_HOLD: int = 8
 const LEVEL_UP: int = 9
+const ASSEMBLE: int = 10
 
 const FIGHT_TYPES: PackedStringArray = ["skirmish", "elite", "boss"]
 
@@ -89,6 +90,8 @@ static func apply(state: RunState, setup: RunSetup, action: Array) -> bool:
 			return _expand_hold(state, setup)
 		LEVEL_UP:
 			return _level_up(state, setup, int(action[1]))
+		ASSEMBLE:
+			return _assemble(state, setup, action[1] as Array)
 	return false
 
 
@@ -398,6 +401,60 @@ static func _level_up(state: RunState, setup: RunSetup, index: int) -> bool:
 	member["level"] = int(member.get("level", 0)) + 1
 	member["hp"] = int(member["hp"]) + int(gain.get("hp", 0))
 	state.log.append("%s is overhauled to level %d." % [member["name"], int(member["level"])])
+	return true
+
+
+## Whether the crew can still be built from the bench: before the first move, once.
+static func can_assemble(state: RunState) -> bool:
+	return state.outcome == RunState.ONGOING and state.moves == 0 and not state.assembled \
+		and state.pending.is_empty()
+
+
+## How many of a part the bench holds: every common part without limit (-1), the listed
+## extras (the defaults' uncommons) once each, anything else not at all (0).
+static func bench_count(setup: RunSetup, part: String) -> int:
+	var bench: Dictionary = setup.rules.get("assembly", {})
+	if part.is_empty() or not setup.parts.has(part):
+		return 0
+	if setup.rarity(part) <= int(bench.get("free_rarity", 1)):
+		return -1
+	return int((bench.get("extra", {}) as Dictionary).get(part, 0))
+
+
+## Builds the three machines from the bench (play-test 4: "a way to customise the starting
+## robots from basic parts"). `loadouts`: one five-part list per crew member, in socket
+## order. The frame names the machine; a second machine on the same frame is "II".
+static func _assemble(state: RunState, setup: RunSetup, loadouts: Array) -> bool:
+	if not can_assemble(state) or loadouts.size() != state.crew.size():
+		return false
+	var used: Dictionary = {}
+	for loadout: Variant in loadouts:
+		var parts: Array = loadout as Array
+		if parts.size() != 5 or String(parts[0]).is_empty():
+			return false
+		for s: int in 5:
+			var part: String = String(parts[s])
+			if part.is_empty():
+				continue
+			if String((setup.parts.get(part, {}) as Dictionary).get("slot", "")) != RunSetup.socket_slot(s):
+				return false
+			var limit: int = bench_count(setup, part)
+			used[part] = int(used.get(part, 0)) + 1
+			if limit == 0 or (limit > 0 and int(used[part]) > limit):
+				return false
+	var names: Dictionary = {}
+	for i: int in state.crew.size():
+		var parts: Array = []
+		for id: Variant in (loadouts[i] as Array):
+			parts.append(String(id))
+		var member: Dictionary = state.crew[i]
+		member["parts"] = parts
+		var base: String = String((setup.parts[parts[0]] as Dictionary).get("name", "Machine")).replace(" Frame", "")
+		names[base] = int(names.get(base, 0)) + 1
+		member["name"] = base if int(names[base]) == 1 else "%s %s" % [base, ["", "", "II", "III"][mini(int(names[base]), 3)]]
+		member["hp"] = max_hp(setup, member)
+	state.assembled = true
+	state.log.append("The crew is built from the bench.")
 	return true
 
 

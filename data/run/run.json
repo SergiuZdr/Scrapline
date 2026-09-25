@@ -1,9 +1,9 @@
 {
   "_comment": "Every number a run reads. Region shape, site mix, the Reclaimer front, rewards and prices. Code holds none of these.",
   "region": {
-    "columns": 7,
+    "columns": 9,
     "rows_min": 2,
-    "rows_max": 3,
+    "rows_max": 4,
     "_columns": "Column 0 is the start site, the last column is the boss gate; the ones between hold rows_min..rows_max sites each."
   },
   "site_weights": {
@@ -13,9 +13,7 @@
     "elite": 18
   },
   "elite_from_column": 2,
-  "workshop_guaranteed_columns": [
-    3
-  ],
+  "workshop_guaranteed_columns": [3, 6],
   "front": {
     "every": 2,
     "damage": 2,
@@ -55,24 +53,8 @@
     }
   ],
   "enemies": {
-    "count_by_column": [
-      3,
-      3,
-      3,
-      4,
-      4,
-      4,
-      5
-    ],
-    "rarity_cap_by_column": [
-      1,
-      1,
-      2,
-      2,
-      2,
-      3,
-      3
-    ],
+    "count_by_column": [3, 3, 3, 3, 4, 4, 4, 5, 5],
+    "rarity_cap_by_column": [1, 1, 1, 2, 2, 2, 3, 3, 3],
     "elite_extra": 1,
     "elite_hp_bonus": 3,
     "boss_count": 4,
@@ -132,21 +114,18 @@
   },
   "kinds": {
     "_comment": "Chance, per enemy and by column, that it has special rules, and which rules.",
-    "chance_by_column": [
-      0,
-      25,
-      35,
-      45,
-      55,
-      65,
-      80
-    ],
+    "chance_by_column": [0, 20, 25, 35, 45, 55, 60, 70, 80],
     "weights": {
       "tracker": 30,
       "bomber": 30,
       "warden": 20,
       "hive": 20
     }
+  },
+  "assembly": {
+    "_comment": "Play-test 4: at the start of a run the crew is built from a bench. Every part at or below free_rarity is on it without limit; the extras (the default crew's uncommons) once each. RunSim.ASSEMBLE, before the first move only.",
+    "free_rarity": 1,
+    "extra": {"ar_saw": 1, "ar_lance": 1, "ch_strider": 1}
   },
   "levels": {
     "_comment": "Play-test 3: scrap needs something to buy. In the garage a machine buys its next level for costs[level]. bonus[n] is what level n+1 adds: max HP (and that much HP now) and damage on every weapon and Charge. Tuned 2026-09-25: +1 damage on every level took the run bot from 85% to 94%.",
