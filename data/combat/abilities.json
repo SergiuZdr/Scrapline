@@ -7,7 +7,8 @@
     "free": false,
     "range": 3,
     "damage": 3,
-    "text": "Run up to 3 hexes in a straight line and slam into the first thing in the way: 3 damage and a shove."
+    "per_hex": 1,
+    "text": "Run up to 3 hexes in a straight line, even after moving, and slam into the first thing in the way: 3 damage, +1 for every hex run first (up to 5), and a shove."
   },
   "grapple": {
     "name": "Grapple",

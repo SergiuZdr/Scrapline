@@ -232,23 +232,57 @@ static func strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector2
 				if pierce_left <= 0:
 					break
 				pierce_left -= 1
-			# A coil arcs from the first thing it hits into one neighbour, a point weaker.
-			if int(weapon["chain"]) > 0 and not hits.is_empty() and base > 1:
-				var first: GridUnit = state.unit(int(hits[0]["ref"]))
-				for n: Vector2i in Hex.neighbors(Vector2i(first.x, first.y)):
-					if not state.inside(n):
-						continue
-					var next: GridUnit = state.unit_at(n.x, n.y)
-					if next != null and next != u and not _already_hit(hits, next.ref):
-						_add_hit(state, u, hits, n, base - 1, false, false)
-						tiles.append(n)
-						break
+			if int(weapon["chain"]) > 0 and base > 1:
+				_arc(state, u, hits, props, tiles, base - 1)
 
 	plan["legal"] = true
 	plan["tiles"] = tiles
 	plan["hits"] = hits
 	plan["props"] = props
 	return plan
+
+
+## A coil arcs from the first thing it hits -- a machine or a prop -- into one neighbour,
+## a point weaker. It prefers an enemy machine, then a fuel drum (which goes off), then a
+## crate, then anyone. Play-test 3 expected the arc to reach terrain, and it never did.
+static func _arc(state: CombatState, u: GridUnit, hits: Array[Dictionary], props: Array[Dictionary],
+		tiles: Array[Vector2i], amount: int) -> void:
+	var origin := Vector2i(-1, -1)
+	if not hits.is_empty():
+		var first: GridUnit = state.unit(int(hits[0]["ref"]))
+		origin = Vector2i(first.x, first.y)
+	elif not props.is_empty():
+		origin = props[0]["cell"]
+	else:
+		return
+	var best := Vector2i(-1, -1)
+	var best_rank: int = 99
+	for n: Vector2i in Hex.neighbors(origin):
+		if not state.inside(n) or n == Vector2i(u.x, u.y):
+			continue
+		var rank: int = 99
+		var other: GridUnit = state.unit_at(n.x, n.y)
+		if other != null and not _already_hit(hits, other.ref):
+			rank = 0 if other.team != u.team else 3
+		elif state.props.has(n) and not _prop_struck(props, n):
+			rank = 1 if String(state.props[n]["kind"]) == "barrel" else 2
+		if rank < best_rank:
+			best_rank = rank
+			best = n
+	if best_rank == 99:
+		return
+	tiles.append(best)
+	if best_rank == 1 or best_rank == 2:
+		_add_prop(state, props, best, amount)
+	else:
+		_add_hit(state, u, hits, best, amount, false, false)
+
+
+static func _prop_struck(props: Array[Dictionary], cell: Vector2i) -> bool:
+	for p: Dictionary in props:
+		if p["cell"] == cell:
+			return true
+	return false
 
 
 static func _add_prop(state: CombatState, props: Array[Dictionary], cell: Vector2i, amount: int) -> void:
@@ -440,7 +474,7 @@ static func _move(state: CombatState, ref: int, x: int, y: int) -> bool:
 	u.y = y
 	u.moved = true
 	state.emit(GridEv.MOVED, ref, -1, x, y, from.x, from.y)
-	collect(state, u)
+	collect_path(state, u, options[dest])
 	_check_outcome(state)
 	return true
 
@@ -574,6 +608,14 @@ static func collect(state: CombatState, u: GridUnit) -> void:
 	collect_at(state, u, Vector2i(u.x, u.y))
 
 
+## Every pile on the way is picked up, not only the one a move ends on (play-test 3:
+## walking straight over scrap and leaving it there read as broken). Both teams.
+static func collect_path(state: CombatState, u: GridUnit, path: Array) -> void:
+	for cell: Variant in path:
+		collect_at(state, u, cell)
+	collect(state, u)
+
+
 ## Takes the pile at `cell` for `u` (Magnet reaches one without stepping on it).
 static func collect_at(state: CombatState, u: GridUnit, cell: Vector2i) -> void:
 	if not state.piles.has(cell) or u.objective:
@@ -702,7 +744,7 @@ static func _begin_round(state: CombatState) -> void:
 			u.x = dest.x
 			u.y = dest.y
 			state.emit(GridEv.MOVED, u.ref, -1, u.x, u.y, from.x, from.y)
-			collect(state, u)
+			collect_path(state, u, plan["path"])
 		var w: int = int(plan["w"])
 		if w >= 0:
 			order += 1
