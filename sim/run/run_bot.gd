@@ -34,7 +34,18 @@ static func next_action(state: RunState, setup: RunSetup) -> Array:
 	var refit: Array = _best_refit(state, setup)
 	if not refit.is_empty():
 		return refit
+	if state.overfull():
+		return [RunSim.SCRAP_PART, _worst_cargo(state, setup)]
 	return [RunSim.TRAVEL, _choose_site(state, setup)]
+
+
+## The hold part worth least to the crew: lowest rarity, then oldest.
+static func _worst_cargo(state: RunState, setup: RunSetup) -> int:
+	var worst: int = 0
+	for i: int in state.cargo.size():
+		if setup.rarity(state.cargo[i]) < setup.rarity(state.cargo[worst]):
+			worst = i
+	return worst
 
 
 ## Plays a whole fight with the combat bot and returns its action log.
@@ -49,8 +60,6 @@ static func play_fight(combat_setup: CombatSetup) -> Array:
 
 
 static func _choose_part(state: RunState, setup: RunSetup, options: Array, kind: String) -> int:
-	if state.cargo.size() >= int(setup.rules.get("cargo_size", 6)):
-		return -1
 	var best: int = -1
 	var best_gain: int = 0
 	for i: int in options.size():

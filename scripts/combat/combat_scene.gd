@@ -81,6 +81,9 @@ var _bar_items: Array = []
 ## Props, pits' rims and spawn marks drawn on the board.
 var _prop_views: Dictionary = {}
 var _mark_views: Dictionary = {}
+## The enemy whose line of fire is drawn in full (tapped), or -1; and whether every line is.
+var _focus_enemy: int = -1
+var _all_lines: bool = false
 
 var _board: Node3D
 var _units_root: Node3D
@@ -114,6 +117,7 @@ func _ready() -> void:
 	_hud.undo_pressed.connect(_undo)
 	_hud.end_turn_pressed.connect(_end_turn)
 	_hud.rotate_pressed.connect(_rotate)
+	_hud.lines_pressed.connect(_toggle_lines)
 	_hud.retry_pressed.connect(_start_fight)
 	_hud.title_pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/main.tscn"))
 	_hud.continue_pressed.connect(_back_to_run)
@@ -312,13 +316,13 @@ func _build_board() -> void:
 				continue
 			var slab := MeshInstance3D.new()
 			slab.mesh = _hex_mesh(HEX * 0.96, 0.3 + top)
-			slab.rotation.y = PI / 6.0
 			slab.position = _to_world(x, y) + Vector3(0, -0.15 + top * 0.5, 0)
 			# The ground sits UNDER the machines in value (CLAUDE.md).
 			var base: Color = Color(String(def.get("colour", "1a1e26")))
 			if (x + y) % 2 == 1:
 				base = base.lightened(0.04)
 			slab.material_override = _material(base, 0.95)
+			slab.set_meta("tile", Vector2i(x, y))
 			_board.add_child(slab)
 			if blocks:
 				_board.add_child(_scrap_heap(x, y))
@@ -341,7 +345,6 @@ func _pit(x: int, y: int) -> Node3D:
 	root.position = _to_world(x, y)
 	var hole := MeshInstance3D.new()
 	hole.mesh = _hex_mesh(HEX * 0.9, 1.2)
-	hole.rotation.y = PI / 6.0
 	hole.position = Vector3(0, -0.75, 0)
 	hole.material_override = _material(Color("040405"), 1.0)
 	root.add_child(hole)
@@ -352,7 +355,6 @@ func _pit(x: int, y: int) -> Node3D:
 	torus.ring_segments = 6
 	torus.rings = 6
 	rim.mesh = torus
-	rim.rotation.y = PI / 6.0
 	rim.scale = Vector3(1, 0.15, 1)
 	var glow := StandardMaterial3D.new()
 	glow.albedo_color = Color("3a2418")
@@ -364,8 +366,10 @@ func _pit(x: int, y: int) -> Node3D:
 	return root
 
 
-## A six-sided prism, pointy-top: CylinderMesh puts its first corner on +X, so it is
-## turned 30 degrees to put a corner at north and south.
+## A six-sided prism, pointy-top. CylinderMesh already puts a corner at +Z (north), which
+## is exactly the pointy-top layout `_to_world` uses -- so it must NOT be turned. An extra
+## 30 degree turn once made every tile meet its neighbours at the corners, and distances
+## counted by eye came out one short (play-test 2).
 func _hex_mesh(radius: float, height: float) -> CylinderMesh:
 	var mesh := CylinderMesh.new()
 	mesh.top_radius = radius
@@ -398,7 +402,6 @@ func _scrap_heap(x: int, y: int) -> Node3D:
 func _quad(x: int, y: int, height: float, size: float) -> MeshInstance3D:
 	var quad := MeshInstance3D.new()
 	quad.mesh = _hex_mesh(size, 0.012)
-	quad.rotation.y = PI / 6.0
 	quad.position = _to_world(x, y) + Vector3(0, height, 0)
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -622,6 +625,8 @@ func _set_tag(view: Dictionary, u: GridUnit) -> void:
 	var status: PackedStringArray = []
 	if not u.kind.is_empty():
 		status.append(u.kind.to_upper())
+	if u.unshovable and not u.objective:
+		status.append("ANCHORED")
 	if u.shield > 0:
 		status.append("SHIELD")
 	if u.team == GridUnit.TEAM_PLAYER and not u.objective and u.heat > 0:
@@ -824,6 +829,7 @@ func _animate(e: Array) -> void:
 		GridEv.SPAWN_MARKED:
 			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.0, 0), "DRONE NEXT ROUND", Color("b58cf0"))
 		GridEv.SPAWNED:
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.8, 0), "BUILT BY THE HIVE", Color("c9a2ff"))
 			var drone: GridUnit = _state.unit(target)
 			if drone != null and not _views.has(target):
 				_views[target] = _build_view(drone)
@@ -1082,13 +1088,24 @@ func _refresh() -> void:
 	var threats: Dictionary = CombatSim.threats(_state)
 	for ref: Variant in threats:
 		var threat: Dictionary = threats[ref]
+		# Quiet by default (play-test 2: a web of crossing lines was overwhelming): the hexes
+		# that will be hit and a numbered badge. The whole line is drawn for the enemy the
+		# player tapped, for shots at the selected machine, or for all with LINES.
+		var full: bool = _all_lines or int(ref) == _focus_enemy or _hits_selected(threat)
 		if bool(threat["legal"]):
-			for cell: Vector2i in (threat["tiles"] as Array):
-				_mark(_threat_quads, cell, COL_THREAT)
-		_intent_marker(int(ref), threat)
+			if full:
+				for cell: Vector2i in (threat["tiles"] as Array):
+					_mark(_threat_quads, cell, COL_THREAT)
+			else:
+				for hit: Dictionary in (threat["hits"] as Array):
+					var victim: GridUnit = _state.unit(int(hit["ref"]))
+					_mark(_threat_quads, Vector2i(victim.x, victim.y), COL_THREAT)
+				_mark(_threat_quads, threat["end"], COL_THREAT)
+		_intent_marker(int(ref), threat, full)
 
 	for ref: Variant in _state.spawn_marks:
 		_mark(_threat_quads, _state.spawn_marks[ref], COL_SPAWN)
+		_spawn_marker(int(ref), _state.spawn_marks[ref])
 
 	var sel: GridUnit = _state.unit(_selected) if _selected >= 0 else null
 	if sel != null and sel.alive:
@@ -1146,6 +1163,13 @@ func _refresh_hud(threats: Dictionary) -> void:
 				_preview_text(CombatSim.preview_attack(_state, sel.ref, int(_pending["i"]), cell))
 				+ "\n\nTap the same target again to confirm.")
 		_hud.set_hint("Tap the yellow target again to fire  ·  tap elsewhere to cancel")
+	elif sel != null and _armed and _ability >= 0:
+		var ability: Dictionary = sel.abilities[_ability]
+		_hud.set_info(String(ability["name"]).to_upper(), "%s\n\n%s  ·  cooldown %d round%s" % [String(ability["text"]),
+			"Free: does not use the action" if bool(ability["free"]) else "Uses this machine's action",
+			int(ability["cooldown"]), "" if int(ability["cooldown"]) == 1 else "s"])
+		_hud.set_hint("Yellow: where %s can go  ·  tap one to aim  ·  tap %s again to go back to moving" % [
+			String(ability["name"]), String(ability["name"]).to_upper()])
 	elif sel != null:
 		_hud.set_info(sel.name.to_upper(), "%s\n%s\n\n%s" % [_unit_line(sel), _arms_line(sel), _threat_summary(threats)])
 		if sel.seized:
@@ -1197,7 +1221,8 @@ func _refresh_weapon_bar(sel: GridUnit) -> void:
 			reason = "NOT NOW"
 		if _armed and _ability == i:
 			selected = list.size()
-		list.append({"name": String(ability["name"]), "detail": String(ability["text"]),
+		var cost: String = "FREE" if bool(ability["free"]) else "USES ACTION"
+		list.append({"name": String(ability["name"]), "detail": "%s · COOLDOWN %d" % [cost, int(ability["cooldown"])],
 			"available": reason.is_empty(), "reason": reason, "ability": true})
 		_bar_items.append(["ability", i])
 	var vent: String = ""
@@ -1319,33 +1344,25 @@ func _clear_marks() -> void:
 			child.queue_free()
 
 
-## The firing order on the line of fire, and a red bar from the shooter to where it
-## lands. An intent that can no longer reach its hex (the shooter was shoved) is drawn
-## grey: it will miss, and the player should see that they caused it.
-func _intent_marker(ref: int, threat: Dictionary) -> void:
+## An intent's badge (its firing order, on the hex it will hit) and, when `full`, a red bar
+## from the shooter along its whole line. Grey and MISSES when the shooter can no longer
+## reach (it was shoved); LOCKED for a tracker.
+func _intent_marker(ref: int, threat: Dictionary, full: bool) -> void:
 	var u: GridUnit = _state.unit(ref)
 	var legal: bool = bool(threat["legal"])
 	var from: Vector3 = _to_world(u.x, u.y) + Vector3(0, 0.35, 0)
 	var end: Vector2i = threat["end"] if legal else threat["aim"]
 	var to: Vector3 = _to_world(end.x, end.y) + Vector3(0, 0.35, 0)
 	var colour: Color = Color("ff5a3c") if legal else Color(0.6, 0.6, 0.6, 0.7)
-
-	var label := Label3D.new()
-	label.text = str(int(threat["order"])) if legal else "%d  MISSES" % int(threat["order"])
-	if legal and int(threat.get("lock", -1)) >= 0:
-		label.text = "%d  LOCKED" % int(threat["order"])
-	label.font_size = 72 if legal else 44
-	label.pixel_size = 0.005
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.no_depth_test = true
-	label.outline_size = 16
-	label.outline_modulate = Color(0, 0, 0, 0.95)
-	label.modulate = Color("ff7a5c") if legal else colour
-	label.position = (from.lerp(to, 0.5) if from.distance_to(to) > 0.01 else from) + Vector3(0, 0.55, 0)
-	label.set_meta("intent", true)
-	_marks_root.add_child(label)
-
-	if from.distance_to(to) < 0.01:
+	var text: String = str(int(threat["order"]))
+	if not legal:
+		text += " MISSES"
+	elif int(threat.get("lock", -1)) >= 0:
+		text += " LOCKED"
+	_marker_label(text, to + Vector3(0, 0.5, 0), Color("ff7a5c") if legal else colour, 56 if legal else 40)
+	# The shooter wears its number too, so a badge on the ground can be traced back.
+	_marker_label(str(int(threat["order"])), from + Vector3(0, 2.0, 0), Color("ff7a5c"), 40)
+	if not full or from.distance_to(to) < 0.01:
 		return
 	var bar := MeshInstance3D.new()
 	var box := BoxMesh.new()
@@ -1359,6 +1376,57 @@ func _intent_marker(ref: int, threat: Dictionary) -> void:
 	bar.set_meta("intent", true)
 	_marks_root.add_child(bar)
 	bar.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
+
+
+func _marker_label(text: String, at: Vector3, colour: Color, size: int) -> void:
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = size
+	label.pixel_size = 0.005
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.outline_size = 14
+	label.outline_modulate = Color(0, 0, 0, 0.95)
+	label.modulate = colour
+	label.position = at
+	label.set_meta("intent", true)
+	_marks_root.add_child(label)
+
+
+## A hive's build site stays on the board all turn (play-test 2: drones "from thin air"):
+## a purple hex, a label, and a beam back to the hive that will build there.
+func _spawn_marker(hive_ref: int, cell: Vector2i) -> void:
+	var hive: GridUnit = _state.unit(hive_ref)
+	var at: Vector3 = _to_world(cell.x, cell.y)
+	_marker_label("DRONE NEXT ROUND\nstand here to block", at + Vector3(0, 0.3, 0.25), Color("c9a2ff"), 30)
+	if hive == null:
+		return
+	var from: Vector3 = _to_world(hive.x, hive.y) + Vector3(0, 0.25, 0)
+	var to: Vector3 = at + Vector3(0, 0.25, 0)
+	var beam := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.05, 0.05, from.distance_to(to))
+	beam.mesh = box
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_color = Color(0.7, 0.45, 1.0, 0.8)
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	beam.material_override = material
+	beam.set_meta("intent", true)
+	_marks_root.add_child(beam)
+	beam.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
+
+
+func _hits_selected(threat: Dictionary) -> bool:
+	for hit: Dictionary in (threat["hits"] as Array):
+		if int(hit["ref"]) == _selected:
+			return true
+	return false
+
+
+func _toggle_lines() -> void:
+	_all_lines = not _all_lines
+	_refresh()
 
 
 # --- Input ------------------------------------------------------------------
@@ -1388,6 +1456,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_undo()
 			KEY_SPACE, KEY_ENTER:
 				_end_turn()
+			KEY_L:
+				_toggle_lines()
 			KEY_Q:
 				_rotate(-1)
 			KEY_E:
@@ -1483,6 +1553,8 @@ func _tap(cell: Vector2i) -> void:
 			return
 
 	_pending = {}
+	_refresh()
+	_focus_enemy = there.ref if there != null and there.team == GridUnit.TEAM_ENEMY else -1
 	_refresh()
 	if there != null:
 		var about: String = "Protect it: every cache still standing pays out scrap." if there.objective \

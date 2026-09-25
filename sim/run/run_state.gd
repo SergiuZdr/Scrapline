@@ -21,6 +21,8 @@ var scrap: int = 0
 ## it is the run's health, now that there is no Crawler.
 var crew: Array[Dictionary] = []
 var cargo: Array[String] = []
+## How many parts the hold takes. Salvage can push it over; travel then waits.
+var hold_size: int = 8
 
 ## What the player must resolve before travelling on, or `{}`:
 ##   { "kind": "fight", "site_type", "fight": {fight dict} }
@@ -45,6 +47,10 @@ func consumed(id: int) -> bool:
 	return int(site(id).get("col", 99)) <= front_col
 
 
+func overfull() -> bool:
+	return cargo.size() > hold_size
+
+
 func alive_crew() -> int:
 	var n: int = 0
 	for member: Dictionary in crew:
@@ -61,6 +67,6 @@ func fingerprint() -> String:
 	var visited: PackedStringArray = []
 	for s: Dictionary in sites:
 		visited.append("1" if bool(s["visited"]) else "0")
-	return "cur=%d moves=%d front=%d scrap=%d crew=[%s] cargo=[%s] visited=%s pending=%s outcome=%d" % [
-		current, moves, front_col, scrap, ";".join(crew_text),
+	return "cur=%d moves=%d front=%d scrap=%d hold=%d crew=[%s] cargo=[%s] visited=%s pending=%s outcome=%d" % [
+		current, moves, front_col, scrap, hold_size, ";".join(crew_text),
 		",".join(cargo), "".join(visited), str(pending.get("kind", "")), outcome]

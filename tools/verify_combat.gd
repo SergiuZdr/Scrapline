@@ -492,6 +492,35 @@ func _test_abilities() -> void:
 	_ability(pull, 0, 0, far)
 	_check("grapple pulls a unit until it is adjacent", Hex.distance(_at(pull, 10), C) == 1)
 
+	# Play-test 2: ranges have to be exactly what the text says, in hexes.
+	var off3: Vector2i = _off(C, 2, 1, -3)
+	var off4: Vector2i = _off(C, 3, 1, -4)
+	var ranges: CombatState = _fight(_rows(), [_unit(LANCE, C)], [_unit(HAMMER, off3, 20), _unit(HAMMER, off4, 20),
+		_unit(MORTAR, _off(C, -3, 3, 0), 20)])
+	_place(ranges, 0, C)
+	_place(ranges, 10, off3)
+	_place(ranges, 11, off4)
+	_place(ranges, 12, _off(C, -3, 3, 0))
+	var reach: Array[Vector2i] = CombatAbilities.targets(ranges, ranges.unit(0), 0)
+	_check("grapple reaches an off-axis enemy exactly 3 hexes away", Hex.distance(C, off3) == 3 and reach.has(off3))
+	_check("grapple does not reach 4 hexes", not reach.has(off4))
+	_check("grapple cannot hook an anchored frame", not reach.has(_off(C, -3, 3, 0)))
+	var p2: Vector2i = _off(C, 1, 1, -2)
+	var p3: Vector2i = _off(C, 2, 1, -3)
+	var piles: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, Vector2i(0, 0), 20)],
+		{"type": "rout", "piles": [{"x": p2.x, "y": p2.y}, {"x": p3.x, "y": p3.y}]})
+	_place(piles, 0, C)
+	var pulls: Array[Vector2i] = CombatAbilities.targets(piles, piles.unit(0), 1)
+	_check("magnet reaches a pile exactly 2 hexes away, not 3", pulls.has(p2) and not pulls.has(p3))
+
+	var boosted: CombatState = _fight(_rows(), [_unit(["ch_brute", "co_dynamo", "ar_saw", "ar_hammer", "mo_bypass"], C)],
+		[_unit(HAMMER, _off(C, 3, -3, 0), 20)])
+	_place(boosted, 0, C)
+	_place(boosted, 10, _off(C, 3, -3, 0))
+	_ability(boosted, 0, 1)
+	_ability(boosted, 0, 0, _off(C, 3, -3, 0))
+	_check("overdrive boosts a charge (3 + 2 = 5)", boosted.unit(10).hp == 15)
+
 	var wall_at: Vector2i = Hex.neighbor(C, 0)
 	var shooter_at: Vector2i = Hex.neighbor(wall_at, 0)
 	var fort: CombatState = _fight(_rows(), [_unit(MORTAR, C)], [_unit(LANCE, Hex.neighbor(shooter_at, 0), 20)])

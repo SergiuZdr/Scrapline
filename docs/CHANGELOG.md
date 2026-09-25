@@ -2,6 +2,29 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [007] Play-test 2 fixes — 2026-09-25 ([detail](iterations/007-playtest-2-fixes.md))
+
+Answers every issue in play-test 2, including PT1-8/9 (map and refit), which 006 had left unchanged.
+
+### Fixed
+- Hexes now meet side to side (the tiles were turned 30°, so the board lied about adjacency and range).
+- Grapple aims freely at any unit in range with a clear line; anchored machines are tagged ANCHORED.
+- Charge takes Focus and Overdrive bonuses. Part text names a module's ability instead of "+0 ability".
+- A boss fight that times out ends the run instead of stranding the crew at the gate.
+
+### Added
+- **Region map redesign**: zones as columns, the Reclaimer as a wall with a countdown, the next zone to fall striped, FORWARD / SIDEWAYS / BACK on every reachable site, a preview with the move's cost before TRAVEL, site icons, crew cards with HP bars. The log is gone.
+- **Refit redesign**: its own screen; drag a part onto a socket (fitting sockets light up), back to the hold, onto another machine, or onto SCRAP. Tap-then-tap still works.
+- Part cards with a rarity banner and a verdict ("BETTER THAN BRUTE'S BRUTE FRAME").
+- Scrap any part for 3 / 6 / 10 by rarity. The hold starts at 8; workshops sell +2 room (10 / 16 / 24).
+- Battle bar in two rows: WEAPONS (amber) and ABILITIES (blue), each with FREE / USES ACTION and COOLDOWN n; text wraps inside the button.
+- Quiet intents: target hexes and numbered badges, with lines only for the enemy you tap or those aimed at your selected machine. LINES (key L) shows all.
+- A hive's build site stays marked on the board ("DRONE NEXT ROUND"), with a beam from the hive.
+
+### Changed
+- Salvage can always be taken; an overfull hold blocks travel until something is fitted or scrapped.
+- `verify_combat` 103 → 108, `verify_combat_input` 20, `verify_run` 52 → 55, `verify_run_ui` 12 → 19.
+
 ## [006] Fight depth — 2026-09-24 ([detail](iterations/006-fight-depth.md))
 
 Answers play-test 1: PT1-1 (the chore), with the user's picks.

@@ -39,10 +39,16 @@ func _go() -> void:
 	if fight_site < 0:
 		fight_site = targets[0]
 		state.sites[fight_site]["type"] = "skirmish"
+	var start_site: int = state.current
 	_press((map.get("_site_buttons") as Dictionary)[fight_site])
 	await _frames(3)
 	state = _run.get("state")
-	_check("tapping a site moves the Crawler there", state.current == fight_site)
+	_check("a first tap previews a site without moving", state.current == start_site and int(map.get("_chosen")) == fight_site)
+	_check("the preview says which way the move goes", _find_label_prefix(map, "FORWARD") != null)
+	_press(_find_button(map, "TRAVEL"))
+	await _frames(3)
+	state = _run.get("state")
+	_check("TRAVEL moves the crew there", state.current == fight_site)
 	_check("the fight panel offers ENTER FIGHT", _find_button(map, "ENTER FIGHT") != null)
 	_check("the move was saved", RunStore.load_saved()["actions"].size() == 1)
 
@@ -99,23 +105,41 @@ func _go() -> void:
 			state = _run.get("state")
 			_check("tapping a card loads the part into the hold", state.cargo.size() == cargo_before + 1)
 
-		# --- Refit: socket, then a matching part from the hold.
+		# --- Refit: the panel. Tap a hold card, then tap a lit socket.
 		if not state.cargo.is_empty():
-			_press(_find_button(map, "REFIT"))
+			_press(_find_button_prefix(map, "REFIT"))
 			await _frames(3)
+			var panel: Node = map.get("_refit")
+			_check("REFIT opens the refit panel", panel != null)
 			var part: String = state.cargo[0]
 			var slot: String = String((_run.get("db").parts[part] as Dictionary)["slot"])
 			var socket: int = {"chassis": 0, "core": 1, "arm": 3, "module": 4}[slot]
-			map.set("_refit_socket", [0, socket])
-			map.call("_show_overlay")
-			await _frames(2)
 			var old: String = String(state.crew[0]["parts"][socket])
-			var hold_card: Button = _find_part_card(map, part)
-			_press(hold_card)
+			_press(_find_part_card(panel, part))
+			await _frames(2)
+			_check("tapping a hold card lifts it", not (panel.get("_held") as Dictionary).is_empty())
+			panel.call("_tap_socket", 0, socket)
 			await _frames(3)
 			state = _run.get("state")
-			_check("refit by tapping a socket then a hold card swaps the part",
-				String(state.crew[0]["parts"][socket]) == part and state.cargo.has(old))
+			_check("tap card, tap socket fits the part and the old one goes to the hold",
+				String(state.crew[0]["parts"][socket]) == part and (old.is_empty() or state.cargo.has(old)))
+			# Drag a fitted arm back into the hold, then drop a hold part on SCRAP.
+			var cargo_now: int = state.cargo.size()
+			panel.call("_drop_hold", Vector2.ZERO, {"from": "socket", "crew": 1, "socket": 2})
+			await _frames(3)
+			state = _run.get("state")
+			_check("dropping a fitted part on the hold unfits it", state.cargo.size() == cargo_now + 1
+				and String(state.crew[1]["parts"][2]).is_empty())
+			var scrap_before: int = state.scrap
+			var doomed: String = state.cargo[state.cargo.size() - 1]
+			panel.call("_drop_bin", Vector2.ZERO, {"from": "hold", "index": state.cargo.size() - 1})
+			await _frames(3)
+			state = _run.get("state")
+			_check("dropping a part on SCRAP breaks it down for scrap",
+				state.scrap == scrap_before + RunSim.scrap_value(_run.get("setup"), doomed) and state.cargo.size() == cargo_now)
+			_press(_find_button(panel, "BACK TO MAP"))
+			await _frames(3)
+			_check("BACK TO MAP closes the panel", map.get("_refit") == null)
 
 	RunStore.clear()
 	print("")
@@ -153,6 +177,26 @@ func _find_button(node: Node, text: String) -> Button:
 		return node
 	for child: Node in node.get_children():
 		var found: Button = _find_button(child, text)
+		if found != null:
+			return found
+	return null
+
+
+func _find_button_prefix(node: Node, text: String) -> Button:
+	if node is Button and (node as Button).text.begins_with(text) and (node as Button).is_visible_in_tree() and not node.is_queued_for_deletion():
+		return node
+	for child: Node in node.get_children():
+		var found: Button = _find_button_prefix(child, text)
+		if found != null:
+			return found
+	return null
+
+
+func _find_label_prefix(node: Node, text: String) -> Label:
+	if node is Label and (node as Label).text.begins_with(text) and not node.is_queued_for_deletion():
+		return node
+	for child: Node in node.get_children():
+		var found: Label = _find_label_prefix(child, text)
 		if found != null:
 			return found
 	return null
