@@ -12,9 +12,13 @@ var _viewport: SubViewport
 var _pivot: Node3D
 var _camera: Camera3D
 var _key: String = ""
+## "portrait": head and shoulders (the crew dock). "full": the whole machine, feet to
+## antenna (the assembly bay, where the whole build is the point).
+var framing: String = "portrait"
 
 
-func _init(size: Vector2i = Vector2i(112, 112)) -> void:
+func _init(size: Vector2i = Vector2i(112, 112), frame: String = "portrait") -> void:
+	framing = frame
 	stretch = true
 	custom_minimum_size = Vector2(size)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -66,6 +70,9 @@ func show_machine(parts: Array, level: int, alive: bool = true) -> void:
 	var h: float = ConstructView.height_of(model)
 	# Head and shoulders, the way a crew photo is framed: the top two thirds of the machine.
 	# (Not `look_at`: the portrait may not be in the tree yet when it is filled.)
-	_camera.look_at_from_position(Vector3(0.0, h * 0.62, h * 2.1), Vector3(0.0, h * 0.55, 0.0))
+	if framing == "full":
+		_camera.look_at_from_position(Vector3(0.0, h * 0.6, h * 2.75), Vector3(0.0, h * 0.5, 0.0))
+	else:
+		_camera.look_at_from_position(Vector3(0.0, h * 0.62, h * 2.1), Vector3(0.0, h * 0.55, 0.0))
 	modulate = Color(1, 1, 1) if alive else Color(1.0, 0.45, 0.4, 0.55)
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE

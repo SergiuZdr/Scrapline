@@ -38,6 +38,7 @@ func _go() -> void:
 			packed.cargo.append(String(packed.crew[packed.cargo.size() % 3]["parts"][1 + packed.cargo.size() % 4]))
 	# The briefing covers the map on a new run; photograph it only when asked.
 	run.set("briefed", not args.has("--brief"))
+	run.set("bay_seen", not args.has("--bay"))
 	change_scene_to_file("res://scenes/run_map.tscn")
 	for i: int in 10:
 		await process_frame

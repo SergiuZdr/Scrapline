@@ -21,6 +21,9 @@ var problem: String = ""
 ## Whether this run's briefing has been read. A new run starts unbriefed; CONTINUE does not
 ## show it again.
 var briefed: bool = true
+## Whether the assembly bay has been through this session (it opens once, after the
+## briefing, while the crew can still be built).
+var bay_seen: bool = false
 
 
 func _ready() -> void:
@@ -41,6 +44,7 @@ func new_run(seed_value: int = -1) -> void:
 	fight_actions = []
 	active = true
 	briefed = false
+	bay_seen = false
 	_save()
 
 

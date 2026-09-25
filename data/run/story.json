@@ -8,7 +8,9 @@
       "Last night you took the Combine's shutdown key off a dead foreman. The Reclaimer felt it go. It follows the key now.",
       "Three free machines. Three yards. Carry the key to the Crucible before it catches you."
     ],
-    "go": "ROLL OUT"
+    "go": "TO THE BAY",
+    "bay": "THE ASSEMBLY BAY",
+    "bay_text": "Three frames on the lifts and a bench of basic parts. Build the crew that will carry the key."
   },
   "acts": [
     {
