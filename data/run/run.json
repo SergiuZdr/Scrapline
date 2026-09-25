@@ -98,7 +98,6 @@
     "rebuild_cost": 20,
     "_comment": "repair_amount is per machine; a rebuilt wreck comes back at half HP"
   },
-  "cargo_size": 6,
   "objective_weights": {
     "rout": 30,
     "defend": 40,
@@ -148,5 +147,23 @@
       "warden": 20,
       "hive": 20
     }
+  },
+  "hold": {
+    "_comment": "The hold starts at `start` parts. A workshop sells `expand_by` more room at each price in turn. Going over is allowed after salvage, but travel waits until the hold fits.",
+    "start": 8,
+    "expand_by": 2,
+    "expand_costs": [
+      10,
+      16,
+      24
+    ]
+  },
+  "scrap_value": {
+    "_comment": "Scrap for breaking a part down, by rarity 1..3.",
+    "by_rarity": [
+      3,
+      6,
+      10
+    ]
   }
 }

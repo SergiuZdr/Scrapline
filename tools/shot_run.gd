@@ -4,7 +4,7 @@ extends SceneTree
 ## requested moment, then the map is opened and photographed.
 ##
 ##   godot --path . --resolution 1920x1080 --script res://tools/shot_run.gd -- \
-##       --seed 7 --until reward --out shots/reward.png [--refit]
+##       --seed 7 --until reward --out shots/reward.png [--refit] [--choose] [--fill-hold]
 ##
 ## `--until` is a pending kind (reward, scrapyard, workshop, fight) or "moves:N".
 ## Uses the real `Run` autoload, so it overwrites `user://run.json`; it clears it after.
@@ -31,14 +31,23 @@ func _go() -> void:
 			break
 		run.call("apply", RunBot.next_action(state, run.get("setup")))
 		guard += 1
+	if args.has("--fill-hold"):
+		# Screenshot only: pack the hold to its limit to show the full-hold salvage screen.
+		var packed: RunState = run.get("state")
+		while packed.cargo.size() < packed.hold_size:
+			packed.cargo.append(String(packed.crew[packed.cargo.size() % 3]["parts"][1 + packed.cargo.size() % 4]))
 	change_scene_to_file("res://scenes/run_map.tscn")
 	for i: int in 10:
 		await process_frame
+	if args.has("--choose"):
+		# Preview the first reachable site, as a first tap would.
+		var targets: Array[int] = RunSim.destinations(run.get("state"))
+		if not targets.is_empty():
+			current_scene.call("_choose", targets[targets.size() - 1])
+			for i: int in 5:
+				await process_frame
 	if args.has("--refit"):
-		var map: Node = current_scene
-		map.set("_refit_open", true)
-		map.set("_refit_socket", [0, 3])
-		map.call("_show_overlay")
+		current_scene.call("_open_refit")
 		for i: int in 10:
 			await process_frame
 	var image: Image = root.get_texture().get_image()
