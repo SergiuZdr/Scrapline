@@ -20,8 +20,8 @@ signal retry_pressed
 signal title_pressed
 signal continue_pressed
 
-const CARD_SIZE := Vector2(320, 140)
-const WEAPON_SIZE := Vector2(270, 76)
+const CARD_SIZE := Vector2(340, 150)
+const WEAPON_SIZE := Vector2(310, 76)
 const ABILITY_SIZE := Vector2(176, 58)
 ## The action bar's box: right of the camera buttons, left of UNDO / END TURN.
 const BAR_LEFT: float = 300.0
@@ -227,6 +227,20 @@ func _action_button(info: Dictionary, index: int, selected: bool, ability: bool)
 	box.offset_left = UIKit.SPACE_MD + 4
 	box.offset_right = -UIKit.SPACE_SM
 	box.offset_top = UIKit.SPACE_XS
+	# 010: a weapon button shows the arm it fires (the same thumbnail as its part card).
+	var part: String = String(info.get("part", ""))
+	if not ability and not part.is_empty():
+		var picture := TextureRect.new()
+		picture.texture = PartText.thumb(part)
+		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		picture.modulate = Color(1, 1, 1, 1.0 if available else 0.35)
+		button.add_child(picture)
+		picture.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		picture.position = Vector2(UIKit.SPACE_MD, (size.y - 64.0) * 0.5)
+		picture.size = Vector2(64, 64)
+		box.offset_left = UIKit.SPACE_MD + 70
 	var name_colour: Color = UIKit.AMBER if selected else (UIKit.BLUE.lightened(0.3) if ability else UIKit.TEXT)
 	box.add_child(_label(String(info["name"]).to_upper(), UIKit.SIZE_BODY if not ability else UIKit.SIZE_LABEL,
 		name_colour if available else UIKit.TEXT_FAINT, UIKit.font_strong()))
@@ -235,7 +249,7 @@ func _action_button(info: Dictionary, index: int, selected: bool, ability: bool)
 		(UIKit.TEXT_DIM if available else UIKit.RED))
 	# Wrapped inside the button's own width: nothing runs off its right edge.
 	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	detail.custom_minimum_size = Vector2(size.x - UIKit.SPACE_MD - 4 - UIKit.SPACE_SM, 0)
+	detail.custom_minimum_size = Vector2(size.x - box.offset_left - UIKit.SPACE_SM, 0)
 	detail.max_lines_visible = 2
 	box.add_child(detail)
 	return button
@@ -287,28 +301,53 @@ func _build_card(ref: int) -> Dictionary:
 	button.pressed.connect(func() -> void: unit_card_pressed.emit(ref))
 	_card_column.add_child(button)
 
+	# 010: the machine itself on the card (the real model, levels and number), not only its
+	# name -- the same portrait the map's crew dock shows.
+	var row_all := HBoxContainer.new()
+	row_all.set_anchors_preset(Control.PRESET_FULL_RECT)
+	row_all.offset_left = UIKit.SPACE_SM
+	row_all.offset_right = -UIKit.SPACE_SM
+	row_all.offset_top = UIKit.SPACE_SM
+	row_all.offset_bottom = -UIKit.SPACE_SM
+	row_all.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	row_all.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(row_all)
+	var portrait := MachinePortrait.new(Vector2i(92, 120))
+	row_all.add_child(portrait)
 	var box := VBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	box.offset_left = UIKit.SPACE_LG
-	box.offset_right = -UIKit.SPACE_LG
-	box.offset_top = UIKit.SPACE_MD
-	box.offset_bottom = -UIKit.SPACE_MD
-	box.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 2)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	button.add_child(box)
+	row_all.add_child(box)
 
+	# The name, with what it has left this turn beside it.
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(head)
 	var name := _label("", UIKit.SIZE_HEADING, UIKit.TEXT, UIKit.font_strong())
-	box.add_child(name)
+	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name.clip_text = true
+	head.add_child(name)
+	var move := _label("MOVE", UIKit.SIZE_MICRO, UIKit.GREEN, UIKit.font_strong())
+	head.add_child(move)
+	var act := _label("ATTACK", UIKit.SIZE_MICRO, UIKit.GREEN, UIKit.font_strong())
+	head.add_child(act)
+	# Detail lines trim with an ellipsis inside the card rather than running off its edge.
 	var detail := _label("", UIKit.SIZE_LABEL, UIKit.TEXT_DIM)
+	detail.clip_text = true
+	detail.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	detail.custom_minimum_size = Vector2(200, 0)
 	box.add_child(detail)
 	var arms := _label("", UIKit.SIZE_LABEL, UIKit.TEXT_DIM)
+	arms.clip_text = true
+	arms.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	arms.custom_minimum_size = Vector2(200, 0)
 	box.add_child(arms)
 
-	var bar := ProgressBar.new()
-	bar.show_percentage = false
-	bar.custom_minimum_size = Vector2(0, 12)
-	bar.add_theme_stylebox_override("background", UIKit.plain(UIKit.SURFACE_SUNK, 2))
-	bar.add_theme_stylebox_override("fill", UIKit.plain(UIKit.BLUE, 2))
+	# HP as pips, one per point, so a glance counts it (as the map's dock does).
+	var bar := HBoxContainer.new()
+	bar.add_theme_constant_override("separation", 2)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(bar)
 
@@ -320,17 +359,9 @@ func _build_card(ref: int) -> Dictionary:
 	row.add_child(hp)
 	var heat := _label("", UIKit.SIZE_LABEL, UIKit.GOLD, UIKit.font_numbers())
 	row.add_child(heat)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(spacer)
-	var move := _label("MOVE", UIKit.SIZE_LABEL, UIKit.GREEN, UIKit.font_strong())
-	row.add_child(move)
-	var act := _label("ATTACK", UIKit.SIZE_LABEL, UIKit.GREEN, UIKit.font_strong())
-	row.add_child(act)
 
 	return {"button": button, "name": name, "detail": detail, "arms": arms, "bar": bar, "hp": hp,
-		"heat": heat, "move": move, "act": act}
+		"heat": heat, "move": move, "act": act, "portrait": portrait}
 
 
 func _fill_card(parts: Dictionary, card: Dictionary) -> void:
@@ -349,9 +380,22 @@ func _fill_card(parts: Dictionary, card: Dictionary) -> void:
 
 	(parts["name"] as Label).text = String(card["name"]) + ("" if alive else "  ·  WRECKED")
 	(parts["detail"] as Label).text = String(card["detail"])
-	var bar: ProgressBar = parts["bar"]
-	bar.max_value = int(card["max_hp"])
-	bar.value = int(card["hp"])
+	var bar: HBoxContainer = parts["bar"]
+	var full: int = maxi(1, int(card["max_hp"]))
+	var now: int = int(card["hp"])
+	if bar.get_child_count() != full or int(bar.get_meta("hp", -1)) != now:
+		bar.set_meta("hp", now)
+		for child: Node in bar.get_children():
+			child.queue_free()
+		var width: float = clampf(200.0 / float(full) - 2.0, 4.0, 13.0)
+		for n: int in full:
+			var pip := Panel.new()
+			pip.custom_minimum_size = Vector2(width, 11)
+			pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var colour: Color = (UIKit.RED if now * 3 <= full else UIKit.BLUE) if n < now else UIKit.SURFACE_SUNK
+			pip.add_theme_stylebox_override("panel", UIKit.plain(colour, 1))
+			bar.add_child(pip)
+	(parts["portrait"] as MachinePortrait).show_machine(card.get("parts", []), int(card.get("level", 0)), alive, int(card.get("number", -1)))
 	(parts["hp"] as Label).text = "%d / %d HP" % [int(card["hp"]), int(card["max_hp"])]
 	(parts["arms"] as Label).text = String(card.get("arms", ""))
 	var heat: Label = parts["heat"]
