@@ -1,7 +1,7 @@
 # Iteration 009 — Play-test 4 fixes
 
-**Status:** in progress
-**Started:** 2026-09-25 · **Finished:** —
+**Status:** done (the user asked for 009–013 in one batch; play-test after 013)
+**Started:** 2026-09-25 · **Finished:** 2026-09-26
 **Answers:** [play-test 4](../playtests/2026-09-25-playtest-4.md), all but PT4-1 (the full
 visual overhaul, 010). Uses the sources chosen in [art-sourcing](../plans/art-sourcing.md).
 
@@ -38,11 +38,61 @@ still and warns you; the board has edges; and a run starts by building your own 
 6. Tests, bot, balance, screenshots, docs, merge.
 
 ## Acceptance criteria
-- [ ] verify_combat: a shot between two equal paths takes the clear one (both leanings tested); overshoot hits at half damage 2 hexes past range; the arc jumps twice; only carriers drop piles; the pad stays put, counts down, spawns, is blocked when occupied, dies with the hive.
-- [ ] verify_run: ASSEMBLE legal only at the start, only from the bench, respecting counts; 9-column regions stay valid.
-- [ ] verify_run_ui: the assembly bay; the garage scrap button (click and drop); level-up animation runs and the level shows on the model; the map travels by click with fog and the convoy.
-- [ ] run_bot and balance_fights recorded.
-- [ ] Screenshots: board edges and the pad; the garage bay mid level-up; the fogged map with the convoy and the gauge; the assembly bay.
+- [x] verify_combat: a shot between two equal paths takes the clear one (both leanings tested); overshoot hits at half damage past range; the arc jumps twice; only carriers drop piles; the pad stays put, counts down, spawns, is blocked when occupied, dies with the hive.
+- [x] verify_run: ASSEMBLE legal only at the start, only from the bench, respecting counts; 9-column regions stay valid.
+- [x] verify_run_ui: the assembly bay; the garage scrap button (click and drop); level-up; the map travels by click, the crew walks, the fog is painted.
+- [x] run_bot and balance_fights recorded.
+- [x] Screenshots: board edges and the pad; the garage bay mid level-up; the fogged map with the convoy and the gauge; the assembly bay.
 
 ## Result
-(filled in on completion)
+
+| Suite | Result |
+|---|---|
+| verify_combat | **134** passed (116): both leanings with a heap on each side and with an ally in the way; overshoot hits one past range at half damage and not past the overshoot; the double arc; carriers are the seeded hash and only they drop; the pad timeline (set down, 2, NEXT TURN, a drone, reset, blocked by standing on it, shut down with the hive, drones carry nothing) |
+| verify_combat_input | 20 passed |
+| verify_run | **70** passed (61): ASSEMBLE — the default crew is itself legal, commons without limit, frames name the machines (II), full HP, only once, not two saws, no rares, parts fit their sockets, not after the first move |
+| verify_run_ui | **33** passed (26): briefing → TO THE BAY → the assembly bay (stepping changes the draft only; ROLL OUT is one action) → the map; hover and one click; **the crew walks the road before the site opens**; the garage including **pick a part, click SCRAP** |
+| verify_save / assembly / animation | 14 / 100 / 34 passed |
+| run_bot 150 | **89.3%** won (88.7% after 008), 0 illegal actions; **8.2 moves and 5.5 fights a run** (6.1 / 4.3 — the 9-column region); losses mostly at the gate (9 of 16) |
+| balance_fights 600 | random squads **87.3%** (88.0%); coil −2.5 and ripper −4.9 against the mean, hammer +3.9 |
+
+Difficulty held through the combat changes; the bigger map lengthened the act by about one
+fight. It is still easy for a bot that barely uses abilities — for the user's play-test.
+
+### Found on the way
+- **A piercing overshoot bug the new test caught**: the far-damage check read the shot's
+  remaining pierce count, which the first hit had already spent, so the unit past range took
+  full damage. It now asks whether the WEAPON pierces.
+- **Billboard particles throw their scale away** unless `billboard_keep_scale` is set: the
+  garage's dust motes were 1 m squares and washed the bay out in pale blocks (the map's dust
+  had the same bug, unnoticed because its puffs were meant to be big).
+- **A near-black fog over near-black asphalt is drawn and invisible.** The fog shader was
+  right all along (checked in isolation on a bright floor); the fog is now a pale night mist,
+  and anything deep in it is hidden outright.
+- **A display class must not read the `Run` autoload**: a `--script` tool that names it
+  compiles it before autoloads exist. `YardView` takes the content database instead.
+- **Headless frames outrun real time**: a test waiting 400 frames for a 2.6 s walk timed
+  out. Tweened things are waited on with timers.
+
+### Different from the plan
+- Several relevant skills (`game-feel-and-juice`, `3d-essentials`, `combat-design`, ...) are
+  switched off for Claude in the user's settings; they were respected, not read around. The
+  level-up was designed without the juice skill.
+- The ghost of the Reclaimer is a translucent red curtain on its next line rather than a
+  copy of the rigs: read from above, a curtain is a line, and the line is the information.
+
+### Screenshots
+`shots/009_board.png` (edges, yard, pad, scrap marks), `009_levelup_14.png` / `_32.png`
+(mid level-up), `009_garage.png`, `009_map.png` and `009_map_wide.png` (fog, crew, dock,
+gauge), `009_bay.png`.
+
+### Proposals for "the map feels empty" (PT4-8), for the user to choose
+Built now: the crew on the map, fog to explore, scout drones with searchlights, smoking
+wrecks, a skyline with blinking stacks and the Crucible's glow. Proposed next (Act 1
+content, 013), in the order they would add the most:
+1. **Signals** — event sites with a short story and a choice (salvage a crashed hauler at a
+   risk, free a spiked rig to join as a part source, bargain with scavengers).
+2. **Watchtowers** — climb one to lift the fog over a whole zone (fog makes these matter).
+3. **Traders** — buy and sell parts for scrap; a second use for scrap besides levels.
+4. **Caches off the road** — a side site worth a detour, so sideways moves are a real call.
+5. **Crew chatter** — one line from a machine when something happens, in the world's voice.
