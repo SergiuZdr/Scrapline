@@ -34,6 +34,22 @@ func _run() -> void:
 		scene.call("_tap", Vector2i(args[at + 1].to_int(), args[at + 2].to_int()))
 	for i: int in 20:
 		await process_frame
+	# --fire N: tap the aimed hex again (which fires), then wait N frames -- to photograph
+	# an effect mid-flight.
+	var fire: int = _int_arg(args, "--fire", -1)
+	if fire >= 0 and at >= 0:
+		scene.call("_tap", Vector2i(args[at + 1].to_int(), args[at + 2].to_int()))
+		for i: int in fire:
+			await process_frame
+
+	# --boom x y N: play the explosion effect on a hex and wait N frames (the look only).
+	var boom: int = args.find("--boom")
+	if boom >= 0 and boom + 3 < args.size():
+		var cell := Vector2i(args[boom + 1].to_int(), args[boom + 2].to_int())
+		var vfx: Node = scene.get("_vfx")
+		vfx.call("fireball", scene.call("_to_world", cell.x, cell.y), 1.0)
+		for i: int in args[boom + 3].to_int():
+			await process_frame
 
 	var out: String = "shots/combat.png"
 	var o: int = args.find("--out")

@@ -51,7 +51,8 @@ static func build(unit: SimUnit, content: ContentDB, team_colour: Color) -> Node
 
 ## The same, from a bare loadout: chassis, core, arm_l, arm_r, module. The grid game's
 ## units are not `SimUnit`s, and the view has no business caring which sim built them.
-static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_colour: Color, level: int = 0) -> Node3D:
+static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_colour: Color, level: int = 0,
+		number: int = -1) -> Node3D:
 	var root := Node3D.new()
 
 	var chassis_id: String = _part_id(part_ids, 0)
@@ -108,7 +109,47 @@ static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_c
 
 	if level > 0:
 		_level_kit(chassis, sockets, level, PartMaterials.livery_of(chassis_id), team_colour)
+	if number >= 0:
+		var core_socket: Node3D = sockets.get(SOCKETS["core"])
+		if core_socket != null and core_socket.get_child_count() > 0:
+			_stencil(core_socket.get_child(core_socket.get_child_count() - 1) as Node3D, number)
 	return root
+
+
+## A stencilled two-digit number (art/reference: "the cheapest per-machine identity on the
+## sheet, and it survives any distance"), painted on the top-left of the core's front plate
+## -- the one flat face every machine is guaranteed to show, clear of the lens. Placed
+## from the core mesh's own bounds, so it sits ON the plate whatever core is fitted.
+static func _stencil(core: Node3D, number: int) -> void:
+	var bounds := AABB()
+	var first: bool = true
+	for mesh: MeshInstance3D in _meshes(core):
+		if mesh.mesh == null:
+			continue
+		var xf := Transform3D.IDENTITY
+		var node: Node = mesh
+		while node != null and node != core:
+			if node is Node3D:
+				xf = (node as Node3D).transform * xf
+			node = node.get_parent()
+		var box: AABB = xf * mesh.get_aabb()
+		bounds = box if first else bounds.merge(box)
+		first = false
+	if first:
+		return
+	var label := Label3D.new()
+	label.text = "%02d" % (number % 100)
+	label.font = UIKit.font_display()
+	label.font_size = 64
+	label.pixel_size = bounds.size.y * 0.0092
+	label.shaded = true
+	label.double_sided = false
+	label.modulate = Color(0.07, 0.06, 0.05, 0.9)
+	label.outline_size = 0
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	label.position = Vector3(bounds.position.x + bounds.size.x * 0.06, bounds.end.y - bounds.size.y * 0.05, bounds.end.z + 0.002)
+	core.add_child(label)
 
 
 ## Starts loading part models on background threads, so the first time a screen builds a

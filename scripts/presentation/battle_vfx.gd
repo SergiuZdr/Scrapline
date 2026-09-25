@@ -38,6 +38,9 @@ var _camera_rig: Node3D
 ## Reused mesh and material resources. One sphere and one quad serve every effect.
 static var _spark_mesh: SphereMesh
 static var _flash_mesh: QuadMesh
+## One soft radial falloff for every glow, puff and fireball (010): a bare quad is a square,
+## and a square flash reads as a UI glitch, not as fire.
+static var _soft: GradientTexture2D
 
 
 func setup(camera_rig: Node3D) -> void:
@@ -51,6 +54,15 @@ func setup(camera_rig: Node3D) -> void:
 	if _flash_mesh == null:
 		_flash_mesh = QuadMesh.new()
 		_flash_mesh.size = Vector2(0.55, 0.55)
+	if _soft == null:
+		_soft = GradientTexture2D.new()
+		_soft.fill = GradientTexture2D.FILL_RADIAL
+		_soft.fill_from = Vector2(0.5, 0.5)
+		_soft.fill_to = Vector2(1.0, 0.5)
+		var falloff := Gradient.new()
+		falloff.offsets = PackedFloat32Array([0.0, 0.35, 1.0])
+		falloff.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0.55), Color(1, 1, 1, 0)])
+		_soft.gradient = falloff
 
 
 func _process(delta: float) -> void:
@@ -112,24 +124,9 @@ func muzzle_flash(from: Vector3, toward: Vector3, colour: Color) -> void:
 ## Sparks at the point of impact, plus a flash. Count and speed scale with how hard the
 ## hit was, so a chip and a killing blow do not look the same.
 func impact(at: Vector3, colour: Color, severity: float) -> void:
-	var count: int = int(lerpf(4.0, float(SPARK_COUNT), clampf(severity, 0.0, 1.0)))
+	var count: int = int(lerpf(6.0, float(SPARK_COUNT) * 2.0, clampf(severity, 0.0, 1.0)))
 	var origin: Vector3 = at + Vector3(0, 0.7, 0)
-
-	for i: int in count:
-		var spark := MeshInstance3D.new()
-		spark.mesh = _spark_mesh
-		spark.material_override = _unshaded(colour, 1.6)
-		spark.position = origin
-		add_child(spark)
-
-		var direction := Vector3(
-			randf_range(-1.0, 1.0), randf_range(0.25, 1.0), randf_range(-1.0, 1.0)).normalized()
-		var distance: float = randf_range(0.35, 0.85) * (0.6 + severity)
-		var tween := create_tween()
-		tween.tween_property(spark, "position", origin + direction * distance, IMPACT_LIFETIME) \
-			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tween.parallel().tween_property(spark, "scale", Vector3.ZERO, IMPACT_LIFETIME)
-		tween.tween_callback(spark.queue_free)
+	sparks(origin, colour, count, 1.0 + severity)
 
 	if severity >= 0.5:
 		var flash := MeshInstance3D.new()
@@ -183,6 +180,8 @@ func destruction(at: Vector3, colour: Color) -> void:
 		tween.tween_property(chunk, "scale", Vector3.ZERO, 0.22)
 		tween.tween_callback(chunk.queue_free)
 
+	# A kill burns: a small fireball and smoke on top of the debris.
+	fireball(at, 0.55)
 	shake(1.0)
 	hitstop(0.09)
 
@@ -237,7 +236,134 @@ func hitstop(duration: float) -> void:
 func _unshaded_billboard(colour: Color, energy: float) -> StandardMaterial3D:
 	var material: StandardMaterial3D = _unshaded(colour, energy)
 	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	material.albedo_texture = _soft
 	return material
+
+
+## Streaks of hot metal thrown from a point, falling under gravity: sparks, not confetti.
+func sparks(at: Vector3, colour: Color, count: int, force: float = 1.0) -> void:
+	var burst := CPUParticles3D.new()
+	burst.one_shot = true
+	burst.amount = maxi(2, count)
+	burst.lifetime = 0.55
+	burst.explosiveness = 0.95
+	burst.direction = Vector3(0, 1, 0)
+	burst.spread = 80.0
+	burst.initial_velocity_min = 1.6 * force
+	burst.initial_velocity_max = 3.6 * force
+	burst.gravity = Vector3(0, -9.0, 0)
+	burst.particle_flag_align_y = true
+	burst.scale_amount_min = 0.6
+	burst.scale_amount_max = 1.2
+	var streak := QuadMesh.new()
+	streak.size = Vector2(0.025, 0.14)
+	var hot: StandardMaterial3D = _unshaded(colour.lerp(Color.WHITE, 0.45), 2.2)
+	hot.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	hot.billboard_keep_scale = true
+	streak.material = hot
+	burst.mesh = streak
+	burst.position = at
+	add_child(burst)
+	burst.emitting = true
+	get_tree().create_timer(0.9).timeout.connect(burst.queue_free)
+
+
+## A fuel drum going up (010): a fireball that swells from white-hot to dark red, a flash of
+## light on everything near, smoke rolling up after it, and a scorch left on the ground.
+func fireball(at: Vector3, radius: float = 1.0) -> void:
+	for layer: int in 3:
+		var ball := MeshInstance3D.new()
+		ball.mesh = _flash_mesh
+		var hot: StandardMaterial3D = _unshaded_billboard(Color("fff1c8") if layer == 0 else Color("ff8a3c"), 2.6 - float(layer) * 0.6)
+		ball.material_override = hot
+		ball.position = at + Vector3(randf_range(-0.12, 0.12), 0.35 + float(layer) * 0.15, randf_range(-0.12, 0.12))
+		ball.scale = Vector3.ONE * 0.4
+		add_child(ball)
+		var grow := create_tween().set_parallel(true)
+		grow.tween_property(ball, "scale", Vector3.ONE * radius * (4.6 + 1.4 * float(layer)), 0.3 + float(layer) * 0.06) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		grow.tween_property(hot, "albedo_color", Color(0.6, 0.12, 0.04, 0.0), 0.42 + float(layer) * 0.08).set_delay(0.06)
+		grow.chain().tween_callback(ball.queue_free)
+	var light := OmniLight3D.new()
+	light.light_color = Color("ffb060")
+	light.light_energy = 7.0
+	light.omni_range = radius * 5.0
+	light.position = at + Vector3(0, 0.8, 0)
+	add_child(light)
+	var dim := create_tween()
+	dim.tween_property(light, "light_energy", 0.0, 0.45)
+	dim.tween_callback(light.queue_free)
+	smoke(at + Vector3(0, 0.5, 0), 16, radius)
+	sparks(at + Vector3(0, 0.4, 0), Color("ffb060"), 24, 1.6)
+	scorch(at, radius)
+
+
+## Dark puffs rolling up and spreading, for fires and wrecks.
+func smoke(at: Vector3, count: int, size: float = 1.0) -> void:
+	var puffs := CPUParticles3D.new()
+	puffs.one_shot = true
+	puffs.amount = count
+	puffs.lifetime = 1.8
+	puffs.explosiveness = 0.7
+	puffs.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	puffs.emission_sphere_radius = 0.3 * size
+	puffs.direction = Vector3(0, 1, 0)
+	puffs.spread = 35.0
+	puffs.initial_velocity_min = 0.6
+	puffs.initial_velocity_max = 1.4
+	puffs.gravity = Vector3(0, 0.3, 0)
+	puffs.damping_min = 0.8
+	puffs.damping_max = 1.4
+	puffs.scale_amount_min = 0.7 * size
+	puffs.scale_amount_max = 1.6 * size
+	var grow := Curve.new()
+	grow.add_point(Vector2(0.0, 0.4))
+	grow.add_point(Vector2(1.0, 1.8))
+	puffs.scale_amount_curve = grow
+	var fade := Gradient.new()
+	fade.set_color(0, Color(1, 1, 1, 0.0))
+	fade.set_color(1, Color(1, 1, 1, 0.0))
+	fade.add_point(0.15, Color(1, 1, 1, 0.75))
+	puffs.color_ramp = fade
+	var quad := QuadMesh.new()
+	var grey := StandardMaterial3D.new()
+	grey.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	grey.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	grey.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	grey.billboard_keep_scale = true
+	grey.vertex_color_use_as_albedo = true
+	grey.albedo_texture = _soft
+	# Lighter than the ground it rises over, or dark smoke on a dark yard is invisible.
+	grey.albedo_color = Color(0.24, 0.22, 0.21, 0.6)
+	quad.material = grey
+	puffs.mesh = quad
+	puffs.position = at
+	add_child(puffs)
+	puffs.emitting = true
+	get_tree().create_timer(2.4).timeout.connect(puffs.queue_free)
+
+
+## A burn mark left where something blew up, fading over a few seconds.
+func scorch(at: Vector3, radius: float = 1.0) -> void:
+	var mark := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = 0.7 * radius
+	disc.bottom_radius = 0.7 * radius
+	disc.height = 0.01
+	mark.mesh = disc
+	var soot := StandardMaterial3D.new()
+	soot.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	soot.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	soot.albedo_texture = _soft
+	soot.albedo_color = Color(0.02, 0.015, 0.01, 0.7)
+	soot.uv1_scale = Vector3(1, 1, 1)
+	mark.material_override = soot
+	mark.position = Vector3(at.x, 0.035, at.z)
+	add_child(mark)
+	var fade := create_tween()
+	fade.tween_interval(2.5)
+	fade.tween_property(soot, "albedo_color:a", 0.0, 1.5)
+	fade.tween_callback(mark.queue_free)
 
 
 func _unshaded(colour: Color, energy: float) -> StandardMaterial3D:

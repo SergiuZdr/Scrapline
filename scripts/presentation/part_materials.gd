@@ -31,6 +31,8 @@ const ZONE_PAINT: String = "paint"
 ## in one place it should change in both, but only this one reaches the screen.
 const ZONE_ALBEDO: Dictionary = {
 	"metal": "8a8074",
+	# Dirty aluminium: hydraulic rods. The one light value (art/reference/STYLE.md).
+	"alu": "bdb8ad",
 	"rust": "8c4a26",
 	"dark": "3c3c45",
 	"tread": "2a2825",
@@ -52,6 +54,7 @@ const ZONE_ALBEDO: Dictionary = {
 ## the sodium key light land differently on each zone, which is the entire read.
 const ZONE_SURFACE: Dictionary = {
 	"paint": Vector2(0.62, 0.05),
+	"alu": Vector2(0.34, 0.95),
 	"metal": Vector2(0.52, 0.88),
 	"rust": Vector2(0.92, 0.10),
 	"dark": Vector2(0.58, 0.70),
@@ -101,6 +104,14 @@ static func livery_of(part_id: String) -> Color:
 
 static var _cache: Dictionary = {}
 static var _wear: NoiseTexture2D
+
+const PAINT_SET: String = "res://art/thirdparty/polyhaven/textures/rusty_painted_metal/rusty_painted_metal"
+const METAL_SET: String = "res://art/thirdparty/polyhaven/textures/metal_plate_02/metal_plate_02"
+const RUST_SET: String = "res://art/thirdparty/polyhaven/textures/rock_ground/rock_ground"
+
+
+static func _photo(path: String) -> Texture2D:
+	return load(path) if ResourceLoader.exists(path) else null
 
 
 ## The wear mask: blotchy, mostly bright, with darker patches where paint has gone.
@@ -194,12 +205,36 @@ static func for_zone(zone: String, team_colour: Color,
 	# reproducibility. Triplanar needs no UVs at all, the noise is generated at load, and
 	# nothing new ships.
 	if zone == ZONE_PAINT:
-		material.albedo_texture = _wear_texture()
-		material.roughness_texture = _wear_texture()
+		# 010: the wear is a PHOTOGRAPH now -- Poly Haven's rusty painted metal, baked by
+		# `tools/make_wear_texture.py` into a map that is white where paint survives and
+		# rust-orange where it has worn through, so every livery wears it: streaks running
+		# down from the fixings, chips at the edges, rust showing through (the reference
+		# sheet's paint). Its own normal and roughness maps go with it. The generated noise
+		# stays as the fallback if the map is missing.
+		var wear: Texture2D = _photo("res://art/textures/paint_wear.png")
+		material.albedo_texture = wear if wear != null else _wear_texture()
+		material.roughness_texture = _photo(PAINT_SET + "_rough_1k.jpg")
+		var normal: Texture2D = _photo(PAINT_SET + "_nor_gl_1k.jpg")
+		if normal != null:
+			material.normal_enabled = true
+			material.normal_texture = normal
+			material.normal_scale = 0.65
 		material.uv1_triplanar = true
-		# Scaled so the mottling lands at panel size rather than as fine speckle -- fine
-		# noise on a 40 px construct is just dirt on the lens.
+		# Object space (the default): the wear is painted ON the machine and walks with it.
+		# Scaled so a streak runs the height of a plate, not as fine speckle.
 		material.uv1_scale = Vector3(1.5, 1.5, 1.5)
+	elif zone == "metal" or zone == "dark" or zone == "rust":
+		# Plate seams and grain on the structure, at low strength: detail for the garage's
+		# close-up, never noise at 40 px (art-and-audio.md, capped frequency).
+		var set: String = RUST_SET if zone == "rust" else METAL_SET
+		var normal: Texture2D = _photo(set + "_nor_gl_1k.jpg")
+		if normal != null:
+			material.normal_enabled = true
+			material.normal_texture = normal
+			material.normal_scale = 0.45
+			material.roughness_texture = _photo(set + "_rough_1k.jpg")
+			material.uv1_triplanar = true
+			material.uv1_scale = Vector3(2.0, 2.0, 2.0)
 	# A cold rim separates a construct from the terrain behind it without a shader or
 	# an outline pass -- the cheapest silhouette read available on the Compatibility
 	# renderer, and twelve units deep in a melee it is what stops the field going soupy.
