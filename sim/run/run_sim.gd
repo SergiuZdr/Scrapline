@@ -30,6 +30,7 @@ const LEAVE: int = 5
 const REFIT: int = 6
 const SCRAP_PART: int = 7
 const EXPAND_HOLD: int = 8
+const LEVEL_UP: int = 9
 
 const FIGHT_TYPES: PackedStringArray = ["skirmish", "elite", "boss"]
 
@@ -43,7 +44,7 @@ static func start(setup: RunSetup) -> RunState:
 		var parts: Array = []
 		for id: Variant in spec.get("parts", []):
 			parts.append(String(id))
-		var member: Dictionary = {"name": String(spec.get("name", "")), "parts": parts, "alive": true, "hp": 0}
+		var member: Dictionary = {"name": String(spec.get("name", "")), "parts": parts, "alive": true, "hp": 0, "level": 0}
 		member["hp"] = max_hp(setup, member)
 		state.crew.append(member)
 	_generate_region(state, setup)
@@ -86,6 +87,8 @@ static func apply(state: RunState, setup: RunSetup, action: Array) -> bool:
 			return _scrap_part(state, setup, int(action[1]))
 		EXPAND_HOLD:
 			return _expand_hold(state, setup)
+		LEVEL_UP:
+			return _level_up(state, setup, int(action[1]))
 	return false
 
 
@@ -128,7 +131,20 @@ static func max_hp(setup: RunSetup, member: Dictionary) -> int:
 	var parts: Array = member["parts"]
 	var cg: Dictionary = (setup.parts.get(String(parts[0]), {}) as Dictionary).get("grid", {})
 	var mg: Dictionary = (setup.parts.get(String(parts[4]), {}) as Dictionary).get("grid", {})
-	return int(cg.get("hp", 8)) + int(mg.get("hp", 0))
+	return int(cg.get("hp", 8)) + int(mg.get("hp", 0)) + level_bonus(setup, member, "hp")
+
+
+## What a machine's levels add: `what` is "hp" or "damage" (per level, from `run.json`).
+static func level_bonus(setup: RunSetup, member: Dictionary, what: String) -> int:
+	var levels: Dictionary = setup.rules.get("levels", {})
+	return int(member.get("level", 0)) * int(levels.get(what, 0))
+
+
+## Scrap for machine `index`'s next level, or -1 when it is at the top.
+static func level_cost(state: RunState, setup: RunSetup, index: int) -> int:
+	var costs: Array = (setup.rules.get("levels", {}) as Dictionary).get("costs", [])
+	var level: int = int(state.crew[index].get("level", 0))
+	return int(costs[level]) if level < costs.size() else -1
 
 
 static func can_refit(state: RunState) -> bool:
@@ -345,6 +361,22 @@ static func expand_cost(state: RunState, setup: RunSetup) -> int:
 	return int(costs[bought]) if bought < costs.size() else -1
 
 
+## Scrap buys a machine a level: more HP (and that HP now), more damage on every weapon.
+## Play-test 3: scrap had nothing to buy once the crew was healthy.
+static func _level_up(state: RunState, setup: RunSetup, index: int) -> bool:
+	if not can_refit(state) or index < 0 or index >= state.crew.size():
+		return false
+	var member: Dictionary = state.crew[index]
+	var cost: int = level_cost(state, setup, index)
+	if not bool(member["alive"]) or cost < 0 or state.scrap < cost:
+		return false
+	state.scrap -= cost
+	member["level"] = int(member.get("level", 0)) + 1
+	member["hp"] = int(member["hp"]) + int((setup.rules.get("levels", {}) as Dictionary).get("hp", 0))
+	state.log.append("%s is overhauled to level %d." % [member["name"], int(member["level"])])
+	return true
+
+
 static func _expand_hold(state: RunState, setup: RunSetup) -> bool:
 	var cost: int = expand_cost(state, setup)
 	if String(state.pending.get("kind", "")) != "workshop" or cost < 0 or state.scrap < cost:
@@ -517,7 +549,8 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 	for i: int in mini(fielded.size(), slots.size()):
 		var member: Dictionary = state.crew[int(fielded[i])]
 		player.append({"name": String(member["name"]), "parts": (member["parts"] as Array).duplicate(),
-			"x": int(slots[i]["x"]), "y": int(slots[i]["y"]), "hp_now": int(member["hp"])})
+			"x": int(slots[i]["x"]), "y": int(slots[i]["y"]), "hp_now": int(member["hp"]),
+			"bonus_hp": level_bonus(setup, member, "hp"), "bonus_damage": level_bonus(setup, member, "damage")})
 	fight["player"] = player
 
 	var positions: Array = _enemy_positions(template, count)

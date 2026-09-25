@@ -16,7 +16,7 @@ var moves: int = 0
 var front_col: int = -1
 
 var scrap: int = 0
-## `{ "name", "parts": [chassis, core, arm_l, arm_r, module], "alive": bool, "hp": int }`.
+## `{ "name", "parts": [chassis, core, arm_l, arm_r, module], "alive": bool, "hp": int, "level": int }`.
 ## "" is an empty socket. A wreck keeps only its chassis. HP carries from fight to fight:
 ## it is the run's health, now that there is no Crawler.
 var crew: Array[Dictionary] = []
@@ -63,7 +63,7 @@ func alive_crew() -> int:
 func fingerprint() -> String:
 	var crew_text: PackedStringArray = []
 	for member: Dictionary in crew:
-		crew_text.append("%s:%s:%s:%d" % [member["name"], ",".join(member["parts"]), member["alive"], int(member["hp"])])
+		crew_text.append("%s:%s:%s:%d:L%d" % [member["name"], ",".join(member["parts"]), member["alive"], int(member["hp"]), int(member.get("level", 0))])
 	var visited: PackedStringArray = []
 	for s: Dictionary in sites:
 		visited.append("1" if bool(s["visited"]) else "0")
