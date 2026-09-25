@@ -4,7 +4,7 @@ extends SceneTree
 ## requested moment, then the map is opened and photographed.
 ##
 ##   godot --path . --resolution 1920x1080 --script res://tools/shot_run.gd -- \
-##       --seed 7 --until reward --out shots/reward.png [--refit] [--choose] [--fill-hold] [--brief]
+##       --seed 7 --until reward --out shots/reward.png [--refit [--stats] [--focus S]] [--choose] [--fill-hold] [--brief]
 ##
 ## `--until` is a pending kind (reward, scrapyard, workshop, fight) or "moves:N".
 ## Uses the real `Run` autoload, so it overwrites `user://run.json`; it clears it after.
@@ -50,7 +50,19 @@ func _go() -> void:
 			for i: int in 5:
 				await process_frame
 	if args.has("--refit"):
-		current_scene.call("_open_refit")
+		current_scene.call("_open_garage", 0)
+		for i: int in 10:
+			await process_frame
+		var garage: Node = current_scene.get("_garage")
+		if args.has("--stats"):
+			garage.set("_tab", "STATS")
+			garage.call("_rebuild")
+		if args.has("--focus"):
+			for i: int in 3:
+				await process_frame
+			garage.call("_focus_socket", _arg(args, "--focus", "3").to_int())
+		for i: int in 40:
+			await process_frame
 		for i: int in 10:
 			await process_frame
 	var image: Image = root.get_texture().get_image()

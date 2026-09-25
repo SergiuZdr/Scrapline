@@ -29,8 +29,12 @@ func _go() -> void:
 	_run.call("new_run", 4242)
 	var state: RunState = _run.get("state")
 
-	# --- Map: travel by tapping a site button.
+	# --- Map: the briefing, then hover and ONE click on the 3D yard.
 	var map: Node = await _open("res://scenes/run_map.tscn")
+	_check("a new run opens on the briefing", _find_button(map, "ROLL OUT") != null)
+	_press(_find_button(map, "ROLL OUT"))
+	await _frames(3)
+	_check("ROLL OUT closes it", _find_button(map, "ROLL OUT") == null and bool(_run.get("briefed")))
 	var targets: Array[int] = RunSim.destinations(state)
 	var fight_site: int = -1
 	for id: int in targets:
@@ -40,15 +44,20 @@ func _go() -> void:
 		fight_site = targets[0]
 		state.sites[fight_site]["type"] = "skirmish"
 	var start_site: int = state.current
-	_press((map.get("_site_buttons") as Dictionary)[fight_site])
+	var yard: YardView = map.get("_yard")
+	var at: Vector2 = yard.screen_pos(fight_site)
+	var motion := InputEventMouseMotion.new()
+	motion.position = at
+	root.push_input(motion, true)
 	await _frames(3)
 	state = _run.get("state")
-	_check("a first tap previews a site without moving", state.current == start_site and int(map.get("_chosen")) == fight_site)
-	_check("the preview says which way the move goes", _find_label_prefix(map, "FORWARD") != null)
-	_press(_find_button(map, "TRAVEL"))
+	_check("hovering a site previews it without moving", state.current == start_site and int(map.get("_hover")) == fight_site
+		and (map.get("_preview") as Control).visible)
+	_check("the preview says which way the move goes", _find_label_prefix(map.get("_preview"), "FORWARD") != null)
+	_click(at)
 	await _frames(3)
 	state = _run.get("state")
-	_check("TRAVEL moves the crew there", state.current == fight_site)
+	_check("one click travels there", state.current == fight_site)
 	_check("the fight panel offers ENTER FIGHT", _find_button(map, "ENTER FIGHT") != null)
 	_check("the move was saved", RunStore.load_saved()["actions"].size() == 1)
 
@@ -105,12 +114,12 @@ func _go() -> void:
 			state = _run.get("state")
 			_check("tapping a card loads the part into the hold", state.cargo.size() == cargo_before + 1)
 
-		# --- Refit: the panel. Tap a hold card, then tap a lit socket.
+		# --- Garage: tap a hold card, then tap a lit socket; drops; sort; stats; level up.
 		if not state.cargo.is_empty():
-			_press(_find_button_prefix(map, "REFIT"))
+			_press(_find_button_prefix(map, "GARAGE"))
 			await _frames(3)
-			var panel: Node = map.get("_refit")
-			_check("REFIT opens the refit panel", panel != null)
+			var panel: Node = map.get("_garage")
+			_check("GARAGE opens the garage", panel != null)
 			var part: String = state.cargo[0]
 			var slot: String = String((_run.get("db").parts[part] as Dictionary)["slot"])
 			var socket: int = {"chassis": 0, "core": 1, "arm": 3, "module": 4}[slot]
@@ -123,23 +132,53 @@ func _go() -> void:
 			state = _run.get("state")
 			_check("tap card, tap socket fits the part and the old one goes to the hold",
 				String(state.crew[0]["parts"][socket]) == part and (old.is_empty() or state.cargo.has(old)))
-			# Drag a fitted arm back into the hold, then drop a hold part on SCRAP.
+			panel.call("_focus_socket", 3)
+			await _frames(2)
+			var arm: Node3D = panel.call("_part_node", 3)
+			_check("hovering a part lights it on the machine", arm != null
+				and (panel.call("_part_meshes", arm) as Array).any(func(m: MeshInstance3D) -> bool: return m.material_overlay != null))
 			var cargo_now: int = state.cargo.size()
 			panel.call("_drop_hold", Vector2.ZERO, {"from": "socket", "crew": 1, "socket": 2})
 			await _frames(3)
 			state = _run.get("state")
 			_check("dropping a fitted part on the hold unfits it", state.cargo.size() == cargo_now + 1
 				and String(state.crew[1]["parts"][2]).is_empty())
+			panel.set("_sort", "RARITY")
+			var order: Array[int] = panel.call("_sorted_hold")
+			var parts: Dictionary = _run.get("db").parts
+			var sorted_ok: bool = true
+			for k: int in range(1, order.size()):
+				if int(parts[state.cargo[order[k - 1]]].get("rarity", 1)) < int(parts[state.cargo[order[k]]].get("rarity", 1)):
+					sorted_ok = false
+			_check("SORT: RARITY puts the rarest first", sorted_ok and order.size() == state.cargo.size())
+			var dropped: int = state.cargo.size()
+			panel.call("_drop_tab", Vector2.ZERO, {"from": "socket", "crew": 1, "socket": 3}, 1)
+			await _frames(3)
+			state = _run.get("state")
+			_check("a part dropped on a crew tab fits that machine (arm to its empty left socket)",
+				not String(state.crew[1]["parts"][2]).is_empty() and state.cargo.size() == dropped)
 			var scrap_before: int = state.scrap
 			var doomed: String = state.cargo[state.cargo.size() - 1]
 			panel.call("_drop_bin", Vector2.ZERO, {"from": "hold", "index": state.cargo.size() - 1})
 			await _frames(3)
 			state = _run.get("state")
 			_check("dropping a part on SCRAP breaks it down for scrap",
-				state.scrap == scrap_before + RunSim.scrap_value(_run.get("setup"), doomed) and state.cargo.size() == cargo_now)
+				state.scrap == scrap_before + RunSim.scrap_value(_run.get("setup"), doomed))
+			_press(_find_button(panel, "STATS"))
+			await _frames(3)
+			_check("the STATS tab shows the machine's numbers", _find_label_prefix(panel, "HEALTH") != null)
+			state.scrap = 100
+			panel.call("_rebuild")
+			await _frames(2)
+			var shown: int = int(panel.get("selected"))
+			var level_before: int = int(state.crew[shown].get("level", 0))
+			_press(_find_button_prefix(panel, "LEVEL UP"))
+			await _frames(3)
+			state = _run.get("state")
+			_check("LEVEL UP buys the machine on show a level", int(state.crew[shown].get("level", 0)) == level_before + 1)
 			_press(_find_button(panel, "BACK TO MAP"))
 			await _frames(3)
-			_check("BACK TO MAP closes the panel", map.get("_refit") == null)
+			_check("BACK TO MAP closes the garage", map.get("_garage") == null)
 
 	RunStore.clear()
 	print("")
@@ -180,6 +219,15 @@ func _find_button(node: Node, text: String) -> Button:
 		if found != null:
 			return found
 	return null
+
+
+func _click(at: Vector2) -> void:
+	for pressed: bool in [true, false]:
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = pressed
+		click.position = at
+		root.push_input(click, true)
 
 
 func _find_button_prefix(node: Node, text: String) -> Button:
