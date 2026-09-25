@@ -138,7 +138,7 @@ static func max_hp(setup: RunSetup, member: Dictionary) -> int:
 static func machine_spec(setup: RunSetup, member: Dictionary) -> Dictionary:
 	return {"name": String(member["name"]), "parts": (member["parts"] as Array).duplicate(),
 		"hp_now": maxi(1, int(member["hp"])), "bonus_hp": level_bonus(setup, member, "hp"),
-		"bonus_damage": level_bonus(setup, member, "damage")}
+		"bonus_damage": level_bonus(setup, member, "damage"), "level": int(member.get("level", 0))}
 
 
 ## The machine as the next fight will field it, for the garage's numbers.

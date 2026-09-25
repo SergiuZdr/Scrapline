@@ -39,7 +39,7 @@ registries):
 
 | Skill | Where | Verdict |
 |---|---|---|
-| `3d-essentials`, `art-direction-and-readability`, `game-feel-and-juice`, `ui-ux-and-feedback`, `combat-design`, `frontend-design`, `blender-materials`, `blender-lighting`, `blender-modeling-modifiers` | **Already installed** (`~/.claude/skills/`) | **The best available.** Real guides and checklists (e.g. `blender-materials` 500 lines, "the metallic switch"). Used per job: juice for the level-up, UI/UX for the map HUD, readability for texture values |
+| `3d-essentials`, `art-direction-and-readability`, `game-feel-and-juice`, `ui-ux-and-feedback`, `combat-design`, `frontend-design`, `blender-materials`, `blender-lighting`, `blender-modeling-modifiers` | **Already installed** (`~/.claude/skills/`) | **The best available.** Real guides and checklists (e.g. `blender-materials` 500 lines, "the metallic switch"). The enabled ones are used per job (UI/UX for the map HUD, readability for texture values); several are switched off for Claude — see below |
 | `blender-kiln` (MIT, 13★) | elithril/blender-kiln | Well designed (brief → source → cleanup → texture → optimise → export) but **drives Blender through a live MCP connection and generates with Hunyuan3D**, neither of which runs here. Not installed; its cleanup/optimise checklist is borrowed |
 | `ai-game-art-pipeline` (MIT, 294★) | ybuild-ai | Sound 2D pipeline (keyframes, chroma key, contact sheets) but provider-neutral: it needs an image model, and the free one failed the test. Not installed |
 | `polyhaven-*` (no licence) | kevinbadi/blender-skills | Need the Blender MCP addon on port 9876; no licence. Replaced by `tools/fetch_polyhaven.py`, which calls the public Poly Haven API directly |
@@ -47,6 +47,14 @@ registries):
 
 **No skill found online beats what is installed.** The gap was never guidance; it was
 *supply* — and supply is now `tools/fetch_polyhaven.py` plus the Kenney kits.
+
+**But several of the installed ones are switched off for Claude** (`skillOverrides` in
+`~/.claude/settings.json`, checked 2026-09-25): `game-feel-and-juice`, `3d-essentials`,
+`combat-design`, `rpg-systems`, `difficulty-and-balancing`, `blender-modeling-modifiers`,
+`blender-rendering` among them. They were respected, not read around: this batch used the
+enabled ones (`art-direction-and-readability`, `ui-ux-and-feedback`, `frontend-design`,
+`blender-materials`, `blender-lighting`). **Turning the six above on is the single cheapest
+upgrade to the art and feel work** — the user's call.
 
 ## Rules for any third-party asset
 
