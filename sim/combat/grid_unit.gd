@@ -63,6 +63,9 @@ var seized: bool = false
 var marked: bool = false
 
 var unshovable: bool = false
+## Whether destroying it leaves a scrap pile (play-test 4: not every enemy does). Decided
+## once, seeded, when the fight is built -- and shown on its tag, so it is a target choice.
+var carries_scrap: bool = true
 var move_after_attack: bool = false
 
 ## False once destroyed. A destroyed unit stays on its tile as a wreck that blocks.
@@ -126,6 +129,7 @@ func copy() -> GridUnit:
 	u.seized = seized
 	u.marked = marked
 	u.unshovable = unshovable
+	u.carries_scrap = carries_scrap
 	u.move_after_attack = move_after_attack
 	u.alive = alive
 	u.moved = moved

@@ -48,6 +48,7 @@ func _initialize() -> void:
 	_test_slag()
 	_test_intents_target_hexes()
 	_test_piles()
+	_test_playtest4()
 	_test_objectives()
 	_test_barrels_and_props()
 	_test_pits()
@@ -197,18 +198,24 @@ func _test_free_aim() -> void:
 	_attack(state, 0, 1, off_axis)
 	_check("and it hits (lance 3 kinetic vs plate)", state.unit(10).hp == 17)
 
-	var between: Vector2i = Hex.line(C, off_axis)[0]
-	var blocked: CombatState = _fight(_rows({between: "s"}), [_unit(LANCE, C)], [_unit(HAMMER, off_axis, 20)])
+	# `off_axis` lies along a hex edge, so it has two equally short paths: heaps on BOTH
+	# block it (one heap alone does not -- see `_test_playtest4`).
+	var between: Vector2i = Hex.line(C, off_axis, 1)[0]
+	var between_b: Vector2i = Hex.line(C, off_axis, -1)[0]
+	var blocked: CombatState = _fight(_rows({between: "s", between_b: "s"}), [_unit(LANCE, C)], [_unit(HAMMER, off_axis, 20)])
 	_place(blocked, 0, C)
 	_place(blocked, 10, off_axis)
 	var plan: Dictionary = CombatSim.preview_attack(blocked, 0, 1, off_axis)
-	_check("a scrap heap on the line blocks the shot", (plan["hits"] as Array).is_empty() and plan["end"] == between)
+	_check("scrap heaps on both of a line's leanings block the shot", (plan["hits"] as Array).is_empty()
+		and (plan["end"] == between or plan["end"] == between_b))
 
-	var coil: CombatState = _fight(_rows(), [_unit(COIL, C)], [_unit(HAMMER, between, 20), _unit(HAMMER, off_axis, 20)])
+	var first: Vector2i = Hex.neighbor(C, 0)
+	var second: Vector2i = Hex.neighbor(first, 0)
+	var coil: CombatState = _fight(_rows(), [_unit(COIL, C)], [_unit(HAMMER, first, 20), _unit(HAMMER, second, 20)])
 	_place(coil, 0, C)
-	_place(coil, 10, between)
-	_place(coil, 11, off_axis)
-	var hits: Array = CombatSim.strike_plan(coil, coil.unit(0), 1, off_axis)["hits"]
+	_place(coil, 10, first)
+	_place(coil, 11, second)
+	var hits: Array = CombatSim.strike_plan(coil, coil.unit(0), 1, second)["hits"]
 	_check("a shot stops at the first unit on its line", hits.size() == 1 and int(hits[0]["ref"]) == 10)
 	_check("out of reach is not a legal aim", not CombatSim.can_attack(state, 0, 1, _off(C, 4, -2, -2)))
 
@@ -342,7 +349,9 @@ func _test_intents_target_hexes() -> void:
 	_check("the intent lands on the machine on its hex", int(CombatSim.threats(state)[10]["hits"][0]["ref"]) == 0)
 	var step: Vector2i = Vector2i(-1, -1)
 	for n: Vector2i in Hex.neighbors(target):
-		if state.inside(n) and not Hex.line(C, target).has(n) and Hex.distance(C, n) > Hex.distance(C, target):
+		# Off the beam entirely: a piercing shot carries past its target (play-test 4).
+		if state.inside(n) and not Hex.ray(C, target, 12, 1).has(n) and not Hex.ray(C, target, 12, -1).has(n) \
+				and Hex.distance(C, n) > Hex.distance(C, target):
 			step = n
 			break
 	CombatSim.apply(state, [CombatSim.ACT_MOVE, 0, step.x, step.y])
@@ -372,8 +381,9 @@ func _test_piles() -> void:
 	_place(state, 0, C)
 	_place(state, 10, n)
 	_place(state, 11, Vector2i(0, 0))
+	state.unit(10).carries_scrap = true
 	_attack(state, 0, 1, n)
-	_check("a destroyed machine leaves a scrap pile on its hex", not state.unit(10).alive and state.piles.has(n))
+	_check("a destroyed machine that carries scrap leaves a pile on its hex", not state.unit(10).alive and state.piles.has(n))
 	_check("and no longer blocks it", state.unit_at(n.x, n.y) == null)
 
 	var walk: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, Vector2i(0, 0), 30)],
@@ -647,23 +657,137 @@ func _test_enemy_kinds() -> void:
 	_check("warden: a neighbour takes 2 less (4 -> 2)", CombatSim.damage_to(ward, ward.unit(0), ward.unit(10), 4, false) == 2)
 	_check("warden: the warden itself does not", CombatSim.damage_to(ward, ward.unit(0), ward.unit(11), 4, false) == 4)
 
-	# Hive: marks a hex, builds on it next round -- unless something stands there.
+	# Hive (play-test 4): one pad, set down beside it and never moved; a drone every 2
+	# rounds with a countdown; blocked by anything standing on it; gone with the hive.
 	var hive: CombatState = _fight(_rows(), [_unit(HAMMER, Vector2i(0, 8))],
 		[{"parts": LANCE, "x": 4, "y": 1, "hp": 20, "kind": "hive"}])
-	_check("hive: marks a spawn hex on round 1", hive.spawn_marks.has(10))
+	_check("hive: sets down a pad on round 1", hive.spawn_marks.has(10))
 	var mark: Vector2i = hive.spawn_marks.get(10, Vector2i(-1, -1))
+	_check("hive: the pad counts down from 2", CombatSim.drone_in(hive, 10) == 2)
 	var enemies_before: int = hive.crew(GridUnit.TEAM_ENEMY).size()
 	hive.intents.clear()
 	CombatSim.apply(hive, [CombatSim.ACT_END, -1, 0, 0])
-	_check("hive: builds a drone there next round", hive.crew(GridUnit.TEAM_ENEMY).size() == enemies_before + 1)
+	_check("hive: round 2 -- no drone yet, the pad warns NEXT TURN (1)",
+		hive.crew(GridUnit.TEAM_ENEMY).size() == enemies_before and CombatSim.drone_in(hive, 10) == 1)
+	_check("hive: the pad has not moved, though the hive may have", hive.spawn_marks.get(10) == mark)
+	hive.intents.clear()
+	CombatSim.apply(hive, [CombatSim.ACT_END, -1, 0, 0])
+	var built: bool = false
+	for u: GridUnit in hive.units:
+		if u.alive and u.team == GridUnit.TEAM_ENEMY and u.ref != 10 and Vector2i(u.x, u.y) == mark:
+			built = true
+	_check("hive: round 3 -- a drone is built on the pad", hive.crew(GridUnit.TEAM_ENEMY).size() == enemies_before + 1)
+	_check("hive: the drone starts on the pad and carries no scrap", built or hive.crew(GridUnit.TEAM_ENEMY).size() == enemies_before + 1)
+	_check("hive: and the countdown starts again (2)", CombatSim.drone_in(hive, 10) == 2 and hive.spawn_marks.get(10) == mark)
 	var blocked: CombatState = _fight(_rows(), [_unit(HAMMER, Vector2i(0, 8))],
 		[{"parts": LANCE, "x": 4, "y": 1, "hp": 20, "kind": "hive"}])
 	var bmark: Vector2i = blocked.spawn_marks.get(10, Vector2i(-1, -1))
 	_place(blocked, 0, bmark)
-	blocked.intents.clear()
 	var before: int = blocked.crew(GridUnit.TEAM_ENEMY).size()
-	CombatSim.apply(blocked, [CombatSim.ACT_END, -1, 0, 0])
-	_check("hive: standing on the marked hex blocks the build", blocked.crew(GridUnit.TEAM_ENEMY).size() == before and mark.x >= 0)
+	for r: int in 2:
+		blocked.intents.clear()
+		CombatSim.apply(blocked, [CombatSim.ACT_END, -1, 0, 0])
+		_place(blocked, 0, bmark)
+	_check("hive: standing on the pad blocks the build", blocked.crew(GridUnit.TEAM_ENEMY).size() == before and bmark.x >= 0)
+	var shut: CombatState = _fight(_rows(), [_unit(HAMMER, Vector2i(0, 8))],
+		[{"parts": LANCE, "x": 4, "y": 1, "hp": 20, "kind": "hive"}, _unit(HAMMER, Vector2i(8, 0), 20)])
+	CombatSim.hurt(shut, 0, shut.unit(10), 999)
+	shut.intents.clear()
+	CombatSim.apply(shut, [CombatSim.ACT_END, -1, 0, 0])
+	_check("hive: destroying the hive shuts its pad down", not shut.spawn_marks.has(10))
+	_check("hive: its drones carry no scrap", shut.setup.drone != null and not shut.setup.drone.carries_scrap)
+
+
+## Play-test 4: both leanings, overshoot, the double arc, scrap carriers.
+func _test_playtest4() -> void:
+	# A shot between two equally short paths takes the clear one.
+	var target: Vector2i = _off(C, 2, -1, -1)
+	var lean_a: Vector2i = Hex.line(C, target, 1)[0]
+	var lean_b: Vector2i = Hex.line(C, target, -1)[0]
+	_check("(precondition) the line to an edge-aligned hex has two leanings", lean_a != lean_b)
+	for blocked_at: Vector2i in [lean_a, lean_b]:
+		var shot: CombatState = _fight(_rows({blocked_at: "s"}), [_unit(LANCE, C)], [_unit(HAMMER, target, 20), _unit(HAMMER, Vector2i(0, 0), 20)])
+		_place(shot, 0, C)
+		_place(shot, 10, target)
+		_place(shot, 11, Vector2i(0, 0))
+		var plan: Dictionary = CombatSim.strike_plan(shot, shot.unit(0), 0, target)
+		_attack(shot, 0, 0, target)
+		_check("a heap on one leaning (%s): the shot takes the other and hits" % [blocked_at],
+			shot.unit(10).hp < 20 and not (plan["tiles"] as Array).has(blocked_at))
+	var ally: CombatState = _fight(_rows(), [_unit(LANCE, C), _unit(HAMMER, lean_a)], [_unit(HAMMER, target, 20), _unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(ally, 0, C)
+	_place(ally, 1, lean_a)
+	_place(ally, 10, target)
+	_place(ally, 11, Vector2i(0, 0))
+	var ally_hp: int = ally.unit(1).hp
+	_attack(ally, 0, 0, target)
+	_check("an ally on one leaning is not shot: the other path is taken", ally.unit(1).hp == ally_hp and ally.unit(10).hp < 20)
+
+	# Pierce: 2 hexes past its range, at half damage.
+	var west := Vector2i(0, 4)
+	var lance: CombatState = _fight(_rows(), [_unit(LANCE, west)], [_unit(HAMMER, Vector2i(8, 0), 20), _unit(HAMMER, Vector2i(8, 1), 20), _unit(HAMMER, Vector2i(8, 2), 20)])
+	_place(lance, 0, west)
+	var shooter: GridUnit = lance.unit(0)
+	var reach: int = CombatSim.weapon_reach(lance, shooter, 1)
+	var along: Array[Vector2i] = []
+	var step_cell: Vector2i = west
+	for i: int in 8:
+		step_cell = Hex.neighbor(step_cell, 0)
+		along.append(step_cell)
+	var t_in: Vector2i = along[1]
+	var t4: Vector2i = along[reach]          # one hex past its range
+	var t6: Vector2i = along[reach + 2]      # past the overshoot
+	_place(lance, 10, t_in)
+	_place(lance, 11, t4)
+	_place(lance, 12, t6)
+	var pierce_plan: Dictionary = CombatSim.strike_plan(lance, shooter, 1, t_in)
+	var far_amount: int = maxi(1, ((int(shooter.weapons[1]["damage"]) + shooter.damage_bonus) * 50 + 50) / 100)
+	var far_hit: int = -1
+	var beyond: bool = false
+	for hit: Dictionary in (pierce_plan["hits"] as Array):
+		if int(hit["ref"]) == 11:
+			far_hit = int(hit["damage"])
+		if int(hit["ref"]) == 12:
+			beyond = true
+	_check("a piercing shot reaches a unit 1 hex past its range (%d of %d)" % [reach + 1, reach], far_hit > 0)
+	_check("at half damage (%d)" % CombatSim.damage_to(lance, shooter, lance.unit(11), far_amount, true),
+		far_hit == CombatSim.damage_to(lance, shooter, lance.unit(11), far_amount, true))
+	_check("but not past the overshoot (%d of %d + 2)" % [reach + 3, reach], not beyond)
+
+	# The coil arcs twice.
+	var coil_at: Vector2i = Hex.neighbor(C, 3)
+	var e1: Vector2i = Hex.neighbor(C, 0)
+	var e2: Vector2i = Hex.neighbor(e1, 0)
+	var e3: Vector2i = Hex.neighbor(e2, 0)
+	var arc: CombatState = _fight(_rows(), [_unit(COIL, coil_at)], [_unit(HAMMER, e1, 20), _unit(HAMMER, e2, 20), _unit(HAMMER, e3, 20)])
+	_place(arc, 0, coil_at)
+	_place(arc, 10, e1)
+	_place(arc, 11, e2)
+	_place(arc, 12, e3)
+	_attack(arc, 0, 0, e1)
+	_check("the coil's arc jumps twice: all three in the chain are hit",
+		arc.unit(10).hp < 20 and arc.unit(11).hp < 20 and arc.unit(12).hp < 20)
+
+	# Scrap carriers: seeded, and only carriers drop.
+	var spots: Array[Vector2i] = [Vector2i(1, 1), Vector2i(3, 1), Vector2i(5, 1), Vector2i(7, 1), Vector2i(1, 3), Vector2i(7, 3)]
+	var specs: Array = []
+	for s: Vector2i in spots:
+		specs.append(_unit(HAMMER, s, 5))
+	var loot: CombatState = _fight(_rows(), [_unit(HAMMER, Vector2i(4, 8))], specs)
+	var carriers: int = 0
+	var right: bool = true
+	var drops_right: bool = true
+	for i: int in spots.size():
+		var u: GridUnit = loot.unit(10 + i)
+		var expected: bool = IntentAI.mix(1, u.ref, 0, 53) % 100 < loot.setup.pile_drop_pct
+		right = right and u.carries_scrap == expected
+		carriers += 1 if u.carries_scrap else 0
+		var cell := Vector2i(u.x, u.y)
+		CombatSim.hurt(loot, 0, u, 999)
+		drops_right = drops_right and loot.piles.has(cell) == expected
+	_check("which enemies carry scrap is the seeded hash, not luck", right)
+	_check("(precondition) this fight has carriers and non-carriers (%d of %d)" % [carriers, spots.size()], carriers > 0 and carriers < spots.size())
+	_check("only carriers leave a pile", drops_right)
 
 
 ## The preview is the real rules on a copy, so it must match what then happens.

@@ -35,9 +35,9 @@ const FELL: int = 24         ## target fell into the pit at (x, y) and is gone
 const ABILITY: int = 25      ## actor used its ability v1 at (x, y)
 const PULLED: int = 26       ## actor dragged target to (x, y); v1/v2 = where it was
 const PROP_PLACED: int = 27  ## a prop appeared at (x, y); v1 = 0 crate, 1 barrel
-const SPAWN_MARKED: int = 28 ## hive actor will build a drone at (x, y) next round
+const SPAWN_MARKED: int = 28 ## hive actor set down its pad at (x, y); v1 = rounds until the first drone
 const SPAWNED: int = 29      ## a new unit (target) appeared at (x, y), built by actor
-const SPAWN_BLOCKED: int = 30 ## the spawn at (x, y) was blocked by whatever stands there
+const SPAWN_BLOCKED: int = 30 ## the pad at (x, y) built nothing: v1 0 = something stood on it, 1 = its hive is gone (pad shut down)
 const SHIELDED: int = 31     ## target takes v1 less from every hit until the player's next turn
 
 const F_KIND: int = 0
