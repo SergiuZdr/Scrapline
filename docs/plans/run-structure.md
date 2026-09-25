@@ -50,7 +50,24 @@ destroyed in a fight is a wreck (chassis only) until a workshop rebuilds it. The
 lost when all three are wrecked, or when **the boss fight is not won** (007: there is no
 road past the gate and the road back is reclaimed, so a surviving crew would be stranded).
 
-## How the map reads (008: a 3D yard)
+## How the map reads (009: fogged, followed, lived in)
+
+Play-test 4: "bigger, not seen whole", "the crew list looks bad", "the Reclaimer's moves
+should not be text", "it feels empty". Now:
+- **9 columns, up to 4 rows**; the camera sits close and **follows the crew**, who stand on
+  their site and **walk the road** when they travel. Drag, keys and the wheel look around;
+  C comes back.
+- **Fog of war** over everything not yet scouted (a pale mist, painted from what the crew
+  has seen; roads and junk deep in it are not drawn). The gate's beacon shows through.
+- **The Reclaimer gauge**: its name and one pip per move of its step; the last pulses when
+  your next move brings it. On the map its **ghost** — a red curtain on the line it will
+  take — pulses too, harder while you hover a move that triggers it.
+- **Crew dock**: the three machines as real rendered portraits (levels and all), level
+  marks and HP pips; each opens the garage.
+- **Life**: scout drones with searchlights ahead of the front, smoking wrecks where fights
+  were, a dead-industry skyline with blinking stacks, the Crucible's glow beyond the gate.
+
+## How the map read in 008 (a 3D yard, superseded by 009)
 
 Play-test 1, 2 and 3: first "you cannot tell forward from sideways", then "it is 2D, there
 is dead space, and two clicks to move is annoying". `scripts/run/yard_view.gd`:
@@ -86,6 +103,15 @@ fight will field). **Hovering a part turns the machine to show it, lights it and
 it proud.** The hold is a low strip along the bottom with **SORT** (newest, rarity, slot)
 and a SCRAP bin. Drag onto a socket, a crew tab, the hold or SCRAP; tap-then-tap does the
 same. **LEVEL UP** sits under the machine's name.
+
+## Assembly (009)
+
+Play-test 4: "a way to customise the starting robots from basic parts". After the briefing
+the **assembly bay** opens: three machines, each socket stepped through a bench of every
+common part (no limit) plus one each of the default crew's uncommons (`run.json`
+`assembly`). ROLL OUT is one `RunSim.ASSEMBLE`, legal only before the first move, so the
+build is in the action list and a replay rebuilds it. The frame names the machine ("Brute",
+"Brute II"). Unlocks (meta-progression) will widen the bench.
 
 ## Machine levels (008): where scrap goes
 
