@@ -5,6 +5,15 @@ description of the rules: `sim/combat/combat_sim.gd` and `docs/iterations/005-he
 Sections below that still say "square", "line" or "Crawler" are history, kept for their
 reasoning; the table in *Weapons* and the sections marked (005) are current.
 
+(009) Play-test 4: **Both leanings** — a hex line along an edge has two equally short
+paths; shots and grapples take the clear one (`CombatSim.best_line`), for both teams.
+**Piercing shots overshoot** their range by 2 hexes at half damage. **The coil arcs
+twice.** **Scrap carriers**: each enemy carries scrap or not (55%, seeded, marked on its
+tag); only carriers drop a pile; drones never. **The hive's pad stays put**: set down once,
+a drone every 2 rounds with a countdown and a red warning the turn before; standing on it
+blocks, killing the hive shuts it. **The board has edges**: a steel curb on the hex
+outline, asphalt and a ring of yard beyond it.
+
 (008) Play-test 3: **Charge works after moving** and hits harder the further it runs
 (3 + 1 per hex run first, plus the machine's damage bonus). **The coil's arc reaches
 terrain**: from the machine or prop it hits, into an enemy, else a fuel drum, else a crate.
