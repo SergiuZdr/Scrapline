@@ -1,0 +1,37 @@
+{
+  "_comment": "The world's words. See docs/plans/story.md. Text only: not in the content hash.",
+  "briefing": {
+    "title": "THE KEY",
+    "lines": [
+      "Forty years ago the Meridian Combine walked out of this valley and left one machine running. The Reclaimer. A harvester the size of a district, with one order: reclaim all material.",
+      "It is still obeying. It strips the yards to bare earth and hauls everything to the Crucible, where it melts into ingots nobody will ever collect.",
+      "Last night you took the Combine's shutdown key off a dead foreman. The Reclaimer felt it go. It follows the key now.",
+      "Three free machines. Three yards. Carry the key to the Crucible before it catches you."
+    ],
+    "go": "ROLL OUT"
+  },
+  "acts": [
+    {
+      "name": "THE CRANE YARDS",
+      "mission": "Reach the Sorting Gate. The Reclaimer follows the key.",
+      "gate": "THE SORTING GATE"
+    }
+  ],
+  "reclaimer": {
+    "name": "THE RECLAIMER",
+    "ground": "RECLAIMED"
+  },
+  "sites": {
+    "start": "The crew's camp. The Reclaimer's dust is already on the horizon.",
+    "skirmish": "Spiked rigs, working for the Reclaimer. Beat them for scrap and their parts.",
+    "elite": "A heavy spiked rig and its escort. One of its parts is worth having.",
+    "scrapyard": "A heap the Reclaimer has not reached. Take one part, or strip it for scrap.",
+    "workshop": "A Combine service hall with the lights still on. Repairs, rebuilds, room in the hold.",
+    "boss": "The Sorting Gate, held by a Reclaimer warlord. Through it is the next yard."
+  },
+  "endings": {
+    "won": "The Sorting Gate grinds open. Beyond it: the Slag Flats, and the Crucible's glow on the clouds. (Act 2 is not built yet. This is where the run ends for now.)",
+    "gate_held": "The gate held. The crew had nothing left to break it with, and the Reclaimer closed in behind.",
+    "wrecked": "The Reclaimer took the crew. Somewhere in the Crucible, the key melts with them."
+  }
+}

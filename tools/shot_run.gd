@@ -4,7 +4,7 @@ extends SceneTree
 ## requested moment, then the map is opened and photographed.
 ##
 ##   godot --path . --resolution 1920x1080 --script res://tools/shot_run.gd -- \
-##       --seed 7 --until reward --out shots/reward.png [--refit] [--choose] [--fill-hold]
+##       --seed 7 --until reward --out shots/reward.png [--refit] [--choose] [--fill-hold] [--brief]
 ##
 ## `--until` is a pending kind (reward, scrapyard, workshop, fight) or "moves:N".
 ## Uses the real `Run` autoload, so it overwrites `user://run.json`; it clears it after.
@@ -36,6 +36,8 @@ func _go() -> void:
 		var packed: RunState = run.get("state")
 		while packed.cargo.size() < packed.hold_size:
 			packed.cargo.append(String(packed.crew[packed.cargo.size() % 3]["parts"][1 + packed.cargo.size() % 4]))
+	# The briefing covers the map on a new run; photograph it only when asked.
+	run.set("briefed", not args.has("--brief"))
 	change_scene_to_file("res://scenes/run_map.tscn")
 	for i: int in 10:
 		await process_frame
@@ -43,7 +45,8 @@ func _go() -> void:
 		# Preview the first reachable site, as a first tap would.
 		var targets: Array[int] = RunSim.destinations(run.get("state"))
 		if not targets.is_empty():
-			current_scene.call("_choose", targets[targets.size() - 1])
+			current_scene.set("_hover", targets[targets.size() - 1])
+			current_scene.call("_refresh")
 			for i: int in 5:
 				await process_frame
 	if args.has("--refit"):

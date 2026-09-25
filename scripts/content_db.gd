@@ -28,6 +28,9 @@ var combat_rules: Dictionary = {}
 var fights: Dictionary = {}
 ## `data/run/run.json`: every number a run reads.
 var run_rules: Dictionary = {}
+## The world's words (`data/run/story.json`): briefing, acts, site text, endings. Text only,
+## so it is NOT in the content hash -- rewording a line must not refuse to resume a run.
+var story: Dictionary = {}
 ## `data/combat/abilities.json` and `data/combat/enemy_kinds.json`.
 var combat_abilities: Dictionary = {}
 var enemy_kinds: Dictionary = {}
@@ -61,6 +64,9 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	var run_data: Variant = db._read_json("%s/run/run.json" % root)
 	if run_data is Dictionary:
 		db.run_rules = run_data as Dictionary
+	var story_data: Variant = db._read_json("%s/run/story.json" % root)
+	if story_data is Dictionary:
+		db.story = story_data as Dictionary
 
 	for pair: Array in [["abilities", "combat_abilities"], ["enemy_kinds", "enemy_kinds"]]:
 		var data: Variant = db._read_json("%s/combat/%s.json" % [root, pair[0]])
