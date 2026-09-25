@@ -384,6 +384,16 @@ func _test_piles() -> void:
 	_check("ending a move on a pile collects its scrap and patches 2 HP",
 		walk.scrap_collected == 4 and walk.unit(0).hp == 10 and not walk.piles.has(n))
 
+	# Play-test 3: walking OVER a pile picks it up too.
+	var over: Vector2i = Hex.neighbor(n, 0)
+	var through: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, Vector2i(0, 0), 30)],
+		{"type": "rout", "piles": [{"x": n.x, "y": n.y}]})
+	_place(through, 0, C)
+	var route: Array = CombatSim.reachable(through, 0).get(over, [])
+	_check("(precondition) the path to the far hex crosses the pile", route.has(n))
+	CombatSim.apply(through, [CombatSim.ACT_MOVE, 0, over.x, over.y])
+	_check("a move through a pile collects it on the way", through.scrap_collected == 4 and not through.piles.has(n) and _at(through, 0) == over)
+
 	var grab: CombatState = _fight(_rows(), [_unit(HAMMER, Vector2i(0, 8))], [_unit(HAMMER, C, 20)],
 		{"type": "salvage", "need": 2, "piles": [{"x": n.x, "y": n.y}, {"x": 8, "y": 8}]})
 	_check("on a salvage fight an enemy grabs a pile in reach", not grab.piles.has(n))
@@ -439,6 +449,25 @@ func _test_barrels_and_props() -> void:
 	_check("shooting a barrel breaks it, and it sets off the next one", not state.props.has(barrel) and not state.props.has(second))
 	_check("the chain's blast hits the unit next to the second barrel (3)", state.unit(10).hp == 17)
 
+	# Play-test 3: the pulse emitter's arc reaches terrain.
+	var coil_at: Vector2i = Hex.neighbor(C, 3)
+	var mark: Vector2i = Hex.neighbor(C, 0)
+	var drum: Vector2i = Hex.neighbor(mark, 1)
+	var arc: CombatState = _fight(_rows({drum: "b"}), [_unit(COIL, coil_at)], [_unit(HAMMER, mark, 20), _unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(arc, 0, coil_at)
+	_place(arc, 10, mark)
+	_place(arc, 11, Vector2i(0, 0))
+	_attack(arc, 0, 0, mark)
+	_check("the arc jumps from the machine it hits into a fuel drum, which goes off", not arc.props.has(drum))
+	var zap: Vector2i = Hex.neighbor(C, 0)
+	var beside: Vector2i = Hex.neighbor(zap, 1)
+	var from_prop: CombatState = _fight(_rows({zap: "c"}), [_unit(COIL, coil_at)], [_unit(HAMMER, beside, 20), _unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(from_prop, 0, coil_at)
+	_place(from_prop, 10, beside)
+	_place(from_prop, 11, Vector2i(0, 0))
+	_attack(from_prop, 0, 0, zap)
+	_check("a shot that hits a crate arcs on into the machine beside it", from_prop.unit(10).hp < 20)
+
 	var wall: Vector2i = Hex.neighbor(C, 0)
 	var behind: Vector2i = Hex.neighbor(wall, 0)
 	var crate: CombatState = _fight(_rows({wall: "c"}), [_unit(LANCE, C)], [_unit(HAMMER, behind, 20)])
@@ -475,8 +504,8 @@ func _test_abilities() -> void:
 	_check("a brawler frame gives Charge, a Scavenger module gives Magnet",
 		String(brute.unit(0).abilities[0]["id"]) == "charge" and String(brute.unit(0).abilities[1]["id"]) == "magnet")
 	_check("charge can aim down a straight hex line", CombatAbilities.targets(brute, brute.unit(0), 0).has(target))
-	_check("charge runs up to the enemy, hits for 3 and shoves it", _ability(brute, 0, 0, target)
-		and Hex.distance(_at(brute, 0), target) == 1 and brute.unit(10).hp == 17 and _at(brute, 10) != target)
+	_check("charge runs 2 hexes up to the enemy, hits for 3 + 2 and shoves it", _ability(brute, 0, 0, target)
+		and Hex.distance(_at(brute, 0), target) == 1 and brute.unit(10).hp == 15 and _at(brute, 10) != target)
 	_check("charge uses the action", brute.unit(0).acted)
 	_check("and then waits its cooldown", not brute.unit(0).ability_ready(0))
 
@@ -519,7 +548,22 @@ func _test_abilities() -> void:
 	_place(boosted, 10, _off(C, 3, -3, 0))
 	_ability(boosted, 0, 1)
 	_ability(boosted, 0, 0, _off(C, 3, -3, 0))
-	_check("overdrive boosts a charge (3 + 2 = 5)", boosted.unit(10).hp == 15)
+	_check("overdrive boosts a charge (3 + 2 run + 2 overdrive + 1 bypass = 8)", boosted.unit(10).hp == 12)
+
+	# Play-test 3: a charge after a move, and a charge from next door.
+	var step_in: Vector2i = _off(C, 1, -1, 0)
+	var late: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, _off(C, 3, -3, 0), 20), _unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(late, 0, C)
+	_place(late, 10, _off(C, 3, -3, 0))
+	_place(late, 11, Vector2i(0, 0))
+	_check("(precondition) the brute moves first", CombatSim.apply(late, [CombatSim.ACT_MOVE, 0, step_in.x, step_in.y]) and late.unit(0).moved)
+	_check("charge can still be used after moving", CombatAbilities.usable(late, late.unit(0), 0))
+	_check("a charge from 2 away runs 1 hex and hits for 4", _ability(late, 0, 0, _off(C, 3, -3, 0)) and late.unit(10).hp == 16)
+	var close: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, Hex.neighbor(C, 0), 20), _unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(close, 0, C)
+	_place(close, 10, Hex.neighbor(C, 0))
+	_place(close, 11, Vector2i(0, 0))
+	_check("a charge into an adjacent enemy hits for the base 3", _ability(close, 0, 0, Hex.neighbor(C, 0)) and close.unit(10).hp == 17)
 
 	var wall_at: Vector2i = Hex.neighbor(C, 0)
 	var shooter_at: Vector2i = Hex.neighbor(wall_at, 0)

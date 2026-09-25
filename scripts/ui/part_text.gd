@@ -33,8 +33,8 @@ static func summary(parts: Dictionary, id: String, abilities: Dictionary = {}) -
 			bits.append("%s · %s" % [String(part.get("role", "")), String(part.get("armor_type", ""))])
 		"arm":
 			var shape: String = String(g.get("shape", "melee"))
-			var reach: String = "melee" if shape == "melee" else ("line %d" % int(g.get("range", 1)) if shape == "line"
-				else "lob %d-%d" % [int(g.get("range_min", 1)), int(g.get("range", 1))])
+			var reach: String = "melee" if shape == "melee" else ("lob %d-%d" % [int(g.get("range_min", 1)), int(g.get("range", 1))] if shape == "lob"
+				else "shot %d" % int(g.get("range", 1)))
 			bits.append("%s · %d dmg · +%d heat" % [reach, int(g.get("damage", 0)), int(g.get("heat", 0))])
 			var extra: PackedStringArray = []
 			for key: String in ["pierce", "splash", "shove", "chain"]:
