@@ -485,6 +485,7 @@ func _build_reclaimer() -> void:
 	puff_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	puff_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	puff_material.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	puff_material.billboard_keep_scale = true
 	puff_material.albedo_color = Color(0.55, 0.2, 0.14, 0.16)
 	puff_material.vertex_color_use_as_albedo = true
 	puff.material = puff_material

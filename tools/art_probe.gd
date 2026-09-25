@@ -131,8 +131,9 @@ func _board(world: Node3D) -> void:
 
 func _machine(world: Node3D) -> void:
 	var db: ContentDB = ContentDB.load_all()
+	var level: int = _arg(OS.get_cmdline_user_args(), "--level", "0").to_int()
 	var model: Node3D = ConstructView.build_parts(PackedStringArray(["ch_brute", "co_dynamo", "ar_saw", "ar_hammer", "mo_scavenger"]),
-		db, Color("4fa8d8"))
+		db, Color("4fa8d8"), level)
 	model.rotation_degrees.y = 25.0
 	world.add_child(model)
 	if _mode == "a":
@@ -181,9 +182,10 @@ func _props(world: Node3D) -> void:
 						m.albedo_color = m.albedo_color.darkened(0.42)
 					mesh.set_surface_override_material(s, m)
 		return
-	var models: Array = ["concrete_road_barrier/concrete_road_barrier_1k.gltf", "old_tyre/old_tyre_1k.gltf", "Barrel_02/Barrel_02_1k.gltf"]
-	var scales: Array = [1.0, 1.3, 1.6]
-	for i: int in 3:
+	# (Barrel_02, a saturated blue plastic drum, was tried and rejected -- art-sourcing.md.)
+	var models: Array = ["concrete_road_barrier/concrete_road_barrier_1k.gltf", "old_tyre/old_tyre_1k.gltf"]
+	var scales: Array = [1.0, 1.3]
+	for i: int in 2:
 		var prop: Node3D = (load(PH + "models/" + models[i]) as PackedScene).instantiate()
 		prop.position = spots[i]
 		prop.scale = Vector3.ONE * float(scales[i])
