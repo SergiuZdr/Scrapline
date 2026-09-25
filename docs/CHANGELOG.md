@@ -2,6 +2,33 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [009] Play-test 4 fixes — 2026-09-25 ([detail](iterations/009-playtest-4-fixes.md))
+
+Answers play-test 4 (all but the full visual overhaul, which is 010), after an art-source
+spike that tried every candidate in the game ([art-sourcing](plans/art-sourcing.md)).
+
+### Added
+- **Assembly bay**: build the three machines from a bench of basic parts before the first move.
+- **The map, fogged and followed**: 9 zones; a close camera that follows the crew, who stand on the map and walk the roads; fog of war over everything not yet scouted; drag, keys and wheel to look around.
+- **The Reclaimer as a gauge** (a pip per move, the last pulsing) and a **ghost wall** on the line it takes next.
+- **Crew dock** with rendered portraits of the real machines, level marks and HP pips.
+- **Map life**: scout drones with searchlights, smoking wrecks, a skyline with blinking stacks, the Crucible's glow.
+- **Levels on the machine** (shoulder armour, chest plate, exhaust stacks, a bigger frame) in the garage, on the map and in fights; **levelling up as an event** (sparks, scan ring, flare, banner, sound).
+- **A garage bay** behind the machine (corrugated wall, lift, gantry, work lamps, dust).
+- **Board edges**: a steel curb on the hex outline, asphalt and a ring of yard beyond.
+- The hive's **pad**: stays put, counts down, warns red the turn before.
+- Enemies **carrying scrap** are marked; only they drop a pile.
+- Tools: `fetch_polyhaven.py` (CC0 assets with provenance), `art_probe.gd`; shared `Surfaces` (tinted PBR, kit props), `MachinePortrait`.
+
+### Changed
+- Shots and grapples take the **clear one of two equal leanings**. Piercing shots **overshoot** 2 hexes at half damage. The coil **arcs twice**.
+- The SCRAP square is the button. Part models load in the background; the garage stage fades in (no black square).
+- Tests: `verify_combat` 116 → 134, `verify_run` 61 → 70, `verify_run_ui` 26 → 33.
+
+### Fixed
+- The overshoot's damage check read a counter the first hit had spent (caught by its test).
+- Billboard particles ignored their scale; fog was invisible on dark ground.
+
 ## [008] The yard and the garage — 2026-09-25 ([detail](iterations/008-yard-and-garage.md))
 
 Answers every issue in play-test 3.
