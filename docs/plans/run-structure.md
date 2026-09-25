@@ -50,18 +50,24 @@ destroyed in a fight is a wreck (chassis only) until a workshop rebuilds it. The
 lost when all three are wrecked, or when **the boss fight is not won** (007: there is no
 road past the gate and the road back is reclaimed, so a surviving crew would be stranded).
 
-## How the map reads (007)
+## How the map reads (008: a 3D yard)
 
-Play-test 1 and 2: "you cannot tell when you need to move ahead or can move sideways".
+Play-test 1, 2 and 3: first "you cannot tell forward from sideways", then "it is 2D, there
+is dead space, and two clicks to move is annoying". `scripts/run/yard_view.gd`:
 
-- Columns are drawn as **zones** (START, ZONE 2 … ZONE 6, GATE), named across the top.
-- The Reclaimer is a red wall over what it has taken; the **next zone to fall is striped**;
-  the header says **"THE RECLAIMER TAKES ZONE N IN M MOVES"**.
-- Every reachable site is labelled **FORWARD / SIDEWAYS / BACK**.
-- The first tap **previews** a site (what it is, and what this move costs: "this move lets
-  the Reclaimer take ZONE 3", "leaving reclaimed ground costs 2 HP each"); TRAVEL goes.
-- The side panel is the crew (HP bars and part thumbnails) and REFIT with the hold count.
-  There is no log.
+- A tilted camera over a dark yard. Each site is a **landmark built from the arena kit**
+  (camp containers, wreck piles, a lit workshop gantry, the gate) on a pad whose ring says
+  what it is to you now: amber here, blue reachable, grey done. Its icon floats above.
+- Columns are **zones** named on the ground (CAMP, ZONE 2 … ZONE 6, GATE).
+- **The Reclaimer is a wall** of harvester rigs across the whole map, red beacons over red
+  dust, a glowing blade at its foot. Behind it the ground is stripped bare; the zone it
+  takes next pulses red. It slides forward when the front moves.
+- **One click travels.** Hovering (PC) shows a card with what the site is (in the world's
+  voice) and what the move costs. For touch, the direction and any cost are written under
+  every reachable site, so a tap never needs a preview.
+- The crew is a strip of machines along the bottom (frame, name, level, HP); each opens
+  the garage on that machine. The combined HP bar is gone.
+- A new run opens on the **briefing** (`data/run/story.json`), see `plans/story.md`.
 
 ## The hold (007)
 
@@ -71,12 +77,23 @@ Play-test 1 and 2: "you cannot tell when you need to move ahead or can move side
 - Taking salvage is **always allowed**. An overfull hold **blocks travel** until something
   is fitted or scrapped; the map says so and makes REFIT the primary button.
 
-## Refit (007)
+## The garage (008, replacing refit)
 
-Its own screen. Three machine columns of five sockets and the hold as part cards. Drag a
-part onto a socket (the sockets it fits light up), from a socket back to the hold or to
-another machine, or onto SCRAP. Tap a part, then tap where it goes, does the same on a
-phone. Each card carries a rarity banner and a verdict against the crew's fitted parts.
+After a "manage soldier" reference the user supplied. Crew tabs across the top; the
+selected machine stands whole in 3D (drag to turn it); beside it **PARTS** (five socket
+rows) and **STATS** (every number, read from `RunSim.preview_machine`, the unit the next
+fight will field). **Hovering a part turns the machine to show it, lights it and stands
+it proud.** The hold is a low strip along the bottom with **SORT** (newest, rarity, slot)
+and a SCRAP bin. Drag onto a socket, a crew tab, the hold or SCRAP; tap-then-tap does the
+same. **LEVEL UP** sits under the machine's name.
+
+## Machine levels (008): where scrap goes
+
+Play-test 3: "scrap seems pretty useless". In the garage a machine buys its next level for
+15, 25, then 40 scrap (3 levels): +2 HP, then +2 HP and +1 damage on every weapon and
+Charge, then +3 HP (max HP, and that much HP now). +1 damage on EVERY level took the run
+bot from 85% to 94% and was cut. A wreck keeps its level when rebuilt. Numbers in `run.json`
+`levels`. Part upgrades, perks and sets are 009.
 
 ## Currency
 

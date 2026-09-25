@@ -19,6 +19,7 @@ These files describe the game and record how it gets built. They are updated at 
 | [plans/constructs-and-parts.md](plans/constructs-and-parts.md) | How parts become units and abilities; part damage; salvage |
 | [plans/run-structure.md](plans/run-structure.md) | The scrapyard region map, node types, acts, run pacing |
 | [plans/meta-progression.md](plans/meta-progression.md) | Unlocks between runs, difficulty tiers |
+| [plans/story.md](plans/story.md) | The world: the Reclaimer, the key, the Crucible; the three yards; voice |
 | [plans/enemies-and-ai.md](plans/enemies-and-ai.md) | Enemy roster, intents, elites, bosses |
 | [plans/platform-and-ui.md](plans/platform-and-ui.md) | PC and mobile together: input, layout, screens |
 | [plans/art-and-audio.md](plans/art-and-audio.md) | Visual direction and what carries over from the existing pipeline |

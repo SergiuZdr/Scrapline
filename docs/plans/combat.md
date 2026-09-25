@@ -5,6 +5,11 @@ description of the rules: `sim/combat/combat_sim.gd` and `docs/iterations/005-he
 Sections below that still say "square", "line" or "Crawler" are history, kept for their
 reasoning; the table in *Weapons* and the sections marked (005) are current.
 
+(008) Play-test 3: **Charge works after moving** and hits harder the further it runs
+(3 + 1 per hex run first, plus the machine's damage bonus). **The coil's arc reaches
+terrain**: from the machine or prop it hits, into an enemy, else a fuel drum, else a crate.
+**Piles are collected along the whole path** of a move, dash or charge, by both teams.
+
 (007) Play-test 2 fixes: the tiles are drawn **pointy-top** like the maths (they had been
 turned 30°, so hexes met at corners and every distance looked one short). **Grapple aims
 freely**: any unit 2..range away with a clear line that is not anchored; anchored machines
