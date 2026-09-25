@@ -16,7 +16,7 @@
   },
   "hive": {
     "name": "Hive",
-    "text": "Every 2 rounds it marks a neighbouring hex and builds a drone there next round. Stand on the marked hex to block it.",
+    "text": "Sets down a fabricator pad beside itself. Every 2 rounds the pad builds a drone, and warns the turn before. Stand on the pad to block it; destroy the hive to shut it down.",
     "every": 2,
     "drone": {
       "name": "Drone",

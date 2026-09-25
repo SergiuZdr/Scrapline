@@ -42,6 +42,11 @@ var mark_bonus: int = 2
 ## A destroyed machine's scrap pile: what it is worth, and what collecting it patches.
 var pile_value: int = 4
 var pile_heal: int = 2
+## Chance (percent) that an enemy carries scrap; see `GridUnit.carries_scrap`.
+var pile_drop_pct: int = 55
+## A piercing shot's overshoot past its range, and the damage it keeps there (percent).
+var pierce_overshoot: int = 2
+var pierce_overshoot_pct: int = 50
 ## `{ "type": "rout"|"defend"|"salvage", "rounds": int, "need": int }` -- see CombatSim.
 var objective: Dictionary = {"type": "rout"}
 ## Scrap piles on the board at the start: `[{ "x", "y", "value" }]`.
@@ -67,6 +72,9 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 	setup.mark_bonus = int(rules.get("mark_bonus", 2))
 	setup.pile_value = int(rules.get("pile_value", 4))
 	setup.pile_heal = int(rules.get("pile_heal", 2))
+	setup.pile_drop_pct = int(rules.get("pile_drop_pct", 55))
+	setup.pierce_overshoot = int(rules.get("pierce_overshoot", 2))
+	setup.pierce_overshoot_pct = int(rules.get("pierce_overshoot_pct", 50))
 	setup.wheel = wheel
 	setup.barrel_damage = int(rules.get("barrel_damage", 3))
 	setup.crate_hp = int(rules.get("crate_hp", 3))
@@ -128,11 +136,18 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 			setup.units.append(_build_unit(specs[slot], team, slot, parts, roles,
 				damage_types, armor_types, setup.errors, rules.get("abilities", {})))
 
+	# Which enemies carry scrap: a real hash of the fight's seed and the unit, so it is
+	# fixed from the first frame and the same on every replay.
+	for u: GridUnit in setup.units:
+		if u.team == GridUnit.TEAM_ENEMY:
+			u.carries_scrap = IntentAI.mix(seed_value, u.ref, 0, 53) % 100 < setup.pile_drop_pct
+
 	var drone_spec: Dictionary = (setup.kinds.get("hive", {}) as Dictionary).get("drone", {})
 	if not drone_spec.is_empty():
 		setup.drone = _build_unit(drone_spec, GridUnit.TEAM_ENEMY, 9, parts, roles, damage_types,
 			armor_types, setup.errors)
 		setup.drone.name = String(drone_spec.get("name", "Drone"))
+		setup.drone.carries_scrap = false
 
 	# Salvage caches (the defend objective): immobile, unarmed, on the player's side. They
 	# take refs after the crew, so the crew's refs are always 0..2.

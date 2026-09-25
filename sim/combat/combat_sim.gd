@@ -212,28 +212,37 @@ static func strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector2
 					_add_hit(state, u, hits, n, int(weapon["splash"]), false, false)
 					_add_prop(state, props, n, int(weapon["splash"]))
 		_:
-			# A shot: the hex line toward the target. Piercing shots are a beam to full range.
+			# A shot: the hex line toward the target, on whichever of the two leanings is
+			# clear (play-test 4). Piercing shots are a beam that carries on past their range
+			# (`pierce_overshoot` hexes) at reduced damage.
 			var pierce_left: int = int(weapon["pierce"])
-			var path: Array[Vector2i] = Hex.ray(here, target, reach) if pierce_left > 0 else Hex.line(here, target)
-			for c: Vector2i in path:
+			var piercing: bool = pierce_left > 0
+			var overshoot: int = state.setup.pierce_overshoot if piercing else 0
+			var path: Array[Vector2i] = best_line(state, here, target, reach + overshoot if piercing else 0, u)
+			var far: int = maxi(state.setup.min_damage, (base * state.setup.pierce_overshoot_pct + 50) / 100)
+			for i: int in path.size():
+				var c: Vector2i = path[i]
 				if not state.inside(c):
 					break
+				# Past its range a beam keeps going at reduced damage. (Not `pierce_left`: that
+				# counts down with every unit the beam passes through.)
+				var amount: int = far if piercing and i >= reach else base
 				tiles.append(c)
 				plan["end"] = c
 				if state.tile_blocks(c.x, c.y):
 					break
 				if state.props.has(c):
-					_add_prop(state, props, c, base)
+					_add_prop(state, props, c, amount)
 					break
 				var occupant: GridUnit = state.unit_at(c.x, c.y)
 				if occupant == null or occupant == u:
 					continue
-				_add_hit(state, u, hits, c, base, hits.is_empty(), true)
+				_add_hit(state, u, hits, c, amount, hits.is_empty(), true)
 				if pierce_left <= 0:
 					break
 				pierce_left -= 1
-			if int(weapon["chain"]) > 0 and base > 1:
-				_arc(state, u, hits, props, tiles, base - 1)
+			if int(weapon["chain"]) > 0:
+				_arc(state, u, hits, props, tiles, maxi(state.setup.min_damage, base - 1), int(weapon["chain"]))
 
 	plan["legal"] = true
 	plan["tiles"] = tiles
@@ -242,11 +251,12 @@ static func strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector2
 	return plan
 
 
-## A coil arcs from the first thing it hits -- a machine or a prop -- into one neighbour,
-## a point weaker. It prefers an enemy machine, then a fuel drum (which goes off), then a
-## crate, then anyone. Play-test 3 expected the arc to reach terrain, and it never did.
+## A coil arcs from the first thing it hits -- a machine or a prop -- into a neighbour,
+## a point weaker, and on from there, `jumps` times. Each jump prefers an enemy machine,
+## then a fuel drum (which goes off), then a crate, then anyone. Play-test 3 expected the
+## arc to reach terrain; play-test 4 asked for it to reach two enemies.
 static func _arc(state: CombatState, u: GridUnit, hits: Array[Dictionary], props: Array[Dictionary],
-		tiles: Array[Vector2i], amount: int) -> void:
+		tiles: Array[Vector2i], amount: int, jumps: int) -> void:
 	var origin := Vector2i(-1, -1)
 	if not hits.is_empty():
 		var first: GridUnit = state.unit(int(hits[0]["ref"]))
@@ -255,27 +265,62 @@ static func _arc(state: CombatState, u: GridUnit, hits: Array[Dictionary], props
 		origin = props[0]["cell"]
 	else:
 		return
-	var best := Vector2i(-1, -1)
-	var best_rank: int = 99
-	for n: Vector2i in Hex.neighbors(origin):
-		if not state.inside(n) or n == Vector2i(u.x, u.y):
-			continue
-		var rank: int = 99
-		var other: GridUnit = state.unit_at(n.x, n.y)
-		if other != null and not _already_hit(hits, other.ref):
-			rank = 0 if other.team != u.team else 3
-		elif state.props.has(n) and not _prop_struck(props, n):
-			rank = 1 if String(state.props[n]["kind"]) == "barrel" else 2
-		if rank < best_rank:
-			best_rank = rank
-			best = n
-	if best_rank == 99:
-		return
-	tiles.append(best)
-	if best_rank == 1 or best_rank == 2:
-		_add_prop(state, props, best, amount)
-	else:
-		_add_hit(state, u, hits, best, amount, false, false)
+	for jump: int in jumps:
+		var best := Vector2i(-1, -1)
+		var best_rank: int = 99
+		for n: Vector2i in Hex.neighbors(origin):
+			if not state.inside(n) or n == Vector2i(u.x, u.y):
+				continue
+			var rank: int = 99
+			var other: GridUnit = state.unit_at(n.x, n.y)
+			if other != null and not _already_hit(hits, other.ref):
+				rank = 0 if other.team != u.team else 3
+			elif state.props.has(n) and not _prop_struck(props, n):
+				rank = 1 if String(state.props[n]["kind"]) == "barrel" else 2
+			if rank < best_rank:
+				best_rank = rank
+				best = n
+		if best_rank == 99:
+			return
+		tiles.append(best)
+		if best_rank == 1 or best_rank == 2:
+			_add_prop(state, props, best, amount)
+		else:
+			_add_hit(state, u, hits, best, amount, false, false)
+		origin = best
+
+
+## The better of the two leanings of the hex line from `from` toward `to` (see `Hex.line`):
+## the one that reaches `to` with nothing in the way, else the one that runs clear longer;
+## the +1 leaning on a tie, so the choice is deterministic. `reach` > 0 extends it into a
+## ray (piercing shots). `ignore` is the unit doing the looking.
+##
+## Play-test 4: with only one leaning, a shot between two equally short paths always took
+## the same side -- into a scrap heap or an ally -- which read as the game cheating. Both
+## teams go through here, so the preview, the AI and the shot itself always agree.
+static func best_line(state: CombatState, from: Vector2i, to: Vector2i, reach: int = 0,
+		ignore: GridUnit = null) -> Array[Vector2i]:
+	var a: Array[Vector2i] = Hex.ray(from, to, reach, 1) if reach > 0 else Hex.line(from, to, 1)
+	var b: Array[Vector2i] = Hex.ray(from, to, reach, -1) if reach > 0 else Hex.line(from, to, -1)
+	if a == b:
+		return a
+	return b if _clear_run(state, b, to, ignore) > _clear_run(state, a, to, ignore) else a
+
+
+## How far along `path` the way stays clear on its way to `to`: the index of the first thing
+## standing in it (a blocking tile, a prop, a unit other than `ignore`), or 1000 when it
+## reaches `to` untouched. Pits are no obstacle: shots fly over them.
+static func _clear_run(state: CombatState, path: Array[Vector2i], to: Vector2i, ignore: GridUnit) -> int:
+	for i: int in path.size():
+		var c: Vector2i = path[i]
+		if c == to:
+			return 1000
+		if not state.inside(c) or state.tile_blocks(c.x, c.y) or state.props.has(c):
+			return i
+		var occupant: GridUnit = state.unit_at(c.x, c.y)
+		if occupant != null and occupant != ignore:
+			return i
+	return path.size()
 
 
 static func _prop_struck(props: Array[Dictionary], cell: Vector2i) -> bool:
@@ -557,7 +602,7 @@ static func hurt(state: CombatState, actor: int, target: GridUnit, dmg: int) -> 
 	target.alive = false
 	state.emit(GridEv.DESTROYED, actor, target.ref, target.x, target.y)
 	var cell := Vector2i(target.x, target.y)
-	if not target.objective:
+	if not target.objective and target.carries_scrap:
 		state.piles[cell] = int(state.piles.get(cell, 0)) + state.setup.pile_value
 		state.emit(GridEv.PILE_DROPPED, actor, target.ref, cell.x, cell.y, state.setup.pile_value)
 	if target.kind == "bomber":
@@ -761,18 +806,27 @@ static func _begin_round(state: CombatState) -> void:
 ## Hives build on their marked hex, then mark the next one. A marked hex that anything
 ## stands on (or that became solid) blocks the build: that is the counterplay.
 static func _hives(state: CombatState) -> void:
+	# Play-test 4: the build site used to be re-marked next to the hive every other round,
+	# then the hive walked off, so the site seemed to wander. Now a hive sets down ONE
+	# fabricator pad and it stays put: every `every` rounds it builds a drone, the round
+	# before it the pad warns, standing on it blocks the build, and it dies with its hive.
 	var hive: Dictionary = state.setup.kinds.get("hive", {})
 	var every: int = maxi(1, int(hive.get("every", 2)))
 	var refs: Array = state.spawn_marks.keys()
 	refs.sort()
 	for ref: Variant in refs:
 		var cell: Vector2i = state.spawn_marks[ref]
-		state.spawn_marks.erase(ref)
 		var builder: GridUnit = state.unit(int(ref))
 		if builder == null or not builder.alive or state.setup.drone == null:
+			state.spawn_marks.erase(ref)
+			state.spawn_due.erase(ref)
+			state.emit(GridEv.SPAWN_BLOCKED, int(ref), -1, cell.x, cell.y, 1)
 			continue
+		if int(state.spawn_due.get(ref, 0)) != state.round_number:
+			continue
+		state.spawn_due[ref] = state.round_number + every
 		if state.unit_at(cell.x, cell.y) != null or state.solid(cell) or state.is_pit(cell):
-			state.emit(GridEv.SPAWN_BLOCKED, builder.ref, -1, cell.x, cell.y)
+			state.emit(GridEv.SPAWN_BLOCKED, builder.ref, -1, cell.x, cell.y, 0)
 			continue
 		var drone: GridUnit = state.setup.drone.copy()
 		var slot: int = 0
@@ -787,17 +841,27 @@ static func _hives(state: CombatState) -> void:
 		state.units.sort_custom(func(a: GridUnit, b: GridUnit) -> bool: return a.ref < b.ref)
 		state.emit(GridEv.SPAWNED, builder.ref, drone.ref, cell.x, cell.y)
 	for u: GridUnit in state.units:
-		if not u.alive or u.kind != "hive" or (state.round_number - 1) % every != 0:
+		if not u.alive or u.kind != "hive" or state.spawn_marks.has(u.ref):
 			continue
 		var free: Array[Vector2i] = []
 		for n: Vector2i in Hex.neighbors(Vector2i(u.x, u.y)):
-			if state.inside(n) and not state.solid(n) and not state.is_pit(n) and state.unit_at(n.x, n.y) == null:
+			if state.inside(n) and not state.solid(n) and not state.is_pit(n) and state.unit_at(n.x, n.y) == null \
+					and not state.spawn_marks.values().has(n):
 				free.append(n)
 		if free.is_empty():
 			continue
 		var pick: Vector2i = free[IntentAI.mix(state.setup.rng_seed, u.ref, state.round_number, 41) % free.size()]
 		state.spawn_marks[u.ref] = pick
-		state.emit(GridEv.SPAWN_MARKED, u.ref, -1, pick.x, pick.y)
+		state.spawn_due[u.ref] = state.round_number + every
+		state.emit(GridEv.SPAWN_MARKED, u.ref, -1, pick.x, pick.y, every)
+
+
+## Rounds until hive `ref`'s pad builds its next drone (1 = at the start of next round), or
+## -1 if it has no pad. What the pad's countdown shows.
+static func drone_in(state: CombatState, ref: int) -> int:
+	if not state.spawn_due.has(ref):
+		return -1
+	return int(state.spawn_due[ref]) - state.round_number
 
 
 ## Ends the fight if its objective is met or failed. Returns true if it ended.

@@ -182,7 +182,8 @@ static func _grapple(state: CombatState, u: GridUnit, target: Vector2i) -> void:
 	var here := Vector2i(u.x, u.y)
 	var from := Vector2i(victim.x, victim.y)
 	var cell: Vector2i = from
-	for next: Vector2i in Hex.line(from, here):
+	# Pulled along whichever of the two leanings is clear (play-test 4).
+	for next: Vector2i in CombatSim.best_line(state, from, here, 0, victim):
 		if Hex.distance(cell, here) <= 1 or next == here:
 			break
 		if state.is_pit(next):
@@ -199,7 +200,7 @@ static func _grapple(state: CombatState, u: GridUnit, target: Vector2i) -> void:
 
 ## Nothing solid and nobody standing between `a` and `b` (exclusive).
 static func _clear_line(state: CombatState, a: Vector2i, b: Vector2i) -> bool:
-	for c: Vector2i in Hex.line(a, b):
+	for c: Vector2i in CombatSim.best_line(state, a, b, 0, state.unit_at(a.x, a.y)):
 		if c == b:
 			return true
 		if state.solid(c) or state.unit_at(c.x, c.y) != null:
