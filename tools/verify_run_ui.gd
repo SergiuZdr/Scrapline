@@ -31,10 +31,25 @@ func _go() -> void:
 
 	# --- Map: the briefing, then hover and ONE click on the 3D yard.
 	var map: Node = await _open("res://scenes/run_map.tscn")
-	_check("a new run opens on the briefing", _find_button(map, "ROLL OUT") != null)
-	_press(_find_button(map, "ROLL OUT"))
+	_check("a new run opens on the briefing", _find_button(map, "TO THE BAY") != null)
+	_press(_find_button(map, "TO THE BAY"))
 	await _frames(3)
-	_check("ROLL OUT closes it", _find_button(map, "ROLL OUT") == null and bool(_run.get("briefed")))
+	_check("TO THE BAY closes it", _find_button(map, "TO THE BAY") == null and bool(_run.get("briefed")))
+
+	# --- The assembly bay (play-test 4): build the crew, then roll out.
+	var bay: Node = map.get("_overlay")
+	_check("then the assembly bay opens", bay != null and _find_button(bay, "ROLL OUT") != null)
+	var before_parts: String = str(state.crew[0]["parts"])
+	bay.call("_step", 0, 3, 1)
+	await _frames(2)
+	var draft: Array = bay.get("_draft")
+	_check("stepping a socket changes the draft, not the run", str(draft[0]) != before_parts and str(state.crew[0]["parts"]) == before_parts)
+	_press(_find_button(bay, "ROLL OUT"))
+	await _frames(3)
+	state = _run.get("state")
+	_check("ROLL OUT builds the crew as drafted (one ASSEMBLE action)", state.assembled and str(state.crew[0]["parts"]) == str(draft[0])
+		and RunStore.load_saved()["actions"].size() == 1)
+	_check("and the bay closes onto the map", map.get("_overlay") == null)
 	var targets: Array[int] = RunSim.destinations(state)
 	var fight_site: int = -1
 	for id: int in targets:
@@ -58,8 +73,15 @@ func _go() -> void:
 	await _frames(3)
 	state = _run.get("state")
 	_check("one click travels there", state.current == fight_site)
+	_check("the crew walks the road before the site opens", bool(map.get("_busy")))
+	# The walk is tweened in real time; headless frames can run far faster than that.
+	for i: int in 80:
+		if not bool(map.get("_busy")):
+			break
+		await create_timer(0.1).timeout
+	_check("(the walk ends)", not bool(map.get("_busy")))
 	_check("the fight panel offers ENTER FIGHT", _find_button(map, "ENTER FIGHT") != null)
-	_check("the move was saved", RunStore.load_saved()["actions"].size() == 1)
+	_check("the move was saved", RunStore.load_saved()["actions"].size() == 2)
 
 	# --- Fight: enter, act once, "quit", resume.
 	_press(_find_button(map, "ENTER FIGHT"))
@@ -164,6 +186,15 @@ func _go() -> void:
 			state = _run.get("state")
 			_check("dropping a part on SCRAP breaks it down for scrap",
 				state.scrap == scrap_before + RunSim.scrap_value(_run.get("setup"), doomed))
+			# Play-test 4: the SCRAP square is itself the button -- pick a part, click it.
+			var held_part: String = state.cargo[0]
+			var scrap_now: int = state.scrap
+			_press(_find_part_card(panel, held_part))
+			await _frames(2)
+			_press(_find_button_with_label(panel, "SCRAP"))
+			await _frames(3)
+			state = _run.get("state")
+			_check("pick a part, click SCRAP: it is broken down", state.scrap == scrap_now + RunSim.scrap_value(_run.get("setup"), held_part))
 			_press(_find_button(panel, "STATS"))
 			await _frames(3)
 			_check("the STATS tab shows the machine's numbers", _find_label_prefix(panel, "HEALTH") != null)
@@ -228,6 +259,16 @@ func _click(at: Vector2) -> void:
 		click.pressed = pressed
 		click.position = at
 		root.push_input(click, true)
+
+
+func _find_button_with_label(node: Node, text: String) -> Button:
+	if node is Button and not node.is_queued_for_deletion() and _has_label(node, text):
+		return node
+	for child: Node in node.get_children():
+		var found: Button = _find_button_with_label(child, text)
+		if found != null:
+			return found
+	return null
 
 
 func _find_button_prefix(node: Node, text: String) -> Button:
