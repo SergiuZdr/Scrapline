@@ -36,7 +36,23 @@ static func next_action(state: RunState, setup: RunSetup) -> Array:
 		return refit
 	if state.overfull():
 		return [RunSim.SCRAP_PART, _worst_cargo(state, setup)]
+	var level: Array = _level_up(state, setup)
+	if not level.is_empty():
+		return level
 	return [RunSim.TRAVEL, _choose_site(state, setup)]
+
+
+## Spends scrap on levels, lowest level first, keeping enough back to rebuild a wreck.
+static func _level_up(state: RunState, setup: RunSetup) -> Array:
+	var reserve: int = int((setup.rules.get("workshop", {}) as Dictionary).get("rebuild_cost", 20))
+	var best: int = -1
+	for i: int in state.crew.size():
+		var cost: int = RunSim.level_cost(state, setup, i)
+		if not bool(state.crew[i]["alive"]) or cost < 0 or state.scrap < cost + reserve:
+			continue
+		if best < 0 or int(state.crew[i].get("level", 0)) < int(state.crew[best].get("level", 0)):
+			best = i
+	return [RunSim.LEVEL_UP, best] if best >= 0 else []
 
 
 ## The hold part worth least to the crew: lowest rarity, then oldest.

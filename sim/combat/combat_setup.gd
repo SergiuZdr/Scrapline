@@ -184,7 +184,8 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 	var mg: Dictionary = module.get("grid", {})
 
 	u.role = String(chassis.get("role", "line"))
-	u.max_hp = int(spec.get("hp", int(cg.get("hp", 8)) + int(mg.get("hp", 0))))
+	# A run machine's levels arrive as flat bonuses (`bonus_hp`, `bonus_damage`).
+	u.max_hp = int(spec.get("hp", int(cg.get("hp", 8)) + int(mg.get("hp", 0)) + int(spec.get("bonus_hp", 0))))
 	# A run's machine arrives with whatever the last fight left it.
 	u.hp = clampi(int(spec.get("hp_now", u.max_hp)), 1, u.max_hp)
 	u.move = int(cg.get("move", 3)) + int(mg.get("move", 0))
@@ -193,7 +194,7 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 	u.armor_type = maxi(0, armor_types.find(String(chassis.get("armor_type", ""))))
 	u.damage_type = maxi(0, damage_types.find(String(core.get("damage_type", ""))))
 	u.vent = int(og.get("vent", 1)) + int(mg.get("vent", 0))
-	u.damage_bonus = int(og.get("damage", 0)) + int(mg.get("damage", 0))
+	u.damage_bonus = int(og.get("damage", 0)) + int(mg.get("damage", 0)) + int(spec.get("bonus_damage", 0))
 	u.heat_bonus = int(og.get("heat", 0)) + int(mg.get("heat", 0))
 	u.range_bonus = int(mg.get("range", 0))
 
