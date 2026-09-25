@@ -49,7 +49,8 @@
 | Region map | a 3D yard: landmarks, the Reclaimer wall, hover card, one click travels, crew strip, briefing (008) |
 | Combat | as above |
 | Salvage | part cards with a rarity banner and a verdict; always takeable (007) |
-| Garage | replaces refit (008): the machine whole in 3D, PARTS / STATS tabs, hover lights a part, LEVEL UP, the hold as a sorted strip with SCRAP |
+| Garage | replaces refit (008): the machine whole in 3D, PARTS / STATS tabs, hover lights a part, LEVEL UP, the hold as a sorted strip with SCRAP. 009: a real bay behind the machine, no black flash (models load in the background; the stage fades in), the SCRAP square is the button, levelling up is an event |
+| Assembly bay | (009) after the briefing: build the three machines from a bench of basic parts |
 | Site screens | workshop, trader, event text |
 
 ## Carried over from the old UI
