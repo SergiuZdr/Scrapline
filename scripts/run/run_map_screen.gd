@@ -18,6 +18,7 @@ extends Control
 ## Reads `Run.state`; changes it only through `Run.apply`.
 
 const GaragePanel := preload("res://scripts/run/garage_panel.gd")
+const AssemblyPanel := preload("res://scripts/run/assembly_panel.gd")
 
 const SITE_NAMES: Dictionary = {"start": "CAMP", "skirmish": "FIGHT", "elite": "ELITE",
 	"scrapyard": "SCRAPYARD", "workshop": "WORKSHOP", "boss": "THE GATE"}
@@ -508,6 +509,9 @@ func _show_overlay() -> void:
 	if not Run.briefed:
 		_briefing()
 		return
+	if RunSim.can_assemble(state) and not Run.bay_seen:
+		_assembly()
+		return
 	match String(state.pending.get("kind", "")):
 		"fight":
 			_fight_panel()
@@ -547,6 +551,16 @@ func _row(parent: Control) -> HBoxContainer:
 	row.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	parent.add_child(row)
 	return row
+
+
+## The assembly bay: the crew built from the bench before the first move.
+func _assembly() -> void:
+	_overlay = AssemblyPanel.new()
+	add_child(_overlay)
+	_preview.visible = false
+	_overlay.done.connect(func() -> void:
+		Run.bay_seen = true
+		_refresh())
 
 
 ## The story, once, at the start of a run.
