@@ -238,22 +238,22 @@ func _test_levels() -> void:
 	var state: RunState = RunSim.start(setup)
 	var member: Dictionary = state.crew[0]
 	var full: int = RunSim.max_hp(setup, member)
-	state.scrap = 11
-	_check("a level cannot be bought without the scrap (12)", not RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0]))
+	state.scrap = 14
+	_check("a level cannot be bought without the scrap (15)", not RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0]))
 	state.scrap = 100
-	_check("a level costs 12 scrap", RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0]) and state.scrap == 88 and int(member["level"]) == 1)
-	_check("a level adds 2 max HP and 2 HP now", RunSim.max_hp(setup, member) == full + 2 and int(member["hp"]) == full + 2)
+	_check("a level costs 15 scrap", RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0]) and state.scrap == 85 and int(member["level"]) == 1)
+	_check("level 1 adds 2 max HP and 2 HP now", RunSim.max_hp(setup, member) == full + 2 and int(member["hp"]) == full + 2)
 	RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0])
 	RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0])
-	_check("levels cost 20 and 30, and stop at 3", int(member["level"]) == 3 and state.scrap == 38
+	_check("levels cost 25 and 40, and stop at 3", int(member["level"]) == 3 and state.scrap == 20
 		and not RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0]))
 	var fight_site: int = RunSim.destinations(state)[0]
 	state.sites[fight_site]["type"] = "skirmish"
 	RunSim.apply(state, setup, [RunSim.TRAVEL, fight_site])
 	_check("no levels bought mid-fight", not RunSim.apply(state, setup, [RunSim.LEVEL_UP, 1]))
 	var combat: CombatSetup = RunSim.fight_setup(state, setup)
-	_check("a level-3 machine fights with +6 max HP and +3 damage",
-		combat.units[0].max_hp == full + 6 and combat.units[0].damage_bonus >= 3)
+	_check("a level-3 machine fights with +7 max HP and +1 damage (2 + 2 + 3; damage at level 2)",
+		combat.units[0].max_hp == full + 7 and RunSim.level_bonus(setup, member, "damage") == 1)
 
 
 func _test_refit() -> void:

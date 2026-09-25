@@ -56,6 +56,11 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-25 | **A boss fight that is not won ends the run**, even with the crew alive | There is no road past the gate and the road back is reclaimed; the run bot found crews stranded there (3 in 150) |
 | 2026-09-25 | Refit is its **own screen** (opaque), with drag and drop plus tap-then-tap | PT1-9/PT2-1; the map showing through a translucent sheet read as clutter |
 | 2026-09-24 | ADAPT code that does not compile once CUT code is gone goes to `legacy/` (ignored by Godot through `.gdignore`), not straight to deletion | It stays greppable as reference while its replacement is written; it is deleted once replaced |
+| 2026-09-25 | **The story**: the Reclaimer is a Combine harvester still obeying "reclaim all material"; the crew carries a stolen shutdown key to the Crucible and the Reclaimer follows the key. Enemies are spiked rigs (hence your parts); enemy kinds are its drones | PT3-4 asked for lore, a mission and a Reclaimer with a purpose. Chosen so every existing mechanic has a reason (`plans/story.md`) |
+| 2026-09-25 | **The map is 3D and one click travels**; hover previews on PC, and the direction and cost are written on the site for touch | PT3-2/3 |
+| 2026-09-25 | **Machine levels are the scrap sink** (not part upgrades): they need no per-part state, and the user had already chosen machine levels as progression | PT3-9. Part upgrades stay in 009 |
+| 2026-09-25 | **Charge works after moving**, scaling with distance run | PT3-6: charging instead of moving was weaker than a move and an attack |
+| 2026-09-25 | Piles are collected along the whole path, by both teams | PT3-8 |
 
 ## Lessons carried over from the old codebase
 
@@ -111,6 +116,12 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-25 | Rebuilding a Control tree during a drag frees the node being dragged. During a drag only restyle; rebuild deferred, after the drop |
 | 2026-09-25 | A "the road goes on" rule has to hold at the END of the road. Losing the boss objective with the crew alive left the run with no legal action; only the whole-game bot found it |
 
+| 2026-09-25 | Measure a balance change by switching pieces OFF on the same seeds. "Levels made it easy" was half right: with levels priced out the run was still 8 points easier than 007, from pile scrap paying for repairs |
+| 2026-09-25 | A coil that only arcs unit to unit never touches a drum, and nothing on screen says so: the player reads a missing interaction as a bug (PT3-7). When a mechanic meets terrain, the default must be that it interacts |
+| 2026-09-25 | Leftover vocabulary lies quietly: `PartText` kept 002's "line" shape and printed every shot weapon as a "lob" for three iterations. Text generated from data needs a test or a screenshot that someone reads |
+| 2026-09-25 | A CPUParticles3D pre-simulated before its parent is placed leaves its puffs where it was built. Set `local_coords` (and a soft texture, or every puff is a hard square) |
+| 2026-09-25 | Test the 3D map through the real input path: `push_input` a mouse event at `YardView.screen_pos`. A test that called `_choose` directly would pass with picking broken |
+
 ## Open questions
 
 All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decisions above).
@@ -127,3 +138,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-24 | Act length: the bot wins 3.2 fights per act; the plan said 4–5 | The front's speed is the dial. Decide after the user plays | |
 | 2026-09-24 | The four 004 design calls (repair between fights, restored arms, front damage per move, generated squads) | Proposed; awaiting the user's veto | **Superseded by play-test 1**: the Crawler is gone and HP now carries; revisit the rest in 005 |
 | 2026-09-23 | Keep 3D or go 2D? | Keep 3D. The whole art pipeline exists, and a tilted camera suits a grid |agree with the propose |
+| 2026-09-25 | **Difficulty after 008**: the run bot wins 88.7% (76.7% after 007), and it barely uses abilities | Dials, in order: enemy count by column (`run.json` enemies), the speed of the front (`front.every`), level costs. Decide after play-test 4 | |

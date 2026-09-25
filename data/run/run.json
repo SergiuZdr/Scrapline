@@ -149,10 +149,9 @@
     }
   },
   "levels": {
-    "_comment": "Play-test 3: scrap needs something to buy. In the garage a machine buys its next level at costs[level] (so 3 levels). Each level: +hp max HP (and that much HP now) and +damage on every weapon and Charge.",
+    "_comment": "Play-test 3: scrap needs something to buy. In the garage a machine buys its next level for costs[level]. bonus[n] is what level n+1 adds: max HP (and that much HP now) and damage on every weapon and Charge. Tuned 2026-09-25: +1 damage on every level took the run bot from 85% to 94%.",
     "costs": [15, 25, 40],
-    "hp": 2,
-    "damage": 1
+    "bonus": [{"hp": 2}, {"hp": 2, "damage": 1}, {"hp": 3}]
   },
   "hold": {
     "_comment": "The hold starts at `start` parts. A workshop sells `expand_by` more room at each price in turn. Going over is allowed after salvage, but travel waits until the hold fits.",

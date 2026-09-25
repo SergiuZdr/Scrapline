@@ -319,14 +319,16 @@ func _build_info() -> void:
 	_info.add_child(foot)
 	if not alive:
 		return
-	var levels: Dictionary = Run.setup.rules.get("levels", {})
 	var cost: int = RunSim.level_cost(Run.state, Run.setup, selected)
-	var gain: String = "+%d HP, +%d damage" % [int(levels.get("hp", 0)), int(levels.get("damage", 0))]
+	var next: Dictionary = RunSim.next_level_bonus(Run.state, Run.setup, selected)
+	var gain: String = "next level: +%d HP" % int(next.get("hp", 0))
+	if int(next.get("damage", 0)) > 0:
+		gain += ", +%d damage on every weapon" % int(next.get("damage", 0))
 	if cost < 0:
 		foot.add_child(_label("TOP LEVEL", UIKit.SIZE_HEADING, UIKit.GREEN, UIKit.font_strong()))
 	elif Run.state.scrap >= cost:
 		var up := _button("LEVEL UP  ·  %d SCRAP" % cost, UIKit.choice(), UIKit.TEXT, Vector2(300, 52))
-		up.tooltip_text = "Overhaul %s: %s on every weapon" % [String(member["name"]), gain]
+		up.tooltip_text = "Overhaul %s (%s)" % [String(member["name"]), gain]
 		up.pressed.connect(_level_up)
 		foot.add_child(up)
 		foot.add_child(_label(gain, UIKit.SIZE_LABEL, UIKit.GREEN))

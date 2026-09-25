@@ -2,6 +2,26 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [008] The yard and the garage — 2026-09-25 ([detail](iterations/008-yard-and-garage.md))
+
+Answers every issue in play-test 3.
+
+### Added
+- **The story** ([plans/story.md](plans/story.md), `data/run/story.json`): the Reclaimer, the stolen shutdown key, the Crucible. A briefing on every new run, the act and mission on the map, site text and endings in the world's voice.
+- **The map is a 3D yard**: landmarks from the arena kit, roads, zones named on the ground, and the Reclaimer as a wall of harvester rigs with red beacons and dust that slides forward as it takes each zone. A crew strip with each machine's HP and level; the combined HP bar is gone.
+- **One click travels.** Hover shows what a site is and what the move costs; direction and cost are also written under each reachable site.
+- **The garage** replaces refit: crew tabs, the machine whole in 3D (drag to turn), PARTS and STATS tabs, hovering a part turns the machine to it and lights it, the hold as a low strip with SORT (newest, rarity, slot) and SCRAP; drop a part on a crew tab to fit it there.
+- **Machine levels**, the scrap sink: 15 / 25 / 40 scrap for +2 HP, +2 HP and +1 damage, +3 HP.
+
+### Fixed
+- Charge works after moving, and hits for 3 + 1 per hex run (+ the machine's damage bonus).
+- The coil's arc reaches terrain: from the machine or prop it hits into an enemy, else a fuel drum, else a crate.
+- Scrap piles are collected along the whole path of a move, dash or charge.
+- Part text called every shot weapon a "lob".
+
+### Changed
+- `verify_combat` 108 → 116, `verify_run` 55 → 61, `verify_run_ui` 19 → 26. Run bot 76.7% → 88.7% (see the iteration's balance table).
+
 ## [007] Play-test 2 fixes — 2026-09-25 ([detail](iterations/007-playtest-2-fixes.md))
 
 Answers every issue in play-test 2, including PT1-8/9 (map and refit), which 006 had left unchanged.
