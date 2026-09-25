@@ -49,6 +49,16 @@ func _go() -> void:
 			current_scene.call("_refresh")
 			for i: int in 5:
 				await process_frame
+	if args.has("--dump-fog"):
+		var fog_image: Image = current_scene.get("_yard").get("_fog_image")
+		fog_image.save_png("shots/_fogmask.png")
+		print("fog mask %dx%d saved" % [fog_image.get_width(), fog_image.get_height()])
+	if args.has("--zoom"):
+		var yard: Node = current_scene.get("_yard")
+		yard.call("zoom_by", _arg(args, "--zoom", "0").to_float())
+		yard.call("settle_camera")
+		for i: int in 6:
+			await process_frame
 	if args.has("--refit"):
 		current_scene.call("_open_garage", 0)
 		for i: int in 10:

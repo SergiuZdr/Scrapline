@@ -21,6 +21,7 @@ func _initialize() -> void:
 	_test_wreck_and_rebuild()
 	_test_boss_held()
 	_test_levels()
+	_test_assembly()
 	_test_refit()
 	_test_determinism_and_save()
 	print("")
@@ -254,6 +255,34 @@ func _test_levels() -> void:
 	var combat: CombatSetup = RunSim.fight_setup(state, setup)
 	_check("a level-3 machine fights with +7 max HP and +1 damage (2 + 2 + 3; damage at level 2)",
 		combat.units[0].max_hp == full + 7 and RunSim.level_bonus(setup, member, "damage") == 1)
+
+
+## Play-test 4: the crew is built from a bench at the start of a run.
+func _test_assembly() -> void:
+	var setup: RunSetup = _setup(12)
+	var state: RunState = RunSim.start(setup)
+	var defaults: Array = []
+	for member: Dictionary in state.crew:
+		defaults.append((member["parts"] as Array).duplicate())
+	_check("the default crew is itself a legal build", RunSim.apply(RunSim.start(setup), setup, [RunSim.ASSEMBLE, defaults]))
+	var twin: Array = [["ch_brute", "co_slug", "ar_hammer", "ar_ripper", "mo_scavenger"],
+		["ch_brute", "co_arc", "ar_pulse", "ar_scatter", "mo_ablative"],
+		["ch_courier", "co_dynamo", "ar_scanner", "ar_hammer", "mo_governor"]]
+	_check("common parts are on the bench without limit", RunSim.apply(state, setup, [RunSim.ASSEMBLE, twin]))
+	_check("the frame names the machine; a second on the same frame is II",
+		String(state.crew[0]["name"]) == "Brute" and String(state.crew[1]["name"]) == "Brute II" and String(state.crew[2]["name"]) == "Courier")
+	_check("each machine starts at its new full HP", int(state.crew[2]["hp"]) == RunSim.max_hp(setup, state.crew[2]))
+	_check("only once", not RunSim.apply(state, setup, [RunSim.ASSEMBLE, twin]))
+	var fresh: RunState = RunSim.start(setup)
+	var two_saws: Array = [["ch_brute", "co_slug", "ar_saw", "ar_saw", "mo_scavenger"], defaults[1], defaults[2]]
+	_check("an uncommon from the defaults is on the bench once, not twice", not RunSim.apply(fresh, setup, [RunSim.ASSEMBLE, two_saws]))
+	var rare: Array = [["ch_brute", "co_slug", "ar_railgun", "ar_hammer", "mo_scavenger"], defaults[1], defaults[2]]
+	_check("rarer parts are not on the bench", not RunSim.apply(fresh, setup, [RunSim.ASSEMBLE, rare]))
+	var wrong_slot: Array = [["ch_brute", "ar_hammer", "ar_hammer", "ar_hammer", "mo_scavenger"], defaults[1], defaults[2]]
+	_check("a part must fit its socket", not RunSim.apply(fresh, setup, [RunSim.ASSEMBLE, wrong_slot]))
+	var moved: RunState = RunSim.start(setup)
+	RunSim.apply(moved, setup, [RunSim.TRAVEL, RunSim.destinations(moved)[0]])
+	_check("not after the first move", not RunSim.apply(moved, setup, [RunSim.ASSEMBLE, defaults]))
 
 
 func _test_refit() -> void:
