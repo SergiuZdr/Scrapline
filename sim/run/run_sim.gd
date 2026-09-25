@@ -146,10 +146,21 @@ static func preview_machine(setup: RunSetup, member: Dictionary) -> GridUnit:
 	return CombatSetup.unit_from(machine_spec(setup, member), setup.combat_rules, setup.parts)
 
 
-## What a machine's levels add: `what` is "hp" or "damage" (per level, from `run.json`).
+## What a machine's levels add up to: `what` is "hp" or "damage" (`run.json` `levels.bonus`,
+## one entry per level).
 static func level_bonus(setup: RunSetup, member: Dictionary, what: String) -> int:
-	var levels: Dictionary = setup.rules.get("levels", {})
-	return int(member.get("level", 0)) * int(levels.get(what, 0))
+	var steps: Array = (setup.rules.get("levels", {}) as Dictionary).get("bonus", [])
+	var total: int = 0
+	for n: int in mini(int(member.get("level", 0)), steps.size()):
+		total += int((steps[n] as Dictionary).get(what, 0))
+	return total
+
+
+## What machine `index`'s NEXT level adds, `{ "hp", "damage" }` (empty at the top).
+static func next_level_bonus(state: RunState, setup: RunSetup, index: int) -> Dictionary:
+	var steps: Array = (setup.rules.get("levels", {}) as Dictionary).get("bonus", [])
+	var level: int = int(state.crew[index].get("level", 0))
+	return steps[level] if level < steps.size() else {}
 
 
 ## Scrap for machine `index`'s next level, or -1 when it is at the top.
@@ -382,9 +393,10 @@ static func _level_up(state: RunState, setup: RunSetup, index: int) -> bool:
 	var cost: int = level_cost(state, setup, index)
 	if not bool(member["alive"]) or cost < 0 or state.scrap < cost:
 		return false
+	var gain: Dictionary = next_level_bonus(state, setup, index)
 	state.scrap -= cost
 	member["level"] = int(member.get("level", 0)) + 1
-	member["hp"] = int(member["hp"]) + int((setup.rules.get("levels", {}) as Dictionary).get("hp", 0))
+	member["hp"] = int(member["hp"]) + int(gain.get("hp", 0))
 	state.log.append("%s is overhauled to level %d." % [member["name"], int(member["level"])])
 	return true
 

@@ -46,10 +46,10 @@
 |---|---|
 | Title | continue run / new run / workshop / settings |
 | Workshop (meta) | pick crew and tier, codex, run history |
-| Region map | zones, the Reclaimer countdown, FORWARD/SIDEWAYS/BACK, preview then TRAVEL, crew (007) |
+| Region map | a 3D yard: landmarks, the Reclaimer wall, hover card, one click travels, crew strip, briefing (008) |
 | Combat | as above |
 | Salvage | part cards with a rarity banner and a verdict; always takeable (007) |
-| Refit | its own screen: drag or tap parts between sockets, the hold and SCRAP (007) |
+| Garage | replaces refit (008): the machine whole in 3D, PARTS / STATS tabs, hover lights a part, LEVEL UP, the hold as a sorted strip with SCRAP |
 | Site screens | workshop, trader, event text |
 
 ## Carried over from the old UI
