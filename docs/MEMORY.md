@@ -61,6 +61,14 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-25 | **Machine levels are the scrap sink** (not part upgrades): they need no per-part state, and the user had already chosen machine levels as progression | PT3-9. Part upgrades stay in 009 |
 | 2026-09-25 | **Charge works after moving**, scaling with distance run | PT3-6: charging instead of moving was weaker than a move and an attack |
 | 2026-09-25 | Piles are collected along the whole path, by both teams | PT3-8 |
+| 2026-09-25 | **Art comes from tested sources**: Poly Haven (CC0) textures and HDRIs adopted; Kenney/Quaternius only as re-materialed shapes; free AI art rejected; our Blender pipeline for anything bespoke (`plans/art-sourcing.md`) | Play-test 4 asked for the best sources AND for their work to be judged: each was tried in the game with `tools/art_probe.gd` |
+| 2026-09-25 | **The user batched 009–013** (fixes, the look, progression, onboarding, Act 1 content) with one play-test at the end | Play-test 4: "the game needs desperately the next 3 iterations" |
+| 2026-09-25 | Shots and grapples take the **clear one of two equal leanings** (both teams) | PT4-9: a fixed nudge always leaned the same way, into heaps and allies |
+| 2026-09-25 | Piercing overshoots 2 hexes at half damage; the coil arcs twice; enemies **carry scrap or not** (55%, seeded, shown) | PT4-10/11 |
+| 2026-09-25 | **The hive's pad stays put** and counts down, warning the turn before | PT4-12: re-marking beside a walking hive made the site wander |
+| 2026-09-25 | **9-column region under fog**, a following camera, the crew walking it; the Reclaimer shown as a **gauge and a ghost wall**, not text | PT4-5/6/7 |
+| 2026-09-25 | **Assembly at run start** from a bench (commons free, default uncommons once): one `ASSEMBLE` action, before the first move | PT4-14 |
+| 2026-09-25 | **Levels show on the model** (armour, chest plate, stacks, a bigger frame) and levelling up is an event | PT4-4 |
 
 ## Lessons carried over from the old codebase
 
@@ -121,6 +129,14 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-25 | Leftover vocabulary lies quietly: `PartText` kept 002's "line" shape and printed every shot weapon as a "lob" for three iterations. Text generated from data needs a test or a screenshot that someone reads |
 | 2026-09-25 | A CPUParticles3D pre-simulated before its parent is placed leaves its puffs where it was built. Set `local_coords` (and a soft texture, or every puff is a hard square) |
 | 2026-09-25 | Test the 3D map through the real input path: `push_input` a mouse event at `YardView.screen_pos`. A test that called `_choose` directly would pass with picking broken |
+
+| 2026-09-25 | **Judge an art source in the game, not by its reputation.** The same vignette rendered twice (`art_probe.gd`) settled in minutes what reviews could not: Poly Haven textures lift everything, its saturated props break the palette, free AI art ignores the prompt |
+| 2026-09-25 | Respect `skillOverrides`: a skill switched off for Claude is not read around by opening its files. Say which ones are off and let the user decide |
+| 2026-09-25 | `BILLBOARD_PARTICLES` discards the particle's scale unless `billboard_keep_scale` is on: every "tiny" mote was a 1 m square |
+| 2026-09-25 | A fog tinted like the ground it covers is invisible, however correct the shader. Test an effect on a contrasting floor to know it works, then give it contrast in the game |
+| 2026-09-25 | A counter that a first hit spends (`pierce_left`) must not also decide something about later hits. The overshoot test caught the far unit taking full damage |
+| 2026-09-25 | Headless frames outrun real time: wait for tweened things with timers, not frame counts |
+| 2026-09-25 | A class a `--script` tool names must not reference an autoload; pass what it needs in |
 
 ## Open questions
 
