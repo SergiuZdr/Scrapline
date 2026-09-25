@@ -55,6 +55,9 @@ static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_c
 		root.add_child(_fallback_body(team_colour))
 		return root
 
+	# Each part is named for its slot ("part_chassis", "part_arm_l", ...) so a screen can
+	# find one part of an assembled machine -- the garage lights up the one under the cursor.
+	chassis.name = "part_chassis"
 	root.add_child(chassis)
 	_tint(chassis, team_colour, PartMaterials.livery_of(chassis_id))
 
@@ -76,6 +79,7 @@ static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_c
 		var piece: Node3D = _instance(part_id)
 		if piece == null:
 			continue
+		piece.name = "part_" + slot
 		socket.add_child(piece)
 		if slot == "arm_l" or slot == "arm_r":
 			# Splayed outward and canted down a few degrees.

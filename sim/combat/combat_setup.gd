@@ -225,6 +225,15 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 	return u
 
 
+## One player machine built exactly as a fight would build it, for screens that show its
+## numbers (the garage). Showing the sim's own unit means the garage cannot disagree with
+## the fight.
+static func unit_from(spec: Dictionary, rules: Dictionary, parts: Dictionary) -> GridUnit:
+	var errors: PackedStringArray = []
+	return _build_unit(spec, GridUnit.TEAM_PLAYER, 0, parts, rules.get("roles", {}),
+		rules.get("damage_types", []), rules.get("armor_types", []), errors, rules.get("abilities", {}))
+
+
 ## A weapon is its arm's `grid` block with every key present, so the sim never has to
 ## guess a default.
 static func weapon_from(arm: Dictionary) -> Dictionary:
