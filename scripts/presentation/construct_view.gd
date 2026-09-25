@@ -28,6 +28,11 @@ const SOCKETS: Dictionary = {
 
 ## Cached so a twelve-construct battle loads each mesh once rather than twelve times.
 static var _scene_cache: Dictionary = {}
+## Parts asked for in the background (`warm`) and not yet collected: `id -> path`.
+static var _warming: Dictionary = {}
+
+## How much bigger a machine stands per level: mass is the first thing that reads.
+const LEVEL_SCALE: float = 0.035
 
 
 ## Builds the model for one unit and returns its root.
@@ -46,7 +51,7 @@ static func build(unit: SimUnit, content: ContentDB, team_colour: Color) -> Node
 
 ## The same, from a bare loadout: chassis, core, arm_l, arm_r, module. The grid game's
 ## units are not `SimUnit`s, and the view has no business caring which sim built them.
-static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_colour: Color) -> Node3D:
+static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_colour: Color, level: int = 0) -> Node3D:
 	var root := Node3D.new()
 
 	var chassis_id: String = _part_id(part_ids, 0)
@@ -101,7 +106,106 @@ static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_c
 		# instead of the whole reactor glowing and washing the signal out.
 		_tint(piece, team_colour, PartMaterials.livery_of(part_id))
 
+	if level > 0:
+		_level_kit(chassis, sockets, level, PartMaterials.livery_of(chassis_id), team_colour)
 	return root
+
+
+## Starts loading part models on background threads, so the first time a screen builds a
+## machine it does not stall (play-test 4: the garage showed a black square for a second
+## while its parts loaded). `_instance` collects them.
+static func warm(part_ids: Array) -> void:
+	for id: Variant in part_ids:
+		var part_id: String = String(id)
+		if part_id.is_empty() or _scene_cache.has(part_id) or _warming.has(part_id):
+			continue
+		var path: String = "%s/%s.glb" % [PARTS_DIR, part_id]
+		if ResourceLoader.exists(path) and ResourceLoader.load_threaded_request(path) == OK:
+			_warming[part_id] = path
+
+
+## A machine's levels, bolted on where you can see them (play-test 4: levelling up did not
+## sell the machine getting stronger). Each level adds to the last:
+##   1: armour over both shoulders -- the biggest objects in the outline, so the first read;
+##   2: a framed, bolted plate around the chest core;
+##   3: exhaust stacks rising off the back, above the shoulder line.
+## And the frame grows a little every level. Pieces use the machine's own zones and livery,
+## are built on the CHASSIS from each socket's transform (valid before the model is in the
+## tree), and carry `level_kit` metadata so a screen can make the newest ones arrive.
+static func _level_kit(chassis: Node3D, sockets: Dictionary, level: int, livery: Color, team_colour: Color) -> void:
+	chassis.scale *= 1.0 + LEVEL_SCALE * float(level)
+	var paint: StandardMaterial3D = PartMaterials.for_zone("paint", team_colour, livery)
+	var metal: StandardMaterial3D = PartMaterials.for_zone("metal", team_colour)
+	var dark: StandardMaterial3D = PartMaterials.for_zone("dark", team_colour)
+	var arm_l: Vector3 = _socket_origin(chassis, sockets.get("socket_arm_l"), Vector3(-0.16, 0.6, 0.0))
+	var arm_r: Vector3 = _socket_origin(chassis, sockets.get("socket_arm_r"), Vector3(0.16, 0.6, 0.0))
+	var core: Vector3 = _socket_origin(chassis, sockets.get("socket_core"), Vector3(0.0, 0.55, 0.1))
+	var back: Vector3 = _socket_origin(chassis, sockets.get("socket_module"), Vector3(0.0, 0.53, -0.1))
+	if level >= 1:
+		for side: float in [-1.0, 1.0]:
+			var at: Vector3 = arm_r if side > 0.0 else arm_l
+			# Seated ON the shoulder, only slightly canted: perched high and tilted, a plate
+			# reads as a wing (CLAUDE.md, pauldrons).
+			var plate := _kit_box(Vector3(0.11, 0.03, 0.13), paint, 1)
+			plate.position = at + Vector3(side * 0.022, 0.058, 0.0)
+			plate.rotation.z = -side * 0.22
+			chassis.add_child(plate)
+			for z: float in [-0.04, 0.04]:
+				var bolt := _kit_box(Vector3(0.016, 0.016, 0.016), dark, 1)
+				bolt.position = at + Vector3(side * 0.035, 0.078, z)
+				chassis.add_child(bolt)
+	if level >= 2:
+		for bar: Array in [[Vector3(0.17, 0.022, 0.02), Vector3(0, 0.08, 0)], [Vector3(0.17, 0.022, 0.02), Vector3(0, -0.08, 0)],
+				[Vector3(0.022, 0.17, 0.02), Vector3(0.08, 0, 0)], [Vector3(0.022, 0.17, 0.02), Vector3(-0.08, 0, 0)]]:
+			var frame := _kit_box(bar[0], metal, 2)
+			frame.position = core + (bar[1] as Vector3) + Vector3(0, 0, 0.03)
+			chassis.add_child(frame)
+		for side: float in [-1.0, 1.0]:
+			var cheek := _kit_box(Vector3(0.05, 0.15, 0.025), paint, 2)
+			cheek.position = core + Vector3(side * 0.115, 0.0, 0.02)
+			cheek.rotation.y = side * 0.5
+			chassis.add_child(cheek)
+	if level >= 3:
+		for side: float in [-1.0, 1.0]:
+			var stack := MeshInstance3D.new()
+			var pipe := CylinderMesh.new()
+			pipe.top_radius = 0.022
+			pipe.bottom_radius = 0.028
+			pipe.height = 0.26
+			pipe.radial_segments = 10
+			stack.mesh = pipe
+			stack.material_override = dark
+			stack.position = back + Vector3(side * 0.06, 0.16, -0.03)
+			stack.rotation.x = -0.18
+			stack.set_meta("level_kit", 3)
+			chassis.add_child(stack)
+			var cap := _kit_box(Vector3(0.06, 0.02, 0.06), metal, 3)
+			cap.position = stack.position + Vector3(0, 0.13, -0.024)
+			chassis.add_child(cap)
+
+
+static func _kit_box(size: Vector3, material: Material, level: int) -> MeshInstance3D:
+	var piece := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = size
+	piece.mesh = box
+	piece.material_override = material
+	piece.set_meta("level_kit", level)
+	return piece
+
+
+## A socket's position in its chassis's space, from the transforms between them, so it can
+## be read before the model is in the scene tree.
+static func _socket_origin(chassis: Node3D, socket: Variant, fallback: Vector3) -> Vector3:
+	if not (socket is Node3D):
+		return fallback
+	var xf := Transform3D.IDENTITY
+	var node: Node = socket
+	while node != null and node != chassis:
+		if node is Node3D:
+			xf = (node as Node3D).transform * xf
+		node = node.get_parent()
+	return xf.origin
 
 
 ## Height of the assembled model, so the health tag and floating text sit above it
@@ -128,7 +232,12 @@ static func _instance(part_id: String) -> Node3D:
 		return null
 	if not _scene_cache.has(part_id):
 		var path: String = "%s/%s.glb" % [PARTS_DIR, part_id]
-		_scene_cache[part_id] = load(path) if ResourceLoader.exists(path) else null
+		if _warming.has(part_id):
+			# Already loading in the background: collect it (waits only if not yet done).
+			_scene_cache[part_id] = ResourceLoader.load_threaded_get(path)
+			_warming.erase(part_id)
+		else:
+			_scene_cache[part_id] = load(path) if ResourceLoader.exists(path) else null
 	var packed: PackedScene = _scene_cache[part_id]
 	if packed == null:
 		return null

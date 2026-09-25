@@ -25,6 +25,9 @@ const COL_ATTACK := Color(0.90, 0.70, 0.24, 0.55)
 const COL_TARGET := Color(0.95, 0.78, 0.30, 0.85)
 const COL_ATTACK_FAINT := Color(0.90, 0.70, 0.24, 0.22)
 const COL_SPAWN := Color(0.62, 0.36, 0.86, 0.55)
+## A hive pad, and the same pad the turn before it builds (play-test 4: warn a turn ahead).
+const COL_PAD := Color("a070e0")
+const COL_PAD_DANGER := Color("ff3b30")
 const COL_THREAT := Color(0.86, 0.30, 0.20, 0.50)
 const COL_CACHE := Color("e5b33d")
 ## Damage-type colours for impacts, indexed like the rules' `damage_types`.
@@ -329,14 +332,82 @@ func _build_board() -> void:
 			_hint_quads[Vector2i(x, y)] = _quad(x, y, top + 0.012, HEX * 0.80)
 			_threat_quads[Vector2i(x, y)] = _quad(x, y, top + 0.008, HEX * 0.94)
 
-	# A dark apron around the board, so its edge reads as an edge.
-	var apron := MeshInstance3D.new()
+	_build_edges()
+	_build_surroundings()
+
+
+## The board ends in a line you can see (play-test 4: "the battlefield needs edges"): a
+## steel curb along every hex side that faces off the board, traced from the real hex
+## geometry so it follows the board's ragged odd-r outline exactly.
+func _build_edges() -> void:
+	var curb: StandardMaterial3D = Surfaces.pbr("rusty_painted_metal", Color(0.46, 0.43, 0.40), 1.4, 0.55, 0.8)
+	var box := BoxMesh.new()
+	box.size = Vector3(HEX * 1.1, 0.24, 0.13)
+	for y: int in _setup.height:
+		for x: int in _setup.width:
+			var here := Vector2i(x, y)
+			for dir: int in 6:
+				var n: Vector2i = Hex.neighbor(here, dir)
+				if n.x >= 0 and n.y >= 0 and n.x < _setup.width and n.y < _setup.height:
+					continue
+				var a: Vector3 = _to_world(x, y)
+				var out: Vector3 = (_to_world(n.x, n.y) - a).normalized()
+				var segment := MeshInstance3D.new()
+				segment.mesh = box
+				segment.material_override = curb
+				# Just outside the slab's edge; the box's long side runs along the hex side.
+				segment.position = a + out * (SQRT3 * HEX * 0.5 + 0.05) + Vector3(0, 0.0, 0)
+				segment.rotation.y = atan2(out.x, out.z)
+				_board.add_child(segment)
+
+
+## Beyond the curb: dark asphalt and a ring of yard -- containers, wrecks, tyres and
+## floodlights -- far enough out that no camera angle loses a tile behind them, placed from
+## a hash of the fight so a map dresses the same way every time.
+func _build_surroundings() -> void:
+	var ground := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(_origin.x * 2.0 + 30.0, _origin.y * 2.0 + 30.0)
-	apron.mesh = plane
-	apron.position = Vector3(0, -0.31, 0)
-	apron.material_override = _material(Color("0f0e0c"), 1.0)
-	_board.add_child(apron)
+	plane.size = Vector2(_origin.x * 2.0 + 60.0, _origin.y * 2.0 + 60.0)
+	ground.mesh = plane
+	ground.position = Vector3(0, -0.31, 0)
+	ground.material_override = Surfaces.pbr("asphalt_02", Color(0.30, 0.29, 0.28), 0.3)
+	_board.add_child(ground)
+	var half := Vector2(_origin.x + HEX * 2.0, _origin.y + HEX * 2.0)
+	var seed: int = IntentAI.mix(_setup.rng_seed, _setup.width, _setup.height, 77)
+	var tall: PackedStringArray = ["container_0", "container_1", "car_stack_2"]
+	var low: PackedStringArray = ["tyre_stack_0", "tyre_stack_1", "tyre_stack_2", "car_stack_0", "car_stack_1", "barrier_0"]
+	var count: int = 26
+	for i: int in count:
+		var h: int = IntentAI.mix(seed, i, 3, 11)
+		var angle: float = TAU * (float(i) + float(h % 100) / 200.0) / float(count)
+		var far: bool = i % 3 != 0
+		var reach: float = (5.5 if far else 2.8) + float((h >> 8) % 100) / 100.0 * 2.5
+		var at := Vector3(cos(angle) * (half.x + reach), -0.31, sin(angle) * (half.y + reach))
+		var names: PackedStringArray = tall if far else low
+		var prop: Node3D = Surfaces.kit(names[(h >> 4) % names.size()], 0.35)
+		if prop == null:
+			continue
+		prop.position = at
+		prop.rotation.y = -angle + float((h >> 12) % 60 - 30) * 0.02
+		prop.scale = Vector3.ONE * 0.62
+		_board.add_child(prop)
+	# Floodlights on the diagonals: the diegetic source of the warm key light.
+	for k: int in 4:
+		var angle: float = TAU * (float(k) + 0.5) / 4.0
+		var at := Vector3(cos(angle) * (half.x + 3.4), -0.31, sin(angle) * (half.y + 3.4))
+		var lamp: Node3D = Surfaces.kit("floodlight", 0.2)
+		if lamp == null:
+			continue
+		lamp.position = at
+		lamp.rotation.y = -angle + PI * 0.5
+		lamp.scale = Vector3.ONE * 0.7
+		_board.add_child(lamp)
+		var light := OmniLight3D.new()
+		light.light_color = Color("ffc27a")
+		light.light_energy = 1.4
+		light.omni_range = 7.0
+		light.position = at + Vector3(0, 3.0, 0)
+		_board.add_child(light)
 
 
 ## A pit: a hex hole with a faint rim, so "you can be shoved in here" reads at a glance.
@@ -499,7 +570,7 @@ func _build_view(u: GridUnit) -> Dictionary:
 	_units_root.add_child(root)
 
 	var colour: Color = COL_PLAYER if u.team == GridUnit.TEAM_PLAYER else COL_ENEMY
-	var model: Node3D = _cache_model() if u.objective else ConstructView.build_parts(u.part_ids, _db, colour)
+	var model: Node3D = _cache_model() if u.objective else ConstructView.build_parts(u.part_ids, _db, colour, u.level)
 	model.scale = Vector3.ONE * (1.0 if u.objective else MODEL_SCALE)
 	root.add_child(model)
 	var ring: MeshInstance3D = _team_ring(COL_CACHE if u.objective else colour)
@@ -518,6 +589,19 @@ func _build_view(u: GridUnit) -> Dictionary:
 	tag.outline_modulate = Color(0, 0, 0, 0.9)
 	tag.modulate = (COL_CACHE if u.objective else colour).lightened(0.45)
 	root.add_child(tag)
+
+	# Play-test 4: not every enemy drops scrap. The ones that will say so, over their tag,
+	# in the colour of a gain -- which makes "who do I finish first" a real choice.
+	if u.team == GridUnit.TEAM_ENEMY and u.carries_scrap and not u.objective:
+		var loot := Sprite3D.new()
+		loot.texture = load("res://art/icons/scrap.svg")
+		loot.pixel_size = 0.0042
+		loot.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		loot.no_depth_test = true
+		loot.shaded = false
+		loot.modulate = UIKit.GREEN.lightened(0.2)
+		loot.position = Vector3(0, 2.2, 0)
+		root.add_child(loot)
 
 	var view: Dictionary = {"root": root, "model": model, "rig": rig, "ring": ring, "tag": tag, "dead": false}
 	_set_tag(view, u)
@@ -827,7 +911,7 @@ func _animate(e: Array) -> void:
 				pull.tween_property(root, "position", _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0), 0.18)
 				await pull.finished
 		GridEv.SPAWN_MARKED:
-			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.0, 0), "DRONE NEXT ROUND", Color("b58cf0"))
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.0, 0), "HIVE PAD SET", Color("b58cf0"))
 		GridEv.SPAWNED:
 			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.8, 0), "BUILT BY THE HIVE", Color("c9a2ff"))
 			var drone: GridUnit = _state.unit(target)
@@ -840,7 +924,8 @@ func _animate(e: Array) -> void:
 				grow.tween_property(root, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_BACK)
 				await _wait(0.2)
 		GridEv.SPAWN_BLOCKED:
-			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.0, 0), "BUILD BLOCKED", UIKit.GREEN)
+			var shut: bool = int(e[GridEv.F_V1]) == 1
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.0, 0), "PAD SHUT DOWN" if shut else "BUILD BLOCKED", UIKit.GREEN)
 		GridEv.SHIELDED:
 			_refresh_tag(target)
 		GridEv.FIGHT_END:
@@ -1104,7 +1189,7 @@ func _refresh() -> void:
 		_intent_marker(int(ref), threat, full)
 
 	for ref: Variant in _state.spawn_marks:
-		_mark(_threat_quads, _state.spawn_marks[ref], COL_SPAWN)
+		_mark(_threat_quads, _state.spawn_marks[ref], COL_THREAT if CombatSim.drone_in(_state, int(ref)) <= 1 else COL_SPAWN)
 		_spawn_marker(int(ref), _state.spawn_marks[ref])
 
 	var sel: GridUnit = _state.unit(_selected) if _selected >= 0 else null
@@ -1393,13 +1478,87 @@ func _marker_label(text: String, at: Vector3, colour: Color, size: int) -> void:
 	_marks_root.add_child(label)
 
 
-## A hive's build site stays on the board all turn (play-test 2: drones "from thin air"):
-## a purple hex, a label, and a beam back to the hive that will build there.
+## A hive's fabricator pad (play-test 4). It stays where the hive set it down, so it is a
+## PLACE on the board, not a label: a dark plate with a lit ring, the rounds until its next
+## drone in big numerals, and a beam back to the hive that runs it. The turn before it
+## builds, the ring turns red and pulses, a ghost of the drone flickers on it, and the label
+## says so -- one full turn of warning to block it or kill the hive.
 func _spawn_marker(hive_ref: int, cell: Vector2i) -> void:
 	var hive: GridUnit = _state.unit(hive_ref)
-	var at: Vector3 = _to_world(cell.x, cell.y)
-	_marker_label("DRONE NEXT ROUND\nstand here to block", at + Vector3(0, 0.3, 0.25), Color("c9a2ff"), 30)
-	if hive == null:
+	var at: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
+	var due: int = CombatSim.drone_in(_state, hive_ref)
+	var urgent: bool = due <= 1
+	var colour: Color = COL_PAD_DANGER if urgent else COL_PAD
+
+	var plate := MeshInstance3D.new()
+	plate.mesh = _hex_mesh(HEX * 0.74, 0.05)
+	plate.position = at + Vector3(0, 0.035, 0)
+	var plate_material := StandardMaterial3D.new()
+	plate_material.albedo_color = Color("1b1720")
+	plate_material.metallic = 0.6
+	plate_material.roughness = 0.5
+	plate_material.emission_enabled = true
+	plate_material.emission = colour
+	plate_material.emission_energy_multiplier = 0.25
+	plate.material_override = plate_material
+	plate.set_meta("intent", true)
+	_marks_root.add_child(plate)
+
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = HEX * 0.62
+	torus.outer_radius = HEX * 0.74
+	torus.ring_segments = 6
+	torus.rings = 6
+	ring.mesh = torus
+	ring.scale = Vector3(1, 0.3, 1)
+	ring.position = at + Vector3(0, 0.07, 0)
+	var ring_material := StandardMaterial3D.new()
+	ring_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring_material.albedo_color = colour
+	ring.material_override = ring_material
+	ring.set_meta("intent", true)
+	_marks_root.add_child(ring)
+	if urgent:
+		# Pulses for as long as the warning stands; freed with the marker on the next refresh.
+		var pulse := ring.create_tween().set_loops()
+		pulse.tween_property(ring, "scale", Vector3(1.12, 0.3, 1.12), 0.45).set_trans(Tween.TRANS_SINE)
+		pulse.tween_property(ring, "scale", Vector3(1, 0.3, 1), 0.45).set_trans(Tween.TRANS_SINE)
+		var ghost := MeshInstance3D.new()
+		var body := BoxMesh.new()
+		body.size = Vector3(HEX * 0.55, HEX * 0.9, HEX * 0.55)
+		ghost.mesh = body
+		ghost.position = at + Vector3(0, HEX * 0.5, 0)
+		var ghost_material := StandardMaterial3D.new()
+		ghost_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		ghost_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		ghost_material.albedo_color = Color(colour, 0.22)
+		ghost.material_override = ghost_material
+		ghost.set_meta("intent", true)
+		_marks_root.add_child(ghost)
+		var flicker := ghost.create_tween().set_loops()
+		flicker.tween_property(ghost_material, "albedo_color:a", 0.06, 0.3)
+		flicker.tween_property(ghost_material, "albedo_color:a", 0.26, 0.3)
+
+	if due >= 0:
+		var numeral := Label3D.new()
+		numeral.text = str(maxi(1, due))
+		numeral.font = UIKit.font_display()
+		numeral.font_size = 150
+		numeral.pixel_size = 0.005
+		numeral.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		numeral.no_depth_test = true
+		numeral.outline_size = 18
+		numeral.outline_modulate = Color(0, 0, 0, 0.9)
+		numeral.modulate = colour.lightened(0.3)
+		numeral.position = at + Vector3(0, 0.75, 0)
+		numeral.set_meta("intent", true)
+		_marks_root.add_child(numeral)
+	# Under the pad, not over it: the hive that set it down is usually right next door, and
+	# its own tag sits at head height.
+	_marker_label("DRONE NEXT TURN · stand here to block" if urgent else "HIVE PAD · drone in %d" % due,
+		at + Vector3(0, 0.08, HEX * 0.72), colour.lightened(0.35), 24)
+	if hive == null or not hive.alive:
 		return
 	var from: Vector3 = _to_world(hive.x, hive.y) + Vector3(0, 0.25, 0)
 	var to: Vector3 = at + Vector3(0, 0.25, 0)
@@ -1409,7 +1568,7 @@ func _spawn_marker(hive_ref: int, cell: Vector2i) -> void:
 	beam.mesh = box
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.albedo_color = Color(0.7, 0.45, 1.0, 0.8)
+	material.albedo_color = Color(colour, 0.7)
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	beam.material_override = material
 	beam.set_meta("intent", true)

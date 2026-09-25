@@ -224,6 +224,7 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 		u.weapons.append(weapon_from(arm))
 
 	u.kind = String(spec.get("kind", ""))
+	u.level = int(spec.get("level", 0))
 	# Abilities: the chassis's, then the module's. Only the player's machines use them --
 	# an enemy's threat is its intent, and hidden enemy abilities would break that promise.
 	if team == GridUnit.TEAM_PLAYER:

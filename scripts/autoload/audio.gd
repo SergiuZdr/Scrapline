@@ -68,6 +68,43 @@ func _build_bank() -> void:
 	_bank["ui_confirm"] = _sweep(0.09, 620.0, 980.0, 0.35)
 	_bank["ui_deny"] = _sweep(0.14, 420.0, 240.0, 0.35)
 	_bank["cycle"] = _sweep(0.18, 340.0, 520.0, 0.3)
+	# A machine levelling up (play-test 4): a wrench ratchets three times, then a major
+	# chord climbs an octave. The one sound in the garage that should feel like a reward.
+	_bank["level_up"] = _level_up()
+
+
+func _level_up() -> AudioStreamWAV:
+	var seconds: float = 0.95
+	var count: int = int(SAMPLE_RATE * seconds)
+	var mix := PackedFloat32Array()
+	mix.resize(count)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	# Ratchet: three short, bright clicks.
+	for k: int in 3:
+		var start: int = int(SAMPLE_RATE * (0.02 + 0.07 * float(k)))
+		var length: int = int(SAMPLE_RATE * 0.035)
+		var previous: float = 0.0
+		for i: int in length:
+			var t: float = float(i) / float(length)
+			previous = previous + 0.55 * (rng.randf_range(-1.0, 1.0) - previous)
+			mix[start + i] += previous * pow(1.0 - t, 3.0) * 0.55
+	# The chord: root, third, fifth, each sweeping up an octave with a soft attack.
+	var chord_start: int = int(SAMPLE_RATE * 0.24)
+	var chord_len: int = count - chord_start
+	for ratio: float in [1.0, 1.26, 1.5]:
+		var phase: float = 0.0
+		for i: int in chord_len:
+			var t: float = float(i) / float(chord_len)
+			var hz: float = 300.0 * ratio * lerpf(1.0, 2.0, 1.0 - pow(1.0 - minf(t * 1.8, 1.0), 2.0))
+			phase += TAU * hz / float(SAMPLE_RATE)
+			var envelope: float = minf(t / 0.06, 1.0) * pow(1.0 - t, 1.4)
+			mix[chord_start + i] += (sin(phase) * 0.8 + sin(phase * 2.0) * 0.2) * envelope * 0.22
+	var data := PackedByteArray()
+	data.resize(count * 2)
+	for i: int in count:
+		_write_sample(data, i, mix[i])
+	return _wav(data)
 
 
 ## Noise shaped by an exponential decay and a crude one-pole low-pass. `tone` mixes in

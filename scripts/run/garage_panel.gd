@@ -49,6 +49,15 @@ var _focus: int = -1
 var _glow: StandardMaterial3D
 var _time: float = 0.0
 var _turning: bool = false
+## The stage's container, faded in once the machine is drawn: a SubViewport shows black
+## until its first frame (play-test 4).
+var _view: SubViewportContainer
+## What the model on stage was built from; it is rebuilt only when this changes, not on
+## every refresh of the panels around it.
+var _model_key: String = ""
+## True while a level-up plays, so a second press cannot start another over it.
+var _celebrating: bool = false
+var _stage_root: Control
 
 
 func _ready() -> void:
@@ -68,9 +77,12 @@ func _ready() -> void:
 
 	var stage := PanelContainer.new()
 	stage.position = Vector2(40, 116)
-	stage.add_theme_stylebox_override("panel", UIKit.inset(UIKit.SURFACE_SUNK, UIKit.RADIUS_CARD, 0, 0))
+	stage.add_theme_stylebox_override("panel", UIKit.inset(Color("15120f"), UIKit.RADIUS_CARD, 0, 0))
 	add_child(stage)
+	_stage_root = stage
 	var view := SubViewportContainer.new()
+	_view = view
+	view.modulate.a = 0.0
 	view.custom_minimum_size = Vector2(VIEW_SIZE)
 	view.stretch = true
 	view.gui_input.connect(_on_view_input)
@@ -129,54 +141,143 @@ func _process(delta: float) -> void:
 # --- The stage: the machine in 3D --------------------------------------------
 
 func _build_stage(viewport: SubViewport) -> void:
+	# A working bay, not a void (play-test 4: "the background of the robot looks empty"):
+	# plated floor, a corrugated back wall, the service gantry and stacked scrap in the
+	# shadows, two work lamps overhead and dust hanging in their light. The night HDRI
+	# lights and reflects (art-sourcing.md, mode c); the camera never sees it.
 	var env := WorldEnvironment.new()
 	var environment := Environment.new()
-	environment.background_mode = Environment.BG_SKY
+	environment.background_mode = Environment.BG_COLOR
+	environment.background_color = Color("0c0b0d")
 	var sky := Sky.new()
-	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color("10131b")
-	sky_material.sky_horizon_color = Color("3b3330")
-	sky_material.ground_bottom_color = Color("0e0c0a")
-	sky_material.ground_horizon_color = Color("382c22")
-	sky_material.energy_multiplier = 0.7
-	sky.sky_material = sky_material
+	var panorama := PanoramaSkyMaterial.new()
+	panorama.panorama = load("res://art/thirdparty/polyhaven/hdris/dresden_station_night/dresden_station_night_1k.hdr")
+	panorama.energy_multiplier = 0.6
+	sky.sky_material = panorama
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	environment.ambient_light_sky_contribution = 0.35
-	environment.ambient_light_color = Color("2f3a52")
-	environment.ambient_light_energy = 0.8
+	environment.ambient_light_sky_contribution = 0.55
+	environment.ambient_light_energy = 0.7
+	environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.tonemap_exposure = 1.1
+	environment.fog_enabled = true
+	environment.fog_light_color = Color("1e1a1c")
+	environment.fog_density = 0.02
 	environment.glow_enabled = true
-	environment.glow_intensity = 0.45
-	environment.glow_hdr_threshold = 0.9
+	environment.glow_intensity = 0.4
+	environment.glow_hdr_threshold = 1.0
 	env.environment = environment
 	viewport.add_child(env)
+
 	var key := DirectionalLight3D.new()
-	key.rotation_degrees = Vector3(-38, 35, 0)
-	key.light_energy = 1.2
+	key.rotation_degrees = Vector3(-42, 30, 0)
+	key.light_energy = 0.9
 	key.light_color = Color("ffd3a4")
 	key.shadow_enabled = true
 	viewport.add_child(key)
 	var fill := DirectionalLight3D.new()
 	fill.rotation_degrees = Vector3(-20, -140, 0)
-	fill.light_energy = 0.9
+	fill.light_energy = 0.8
 	fill.light_color = Color("8aa3de")
 	viewport.add_child(fill)
+
+	var floor_plane := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(14, 10)
+	floor_plane.mesh = plane
+	floor_plane.material_override = Surfaces.pbr("metal_plate_02", Color(0.36, 0.35, 0.34), 1.2, 0.55, 0.9)
+	viewport.add_child(floor_plane)
+	var wall := MeshInstance3D.new()
+	var slab := BoxMesh.new()
+	slab.size = Vector3(14, 5, 0.2)
+	wall.mesh = slab
+	wall.position = Vector3(0, 2.4, -2.6)
+	wall.material_override = Surfaces.pbr("corrugated_iron_02", Color(0.42, 0.38, 0.34), 0.9, 0.4)
+	viewport.add_child(wall)
+
+	# The lift the machine stands on: a steel hex with a lamp strip round its edge.
 	_floor = MeshInstance3D.new()
-	var floor_mesh: MeshInstance3D = _floor
-	var disc := CylinderMesh.new()
-	disc.top_radius = 1.4
-	disc.bottom_radius = 1.5
-	disc.height = 0.08
-	floor_mesh.mesh = disc
-	floor_mesh.position.y = -0.04
-	var floor_material := StandardMaterial3D.new()
-	floor_material.albedo_color = Color("2e2b28")
-	floor_material.roughness = 0.9
-	floor_mesh.material_override = floor_material
-	viewport.add_child(floor_mesh)
+	var lift := CylinderMesh.new()
+	lift.top_radius = 0.95
+	lift.bottom_radius = 1.0
+	lift.height = 0.08
+	lift.radial_segments = 6
+	_floor.mesh = lift
+	_floor.position.y = 0.04
+	_floor.material_override = Surfaces.pbr("metal_plate_02", Color(0.5, 0.49, 0.47), 1.6, 0.6)
+	viewport.add_child(_floor)
+	var strip := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.95
+	torus.outer_radius = 1.0
+	torus.ring_segments = 6
+	torus.rings = 6
+	strip.mesh = torus
+	strip.scale = Vector3(1, 0.25, 1)
+	strip.position.y = 0.08
+	var lamp_glow := StandardMaterial3D.new()
+	lamp_glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	lamp_glow.albedo_color = Color("ffc27a")
+	strip.material_override = lamp_glow
+	_floor.add_child(strip)
+
+	for dressing: Array in [["service_gantry", Vector3(-2.4, 0, -1.9), 0.0, 0.62], ["container_0", Vector3(2.9, 0, -1.6), 70.0, 0.55],
+			["tyre_stack_1", Vector3(-2.2, 0, -0.4), 0.0, 0.6], ["car_stack_1", Vector3(3.2, 0, 0.3), -30.0, 0.5]]:
+		var prop: Node3D = Surfaces.kit(String(dressing[0]), 0.3)
+		if prop != null:
+			prop.position = dressing[1]
+			prop.rotation_degrees.y = float(dressing[2])
+			prop.scale = Vector3.ONE * float(dressing[3])
+			viewport.add_child(prop)
+
+	for x: float in [-0.9, 0.9]:
+		var lamp := OmniLight3D.new()
+		lamp.light_color = Color("ffc27a")
+		lamp.light_energy = 1.3
+		lamp.omni_range = 3.5
+		lamp.position = Vector3(x, 2.4, 0.6)
+		viewport.add_child(lamp)
+		var shade := MeshInstance3D.new()
+		var cone := CylinderMesh.new()
+		cone.top_radius = 0.05
+		cone.bottom_radius = 0.16
+		cone.height = 0.12
+		shade.mesh = cone
+		shade.position = lamp.position + Vector3(0, 0.08, 0)
+		shade.material_override = lamp_glow
+		viewport.add_child(shade)
+
+	var dust := CPUParticles3D.new()
+	dust.amount = 60
+	dust.lifetime = 8.0
+	dust.preprocess = 8.0
+	dust.local_coords = true
+	dust.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	dust.emission_box_extents = Vector3(1.6, 1.2, 1.0)
+	dust.gravity = Vector3(0, -0.01, 0)
+	dust.initial_velocity_min = 0.01
+	dust.initial_velocity_max = 0.05
+	dust.direction = Vector3(1, 0.2, 0)
+	dust.spread = 180.0
+	dust.scale_amount_min = 0.008
+	dust.scale_amount_max = 0.018
+	var mote := QuadMesh.new()
+	var mote_material := StandardMaterial3D.new()
+	mote_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mote_material.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	# Without this a billboard throws the particle's scale away and every mote is a 1 m
+	# square -- which washed the whole bay out in blocky pale rectangles.
+	mote_material.billboard_keep_scale = true
+	mote_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mote_material.albedo_color = Color(1.0, 0.85, 0.6, 0.35)
+	mote.material = mote_material
+	dust.mesh = mote
+	dust.position = Vector3(0, 1.3, 0.2)
+	viewport.add_child(dust)
+
 	_pivot = Node3D.new()
+	_pivot.position.y = 0.08
 	viewport.add_child(_pivot)
 	_camera = Camera3D.new()
 	_camera.fov = 32.0
@@ -185,20 +286,33 @@ func _build_stage(viewport: SubViewport) -> void:
 
 
 func _rebuild_model() -> void:
+	var member: Dictionary = Run.state.crew[selected]
+	var key: String = "%d:%s:%d:%s" % [selected, ",".join(member["parts"]), int(member.get("level", 0)), member["alive"]]
+	if key == _model_key and _model != null:
+		return
+	_model_key = key
 	if _model != null:
 		_model.queue_free()
-	var member: Dictionary = Run.state.crew[selected]
-	_model = ConstructView.build_parts(PackedStringArray(member["parts"]), Run.db, TEAM)
+	_model = ConstructView.build_parts(PackedStringArray(member["parts"]), Run.db, TEAM, int(member.get("level", 0)))
 	_pivot.add_child(_model)
 	# Framed by the machine's own height, so a squat anchor and a tall marksman both fill
 	# the stage; nudged right because the name sits over the left of it.
 	var h: float = ConstructView.height_of(_model)
 	_camera.position = Vector3(-0.3 * h, 0.62 * h + 0.15, 3.4 * h)
 	_camera.look_at(Vector3(-0.28 * h, 0.5 * h, 0))
-	_floor.scale = Vector3.ONE * clampf(h * 0.55, 0.5, 1.4)
 	if not bool(member["alive"]):
 		_model.rotation_degrees = Vector3(0, 0, 78)
 	_focus = -1
+	_fade_in_stage.call_deferred()
+
+
+## Shows the stage once the new machine has had a frame to be drawn: a fade, never a
+## black square.
+func _fade_in_stage() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if _view.modulate.a < 1.0:
+		create_tween().tween_property(_view, "modulate:a", 1.0, 0.25)
 
 
 ## Turn the machine to show socket `s` and light that part up (-1: back to rest).
@@ -561,30 +675,43 @@ func _sorted_hold() -> Array[int]:
 	return order
 
 
+## The scrap bin, which is also its own button (play-test 4): drop a part on it, or pick a
+## part and click it. No separate SCRAP IT.
 func _scrap_bin() -> Control:
-	var bin := PanelContainer.new()
+	var bin := Button.new()
 	bin.custom_minimum_size = Vector2(240, HOLD_CARD.y + 30)
-	var style := UIKit.inset(UIKit.SURFACE_SUNK, UIKit.RADIUS_CARD, UIKit.SPACE_MD, UIKit.SPACE_SM)
-	style.border_color = UIKit.RED.darkened(0.2)
-	style.set_border_width_all(2)
-	bin.add_theme_stylebox_override("panel", style)
+	bin.focus_mode = Control.FOCUS_NONE
+	var armed: bool = not _held.is_empty()
+	var style := UIKit.inset(UIKit.RED.darkened(0.7) if armed else UIKit.SURFACE_SUNK, UIKit.RADIUS_CARD, UIKit.SPACE_MD, UIKit.SPACE_SM)
+	style.border_color = UIKit.RED if armed else UIKit.RED.darkened(0.2)
+	style.set_border_width_all(3 if armed else 2)
+	var hover: StyleBoxFlat = style.duplicate()
+	hover.bg_color = UIKit.RED.darkened(0.55)
+	hover.border_color = UIKit.RED.lightened(0.2)
+	for key: String in ["normal", "pressed", "focus", "disabled"]:
+		bin.add_theme_stylebox_override(key, style)
+	bin.add_theme_stylebox_override("hover", hover)
+	bin.tooltip_text = "Scrap the part you picked, or drop one here"
 	bin.set_drag_forwarding(Callable(), _can_drop_bin, _drop_bin)
+	bin.pressed.connect(func() -> void:
+		if _held.is_empty():
+			_message = "Pick a part first (click it in the hold or on the machine), then click SCRAP."
+			_rebuild()
+		else:
+			_drop_bin(Vector2.ZERO, _held))
 	var box := VBoxContainer.new()
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bin.add_child(box)
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_MD)
 	box.add_child(_label("SCRAP", UIKit.SIZE_DISPLAY, UIKit.RED, UIKit.font_display()))
-	var value: String = "Drop a part here to break it down.\nCommon 3 · Uncommon 6 · Rare 10"
-	if not _held.is_empty():
-		value = "Break down %s for +%d scrap" % [PartText.name_of(Run.db.parts, _held_part()), RunSim.scrap_value(Run.setup, _held_part())]
-	var text := _label(value, UIKit.SIZE_LABEL, UIKit.TEXT_DIM)
+	var value: String = "Drop a part here, or pick one and click.\nCommon 3 · Uncommon 6 · Rare 10"
+	if armed:
+		value = "Click to break down %s for +%d scrap" % [PartText.name_of(Run.db.parts, _held_part()), RunSim.scrap_value(Run.setup, _held_part())]
+	var text := _label(value, UIKit.SIZE_LABEL, UIKit.TEXT if armed else UIKit.TEXT_DIM)
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.custom_minimum_size = Vector2(210, 0)
+	text.custom_minimum_size = Vector2(200, 0)
 	box.add_child(text)
-	var tap := _button("SCRAP IT", UIKit.secondary(), UIKit.RED, Vector2(180, 44))
-	tap.visible = not _held.is_empty()
-	tap.pressed.connect(func() -> void: _drop_bin(Vector2.ZERO, _held))
-	box.add_child(tap)
 	return bin
 
 
@@ -602,7 +729,152 @@ func _select(i: int) -> void:
 
 
 func _level_up() -> void:
-	_after(Run.apply([RunSim.LEVEL_UP, selected]), "%s levelled up." % String(Run.state.crew[selected]["name"]))
+	if _celebrating:
+		return
+	var member: Dictionary = Run.state.crew[selected]
+	var gains: Dictionary = RunSim.next_level_bonus(Run.state, Run.setup, selected)
+	var old_scale: float = 1.0 + ConstructView.LEVEL_SCALE * float(int(member.get("level", 0)))
+	if not Run.apply([RunSim.LEVEL_UP, selected]):
+		_after(false, "not enough scrap.")
+		return
+	_celebrating = true
+	_message = "%s is now level %d." % [String(member["name"]), int(member["level"])]
+	_rebuild()
+	await _celebrate(int(member["level"]), gains, old_scale)
+	_celebrating = false
+
+
+## The level-up, as an event (play-test 4: "doesn't sell the machine getting stronger").
+## About a second and a half, all of it saying the same thing: a ratchet and a rising
+## chord, a lamp flare, sparks from the shoulders, a ring of light sweeping up the frame,
+## the frame swelling to its new size, the new armour arriving piece by piece, the camera
+## leaning in, and a banner with what was gained. Input on the stage waits for it.
+func _celebrate(level: int, gains: Dictionary, old_scale: float) -> void:
+	Audio.play("level_up", -5.0, 0.0)
+	var h: float = ConstructView.height_of(_model)
+	var viewport: SubViewport = _pivot.get_parent() as SubViewport
+	var chassis: Node3D = _find(_model, "part_chassis")
+	var fresh: Array[Node3D] = []
+	for node: Node in _descendants(_model):
+		if node is Node3D and node.has_meta("level_kit") and int(node.get_meta("level_kit")) == level:
+			fresh.append(node)
+			(node as Node3D).scale = Vector3.ONE * 0.01
+	var new_scale: Vector3 = Vector3.ONE
+	if chassis != null:
+		new_scale = chassis.scale
+		chassis.scale = new_scale * (old_scale / (1.0 + ConstructView.LEVEL_SCALE * float(level)))
+
+	var flare := OmniLight3D.new()
+	flare.light_color = Color("ffd08a")
+	flare.omni_range = 3.0
+	flare.light_energy = 0.0
+	flare.position = Vector3(0, h * 0.7, 0.6)
+	viewport.add_child(flare)
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.42
+	torus.outer_radius = 0.46
+	ring.mesh = torus
+	var ring_material := StandardMaterial3D.new()
+	ring_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ring_material.albedo_color = Color(1.0, 0.8, 0.45, 0.9)
+	ring.material_override = ring_material
+	ring.position.y = 0.05
+	viewport.add_child(ring)
+	var sparks := _sparks(h)
+	viewport.add_child(sparks)
+	sparks.emitting = true
+
+	var go := create_tween().set_parallel(true)
+	go.tween_property(flare, "light_energy", 5.0, 0.12)
+	go.tween_property(flare, "light_energy", 0.0, 0.7).set_delay(0.12)
+	go.tween_property(ring, "position:y", h * 1.05, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	go.tween_property(ring_material, "albedo_color:a", 0.0, 0.25).set_delay(0.45)
+	go.tween_property(_pivot, "scale", Vector3.ONE * 1.1, 0.16).set_delay(0.18).set_trans(Tween.TRANS_BACK)
+	go.tween_property(_pivot, "scale", Vector3.ONE, 0.5).set_delay(0.34).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	if chassis != null:
+		go.tween_property(chassis, "scale", new_scale, 0.45).set_delay(0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	for i: int in fresh.size():
+		go.tween_property(fresh[i], "scale", Vector3.ONE, 0.3).set_delay(0.3 + 0.07 * float(i)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	go.tween_property(_camera, "fov", 27.0, 0.25).set_delay(0.15).set_trans(Tween.TRANS_SINE)
+	go.tween_property(_camera, "fov", 32.0, 0.6).set_delay(0.9).set_trans(Tween.TRANS_SINE)
+	_banner(level, gains)
+	await go.finished
+	flare.queue_free()
+	ring.queue_free()
+	await get_tree().create_timer(0.6).timeout
+	sparks.queue_free()
+
+
+func _sparks(h: float) -> CPUParticles3D:
+	var sparks := CPUParticles3D.new()
+	sparks.one_shot = true
+	sparks.emitting = false
+	sparks.amount = 46
+	sparks.lifetime = 0.7
+	sparks.explosiveness = 0.85
+	sparks.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	sparks.emission_box_extents = Vector3(0.25, 0.1, 0.12)
+	sparks.direction = Vector3(0, 1, 0)
+	sparks.spread = 70.0
+	sparks.initial_velocity_min = 1.2
+	sparks.initial_velocity_max = 2.6
+	sparks.gravity = Vector3(0, -6.0, 0)
+	sparks.scale_amount_min = 0.012
+	sparks.scale_amount_max = 0.026
+	var dot := QuadMesh.new()
+	var hot := StandardMaterial3D.new()
+	hot.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	hot.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	hot.billboard_keep_scale = true
+	hot.albedo_color = Color(1.0, 0.8, 0.45)
+	dot.material = hot
+	sparks.mesh = dot
+	sparks.position = Vector3(0, h * 0.68, 0.05)
+	return sparks
+
+
+## "LEVEL 2" over the stage, the gains under it in the colour of a gain.
+func _banner(level: int, gains: Dictionary) -> void:
+	var banner := VBoxContainer.new()
+	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	banner.alignment = BoxContainer.ALIGNMENT_CENTER
+	var title := _label("LEVEL %d" % level, 96, UIKit.TEXT, UIKit.font_display())
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	title.add_theme_constant_override("outline_size", 12)
+	banner.add_child(title)
+	var bits: PackedStringArray = []
+	if int(gains.get("hp", 0)) > 0:
+		bits.append("+%d HP" % int(gains["hp"]))
+	if int(gains.get("damage", 0)) > 0:
+		bits.append("+%d DAMAGE" % int(gains["damage"]))
+	bits.append("NEW ARMOUR")
+	var line := _label("  ·  ".join(bits), UIKit.SIZE_TITLE, UIKit.GREEN.lightened(0.15), UIKit.font_strong())
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	line.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	line.add_theme_constant_override("outline_size", 8)
+	banner.add_child(line)
+	add_child(banner)
+	banner.size = Vector2(VIEW_SIZE.x, 200)
+	banner.position = _stage_root.position + Vector2(0, VIEW_SIZE.y * 0.62)
+	banner.pivot_offset = banner.size * 0.5
+	banner.modulate.a = 0.0
+	banner.scale = Vector2.ONE * 1.35
+	var show := create_tween()
+	show.tween_property(banner, "modulate:a", 1.0, 0.18).set_delay(0.25)
+	show.parallel().tween_property(banner, "scale", Vector2.ONE, 0.3).set_delay(0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	show.tween_interval(1.0)
+	show.tween_property(banner, "modulate:a", 0.0, 0.35)
+	show.tween_callback(banner.queue_free)
+
+
+func _descendants(node: Node) -> Array[Node]:
+	var out: Array[Node] = [node]
+	for child: Node in node.get_children():
+		out.append_array(_descendants(child))
+	return out
 
 
 func _drag_from(_at: Vector2, source: Dictionary) -> Variant:
@@ -756,7 +1028,7 @@ func _part_of(data: Dictionary) -> String:
 
 func _status_text() -> String:
 	if not _held.is_empty():
-		return "Holding %s: tap a lit socket (or a crew tab), or SCRAP IT." % PartText.name_of(Run.db.parts, _held_part())
+		return "Holding %s: tap a lit socket (or a crew tab), or click SCRAP." % PartText.name_of(Run.db.parts, _held_part())
 	return "Drag a part onto a socket or a crew tab to fit it; onto SCRAP to break it down. Hover a part to see it on the machine."
 
 

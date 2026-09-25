@@ -66,6 +66,9 @@ var unshovable: bool = false
 ## Whether destroying it leaves a scrap pile (play-test 4: not every enemy does). Decided
 ## once, seeded, when the fight is built -- and shown on its tag, so it is a target choice.
 var carries_scrap: bool = true
+## A run machine's level. Its bonuses are already in the numbers above; this is kept so a
+## screen can show the level (its kit on the model). No rule reads it.
+var level: int = 0
 var move_after_attack: bool = false
 
 ## False once destroyed. A destroyed unit stays on its tile as a wreck that blocks.
@@ -130,6 +133,7 @@ func copy() -> GridUnit:
 	u.marked = marked
 	u.unshovable = unshovable
 	u.carries_scrap = carries_scrap
+	u.level = level
 	u.move_after_attack = move_after_attack
 	u.alive = alive
 	u.moved = moved

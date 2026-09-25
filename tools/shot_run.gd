@@ -57,6 +57,21 @@ func _go() -> void:
 		if args.has("--stats"):
 			garage.set("_tab", "STATS")
 			garage.call("_rebuild")
+		if args.has("--levelup"):
+			# Photograph the level-up mid-flight: scrap for it (screenshot only), press, wait.
+			(run.get("state") as RunState).scrap = 200
+			garage.call("_rebuild")
+			for i: int in 3:
+				await process_frame
+			garage.call("_level_up")
+			for i: int in _arg(args, "--levelup", "24").to_int():
+				await process_frame
+			var shot: Image = root.get_texture().get_image()
+			shot.save_png(out)
+			print("shot: %s (mid level-up)" % out)
+			RunStore.clear()
+			quit()
+			return
 		if args.has("--focus"):
 			for i: int in 3:
 				await process_frame
