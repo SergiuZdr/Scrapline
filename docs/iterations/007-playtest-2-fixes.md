@@ -30,7 +30,7 @@ levels) moves to 008.
 - [x] Each issue above has a check: a test where it is a rule, a screenshot where it is a look.
 - [x] All suites green; run_bot runs with the new hold rules.
 - [~] Screenshots: the hex board, the new map (with a preview), the new refit, salvage with a full hold, the battle bar. **Not taken: refit mid-drag** (a headless drag cannot be photographed; drops are tested by calling the drop handlers).
-- [ ] Merged to main. **The user plays.**
+- [x] Merged to main (fast-forward). [ ] **The user plays.**
 
 ## Result
 
