@@ -14,6 +14,7 @@ extends Node3D
 ##   --fight <id>   which fight (default proto_yard)
 ##   --seed <n>     tie-break seed
 ##   --bot          the player's turns are played by `CombatBot`, for demos and screenshots
+##   --reclaimer    the Reclaimer's drones reach into this practice fight (arriving round 2)
 ##
 ## `scenes/shakedown.tscn` is this scene with `tutorial` on (012): the shakedown fight from
 ## `data/tutorial.json`, with the coach (`coach.gd`) over it.
@@ -171,8 +172,10 @@ func _start_fight() -> void:
 		# Resuming mid-fight: the saved combat actions replay to the exact turn.
 		_actions = Run.fight_actions.duplicate(true)
 	else:
-		_setup = CombatSetup.build(_db.fights.get(_fight_id, {}), _db.combat_rules, _db.parts, _db.tiles,
-			_db.balance.effectiveness, _seed)
+		var fight: Dictionary = (_db.fights.get(_fight_id, {}) as Dictionary).duplicate(true)
+		if OS.get_cmdline_user_args().has("--reclaimer"):
+			fight["reclaimer"] = {"round": 2, "count": 2}
+		_setup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, _seed)
 	for error: String in _setup.errors:
 		push_error("fight %s: %s" % [_setup.fight_id, error])
 	_turn_start = 0

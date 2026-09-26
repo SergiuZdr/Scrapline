@@ -6,6 +6,7 @@ extends SceneTree
 ##   godot --path . --resolution 1920x1080 --script res://tools/shot_run.gd -- \
 ##       --seed 7 --until reward --out shots/reward.png [--refit [--stats] [--focus S] [--perks] [--levelup N]]
 ##       [--choose] [--fill-hold] [--brief] [--tune S]   (--tune needs --until workshop; S = the socket to show)
+##       [--force KIND]   the sites next to the camp become KIND (trader, tower, signal...)
 ##
 ## `--until` is a pending kind (reward, scrapyard, workshop, fight) or "moves:N".
 ## Uses the real `Run` autoload, so it overwrites `user://run.json`; it clears it after.
@@ -21,6 +22,12 @@ func _go() -> void:
 	var until: String = _arg(args, "--until", "reward")
 	var out: String = _arg(args, "--out", "shots/run.png")
 	run.call("new_run", seed_value)
+	if args.has("--force"):
+		# Screenshot only: every site reachable from the camp becomes this kind, so the first
+		# move lands on one (for the sites a seeded bot run may never visit).
+		var fresh: RunState = run.get("state")
+		for id: int in RunSim.destinations(fresh):
+			fresh.sites[id]["type"] = _arg(args, "--force", "signal")
 	var guard: int = 0
 	while guard < 300:
 		var state: RunState = run.get("state")
