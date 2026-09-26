@@ -122,7 +122,7 @@ static func _best_shot(state: CombatState, u: GridUnit, ctx: Dictionary) -> Arra
 		if not u.can_fire(w):
 			continue
 		var weapon: Dictionary = u.weapons[w]
-		var hot: bool = u.team == GridUnit.TEAM_PLAYER and u.heat + int(weapon["heat"]) + u.heat_bonus >= u.heat_cap
+		var hot: bool = u.team == GridUnit.TEAM_PLAYER and u.heat + CombatSim.attack_heat(u, weapon) >= u.heat_cap
 		var lob: bool = String(weapon["shape"]) == "lob"
 		for aim: Vector2i in CombatSim.aim_options(state, u, w):
 			var prop: bool = state.props.has(aim)
@@ -215,7 +215,7 @@ static func _dry_value(state: CombatState, u: GridUnit, cell: Vector2i, w: int, 
 	var weapon: Dictionary = u.weapons[w]
 	if bool(weapon["mark"]) and any_foe:
 		value += SCORE_MARK
-	if u.team == GridUnit.TEAM_PLAYER and u.heat + int(weapon["heat"]) + u.heat_bonus >= u.heat_cap:
+	if u.team == GridUnit.TEAM_PLAYER and u.heat + CombatSim.attack_heat(u, weapon) >= u.heat_cap:
 		value += SCORE_OVERHEAT
 	return value
 

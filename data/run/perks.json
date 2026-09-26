@@ -1,0 +1,15 @@
+{
+  "_comment": "011. Each level-up offers three of these (seeded, never one already taken, only ones that do something for this machine: `needs`) and the player keeps one. `grid` is an additive bonus block (see data/parts/makers.json). needs: melee | ranged | ability | chain | shovable (not already unshovable) | stops (cannot already move after attacking).",
+  "frame": {"name": "Reinforced Frame", "text": "+3 HP.", "grid": {"hp": 3}},
+  "plating": {"name": "Extra Plating", "text": "+1 armour: every hit on it deals 1 less.", "grid": {"armor": 1}},
+  "servos": {"name": "Uprated Servos", "text": "+1 move.", "grid": {"move": 1}},
+  "hot_loads": {"name": "Hot Loads", "text": "+1 damage on every weapon; each attack makes 1 more heat.", "grid": {"damage": 1, "heat": 1}},
+  "heavy_hands": {"name": "Heavy Hands", "text": "+1 damage with melee weapons.", "grid": {"melee": 1}, "needs": "melee"},
+  "long_barrels": {"name": "Long Barrels", "text": "+1 range on shots and lobs.", "grid": {"range": 1}, "needs": "ranged"},
+  "heat_sinks": {"name": "Heat Sinks", "text": "+3 heat before it overheats.", "grid": {"heat_cap": 3}},
+  "coolant": {"name": "Coolant Jacket", "text": "Vents 1 more heat every turn.", "grid": {"vent": 1}},
+  "quick_cycle": {"name": "Quick Cycle", "text": "Its abilities are ready a round sooner.", "grid": {"cooldown": 1}, "needs": "ability"},
+  "arc_relay": {"name": "Arc Relay", "text": "Chain weapons arc to one more target.", "grid": {"chain": 1}, "needs": "chain"},
+  "spikes": {"name": "Ground Spikes", "text": "Cannot be shoved or grappled.", "grid": {"unshovable": 1}, "needs": "shovable"},
+  "reflexes": {"name": "Combat Reflexes", "text": "Can move after attacking.", "grid": {"move_after_attack": 1}, "needs": "stops"}
+}

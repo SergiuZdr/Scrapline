@@ -4,6 +4,7 @@
     "name": "Breaker Hammer",
     "slot": "arm",
     "rarity": 1,
+    "maker": "kessler",
     "attack": 26,
     "heat_per_attack": 2,
     "ability": "ab_crush",
@@ -17,13 +18,28 @@
       "damage": 3,
       "heat": 1,
       "shove": 1
-    }
+    },
+    "tuning": [
+      {
+        "name": "Sledge Head",
+        "grid": {
+          "damage": 1
+        }
+      },
+      {
+        "name": "Cold Striker",
+        "grid": {
+          "heat": -1
+        }
+      }
+    ]
   },
   {
     "id": "ar_lance",
     "name": "Rail Lance",
     "slot": "arm",
     "rarity": 2,
+    "maker": "vektor",
     "attack": 6,
     "heat_per_attack": 3,
     "ability": "ab_pierce",
@@ -37,13 +53,28 @@
       "damage": 3,
       "heat": 1,
       "pierce": 1
-    }
+    },
+    "tuning": [
+      {
+        "name": "Long Rail",
+        "grid": {
+          "range": 1
+        }
+      },
+      {
+        "name": "Double Pierce",
+        "grid": {
+          "pierce": 1
+        }
+      }
+    ]
   },
   {
     "id": "ar_scanner",
     "name": "Spotter Array",
     "slot": "arm",
     "rarity": 1,
+    "maker": "vektor",
     "attack": 5,
     "heat_per_attack": 0,
     "ability": "ab_mark",
@@ -57,13 +88,28 @@
       "damage": 1,
       "heat": 0,
       "mark": true
-    }
+    },
+    "tuning": [
+      {
+        "name": "Hot Spotter",
+        "grid": {
+          "damage": 1
+        }
+      },
+      {
+        "name": "Long Lens",
+        "grid": {
+          "range": 1
+        }
+      }
+    ]
   },
   {
     "id": "ar_ripper",
     "name": "Ripper Claw",
     "slot": "arm",
     "rarity": 1,
+    "maker": "cinder",
     "attack": 28,
     "heat_per_attack": 3,
     "ability": "ab_shred",
@@ -77,13 +123,28 @@
       "damage": 3,
       "heat": 1,
       "tears": true
-    }
+    },
+    "tuning": [
+      {
+        "name": "Serrated",
+        "grid": {
+          "damage": 1
+        }
+      },
+      {
+        "name": "Cold Hydraulics",
+        "grid": {
+          "heat": -1
+        }
+      }
+    ]
   },
   {
     "id": "ar_pulse",
     "name": "Pulse Emitter",
     "slot": "arm",
     "rarity": 1,
+    "maker": "arclight",
     "attack": 14,
     "heat_per_attack": 1,
     "ability": "ab_jolt",
@@ -97,13 +158,28 @@
       "damage": 2,
       "heat": 1,
       "chain": 2
-    }
+    },
+    "tuning": [
+      {
+        "name": "Arc Coil",
+        "grid": {
+          "chain": 1
+        }
+      },
+      {
+        "name": "Long Emitter",
+        "grid": {
+          "range": 1
+        }
+      }
+    ]
   },
   {
     "id": "ar_maul",
     "name": "Siege Maul",
     "slot": "arm",
     "rarity": 2,
+    "maker": "kessler",
     "attack": 34,
     "heat_per_attack": 5,
     "range": 130,
@@ -116,13 +192,28 @@
       "range": 1,
       "damage": 5,
       "heat": 2
-    }
+    },
+    "tuning": [
+      {
+        "name": "Cold Striker",
+        "grid": {
+          "heat": -1
+        }
+      },
+      {
+        "name": "Piston Head",
+        "grid": {
+          "shove": 1
+        }
+      }
+    ]
   },
   {
     "id": "ar_saw",
     "name": "Rend Saw",
     "slot": "arm",
     "rarity": 2,
+    "maker": "cinder",
     "attack": 22,
     "heat_per_attack": 4,
     "range": 190,
@@ -135,13 +226,28 @@
       "range": 1,
       "damage": 4,
       "heat": 1
-    }
+    },
+    "tuning": [
+      {
+        "name": "Tearing Teeth",
+        "grid": {
+          "tears": true
+        }
+      },
+      {
+        "name": "Fast Blade",
+        "grid": {
+          "damage": 1
+        }
+      }
+    ]
   },
   {
     "id": "ar_scatter",
     "name": "Scattergun",
     "slot": "arm",
     "rarity": 1,
+    "maker": "vektor",
     "attack": 18,
     "heat_per_attack": 3,
     "range": 320,
@@ -155,13 +261,28 @@
       "damage": 3,
       "heat": 1,
       "shove": 1
-    }
+    },
+    "tuning": [
+      {
+        "name": "Long Barrel",
+        "grid": {
+          "range": 1
+        }
+      },
+      {
+        "name": "Heavy Shot",
+        "grid": {
+          "damage": 1
+        }
+      }
+    ]
   },
   {
     "id": "ar_mortar",
     "name": "Slag Mortar",
     "slot": "arm",
     "rarity": 2,
+    "maker": "cinder",
     "attack": 13,
     "heat_per_attack": 6,
     "range": 560,
@@ -176,13 +297,28 @@
       "damage": 3,
       "heat": 2,
       "splash": 1
-    }
+    },
+    "tuning": [
+      {
+        "name": "Short Tube",
+        "grid": {
+          "range_min": -1
+        }
+      },
+      {
+        "name": "Cool Breech",
+        "grid": {
+          "heat": -1
+        }
+      }
+    ]
   },
   {
     "id": "ar_railgun",
     "name": "Rail Driver",
     "slot": "arm",
     "rarity": 3,
+    "maker": "vektor",
     "attack": 7,
     "heat_per_attack": 13,
     "range": 840,
@@ -196,6 +332,20 @@
       "damage": 3,
       "heat": 2,
       "pierce": 9
-    }
+    },
+    "tuning": [
+      {
+        "name": "Cool Rails",
+        "grid": {
+          "heat": -1
+        }
+      },
+      {
+        "name": "Slug Weight",
+        "grid": {
+          "damage": 1
+        }
+      }
+    ]
   }
 ]
