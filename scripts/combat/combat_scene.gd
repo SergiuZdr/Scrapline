@@ -454,6 +454,7 @@ const TILE_SURFACES: Dictionary = {
 	"pit": ["rusty_painted_metal", 0.8, 0.9, 0.3, 0.6],
 	"barrel": ["metal_plate_02", 2.3, 0.5, 0.45, 0.55],
 	"crate": ["metal_plate_02", 2.3, 0.5, 0.45, 0.55],
+	"pylon": ["metal_plate_02", 2.3, 0.5, 0.45, 0.55],
 }
 
 
@@ -714,6 +715,41 @@ func _spawn_prop(cell: Vector2i, kind: String) -> void:
 			hot.emission_energy_multiplier = 0.9
 			band.material_override = hot
 			root.add_child(band)
+	elif kind == "pylon":
+		# A gate pylon (013): a dark hex column banded in the danger red, lit at the crown.
+		# Its beam to the Sorter is drawn with the intents (`_pylon_beams`).
+		var column := MeshInstance3D.new()
+		var shaft := CylinderMesh.new()
+		shaft.top_radius = 0.22
+		shaft.bottom_radius = 0.3
+		shaft.height = 1.5
+		shaft.radial_segments = 6
+		column.mesh = shaft
+		column.position.y = 0.75
+		column.material_override = Surfaces.pbr("metal_plate_02", Color(0.3, 0.29, 0.3), 1.2, 0.6, 0.8)
+		root.add_child(column)
+		for i: int in 3:
+			var band := MeshInstance3D.new()
+			var ring := CylinderMesh.new()
+			ring.top_radius = 0.26 - 0.02 * i
+			ring.bottom_radius = ring.top_radius
+			ring.height = 0.06
+			ring.radial_segments = 6
+			band.mesh = ring
+			band.position.y = 0.45 + 0.4 * i
+			var glow := StandardMaterial3D.new()
+			glow.albedo_color = COL_PAD_DANGER
+			glow.emission_enabled = true
+			glow.emission = COL_PAD_DANGER
+			glow.emission_energy_multiplier = 1.6
+			band.material_override = glow
+			root.add_child(band)
+		var crown := OmniLight3D.new()
+		crown.light_color = COL_PAD_DANGER
+		crown.light_energy = 1.4
+		crown.omni_range = 1.8
+		crown.position.y = 1.6
+		root.add_child(crown)
 	else:
 		for s: Array in [[Vector3(0.7, 0.5, 0.5), Vector3(0, 0.25, 0)], [Vector3(0.5, 0.4, 0.45), Vector3(0.05, 0.7, 0)]]:
 			var crate := MeshInstance3D.new()
@@ -740,7 +776,8 @@ func _build_view(u: GridUnit) -> Dictionary:
 	# seed, the same every replay (presentation only).
 	var number: int = u.slot + 1 if u.team == GridUnit.TEAM_PLAYER else 10 + IntentAI.mix(_setup.rng_seed, u.ref, 7, 29) % 89
 	var model: Node3D = _cache_model() if u.objective else ConstructView.build_parts(u.part_ids, _db, colour, u.level, number)
-	model.scale = Vector3.ONE * (1.0 if u.objective else MODEL_SCALE)
+	# The gate's keeper is bigger than anything else on the board (013).
+	model.scale = Vector3.ONE * (1.0 if u.objective else MODEL_SCALE * (1.4 if u.kind == "sorter" else 1.0))
 	root.add_child(model)
 	var ring: MeshInstance3D = _team_ring(COL_CACHE if u.objective else colour)
 	root.add_child(ring)
@@ -753,7 +790,7 @@ func _build_view(u: GridUnit) -> Dictionary:
 	tag.pixel_size = 0.0045
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.no_depth_test = true
-	tag.position = Vector3(0, 1.75, 0)
+	tag.position = Vector3(0, 2.35 if u.kind == "sorter" else 1.75, 0)
 	tag.outline_size = 12
 	tag.outline_modulate = Color(0, 0, 0, 0.9)
 	tag.modulate = (COL_CACHE if u.objective else colour).lightened(0.45)
@@ -895,6 +932,8 @@ func _set_tag(view: Dictionary, u: GridUnit) -> void:
 		status.append("ANCHORED")
 	if u.shield > 0:
 		status.append("SHIELD")
+	if u.kind == "sorter" and _state != null and CombatSim.has_pylon(_state):
+		status.append("PYLONS -3")
 	if u.team == GridUnit.TEAM_PLAYER and not u.objective and u.heat > 0:
 		status.append("HEAT %d/%d" % [u.heat, u.heat_cap])
 	if u.marked:
@@ -1050,7 +1089,7 @@ func _animate(e: Array) -> void:
 			Audio.play("ui_confirm", -8.0)
 			await _wait(0.12)
 		GridEv.PROP_PLACED:
-			_spawn_prop(cell, "barrel" if int(e[GridEv.F_V1]) == 1 else "crate")
+			_spawn_prop(cell, GridEv.PROP_KINDS[clampi(int(e[GridEv.F_V1]), 0, GridEv.PROP_KINDS.size() - 1)])
 		GridEv.PROP_HIT:
 			if _prop_views.has(cell):
 				var prop: Node3D = _prop_views[cell]
@@ -1096,7 +1135,9 @@ func _animate(e: Array) -> void:
 		GridEv.SPAWN_MARKED:
 			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.0, 0), "HIVE PAD SET", Color("b58cf0"))
 		GridEv.SPAWNED:
-			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.8, 0), "BUILT BY THE HIVE", Color("c9a2ff"))
+			var by_reclaimer: bool = int(e[GridEv.F_ACTOR]) < 0
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.8, 0), "THE RECLAIMER ARRIVES" if by_reclaimer else "BUILT BY ITS PAD",
+				COL_PAD_DANGER if by_reclaimer else Color("c9a2ff"))
 			var drone: GridUnit = _state.unit(target)
 			if drone != null and not _views.has(target):
 				_views[target] = _build_view(drone)
@@ -1400,6 +1441,10 @@ func _refresh() -> void:
 	for ref: Variant in _state.spawn_marks:
 		_mark(_threat_quads, _state.spawn_marks[ref], COL_THREAT if CombatSim.drone_in(_state, int(ref)) <= 1 else COL_SPAWN)
 		_spawn_marker(int(ref), _state.spawn_marks[ref])
+	for cell: Vector2i in _state.arrivals:
+		_mark(_threat_quads, cell, COL_THREAT)
+		_arrival_marker(cell)
+	_pylon_beams()
 
 	var sel: GridUnit = _state.unit(_selected) if _selected >= 0 else null
 	if sel != null and sel.alive:
@@ -1770,7 +1815,7 @@ func _spawn_marker(hive_ref: int, cell: Vector2i) -> void:
 		_marks_root.add_child(numeral)
 	# Under the pad, not over it: the hive that set it down is usually right next door, and
 	# its own tag sits at head height.
-	_marker_label("DRONE NEXT TURN · stand here to block" if urgent else "HIVE PAD · drone in %d" % due,
+	_marker_label("DRONE NEXT TURN · stand here to block" if urgent else "PAD · drone in %d" % due,
 		at + Vector3(0, 0.08, HEX * 0.72), colour.lightened(0.35), 24)
 	if hive == null or not hive.alive:
 		return
@@ -1788,6 +1833,61 @@ func _spawn_marker(hive_ref: int, cell: Vector2i) -> void:
 	beam.set_meta("intent", true)
 	_marks_root.add_child(beam)
 	beam.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
+
+
+## Where the Reclaimer's drones come in next round (013): a red hex, a ghost of what is
+## coming, and what to do about it.
+func _arrival_marker(cell: Vector2i) -> void:
+	var at: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
+	var ghost := MeshInstance3D.new()
+	var body := BoxMesh.new()
+	body.size = Vector3(HEX * 0.55, HEX * 0.9, HEX * 0.55)
+	ghost.mesh = body
+	ghost.position = at + Vector3(0, HEX * 0.5, 0)
+	var ghost_material := StandardMaterial3D.new()
+	ghost_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ghost_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ghost_material.albedo_color = Color(COL_PAD_DANGER, 0.24)
+	ghost.material_override = ghost_material
+	ghost.set_meta("intent", true)
+	_marks_root.add_child(ghost)
+	var flicker := ghost.create_tween().set_loops()
+	flicker.tween_property(ghost_material, "albedo_color:a", 0.06, 0.3)
+	flicker.tween_property(ghost_material, "albedo_color:a", 0.28, 0.3)
+	_marker_label("RECLAIMER NEXT TURN · stand here to block", at + Vector3(0, 0.08, HEX * 0.72), COL_PAD_DANGER.lightened(0.35), 24)
+
+
+## A red beam from every standing gate pylon to the Sorter it shields (013): the shield is
+## a thing on the board you can see, and break.
+func _pylon_beams() -> void:
+	var keeper: GridUnit = null
+	for u: GridUnit in _state.units:
+		if u.alive and u.kind == "sorter":
+			keeper = u
+	if keeper == null:
+		return
+	var to: Vector3 = _to_world(keeper.x, keeper.y) + Vector3(0, 1.4, 0)
+	var cells: Array = _state.props.keys()
+	cells.sort()
+	for cell: Vector2i in cells:
+		if String((_state.props[cell] as Dictionary).get("kind", "")) != "pylon":
+			continue
+		var from: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, 1.55, 0)
+		var beam := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.06, 0.06, from.distance_to(to))
+		beam.mesh = box
+		var material := StandardMaterial3D.new()
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.albedo_color = Color(COL_PAD_DANGER, 0.75)
+		beam.material_override = material
+		beam.set_meta("intent", true)
+		_marks_root.add_child(beam)
+		beam.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
+		var hum := beam.create_tween().set_loops()
+		hum.tween_property(material, "albedo_color:a", 0.35, 0.5).set_trans(Tween.TRANS_SINE)
+		hum.tween_property(material, "albedo_color:a", 0.8, 0.5).set_trans(Tween.TRANS_SINE)
 
 
 func _hits_selected(threat: Dictionary) -> bool:
@@ -2020,8 +2120,11 @@ func _terrain_info(cell: Vector2i) -> void:
 		return
 	for ref: Variant in _state.spawn_marks:
 		if _state.spawn_marks[ref] == cell:
-			_hud.set_info("DRONE BUILD SITE", "A hive will build a drone here next round. Stand on it to stop the build.")
+			_hud.set_info("DRONE BUILD SITE", "A pad will build a drone here. Stand on it to stop the build.")
 			return
+	if _state.arrivals.has(cell):
+		_hud.set_info("RECLAIMER ARRIVAL", "You are fighting near the Reclaimer's line: one of its drones comes in here next round. Stand on the hex to block it.")
+		return
 	var def: Dictionary = _db.tiles[_state.tile_at(cell.x, cell.y)]
 	if String(def.get("id", "")) != "open":
 		_hud.set_info(String(def.get("name", "")).to_upper(), String(def.get("text", "")))

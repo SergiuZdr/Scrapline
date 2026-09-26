@@ -34,6 +34,12 @@ static func next_action(state: RunState, setup: RunSetup) -> Array:
 				return refit
 			var tune: Array = _best_tune(state, setup)
 			return tune if not tune.is_empty() else [RunSim.LEAVE]
+		"trader":
+			return _trade(state, setup)
+		"tower":
+			return [RunSim.LEAVE]
+		"signal":
+			return [RunSim.CHOOSE, _signal_choice(state, setup)]
 	var refit: Array = _best_refit(state, setup)
 	if not refit.is_empty():
 		return refit
@@ -57,6 +63,49 @@ static func _level_up(state: RunState, setup: RunSetup) -> Array:
 			best = i
 	# The perk: the first of the offer, which is seeded -- a stand-in for a player's taste.
 	return [RunSim.LEVEL_UP, best, 0] if best >= 0 else []
+
+
+## Buys the stock part that would improve the crew most, if it can keep a rebuild in
+## reserve; otherwise leaves. It never sells: the hold is emptied by refits and scrapping.
+static func _trade(state: RunState, setup: RunSetup) -> Array:
+	var reserve: int = int((setup.rules.get("workshop", {}) as Dictionary).get("rebuild_cost", 20))
+	var best: int = -1
+	var best_gain: int = 0
+	var stock: Array = state.pending.get("stock", [])
+	for i: int in stock.size():
+		var price: int = RunSim.trader_price(state, setup, i)
+		if price < 0 or state.scrap < price + reserve:
+			continue
+		var gain: int = _best_gain(state, setup, String(stock[i]))
+		if gain > best_gain:
+			best_gain = gain
+			best = i
+	return [RunSim.BUY, best] if best >= 0 else [RunSim.LEAVE]
+
+
+## A signal's option: the first it can take that neither moves the Reclaimer nor costs HP
+## while the crew is below half; failing that, the last it can take (usually "leave").
+static func _signal_choice(state: RunState, setup: RunSetup) -> int:
+	var options: Array = ((setup.rules.get("events", {}) as Dictionary).get(String(state.pending.get("event", "")), {}) as Dictionary).get("options", [])
+	var hp: int = 0
+	var full: int = 0
+	for member: Dictionary in state.crew:
+		if bool(member["alive"]):
+			hp += int(member["hp"])
+			full += RunSim.max_hp(setup, member)
+	var hurt: bool = hp * 2 < full
+	var last: int = 0
+	for i: int in options.size():
+		if not RunSim.can_choose(state, setup, i):
+			continue
+		last = i
+		var effects: Dictionary = (options[i] as Dictionary).get("effects", {})
+		if int(effects.get("front", 0)) > 0:
+			continue
+		if hurt and (int(effects.get("hp", 0)) < 0 or int(effects.get("hp_one", 0)) < 0 or effects.has("fight")):
+			continue
+		return i
+	return last
 
 
 ## Tunes the rarest fitted part it can afford, keeping half a rebuild in reserve (the full
@@ -182,6 +231,12 @@ static func _choose_site(state: RunState, setup: RunSetup) -> int:
 					score += 5
 				"skirmish":
 					score += 9
+				"signal":
+					score += 6
+				"trader":
+					score += 3
+				"tower":
+					score += 2
 		score = score * 1000 + (IntentAI.mix(setup.rng_seed, id, state.moves, 3) & 0x3FF)
 		if score > best_score:
 			best_score = score

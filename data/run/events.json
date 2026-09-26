@@ -1,0 +1,61 @@
+{
+  "_comment": "013: signals -- the map's events. A signal site shows one (seeded, never twice in a run) and the player picks an option. Every option states its whole cost and gain up front: no hidden dice. Effects, applied in this order: scrap (+/-; a cost needs that much scrap or the option is refused), hp (every living machine, never below 1 or above full), hp_one (the first living machine), part (a part of at least that rarity into the hold), tuned_part (the same, already tuned), reveal (scout every site within that many columns), front (the Reclaimer takes that many columns now), fight (skirmish|elite: a fight here, rewarded as that kind). In the content hash: effects are rules.",
+  "hauler_wreck": {
+    "title": "A CRASHED HAULER",
+    "text": "A Combine hauler lies on its side, cargo doors sprung. Something inside still hums, and the wreck is not as settled as it looks.",
+    "options": [
+      {"label": "STRIP IT", "text": "An uncommon part or better. The wreck shifts while you work: every machine takes 2.", "effects": {"part": 2, "hp": -2}},
+      {"label": "TAKE THE PLATING", "text": "+10 scrap.", "effects": {"scrap": 10}},
+      {"label": "LEAVE IT", "text": "Nothing.", "effects": {}}
+    ]
+  },
+  "lone_rig": {
+    "title": "A SPIKED RIG, ALONE",
+    "text": "One of the Reclaimer's heavy rigs has thrown a track and its escort is circling back for it. It has not seen you yet.",
+    "options": [
+      {"label": "BREAK IT", "text": "A fight here against an elite and its escort, for an elite's salvage.", "effects": {"fight": "elite"}},
+      {"label": "LET IT BE", "text": "Nothing.", "effects": {}}
+    ]
+  },
+  "scavengers": {
+    "title": "SCAVENGERS AT A FIRE",
+    "text": "Free machines from another yard, sharing a fire. They have parts to trade, and time to look at yours.",
+    "options": [
+      {"label": "TRADE", "text": "Pay 12 scrap for a tuned part.", "effects": {"scrap": -12, "tuned_part": 1}},
+      {"label": "SHARE THE FIRE", "text": "Every machine is patched for 3.", "effects": {"hp": 3}},
+      {"label": "MOVE ON", "text": "Nothing.", "effects": {}}
+    ]
+  },
+  "relay_mast": {
+    "title": "A RELAY MAST",
+    "text": "A Combine relay mast, still standing. From the top you would see half the yard. Its copper would buy a lot.",
+    "options": [
+      {"label": "CLIMB IT", "text": "Scout every site within two columns.", "effects": {"reveal": 2}},
+      {"label": "STRIP ITS COPPER", "text": "+12 scrap.", "effects": {"scrap": 12}}
+    ]
+  },
+  "tool_locker": {
+    "title": "A SEALED TOOL LOCKER",
+    "text": "A foreman's locker, welded shut and wired. Whatever is in there, someone wanted it kept.",
+    "options": [
+      {"label": "FORCE IT", "text": "A rare part. The locker's charge goes off in the first machine's face: it takes 4.", "effects": {"part": 3, "hp_one": -4}},
+      {"label": "LEAVE IT", "text": "Nothing.", "effects": {}}
+    ]
+  },
+  "downed_drone": {
+    "title": "A DOWNED DRONE",
+    "text": "One of the Reclaimer's scouts, down in the dirt, its core still warm. Taking it will not go unnoticed.",
+    "options": [
+      {"label": "TAKE ITS CORE", "text": "A tuned uncommon part. The Reclaimer takes a column now.", "effects": {"tuned_part": 2, "front": 1}},
+      {"label": "LEAVE IT", "text": "Nothing.", "effects": {}}
+    ]
+  },
+  "fuel_cache": {
+    "title": "A FUEL CACHE",
+    "text": "Drums of clean fuel, sealed before the Combine left. The machines run better on it, and the drums are worth something empty.",
+    "options": [
+      {"label": "REFUEL", "text": "Every machine is patched for 2, and +6 scrap.", "effects": {"hp": 2, "scrap": 6}},
+      {"label": "SELL THE DRUMS", "text": "+14 scrap.", "effects": {"scrap": 14}}
+    ]
+  }
+}

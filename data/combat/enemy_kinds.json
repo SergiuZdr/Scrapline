@@ -1,5 +1,5 @@
 {
-  "_comment": "Enemy kinds: rules layered on top of an ordinary part-built enemy. Generated fights roll these by column (see data/run/run.json).",
+  "_comment": "Enemy kinds: rules layered on top of an ordinary part-built enemy. Generated fights roll tracker/bomber/warden/hive by column (see data/run/run.json). `builds`: sets down a pad beside itself that builds a drone every `every` rounds (the hive's drone). sorter: the gate's boss (013). reclaimer: the drones that arrive in fights near the Reclaimer's line (013).",
   "tracker": {
     "name": "Tracker",
     "text": "Its attack locks onto a machine, not a hex. The shot follows that machine: break its line of sight, get out of range, kill it or shove it."
@@ -28,6 +28,29 @@
         ""
       ],
       "hp": 3
+    },
+    "builds": true
+  },
+  "sorter": {
+    "name": "The Sorter",
+    "text": "The Sorting Gate's keeper. While any gate pylon stands it takes 3 less from every hit: break the pylons first. Every 3 rounds it calls a drone from a pad beside it, warning a turn ahead.",
+    "pylon_armor": 3,
+    "builds": true,
+    "every": 3
+  },
+  "reclaimer": {
+    "name": "Reclaimer drone",
+    "text": "The Reclaimer's own. Fight near its line and they come in behind you: red hexes on your back row mark where, a round ahead. Stand on one to block it.",
+    "drone": {
+      "name": "Reclaimer Drone",
+      "parts": [
+        "ch_skirmisher",
+        "co_tesla",
+        "ar_scatter",
+        "ar_pulse",
+        ""
+      ],
+      "hp": 4
     }
   }
 }

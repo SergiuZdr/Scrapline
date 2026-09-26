@@ -8,10 +8,22 @@
   },
   "site_weights": {
     "skirmish": 50,
-    "scrapyard": 18,
+    "scrapyard": 12,
     "workshop": 14,
-    "elite": 18
+    "elite": 18,
+    "trader": 8,
+    "tower": 6,
+    "signal": 14
   },
+  "_sites_013": "013: traders (buy from stock, sell from the hold), watchtowers (scout), signals (data/run/events.json).",
+  "trader": {
+    "prices": [12, 20, 32],
+    "tuned_extra": 6,
+    "buy_multiplier": 2,
+    "_comment": "A trader stocks three parts (one tuned) priced by rarity (+tuned_extra if tuned), and buys parts from the hold for buy_multiplier x what breaking them down pays."
+  },
+  "tower": {"radius": 2, "_comment": "A watchtower scouts every site within `radius` columns."},
+  "reclaimer_reach": {"round": 3, "count": 2, "_comment": "A fight at a site in the column the Reclaimer takes next: `count` of its drones arrive on the crew's back row at round `round`, marked a round ahead."},
   "elite_from_column": 2,
   "workshop_guaranteed_columns": [3, 6],
   "front": {
@@ -58,7 +70,9 @@
     "elite_extra": 1,
     "elite_hp_bonus": 3,
     "boss_count": 5,
-    "boss_hp_bonus": 4
+    "boss_hp_bonus": 4,
+    "boss_escorts": 3,
+    "_boss": "013: the gate is its own map (data/fights/sorting_gate.json): the Sorter, its pylons, and `boss_escorts` rolled escorts. boss_count / boss_hp_bonus apply only if no gate map exists."
   },
   "rewards": {
     "skirmish_scrap": 10,

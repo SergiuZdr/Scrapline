@@ -29,7 +29,10 @@
     "elite": "A heavy spiked rig and its escort. One of its parts is worth having.",
     "scrapyard": "A heap the Reclaimer has not reached. Take one part, or strip it for scrap.",
     "workshop": "A Combine service hall with the lights still on. Repairs, rebuilds, room in the hold.",
-    "boss": "The Sorting Gate, held by a Reclaimer warlord. Through it is the next yard."
+    "boss": "The Sorting Gate, and the Sorter that keeps it, shielded by the gate's pylons. Through it is the next yard.",
+    "trader": "A free trader in a container, lamps on. Parts for scrap, and scrap for your spares.",
+    "tower": "A crane cab still standing. From up there the fog is thinner.",
+    "signal": "Something out here is sending. Worth a look, maybe."
   },
   "endings": {
     "won": "The Sorting Gate grinds open. Beyond it: the Slag Flats, and the Crucible's glow on the clouds. (Act 2 is not built yet. This is where the run ends for now.)",

@@ -32,6 +32,9 @@ const SCORE_OVERHEAT: int = -25
 ## Hitting an enemy that is currently aiming at something (bot only).
 const SCORE_DISRUPT: int = 30
 const SCORE_FELL: int = 30
+## Breaking a gate pylon strips the Sorter's shield (013): worth about a kill to the player's
+## side, nothing to the enemy's.
+const SCORE_PYLON: int = 90
 ## How many of the best candidates get the full dry run (explosions, pits, bombers).
 const REFINE: int = 6
 
@@ -169,8 +172,11 @@ static func plan_value(state: CombatState, u: GridUnit, weapon: Dictionary, plan
 		value += SCORE_HIT
 	# A barrel in the line is worth a look: the dry run decides whether it is worth it.
 	for prop: Dictionary in (plan.get("props", []) as Array):
-		if String((state.props[prop["cell"]] as Dictionary)["kind"]) == "barrel":
+		var kind: String = String((state.props[prop["cell"]] as Dictionary)["kind"])
+		if kind == "barrel":
 			value += 40
+		elif kind == "pylon" and u.team == GridUnit.TEAM_PLAYER:
+			value += SCORE_PYLON / 2
 	return value
 
 
@@ -190,6 +196,9 @@ static func _dry_value(state: CombatState, u: GridUnit, cell: Vector2i, w: int, 
 		for intent: Dictionary in state.intents:
 			intents[int(intent["ref"])] = true
 	for effect: Dictionary in CombatSim.diff(before, after):
+		if effect.has("prop") and u.team == GridUnit.TEAM_PLAYER \
+				and String((before.props.get(effect["prop"], {}) as Dictionary).get("kind", "")) == "pylon":
+			value += SCORE_PYLON
 		if not effect.has("ref"):
 			continue
 		var t: GridUnit = before.unit(int(effect["ref"]))

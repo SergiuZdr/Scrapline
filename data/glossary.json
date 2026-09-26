@@ -1,62 +1,570 @@
 {
   "_comment": "012. Every word the game uses, with its meaning in one or two lines. `forms` are the spellings linkify turns into links (whole words, any case); a term with no forms is in the GLOSSARY screen but never linked, because its word is too common to link safely (line, set, range...). Text only: NOT in the content hash.",
-  "groups": ["THE FIGHT", "WEAPONS", "TERRAIN", "ENEMIES", "ABILITIES", "YOUR MACHINES", "THE RUN"],
+  "groups": [
+    "THE FIGHT",
+    "WEAPONS",
+    "TERRAIN",
+    "ENEMIES",
+    "ABILITIES",
+    "YOUR MACHINES",
+    "THE RUN"
+  ],
   "terms": {
-    "turn": {"group": "THE FIGHT", "name": "Your turn", "text": "Each machine can move once and attack once (or use an ability), in any order. Then END TURN: the enemies do exactly what they showed.", "forms": ["end turn"]},
-    "intent": {"group": "THE FIGHT", "name": "Intent", "text": "What an enemy will do when you end your turn, drawn before you move: red hexes and a numbered badge. Move out of the red, kill it first, or shove it off its line.", "forms": ["intent", "intents"]},
-    "heat": {"group": "THE FIGHT", "name": "Heat", "text": "Every attack adds heat. At the heat cap the machine overheats: it skips its next round's attack, then its heat drops to zero. Machines vent a little every round.", "forms": ["heat", "heat cap"]},
-    "overheat": {"group": "THE FIGHT", "name": "Overheat", "text": "Reaching the heat cap. Next round the machine is seized: it can move but not attack.", "forms": ["overheat", "overheats", "overheated", "seized", "seizes"]},
-    "vent": {"group": "THE FIGHT", "name": "Vent", "text": "Spend the attack to dump all heat (V). Every machine also vents its vent number each round on its own.", "forms": ["vent", "vents", "venting"]},
-    "armour": {"group": "THE FIGHT", "name": "Armour", "text": "Takes that much off every hit it suffers. A hit always does at least 1.", "forms": ["armour", "armor"]},
-    "damage_type": {"group": "THE FIGHT", "name": "Damage and armour types", "text": "The core sets the damage type: kinetic, thermal, EMP or corrosive. Each lands 30% harder on one armour type (composite, reactive, shielded, plate) and 30% softer on another.", "forms": ["kinetic", "thermal", "emp", "corrosive", "plate", "composite", "reactive", "shielded"]},
-    "objective": {"group": "THE FIGHT", "name": "Objective", "text": "Every fight asks for something, shown top left. ROUT: destroy every enemy. DEFEND: keep the caches standing for some rounds. SALVAGE: collect enough scrap piles. Destroying every enemy always wins.", "forms": ["objective", "rout", "defend", "salvage"]},
-    "cache": {"group": "THE FIGHT", "name": "Cache", "text": "A salvage cache in a DEFEND fight: it cannot move or fight. Every cache still standing at the end pays out scrap.", "forms": ["cache", "caches"]},
-    "melee": {"group": "WEAPONS", "name": "Melee", "text": "Hits one hex next to the machine.", "forms": ["melee"]},
-    "shot": {"group": "WEAPONS", "name": "Shot", "text": "Flies in a line up to its range; the first thing in the way takes it. Of two equally short lines it takes the clear one.", "forms": ["shot", "shots"]},
-    "lob": {"group": "WEAPONS", "name": "Lob", "text": "Arcs over everything and lands on a hex between its minimum and maximum range.", "forms": ["lob", "lobs"]},
-    "range": {"group": "WEAPONS", "name": "Range", "text": "How far a shot or lob reaches, in hexes. A marksman frame, a ridge, a targeting rig or a Vektor set add to it.", "forms": []},
-    "pierce": {"group": "WEAPONS", "name": "Pierce", "text": "The shot carries on through what it hits to the next target, and 2 hexes past its range at half damage.", "forms": ["pierce", "pierces", "piercing"]},
-    "splash": {"group": "WEAPONS", "name": "Splash", "text": "Also hits every hex around where it lands.", "forms": ["splash"]},
-    "chain": {"group": "WEAPONS", "name": "Chain", "text": "After the hit it arcs on to the nearest enemy (or drum, or crate), 1 weaker each jump.", "forms": ["chain", "chains"]},
-    "shove": {"group": "WEAPONS", "name": "Shove", "text": "Pushes the target one hex straight away. Into something solid, both take 1. Into a pit, it falls.", "forms": ["shove", "shoves", "shoved"]},
-    "tear": {"group": "WEAPONS", "name": "Tear", "text": "A hit of 5 or more, or any hit from a weapon that tears, rips an arm off: that weapon is gone for the rest of the fight.", "forms": ["tear", "tears", "torn", "tears arms", "tears arms off"]},
-    "mark": {"group": "WEAPONS", "name": "Mark", "text": "The next hit on a marked target deals 2 more, then the mark is spent.", "forms": ["mark", "marks", "marked"]},
-    "cover": {"group": "TERRAIN", "name": "Cover", "text": "Rubble and scrap heaps: shots at a machine standing in cover do 1 less. Melee ignores it.", "forms": ["cover"]},
-    "rubble": {"group": "TERRAIN", "name": "Rubble", "text": "Costs 2 to cross and gives cover.", "forms": ["rubble"]},
-    "scrap_heap": {"group": "TERRAIN", "name": "Scrap heap", "text": "Blocks movement and shots: the best cover on the field.", "forms": ["scrap heap", "scrap heaps", "heap", "heaps"]},
-    "slag": {"group": "TERRAIN", "name": "Slag", "text": "Anything standing on slag at the start of a round takes 1.", "forms": ["slag"]},
-    "ridge": {"group": "TERRAIN", "name": "Ridge", "text": "High ground: costs 2 to climb, and shots and lobs from it reach 1 further.", "forms": ["ridge"]},
-    "pit": {"group": "TERRAIN", "name": "Pit", "text": "Nothing walks in. Anything shoved or dragged into a pit is gone.", "forms": ["pit", "pits"]},
-    "drum": {"group": "TERRAIN", "name": "Fuel drum", "text": "Explodes when hit: 3 damage to everything next to it, and it sets off the next drum along.", "forms": ["drum", "drums", "fuel drum", "barrel", "barrels"]},
-    "crate": {"group": "TERRAIN", "name": "Crate wall", "text": "Blocks movement and shots until it is broken (3 HP).", "forms": ["crate", "crates", "crate wall"]},
-    "pile": {"group": "TERRAIN", "name": "Scrap pile", "text": "What a wreck leaves. End a move on it (or Magnet it) for scrap and 2 HP. Enemies grab them too.", "forms": ["scrap pile", "scrap piles", "pile", "piles"]},
-    "carrier": {"group": "ENEMIES", "name": "Carrier", "text": "An enemy with the scrap mark on its tag carries scrap: it drops a pile when destroyed. The others drop nothing.", "forms": ["carrier", "carriers", "carries scrap"]},
-    "tracker": {"group": "ENEMIES", "name": "Tracker", "text": "Its shot locks onto a machine, not a hex, and follows it. Break its line, get out of range, kill it or shove it.", "forms": ["tracker"]},
-    "bomber": {"group": "ENEMIES", "name": "Bomber", "text": "Explodes when destroyed: 4 damage to every neighbour, its own side included.", "forms": ["bomber"]},
-    "warden": {"group": "ENEMIES", "name": "Warden", "text": "Its neighbours take 2 less from every hit. Kill it first, or pull its friends away.", "forms": ["warden"]},
-    "hive": {"group": "ENEMIES", "name": "Hive", "text": "Sets down a pad beside itself that builds a drone every 2 rounds, warning red the turn before. Stand on the pad to block it; destroy the hive to shut it down.", "forms": ["hive", "pad", "fabricator pad", "drone", "drones"]},
-    "charge": {"group": "ABILITIES", "name": "Charge", "text": "Run up to 3 hexes in a straight line, even after moving, and slam into the first thing in the way: 3 damage, +1 for every hex run first, and a shove.", "forms": ["charge"]},
-    "grapple": {"group": "ABILITIES", "name": "Grapple", "text": "Hook a unit 2-3 hexes away and drag it next to you. Over a pit, it falls.", "forms": ["grapple", "grappled"]},
-    "barricade": {"group": "ABILITIES", "name": "Barricade", "text": "Drop a crate wall on an empty neighbouring hex.", "forms": ["barricade"]},
-    "focus": {"group": "ABILITIES", "name": "Focus", "text": "Free: the next attack or Charge this turn deals +2.", "forms": ["focus"]},
-    "dash": {"group": "ABILITIES", "name": "Dash", "text": "Free: move again, up to 2 hexes, even after attacking.", "forms": ["dash"]},
-    "overdrive": {"group": "ABILITIES", "name": "Overdrive", "text": "Free: the next attack or Charge this turn deals +2, for +2 heat.", "forms": ["overdrive"]},
-    "flush": {"group": "ABILITIES", "name": "Flush", "text": "Free: dump all heat.", "forms": ["flush"]},
-    "shield": {"group": "ABILITIES", "name": "Shield", "text": "This machine and every ally next to it take 2 less from each hit until your next turn.", "forms": ["shield"]},
-    "magnet": {"group": "ABILITIES", "name": "Magnet", "text": "Free: collect a scrap pile up to 2 hexes away without moving.", "forms": ["magnet"]},
-    "cooldown": {"group": "ABILITIES", "name": "Cooldown", "text": "Rounds until an ability can be used again. FREE abilities do not use the machine's attack.", "forms": ["cooldown"]},
-    "role": {"group": "YOUR MACHINES", "name": "Role", "text": "The frame's trait. BRAWLER: +1 melee damage. LINE: can move after attacking. MARKSMAN: +1 range. ANCHOR: cannot be shoved or grappled.", "forms": ["role", "brawler", "marksman", "anchor"]},
-    "sockets": {"group": "YOUR MACHINES", "name": "Parts", "text": "A machine is five parts: a FRAME (HP, move, role, an ability), a CORE (damage type, heat), two ARMS (one weapon each) and a MODULE (a bonus, often an ability).", "forms": []},
-    "level": {"group": "YOUR MACHINES", "name": "Level", "text": "Bought in the garage with scrap (15, 25, 40): +2 HP and one perk of three. Levels show on the machine as new armour.", "forms": []},
-    "perk": {"group": "YOUR MACHINES", "name": "Perk", "text": "What a level-up adds besides HP: one of three offered, kept for the run.", "forms": ["perk", "perks"]},
-    "tune": {"group": "YOUR MACHINES", "name": "Tuning", "text": "At a workshop, re-cut a part one of two ways, once. A tuned part is marked +.", "forms": ["tuned", "tuning", "tune"]},
-    "maker": {"group": "YOUR MACHINES", "name": "Makers and sets", "text": "Every part has a maker. Two parts from one maker on a machine add a bonus; three add a second. KESSLER: +2 HP, then +1 armour. ARCLIGHT: vents 1 more, then abilities a round sooner. VEKTOR: +1 move, then +1 range. CINDER: +2 heat cap, then +1 damage.", "forms": ["maker", "makers", "kessler", "arclight", "vektor", "cinder"]},
-    "wreck": {"group": "YOUR MACHINES", "name": "Wreck", "text": "A machine destroyed in a fight keeps only its frame. A workshop rebuilds it at half HP with empty sockets.", "forms": ["wreck", "wrecked", "rebuild"]},
-    "reclaimer": {"group": "THE RUN", "name": "The Reclaimer", "text": "The machine that follows the key. Every 2 moves it swallows a column of the map; moving out of swallowed ground costs every machine 2 HP.", "forms": ["reclaimer"]},
-    "scrap": {"group": "THE RUN", "name": "Scrap", "text": "The run's only currency: from fights, piles, scrapyards and breaking parts down. It buys levels, tuning, repairs, rebuilds and room in the hold.", "forms": ["scrap"]},
-    "hold": {"group": "THE RUN", "name": "The hold", "text": "Where spare parts ride. Taking salvage is always allowed; an overfull hold stops you travelling until you fit or scrap something.", "forms": []},
-    "workshop": {"group": "THE RUN", "name": "Workshop", "text": "A site to patch the crew, rebuild a wreck, buy room in the hold and tune parts, for scrap.", "forms": ["workshop", "workshops"]},
-    "elite": {"group": "THE RUN", "name": "Elite", "text": "A harder fight with a veteran; its salvage includes an uncommon or better part, already tuned.", "forms": ["elite"]},
-    "gate": {"group": "THE RUN", "name": "The gate", "text": "The act's last fight. There is no road past it but through, and no road back.", "forms": []}
+    "turn": {
+      "group": "THE FIGHT",
+      "name": "Your turn",
+      "text": "Each machine can move once and attack once (or use an ability), in any order. Then END TURN: the enemies do exactly what they showed.",
+      "forms": [
+        "end turn"
+      ]
+    },
+    "intent": {
+      "group": "THE FIGHT",
+      "name": "Intent",
+      "text": "What an enemy will do when you end your turn, drawn before you move: red hexes and a numbered badge. Move out of the red, kill it first, or shove it off its line.",
+      "forms": [
+        "intent",
+        "intents"
+      ]
+    },
+    "heat": {
+      "group": "THE FIGHT",
+      "name": "Heat",
+      "text": "Every attack adds heat. At the heat cap the machine overheats: it skips its next round's attack, then its heat drops to zero. Machines vent a little every round.",
+      "forms": [
+        "heat",
+        "heat cap"
+      ]
+    },
+    "overheat": {
+      "group": "THE FIGHT",
+      "name": "Overheat",
+      "text": "Reaching the heat cap. Next round the machine is seized: it can move but not attack.",
+      "forms": [
+        "overheat",
+        "overheats",
+        "overheated",
+        "seized",
+        "seizes"
+      ]
+    },
+    "vent": {
+      "group": "THE FIGHT",
+      "name": "Vent",
+      "text": "Spend the attack to dump all heat (V). Every machine also vents its vent number each round on its own.",
+      "forms": [
+        "vent",
+        "vents",
+        "venting"
+      ]
+    },
+    "armour": {
+      "group": "THE FIGHT",
+      "name": "Armour",
+      "text": "Takes that much off every hit it suffers. A hit always does at least 1.",
+      "forms": [
+        "armour",
+        "armor"
+      ]
+    },
+    "damage_type": {
+      "group": "THE FIGHT",
+      "name": "Damage and armour types",
+      "text": "The core sets the damage type: kinetic, thermal, EMP or corrosive. Each lands 30% harder on one armour type (composite, reactive, shielded, plate) and 30% softer on another.",
+      "forms": [
+        "kinetic",
+        "thermal",
+        "emp",
+        "corrosive",
+        "plate",
+        "composite",
+        "reactive",
+        "shielded"
+      ]
+    },
+    "objective": {
+      "group": "THE FIGHT",
+      "name": "Objective",
+      "text": "Every fight asks for something, shown top left. ROUT: destroy every enemy. DEFEND: keep the caches standing for some rounds. SALVAGE: collect enough scrap piles. Destroying every enemy always wins.",
+      "forms": [
+        "objective",
+        "rout",
+        "defend",
+        "salvage"
+      ]
+    },
+    "cache": {
+      "group": "THE FIGHT",
+      "name": "Cache",
+      "text": "A salvage cache in a DEFEND fight: it cannot move or fight. Every cache still standing at the end pays out scrap.",
+      "forms": [
+        "cache",
+        "caches"
+      ]
+    },
+    "melee": {
+      "group": "WEAPONS",
+      "name": "Melee",
+      "text": "Hits one hex next to the machine.",
+      "forms": [
+        "melee"
+      ]
+    },
+    "shot": {
+      "group": "WEAPONS",
+      "name": "Shot",
+      "text": "Flies in a line up to its range; the first thing in the way takes it. Of two equally short lines it takes the clear one.",
+      "forms": [
+        "shot",
+        "shots"
+      ]
+    },
+    "lob": {
+      "group": "WEAPONS",
+      "name": "Lob",
+      "text": "Arcs over everything and lands on a hex between its minimum and maximum range.",
+      "forms": [
+        "lob",
+        "lobs"
+      ]
+    },
+    "range": {
+      "group": "WEAPONS",
+      "name": "Range",
+      "text": "How far a shot or lob reaches, in hexes. A marksman frame, a ridge, a targeting rig or a Vektor set add to it.",
+      "forms": []
+    },
+    "pierce": {
+      "group": "WEAPONS",
+      "name": "Pierce",
+      "text": "The shot carries on through what it hits to the next target, and 2 hexes past its range at half damage.",
+      "forms": [
+        "pierce",
+        "pierces",
+        "piercing"
+      ]
+    },
+    "splash": {
+      "group": "WEAPONS",
+      "name": "Splash",
+      "text": "Also hits every hex around where it lands.",
+      "forms": [
+        "splash"
+      ]
+    },
+    "chain": {
+      "group": "WEAPONS",
+      "name": "Chain",
+      "text": "After the hit it arcs on to the nearest enemy (or drum, or crate), 1 weaker each jump.",
+      "forms": [
+        "chain",
+        "chains"
+      ]
+    },
+    "shove": {
+      "group": "WEAPONS",
+      "name": "Shove",
+      "text": "Pushes the target one hex straight away. Into something solid, both take 1. Into a pit, it falls.",
+      "forms": [
+        "shove",
+        "shoves",
+        "shoved"
+      ]
+    },
+    "tear": {
+      "group": "WEAPONS",
+      "name": "Tear",
+      "text": "A hit of 5 or more, or any hit from a weapon that tears, rips an arm off: that weapon is gone for the rest of the fight.",
+      "forms": [
+        "tear",
+        "tears",
+        "torn",
+        "tears arms",
+        "tears arms off"
+      ]
+    },
+    "mark": {
+      "group": "WEAPONS",
+      "name": "Mark",
+      "text": "The next hit on a marked target deals 2 more, then the mark is spent.",
+      "forms": [
+        "mark",
+        "marks",
+        "marked"
+      ]
+    },
+    "cover": {
+      "group": "TERRAIN",
+      "name": "Cover",
+      "text": "Rubble and scrap heaps: shots at a machine standing in cover do 1 less. Melee ignores it.",
+      "forms": [
+        "cover"
+      ]
+    },
+    "rubble": {
+      "group": "TERRAIN",
+      "name": "Rubble",
+      "text": "Costs 2 to cross and gives cover.",
+      "forms": [
+        "rubble"
+      ]
+    },
+    "scrap_heap": {
+      "group": "TERRAIN",
+      "name": "Scrap heap",
+      "text": "Blocks movement and shots: the best cover on the field.",
+      "forms": [
+        "scrap heap",
+        "scrap heaps",
+        "heap",
+        "heaps"
+      ]
+    },
+    "slag": {
+      "group": "TERRAIN",
+      "name": "Slag",
+      "text": "Anything standing on slag at the start of a round takes 1.",
+      "forms": [
+        "slag"
+      ]
+    },
+    "ridge": {
+      "group": "TERRAIN",
+      "name": "Ridge",
+      "text": "High ground: costs 2 to climb, and shots and lobs from it reach 1 further.",
+      "forms": [
+        "ridge"
+      ]
+    },
+    "pit": {
+      "group": "TERRAIN",
+      "name": "Pit",
+      "text": "Nothing walks in. Anything shoved or dragged into a pit is gone.",
+      "forms": [
+        "pit",
+        "pits"
+      ]
+    },
+    "drum": {
+      "group": "TERRAIN",
+      "name": "Fuel drum",
+      "text": "Explodes when hit: 3 damage to everything next to it, and it sets off the next drum along.",
+      "forms": [
+        "drum",
+        "drums",
+        "fuel drum",
+        "barrel",
+        "barrels"
+      ]
+    },
+    "crate": {
+      "group": "TERRAIN",
+      "name": "Crate wall",
+      "text": "Blocks movement and shots until it is broken (3 HP).",
+      "forms": [
+        "crate",
+        "crates",
+        "crate wall"
+      ]
+    },
+    "pile": {
+      "group": "TERRAIN",
+      "name": "Scrap pile",
+      "text": "What a wreck leaves. End a move on it (or Magnet it) for scrap and 2 HP. Enemies grab them too.",
+      "forms": [
+        "scrap pile",
+        "scrap piles",
+        "pile",
+        "piles"
+      ]
+    },
+    "carrier": {
+      "group": "ENEMIES",
+      "name": "Carrier",
+      "text": "An enemy with the scrap mark on its tag carries scrap: it drops a pile when destroyed. The others drop nothing.",
+      "forms": [
+        "carrier",
+        "carriers",
+        "carries scrap"
+      ]
+    },
+    "tracker": {
+      "group": "ENEMIES",
+      "name": "Tracker",
+      "text": "Its shot locks onto a machine, not a hex, and follows it. Break its line, get out of range, kill it or shove it.",
+      "forms": [
+        "tracker"
+      ]
+    },
+    "bomber": {
+      "group": "ENEMIES",
+      "name": "Bomber",
+      "text": "Explodes when destroyed: 4 damage to every neighbour, its own side included.",
+      "forms": [
+        "bomber"
+      ]
+    },
+    "warden": {
+      "group": "ENEMIES",
+      "name": "Warden",
+      "text": "Its neighbours take 2 less from every hit. Kill it first, or pull its friends away.",
+      "forms": [
+        "warden"
+      ]
+    },
+    "hive": {
+      "group": "ENEMIES",
+      "name": "Hive",
+      "text": "Sets down a pad beside itself that builds a drone every 2 rounds, warning red the turn before. Stand on the pad to block it; destroy the hive to shut it down.",
+      "forms": [
+        "hive",
+        "pad",
+        "fabricator pad",
+        "drone",
+        "drones"
+      ]
+    },
+    "charge": {
+      "group": "ABILITIES",
+      "name": "Charge",
+      "text": "Run up to 3 hexes in a straight line, even after moving, and slam into the first thing in the way: 3 damage, +1 for every hex run first, and a shove.",
+      "forms": [
+        "charge"
+      ]
+    },
+    "grapple": {
+      "group": "ABILITIES",
+      "name": "Grapple",
+      "text": "Hook a unit 2-3 hexes away and drag it next to you. Over a pit, it falls.",
+      "forms": [
+        "grapple",
+        "grappled"
+      ]
+    },
+    "barricade": {
+      "group": "ABILITIES",
+      "name": "Barricade",
+      "text": "Drop a crate wall on an empty neighbouring hex.",
+      "forms": [
+        "barricade"
+      ]
+    },
+    "focus": {
+      "group": "ABILITIES",
+      "name": "Focus",
+      "text": "Free: the next attack or Charge this turn deals +2.",
+      "forms": [
+        "focus"
+      ]
+    },
+    "dash": {
+      "group": "ABILITIES",
+      "name": "Dash",
+      "text": "Free: move again, up to 2 hexes, even after attacking.",
+      "forms": [
+        "dash"
+      ]
+    },
+    "overdrive": {
+      "group": "ABILITIES",
+      "name": "Overdrive",
+      "text": "Free: the next attack or Charge this turn deals +2, for +2 heat.",
+      "forms": [
+        "overdrive"
+      ]
+    },
+    "flush": {
+      "group": "ABILITIES",
+      "name": "Flush",
+      "text": "Free: dump all heat.",
+      "forms": [
+        "flush"
+      ]
+    },
+    "shield": {
+      "group": "ABILITIES",
+      "name": "Shield",
+      "text": "This machine and every ally next to it take 2 less from each hit until your next turn.",
+      "forms": [
+        "shield"
+      ]
+    },
+    "magnet": {
+      "group": "ABILITIES",
+      "name": "Magnet",
+      "text": "Free: collect a scrap pile up to 2 hexes away without moving.",
+      "forms": [
+        "magnet"
+      ]
+    },
+    "cooldown": {
+      "group": "ABILITIES",
+      "name": "Cooldown",
+      "text": "Rounds until an ability can be used again. FREE abilities do not use the machine's attack.",
+      "forms": [
+        "cooldown"
+      ]
+    },
+    "role": {
+      "group": "YOUR MACHINES",
+      "name": "Role",
+      "text": "The frame's trait. BRAWLER: +1 melee damage. LINE: can move after attacking. MARKSMAN: +1 range. ANCHOR: cannot be shoved or grappled.",
+      "forms": [
+        "role",
+        "brawler",
+        "marksman",
+        "anchor"
+      ]
+    },
+    "sockets": {
+      "group": "YOUR MACHINES",
+      "name": "Parts",
+      "text": "A machine is five parts: a FRAME (HP, move, role, an ability), a CORE (damage type, heat), two ARMS (one weapon each) and a MODULE (a bonus, often an ability).",
+      "forms": []
+    },
+    "level": {
+      "group": "YOUR MACHINES",
+      "name": "Level",
+      "text": "Bought in the garage with scrap (15, 25, 40): +2 HP and one perk of three. Levels show on the machine as new armour.",
+      "forms": []
+    },
+    "perk": {
+      "group": "YOUR MACHINES",
+      "name": "Perk",
+      "text": "What a level-up adds besides HP: one of three offered, kept for the run.",
+      "forms": [
+        "perk",
+        "perks"
+      ]
+    },
+    "tune": {
+      "group": "YOUR MACHINES",
+      "name": "Tuning",
+      "text": "At a workshop, re-cut a part one of two ways, once. A tuned part is marked +.",
+      "forms": [
+        "tuned",
+        "tuning",
+        "tune"
+      ]
+    },
+    "maker": {
+      "group": "YOUR MACHINES",
+      "name": "Makers and sets",
+      "text": "Every part has a maker. Two parts from one maker on a machine add a bonus; three add a second. KESSLER: +2 HP, then +1 armour. ARCLIGHT: vents 1 more, then abilities a round sooner. VEKTOR: +1 move, then +1 range. CINDER: +2 heat cap, then +1 damage.",
+      "forms": [
+        "maker",
+        "makers",
+        "kessler",
+        "arclight",
+        "vektor",
+        "cinder"
+      ]
+    },
+    "wreck": {
+      "group": "YOUR MACHINES",
+      "name": "Wreck",
+      "text": "A machine destroyed in a fight keeps only its frame. A workshop rebuilds it at half HP with empty sockets.",
+      "forms": [
+        "wreck",
+        "wrecked",
+        "rebuild"
+      ]
+    },
+    "reclaimer": {
+      "group": "THE RUN",
+      "name": "The Reclaimer",
+      "text": "The machine that follows the key. Every 2 moves it swallows a column of the map; moving out of swallowed ground costs every machine 2 HP.",
+      "forms": [
+        "reclaimer"
+      ]
+    },
+    "scrap": {
+      "group": "THE RUN",
+      "name": "Scrap",
+      "text": "The run's only currency: from fights, piles, scrapyards and breaking parts down. It buys levels, tuning, repairs, rebuilds and room in the hold.",
+      "forms": [
+        "scrap"
+      ]
+    },
+    "hold": {
+      "group": "THE RUN",
+      "name": "The hold",
+      "text": "Where spare parts ride. Taking salvage is always allowed; an overfull hold stops you travelling until you fit or scrap something.",
+      "forms": []
+    },
+    "workshop": {
+      "group": "THE RUN",
+      "name": "Workshop",
+      "text": "A site to patch the crew, rebuild a wreck, buy room in the hold and tune parts, for scrap.",
+      "forms": [
+        "workshop",
+        "workshops"
+      ]
+    },
+    "elite": {
+      "group": "THE RUN",
+      "name": "Elite",
+      "text": "A harder fight with a veteran; its salvage includes an uncommon or better part, already tuned.",
+      "forms": [
+        "elite"
+      ]
+    },
+    "gate": {
+      "group": "THE RUN",
+      "name": "The gate",
+      "text": "The act's last fight. There is no road past it but through, and no road back.",
+      "forms": []
+    },
+    "pylon": {
+      "group": "TERRAIN",
+      "name": "Gate pylon",
+      "text": "At the Sorting Gate: while any pylon stands, the Sorter takes 3 less from every hit (the red beams). Each has 6 HP. Break them first.",
+      "forms": [
+        "pylon",
+        "pylons",
+        "gate pylon"
+      ]
+    },
+    "sorter": {
+      "group": "ENEMIES",
+      "name": "The Sorter",
+      "text": "The Sorting Gate's keeper: big, armoured, shielded by the gate's pylons, and every 3 rounds it calls a drone from a pad beside it.",
+      "forms": [
+        "sorter"
+      ]
+    },
+    "reclaimer_drone": {
+      "group": "ENEMIES",
+      "name": "Reclaimer drones",
+      "text": "Fight in the zone the Reclaimer takes next and its drones come in behind you at round 3, on red hexes marked a round ahead. Stand on one to block it.",
+      "forms": [
+        "reclaimer drone",
+        "reclaimer drones"
+      ]
+    },
+    "trader": {
+      "group": "THE RUN",
+      "name": "Trader",
+      "text": "Sells three parts for scrap (one of them tuned), and buys parts from your hold for twice what breaking them down pays.",
+      "forms": [
+        "trader"
+      ]
+    },
+    "watchtower": {
+      "group": "THE RUN",
+      "name": "Watchtower",
+      "text": "Climb it to scout every site within two zones.",
+      "forms": [
+        "watchtower"
+      ]
+    },
+    "signal": {
+      "group": "THE RUN",
+      "name": "Signal",
+      "text": "An event by the road: a scene and two or three choices, each with its cost and its gain written on it.",
+      "forms": [
+        "signal"
+      ]
+    }
   }
 }
