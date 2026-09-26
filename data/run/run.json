@@ -57,7 +57,7 @@
     "rarity_cap_by_column": [1, 1, 1, 2, 2, 2, 3, 3, 3],
     "elite_extra": 1,
     "elite_hp_bonus": 3,
-    "boss_count": 4,
+    "boss_count": 5,
     "boss_hp_bonus": 4
   },
   "rewards": {

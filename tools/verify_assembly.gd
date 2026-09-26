@@ -43,7 +43,7 @@ func _run() -> void:
 	var content: ContentDB = ContentDB.load_all()
 	var chassis_ids: Array[String] = []
 	for part_id: String in content.parts:
-		if String((content.parts[part_id] as Dictionary).get("slot", "")) == "chassis":
+		if String((content.parts[part_id] as Dictionary).get("slot", "")) == "chassis" and not PartTuning.is_tuned(part_id):
 			chassis_ids.append(part_id)
 	chassis_ids.sort()
 

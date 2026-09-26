@@ -2,6 +2,23 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [011] Build progression — 2026-09-26 ([detail](iterations/011-build-progression.md))
+
+A crew is now BUILT over a run: levels are choices, parts can be re-cut, makers add up, and
+salvage pulls in different directions.
+
+### Added
+- **Perks**: every level-up offers three (only ones that do something for that machine) and it keeps one; the level-up event names it.
+- **Tuning** at workshops: every part can be re-cut one of two ways, once ("Breaker Hammer+"), 6 / 10 / 14 scrap; the TUNE bench shows both options with the numbers before and after.
+- **Makers and sets**: Kessler, Arclight, Vektor, Cinder. Two parts from one maker on a machine give a bonus, three give another. Shown on socket rows (pips), in the garage, the assembly bay and on part cards ("MAKES KESSLER x3 ON BRUTE").
+- Salvage offers **three parts from three different slots**, one leaning to a maker the crew builds, and **TAKE 8 SCRAP INSTEAD**; an elite's part comes tuned.
+- `run_bot.gd --set path=json` to try balance dials side by side; the bot reports levels, tunings and unspent scrap.
+
+### Changed
+- Level 2 no longer adds +1 damage on every weapon (it became the Hot Loads perk); every level is +2 HP.
+- The boss fight has 5 enemies (was 4). Run bot 88.0%.
+- Heat per attack can never go below zero; a cold weapon's card no longer says "+0 heat".
+
 ## [010] The look — 2026-09-26 ([detail](iterations/010-the-look.md))
 
 A visual pass over everything, from the sources the art spike tested, judged by the

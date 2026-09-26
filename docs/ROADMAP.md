@@ -23,7 +23,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | — | [Art sourcing spike](plans/art-sourcing.md) | Sources and skills tried in-engine and judged: Poly Haven adopted, Kenney/Quaternius as re-materialed shapes, free AI art rejected | ✅ |
 | 009 | [Play-test 4 fixes](iterations/009-playtest-4-fixes.md) | Both-leaning shots, pierce overshoot, double chain, scrap carriers, a fixed hive pad with a countdown, board edges; garage scrap button, no black flash, a real bay, levelling up as an event with levels on the model; a bigger fogged map with the crew in it, a Reclaimer gauge and ghost wall, ambient life; assembling the crew at run start | ✅ |
 | 010 | [The look](iterations/010-the-look.md) | Style bible and colour registry; measured contrast (1.8 → 2.2); photographed board and worn-paint machines, crew numbers; effects; portraits in the HUD; the title as a scene | ✅ |
-| 011 | Build progression | Part upgrades, perks, manufacturer sets; rewards that are always a real choice | ⬜ |
+| 011 | [Build progression](iterations/011-build-progression.md) | Perks (1 of 3 per level), tuning once per part at workshops, maker sets, salvage from three slots with a scrap option; boss fight 5 enemies (bot 88.0%) | ✅ |
 | 012 | Onboarding | Tutorial first fight; glossary; tap-for-info everywhere | ⬜ |
 | 013 | Act 1 content | Real boss, the Reclaimer's drones in fights, more fight maps, more parts, events, traders, watchtowers; **user play-test of 009–013** | ⬜ |
 | 014 | Acts 2–3 | The Slag Flats and the Crucible | ⬜ |

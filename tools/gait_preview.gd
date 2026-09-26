@@ -97,7 +97,7 @@ func _loadout(db: ContentDB, chassis_id: String) -> Array[String]:
 	for index: int in slots.size():
 		for part_id: String in db.parts:
 			var part: Dictionary = db.parts[part_id]
-			if String(part.get("slot", "")) == slots[index]:
+			if String(part.get("slot", "")) == slots[index] and not PartTuning.is_tuned(part_id):
 				out[index + 1] = part_id
 				break
 	return out

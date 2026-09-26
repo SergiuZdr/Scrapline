@@ -59,9 +59,10 @@ static func _level_up(state: RunState, setup: RunSetup) -> Array:
 	return [RunSim.LEVEL_UP, best, 0] if best >= 0 else []
 
 
-## Tunes the rarest fitted part it can afford, keeping the rebuild reserve. Option `a`.
+## Tunes the rarest fitted part it can afford, keeping half a rebuild in reserve (the full
+## reserve left it tuning 0.1 parts a run, too rarely to test the rule). Option `a`.
 static func _best_tune(state: RunState, setup: RunSetup) -> Array:
-	var reserve: int = int((setup.rules.get("workshop", {}) as Dictionary).get("rebuild_cost", 20))
+	var reserve: int = int((setup.rules.get("workshop", {}) as Dictionary).get("rebuild_cost", 20)) / 2
 	var best: Array = []
 	var best_rarity: int = 0
 	for i: int in state.crew.size():
