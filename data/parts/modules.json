@@ -4,6 +4,7 @@
     "name": "Heat Governor",
     "slot": "module",
     "rarity": 1,
+    "maker": "arclight",
     "hp": 60,
     "armor": 2,
     "vent_rate": 3,
@@ -12,13 +13,28 @@
     "flavour": "Never seizes. Never spikes either. The safe hands.",
     "grid": {
       "heat_cap": 2
-    }
+    },
+    "tuning": [
+      {
+        "name": "Governor II",
+        "grid": {
+          "heat_cap": 2
+        }
+      },
+      {
+        "name": "Sink Fins",
+        "grid": {
+          "vent": 1
+        }
+      }
+    ]
   },
   {
     "id": "mo_bypass",
     "name": "Governor Bypass",
     "slot": "module",
     "rarity": 2,
+    "maker": "cinder",
     "attack": 4,
     "speed": 10,
     "vent_rate": -1,
@@ -29,13 +45,28 @@
       "damage": 1,
       "heat": 1,
       "ability": "overdrive"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Clean Bypass",
+        "grid": {
+          "heat": -1
+        }
+      },
+      {
+        "name": "Quick Trigger",
+        "grid": {
+          "cooldown": 1
+        }
+      }
+    ]
   },
   {
     "id": "mo_ablative",
     "name": "Ablative Plating",
     "slot": "module",
     "rarity": 1,
+    "maker": "kessler",
     "hp": 140,
     "armor": 5,
     "speed": -8,
@@ -44,13 +75,28 @@
     "flavour": "Bolted-on scrap. Every plate is something that used to be a wall.",
     "grid": {
       "hp": 3
-    }
+    },
+    "tuning": [
+      {
+        "name": "Extra Layers",
+        "grid": {
+          "hp": 2
+        }
+      },
+      {
+        "name": "Hard Face",
+        "grid": {
+          "armor": 1
+        }
+      }
+    ]
   },
   {
     "id": "mo_capacitor",
     "name": "Surge Capacitor",
     "slot": "module",
     "rarity": 3,
+    "maker": "arclight",
     "attack": 2,
     "heat_max": 45,
     "vent_rate": -2,
@@ -62,13 +108,28 @@
       "heat": 1,
       "heat_cap": 1,
       "ability": "overdrive"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Clean Bypass",
+        "grid": {
+          "heat": -1
+        }
+      },
+      {
+        "name": "Quick Trigger",
+        "grid": {
+          "cooldown": 1
+        }
+      }
+    ]
   },
   {
     "id": "mo_servo",
     "name": "Servo Cluster",
     "slot": "module",
     "rarity": 2,
+    "maker": "vektor",
     "attack": 6,
     "speed": 25,
     "vent_rate": -1,
@@ -78,13 +139,28 @@
     "grid": {
       "move": 1,
       "ability": "dash"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Quick Trigger",
+        "grid": {
+          "cooldown": 1
+        }
+      },
+      {
+        "name": "Light Frame",
+        "grid": {
+          "hp": 2
+        }
+      }
+    ]
   },
   {
     "id": "mo_coolant",
     "name": "Coolant Loop",
     "slot": "module",
     "rarity": 2,
+    "maker": "arclight",
     "vent_rate": 6,
     "heat_max": 20,
     "can_overdrive": false,
@@ -93,13 +169,28 @@
     "grid": {
       "vent": 2,
       "ability": "flush"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Wide Loop",
+        "grid": {
+          "vent": 1
+        }
+      },
+      {
+        "name": "Quick Purge",
+        "grid": {
+          "cooldown": 1
+        }
+      }
+    ]
   },
   {
     "id": "mo_reactive",
     "name": "Reactive Slab",
     "slot": "module",
     "rarity": 2,
+    "maker": "kessler",
     "hp": 220,
     "armor": 8,
     "speed": -14,
@@ -109,13 +200,28 @@
     "grid": {
       "armor": 1,
       "ability": "shield"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Quick Trigger",
+        "grid": {
+          "cooldown": 1
+        }
+      },
+      {
+        "name": "Thick Slab",
+        "grid": {
+          "hp": 2
+        }
+      }
+    ]
   },
   {
     "id": "mo_targeting",
     "name": "Targeting Rig",
     "slot": "module",
     "rarity": 3,
+    "maker": "vektor",
     "attack": 3,
     "range_bonus": 140,
     "can_overdrive": false,
@@ -123,13 +229,29 @@
     "flavour": "Extends the reach of whatever arms the frame is carrying.",
     "grid": {
       "range": 1
-    }
+    },
+    "tuning": [
+      {
+        "name": "Tracking",
+        "grid": {
+          "damage": 1,
+          "heat": 1
+        }
+      },
+      {
+        "name": "Stabiliser",
+        "grid": {
+          "heat_cap": 2
+        }
+      }
+    ]
   },
   {
     "id": "mo_overclock",
     "name": "Overclock Bank",
     "slot": "module",
     "rarity": 3,
+    "maker": "cinder",
     "attack": 6,
     "speed": 14,
     "vent_rate": -5,
@@ -142,13 +264,28 @@
       "move": 1,
       "heat": 1,
       "ability": "overdrive"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Clean Bypass",
+        "grid": {
+          "heat": -1
+        }
+      },
+      {
+        "name": "Quick Trigger",
+        "grid": {
+          "cooldown": 1
+        }
+      }
+    ]
   },
   {
     "id": "mo_scavenger",
     "name": "Scavenger Rig",
     "slot": "module",
     "rarity": 1,
+    "maker": "cinder",
     "hp": 90,
     "armor": 3,
     "vent_rate": 1,
@@ -158,6 +295,20 @@
     "grid": {
       "hp": 2,
       "ability": "magnet"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Strong Magnet",
+        "grid": {
+          "cooldown": 1
+        }
+      },
+      {
+        "name": "Plating",
+        "grid": {
+          "hp": 2
+        }
+      }
+    ]
   }
 ]

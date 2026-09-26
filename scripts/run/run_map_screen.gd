@@ -19,6 +19,7 @@ extends Control
 
 const GaragePanel := preload("res://scripts/run/garage_panel.gd")
 const AssemblyPanel := preload("res://scripts/run/assembly_panel.gd")
+const TunePanel := preload("res://scripts/run/tune_panel.gd")
 
 const SITE_NAMES: Dictionary = {"start": "CAMP", "skirmish": "FIGHT", "elite": "ELITE",
 	"scrapyard": "SCRAPYARD", "workshop": "WORKSHOP", "boss": "THE GATE"}
@@ -37,6 +38,8 @@ var _dock: VBoxContainer
 var _portraits: Array[MachinePortrait] = []
 var _overlay: Control
 var _garage: Control
+## The workshop's TUNE bench (011), open over the workshop panel.
+var _tuner: Control
 var _hover: int = -1
 ## Left-button press on the map: a click if it ends where it began, a pan if it moved.
 var _press_at := Vector2(-1, -1)
@@ -616,8 +619,9 @@ func _pick_panel() -> void:
 		var card: Button = PartCard.build(Run.db, String(options[i]), Vector2(380, 236), state.crew)
 		card.pressed.connect(_pick.bind(i))
 		row.add_child(card)
-	var skip := _button(("TAKE %d SCRAP INSTEAD" % int(state.pending["scrap"])) if scrapyard else "LEAVE IT",
-		UIKit.secondary(), UIKit.TEXT, Vector2(320, 60))
+	# 011: every salvage screen has a scrap alternative, so leaving the parts is a choice.
+	var skip := _button("TAKE %d SCRAP INSTEAD" % int(state.pending.get("scrap", 0)) if int(state.pending.get("scrap", 0)) > 0
+		else "LEAVE IT", UIKit.secondary(), UIKit.TEXT, Vector2(320, 60))
 	skip.pressed.connect(_pick.bind(-1))
 	_row(box).add_child(skip)
 
@@ -635,6 +639,16 @@ func _workshop_panel() -> void:
 		if not bool(member["alive"]):
 			box.add_child(_offer("REBUILD %s AT HALF HP (sockets empty)" % String(member["name"]).to_upper(),
 				int(shop["rebuild_cost"]), state.scrap, [RunSim.REBUILD, i]))
+	var tunable: Array = _tunable_costs()
+	if not tunable.is_empty():
+		var cheapest: int = tunable.min()
+		var label: String = "TUNE A PART  ·  %s SCRAP" % (str(cheapest) if tunable.max() == cheapest else "%d-%d" % [cheapest, tunable.max()])
+		if state.scrap < cheapest:
+			box.add_child(_label("%s (you have %d)" % [label, state.scrap], UIKit.SIZE_BODY, UIKit.TEXT_FAINT))
+		else:
+			var tune := _button(label, UIKit.choice(), UIKit.TEXT, Vector2(700, 60))
+			tune.pressed.connect(_open_tuner)
+			box.add_child(tune)
 	var expand: int = RunSim.expand_cost(state, Run.setup)
 	if expand >= 0:
 		box.add_child(_offer("MORE ROOM IN THE HOLD  %d TO %d" % [state.hold_size,
@@ -646,6 +660,31 @@ func _workshop_panel() -> void:
 	var leave := _button("MOVE ON", UIKit.primary(), UIKit.BG, Vector2(240, 60))
 	leave.pressed.connect(func() -> void: _apply([RunSim.LEAVE]))
 	row.add_child(leave)
+
+
+## What tuning would cost for every part the crew or the hold could still have tuned.
+func _tunable_costs() -> Array:
+	var out: Array = []
+	var ids: Array = Run.state.cargo.duplicate()
+	for member: Dictionary in Run.state.crew:
+		if bool(member["alive"]):
+			ids.append_array(member["parts"])
+	for id: Variant in ids:
+		if PartTuning.can_tune(Run.db.parts, String(id)):
+			out.append(RunSim.tune_cost(Run.setup, String(id)))
+	return out
+
+
+func _open_tuner() -> void:
+	if _tuner != null:
+		return
+	_tuner = TunePanel.new()
+	add_child(_tuner)
+	_preview.visible = false
+	_tuner.done.connect(func() -> void:
+		_tuner.queue_free()
+		_tuner = null
+		_refresh())
 
 
 func _offer(text: String, cost: int, scrap: int, action: Array) -> Control:

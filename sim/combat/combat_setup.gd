@@ -134,7 +134,7 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 		var specs: Array = slot_lists[team]
 		for slot: int in specs.size():
 			setup.units.append(_build_unit(specs[slot], team, slot, parts, roles,
-				damage_types, armor_types, setup.errors, rules.get("abilities", {})))
+				damage_types, armor_types, setup.errors, rules.get("abilities", {}), rules.get("makers", {})))
 
 	# Which enemies carry scrap: a real hash of the fight's seed and the unit, so it is
 	# fixed from the first frame and the same on every replay.
@@ -175,7 +175,7 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 
 static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionary,
 		roles: Dictionary, damage_types: Array, armor_types: Array,
-		errors: PackedStringArray, ability_defs: Dictionary = {}) -> GridUnit:
+		errors: PackedStringArray, ability_defs: Dictionary = {}, rules_makers: Dictionary = {}) -> GridUnit:
 	var u := GridUnit.new()
 	u.team = team
 	u.slot = slot
@@ -199,17 +199,14 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 	var mg: Dictionary = module.get("grid", {})
 
 	u.role = String(chassis.get("role", "line"))
-	# A run machine's levels arrive as flat bonuses (`bonus_hp`, `bonus_damage`).
-	u.max_hp = int(spec.get("hp", int(cg.get("hp", 8)) + int(mg.get("hp", 0)) + int(spec.get("bonus_hp", 0))))
-	# A run's machine arrives with whatever the last fight left it.
-	u.hp = clampi(int(spec.get("hp_now", u.max_hp)), 1, u.max_hp)
+	u.max_hp = int(spec.get("hp", int(cg.get("hp", 8)) + int(mg.get("hp", 0))))
 	u.move = int(cg.get("move", 3)) + int(mg.get("move", 0))
 	u.heat_cap = int(cg.get("heat_cap", 6)) + int(mg.get("heat_cap", 0))
 	u.armor = int(mg.get("armor", 0))
 	u.armor_type = maxi(0, armor_types.find(String(chassis.get("armor_type", ""))))
 	u.damage_type = maxi(0, damage_types.find(String(core.get("damage_type", ""))))
 	u.vent = int(og.get("vent", 1)) + int(mg.get("vent", 0))
-	u.damage_bonus = int(og.get("damage", 0)) + int(mg.get("damage", 0)) + int(spec.get("bonus_damage", 0))
+	u.damage_bonus = int(og.get("damage", 0)) + int(mg.get("damage", 0))
 	u.heat_bonus = int(og.get("heat", 0)) + int(mg.get("heat", 0))
 	u.range_bonus = int(mg.get("range", 0))
 
@@ -238,7 +235,74 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 			ability["id"] = id
 			ability["wait"] = 0
 			u.abilities.append(ability)
+		# A tuned frame or module can cut its abilities' cooldown (`cooldown` in its grid).
+		apply_bonus(u, {"cooldown": int(cg.get("cooldown", 0)) + int(mg.get("cooldown", 0))})
+		# Sets: parts from one maker add up (011). Player machines only -- see makers.json.
+		for entry: Dictionary in sets_of(u.part_ids, parts, rules_makers):
+			for tier: Variant in (entry["active"] as Array):
+				apply_bonus(u, (((rules_makers[entry["maker"]] as Dictionary).get("sets", {}) as Dictionary)
+					.get(str(tier), {})) as Dictionary)
+	# A run machine's levels and perks arrive as one flat block (`RunSim.bonus_of`).
+	apply_bonus(u, spec.get("bonus", {}))
+	# A run's machine arrives with whatever the last fight left it.
+	u.hp = clampi(int(spec.get("hp_now", u.max_hp)), 1, u.max_hp)
 	return u
+
+
+## Adds a flat bonus block -- a set, a perk, a machine's levels -- to a built unit. The keys
+## are a module grid's (`hp, move, heat_cap, vent, armor, damage, heat, range`) plus `melee`
+## (melee damage), `cooldown` (every ability ready that many rounds sooner, never below 1),
+## `chain` (more jumps on a weapon that already arcs), and the flags `unshovable` and
+## `move_after_attack`. One function, so a number means the same thing wherever it comes from.
+static func apply_bonus(u: GridUnit, grid: Dictionary) -> void:
+	if grid.is_empty():
+		return
+	u.max_hp += int(grid.get("hp", 0))
+	u.move += int(grid.get("move", 0))
+	u.heat_cap += int(grid.get("heat_cap", 0))
+	u.vent += int(grid.get("vent", 0))
+	u.armor += int(grid.get("armor", 0))
+	u.damage_bonus += int(grid.get("damage", 0))
+	u.heat_bonus += int(grid.get("heat", 0))
+	u.range_bonus += int(grid.get("range", 0))
+	u.melee_bonus += int(grid.get("melee", 0))
+	if int(grid.get("unshovable", 0)) > 0:
+		u.unshovable = true
+	if int(grid.get("move_after_attack", 0)) > 0:
+		u.move_after_attack = true
+	var chain: int = int(grid.get("chain", 0))
+	for weapon: Dictionary in u.weapons:
+		if chain != 0 and int(weapon["chain"]) > 0:
+			weapon["chain"] = int(weapon["chain"]) + chain
+	var cut: int = int(grid.get("cooldown", 0))
+	for ability: Dictionary in u.abilities:
+		if cut != 0:
+			ability["cooldown"] = maxi(1, int(ability["cooldown"]) - cut)
+
+
+## The makers a loadout carries two or more parts from, in maker order:
+## `[{ "maker", "count", "active": [2] or [2, 3] }]`. The one place a set is counted -- the
+## fight applies it, the garage shows it.
+static func sets_of(part_ids: PackedStringArray, parts: Dictionary, makers: Dictionary) -> Array:
+	var counts: Dictionary = {}
+	for id: String in part_ids:
+		var maker: String = String((parts.get(id, {}) as Dictionary).get("maker", ""))
+		if not id.is_empty() and makers.has(maker):
+			counts[maker] = int(counts.get(maker, 0)) + 1
+	var names: Array = counts.keys()
+	names.sort()
+	var out: Array = []
+	for maker: Variant in names:
+		var count: int = int(counts[maker])
+		var tiers: Array = []
+		var defined: Array = ((makers[maker] as Dictionary).get("sets", {}) as Dictionary).keys()
+		defined.sort_custom(func(a: Variant, b: Variant) -> bool: return int(str(a)) < int(str(b)))
+		for tier: Variant in defined:
+			if count >= int(str(tier)):
+				tiers.append(int(str(tier)))
+		if not tiers.is_empty():
+			out.append({"maker": String(maker), "count": count, "active": tiers})
+	return out
 
 
 ## One player machine built exactly as a fight would build it, for screens that show its
@@ -247,7 +311,8 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 static func unit_from(spec: Dictionary, rules: Dictionary, parts: Dictionary) -> GridUnit:
 	var errors: PackedStringArray = []
 	return _build_unit(spec, GridUnit.TEAM_PLAYER, 0, parts, rules.get("roles", {}),
-		rules.get("damage_types", []), rules.get("armor_types", []), errors, rules.get("abilities", {}))
+		rules.get("damage_types", []), rules.get("armor_types", []), errors, rules.get("abilities", {}),
+		rules.get("makers", {}))
 
 
 ## A weapon is its arm's `grid` block with every key present, so the sim never has to

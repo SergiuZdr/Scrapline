@@ -44,6 +44,7 @@ func _initialize() -> void:
 	_test_shove_and_bump()
 	_test_mark()
 	_test_heat()
+	_test_bonus_blocks()
 	_test_tearing()
 	_test_slag()
 	_test_intents_target_hexes()
@@ -165,10 +166,12 @@ func _test_fights_build() -> void:
 func _test_stats_come_from_parts() -> void:
 	var state: CombatState = _fight(_rows(), [_unit(HAMMER, C), _unit(RAIL, Vector2i(0, 8))], [_unit(HAMMER, Vector2i(0, 0))])
 	var brute: GridUnit = state.unit(0)
-	_check("HP = chassis + module (11 + 2)", brute.max_hp == 13)
-	_check("brawler +1 melee, marksman +1 range", brute.melee_bonus == 1 and state.unit(1).range_bonus == 1)
+	# HAMMER carries two Kessler parts (frame, hammer) and RAIL four Vektor ones: sets (011).
+	_check("HP = chassis + module + Kessler's 2-piece (11 + 2 + 2)", brute.max_hp == 15)
+	_check("brawler +1 melee; marksman +1 range, and Vektor's 3-piece +1 more", brute.melee_bonus == 1 and state.unit(1).range_bonus == 2)
 	var carried: CombatState = _fight(_rows(), [{"parts": HAMMER, "x": C.x, "y": C.y, "hp_now": 5}], [_unit(HAMMER, Vector2i(0, 0))])
-	_check("a machine can enter a fight damaged (HP carried from the run)", carried.unit(0).hp == 5 and carried.unit(0).max_hp == 13)
+	_check("a machine can enter a fight damaged (HP carried from the run)", carried.unit(0).hp == 5 and carried.unit(0).max_hp == 15)
+	_check("an enemy on the same parts wears no set (11 + 2)", state.unit(10).max_hp == 13)
 
 
 # --- Movement ---------------------------------------------------------------
@@ -318,6 +321,28 @@ func _test_heat() -> void:
 	_check("next round it is seized, heat reset, no attacks", rail.seized and rail.heat == 0 and not CombatSim.can_attack(state, 0, 1, _at(state, 10)))
 	state.unit(1).heat = 3
 	_check("VENT clears heat and uses the action", CombatSim.apply(state, [CombatSim.ACT_VENT, 1, 0, 0]) and state.unit(1).heat == 0)
+
+
+## 011: tunings, perks and sets reach a unit through one additive block.
+func _test_bonus_blocks() -> void:
+	var state: CombatState = _fight(_rows(), [_unit(["ch_brute", "co_slug", "ar_scanner", "ar_pulse", "mo_governor"], C)],
+		[_unit(HAMMER, Vector2i(0, 0), 40)])
+	var u: GridUnit = state.unit(0)
+	var scanner: Dictionary = u.weapons[0]
+	u.heat_bonus = -3
+	_check("heat per attack is never below zero (a cold scanner does not cool the machine)",
+		CombatSim.attack_heat(u, scanner) == 0)
+	u.heat_bonus = 0
+	var charge: int = int(u.abilities[0]["cooldown"])
+	CombatSetup.apply_bonus(u, {"cooldown": 1})
+	_check("a cooldown cut readies an ability a round sooner (%d -> %d)" % [charge, int(u.abilities[0]["cooldown"])],
+		int(u.abilities[0]["cooldown"]) == charge - 1)
+	CombatSetup.apply_bonus(u, {"cooldown": 9})
+	_check("never below one round", int(u.abilities[0]["cooldown"]) == 1)
+	var chain: int = int(u.weapons[1]["chain"])
+	CombatSetup.apply_bonus(u, {"chain": 1, "hp": 2, "move_after_attack": 1})
+	_check("chain adds a jump to an arcing weapon only", int(u.weapons[1]["chain"]) == chain + 1 and int(u.weapons[0]["chain"]) == 0)
+	_check("flags and numbers land (+2 max HP, moves after attacking)", u.move_after_attack and u.max_hp == state.setup.units[0].max_hp + 2)
 
 
 func _test_tearing() -> void:

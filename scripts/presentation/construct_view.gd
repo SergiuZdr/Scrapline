@@ -157,7 +157,7 @@ static func _stencil(core: Node3D, number: int) -> void:
 ## while its parts loaded). `_instance` collects them.
 static func warm(part_ids: Array) -> void:
 	for id: Variant in part_ids:
-		var part_id: String = String(id)
+		var part_id: String = PartTuning.base_of(String(id))
 		if part_id.is_empty() or _scene_cache.has(part_id) or _warming.has(part_id):
 			continue
 		var path: String = "%s/%s.glb" % [PARTS_DIR, part_id]
@@ -262,10 +262,12 @@ static func height_of(node: Node3D) -> float:
 
 # --- Internals ---------------------------------------------------------------
 
+## The part to DRAW in a socket: a tuned part (`ar_hammer:a`, 011) is its base part's model,
+## livery and all -- a tuning is a number, not a new machine.
 static func _part_id(part_ids: PackedStringArray, index: int) -> String:
 	if index >= part_ids.size():
 		return ""
-	return part_ids[index]
+	return PartTuning.base_of(part_ids[index])
 
 
 static func _instance(part_id: String) -> Node3D:

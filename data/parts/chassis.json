@@ -4,6 +4,7 @@
     "name": "Brute Frame",
     "slot": "chassis",
     "rarity": 1,
+    "maker": "kessler",
     "hp": 880,
     "armor": 8,
     "speed": 105,
@@ -19,13 +20,28 @@
       "move": 3,
       "heat_cap": 6,
       "ability": "charge"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Reinforced",
+        "grid": {
+          "hp": 3
+        }
+      },
+      {
+        "name": "Ram Plate",
+        "grid": {
+          "cooldown": 1
+        }
+      }
+    ]
   },
   {
     "id": "ch_skirmisher",
     "name": "Skirmisher Frame",
     "slot": "chassis",
     "rarity": 1,
+    "maker": "arclight",
     "hp": 580,
     "armor": 3,
     "speed": 150,
@@ -41,13 +57,28 @@
       "move": 3,
       "heat_cap": 4,
       "ability": "dash"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Light Plating",
+        "grid": {
+          "hp": 2
+        }
+      },
+      {
+        "name": "Long Stride",
+        "grid": {
+          "move": 1
+        }
+      }
+    ]
   },
   {
     "id": "ch_bulwark",
     "name": "Bulwark Frame",
     "slot": "chassis",
     "rarity": 2,
+    "maker": "arclight",
     "hp": 1080,
     "armor": 12,
     "speed": 70,
@@ -64,13 +95,28 @@
       "move": 2,
       "heat_cap": 8,
       "ability": "barricade"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Reinforced",
+        "grid": {
+          "hp": 3
+        }
+      },
+      {
+        "name": "Quick Walls",
+        "grid": {
+          "cooldown": 1
+        }
+      }
+    ]
   },
   {
     "id": "ch_strider",
     "name": "Strider Frame",
     "slot": "chassis",
     "rarity": 2,
+    "maker": "vektor",
     "hp": 470,
     "armor": 2,
     "speed": 180,
@@ -86,13 +132,28 @@
       "move": 4,
       "heat_cap": 4,
       "ability": "focus"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Plated",
+        "grid": {
+          "hp": 2
+        }
+      },
+      {
+        "name": "Cold Frame",
+        "grid": {
+          "heat_cap": 2
+        }
+      }
+    ]
   },
   {
     "id": "ch_hauler",
     "name": "Hauler Frame",
     "slot": "chassis",
     "rarity": 1,
+    "maker": "cinder",
     "hp": 900,
     "armor": 8,
     "speed": 78,
@@ -108,13 +169,28 @@
       "move": 2,
       "heat_cap": 6,
       "ability": "grapple"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Fast Winch",
+        "grid": {
+          "cooldown": 1
+        }
+      },
+      {
+        "name": "Tracks",
+        "grid": {
+          "move": 1
+        }
+      }
+    ]
   },
   {
     "id": "ch_reaper",
     "name": "Reaper Frame",
     "slot": "chassis",
     "rarity": 3,
+    "maker": "cinder",
     "hp": 760,
     "armor": 3,
     "speed": 152,
@@ -131,13 +207,28 @@
       "move": 4,
       "heat_cap": 6,
       "ability": "charge"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Reinforced",
+        "grid": {
+          "hp": 3
+        }
+      },
+      {
+        "name": "Ram Plate",
+        "grid": {
+          "cooldown": 1
+        }
+      }
+    ]
   },
   {
     "id": "ch_citadel",
     "name": "Citadel Frame",
     "slot": "chassis",
     "rarity": 3,
+    "maker": "kessler",
     "hp": 1320,
     "armor": 15,
     "speed": 58,
@@ -153,13 +244,28 @@
       "move": 2,
       "heat_cap": 7,
       "ability": "barricade"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Reinforced",
+        "grid": {
+          "hp": 4
+        }
+      },
+      {
+        "name": "Tracks",
+        "grid": {
+          "move": 1
+        }
+      }
+    ]
   },
   {
     "id": "ch_lancer",
     "name": "Lancer Frame",
     "slot": "chassis",
     "rarity": 2,
+    "maker": "vektor",
     "hp": 620,
     "armor": 5,
     "speed": 112,
@@ -175,13 +281,28 @@
       "move": 3,
       "heat_cap": 5,
       "ability": "focus"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Plated",
+        "grid": {
+          "hp": 2
+        }
+      },
+      {
+        "name": "Long Stride",
+        "grid": {
+          "move": 1
+        }
+      }
+    ]
   },
   {
     "id": "ch_courier",
     "name": "Courier Frame",
     "slot": "chassis",
     "rarity": 1,
+    "maker": "vektor",
     "hp": 430,
     "armor": 1,
     "speed": 170,
@@ -197,13 +318,28 @@
       "move": 4,
       "heat_cap": 4,
       "ability": "dash"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Plated",
+        "grid": {
+          "hp": 3
+        }
+      },
+      {
+        "name": "Quick Cycle",
+        "grid": {
+          "cooldown": 1
+        }
+      }
+    ]
   },
   {
     "id": "ch_dredge",
     "name": "Dredge Frame",
     "slot": "chassis",
     "rarity": 2,
+    "maker": "kessler",
     "hp": 1000,
     "armor": 10,
     "speed": 74,
@@ -220,6 +356,20 @@
       "move": 2,
       "heat_cap": 6,
       "ability": "charge"
-    }
+    },
+    "tuning": [
+      {
+        "name": "Reinforced",
+        "grid": {
+          "hp": 3
+        }
+      },
+      {
+        "name": "Tracks",
+        "grid": {
+          "move": 1
+        }
+      }
+    ]
   }
 ]

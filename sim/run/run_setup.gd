@@ -36,6 +36,9 @@ static func create(content_parts: Dictionary, content_tiles: Array, content_figh
 	for slot: String in ["chassis", "core", "arm", "module"]:
 		setup.pools[slot] = []
 	for id: Variant in ids:
+		# Tuned parts are made at a workshop, never found: they stay out of every pool.
+		if (content_parts[id] as Dictionary).has("base"):
+			continue
 		var slot: String = String((content_parts[id] as Dictionary).get("slot", ""))
 		if setup.pools.has(slot):
 			(setup.pools[slot] as Array).append(String(id))

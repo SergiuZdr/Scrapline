@@ -30,7 +30,10 @@ static func next_action(state: RunState, setup: RunSetup) -> Array:
 			if RunSim.needs_repair(state, setup) and state.scrap >= int((setup.rules["workshop"] as Dictionary)["repair_cost"]):
 				return [RunSim.REPAIR]
 			var refit: Array = _best_refit(state, setup)
-			return refit if not refit.is_empty() else [RunSim.LEAVE]
+			if not refit.is_empty():
+				return refit
+			var tune: Array = _best_tune(state, setup)
+			return tune if not tune.is_empty() else [RunSim.LEAVE]
 	var refit: Array = _best_refit(state, setup)
 	if not refit.is_empty():
 		return refit
@@ -52,7 +55,26 @@ static func _level_up(state: RunState, setup: RunSetup) -> Array:
 			continue
 		if best < 0 or int(state.crew[i].get("level", 0)) < int(state.crew[best].get("level", 0)):
 			best = i
-	return [RunSim.LEVEL_UP, best] if best >= 0 else []
+	# The perk: the first of the offer, which is seeded -- a stand-in for a player's taste.
+	return [RunSim.LEVEL_UP, best, 0] if best >= 0 else []
+
+
+## Tunes the rarest fitted part it can afford, keeping the rebuild reserve. Option `a`.
+static func _best_tune(state: RunState, setup: RunSetup) -> Array:
+	var reserve: int = int((setup.rules.get("workshop", {}) as Dictionary).get("rebuild_cost", 20))
+	var best: Array = []
+	var best_rarity: int = 0
+	for i: int in state.crew.size():
+		if not bool(state.crew[i]["alive"]):
+			continue
+		for socket: int in 5:
+			var part: String = String((state.crew[i]["parts"] as Array)[socket])
+			if not PartTuning.can_tune(setup.parts, part) or state.scrap < RunSim.tune_cost(setup, part) + reserve:
+				continue
+			if setup.rarity(part) > best_rarity:
+				best_rarity = setup.rarity(part)
+				best = [RunSim.TUNE, i, socket, 0]
+	return best
 
 
 ## The hold part worth least to the crew: lowest rarity, then oldest.
@@ -75,7 +97,7 @@ static func play_fight(combat_setup: CombatSetup) -> Array:
 	return actions
 
 
-static func _choose_part(state: RunState, setup: RunSetup, options: Array, kind: String) -> int:
+static func _choose_part(state: RunState, setup: RunSetup, options: Array, _kind: String) -> int:
 	var best: int = -1
 	var best_gain: int = 0
 	for i: int in options.size():
@@ -83,9 +105,8 @@ static func _choose_part(state: RunState, setup: RunSetup, options: Array, kind:
 		if gain > best_gain:
 			best_gain = gain
 			best = i
-	# Nothing it would fit: a scrapyard's scrap is worth more than a spare part.
-	if best == -1 and kind == "reward" and not options.is_empty():
-		return 0
+	# Nothing it would fit: the scrap is worth more than a spare part (011: every salvage
+	# screen offers it).
 	return best
 
 

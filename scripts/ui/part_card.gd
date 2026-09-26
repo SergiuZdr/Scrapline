@@ -45,7 +45,9 @@ static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array 
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	banner_row.add_child(spacer)
-	banner_row.add_child(_label(PartText.slot_label(parts, id), UIKit.SIZE_MICRO, UIKit.TEXT_DIM, UIKit.font_strong()))
+	# Who made it, then what it is: "KESSLER ARM" (011: parts from one maker add up).
+	banner_row.add_child(_label(("%s %s" % [PartText.maker_short(db.makers, parts, id), PartText.slot_label(parts, id)]).strip_edges(),
+		UIKit.SIZE_MICRO, UIKit.TEXT_DIM, UIKit.font_strong()))
 
 	var inner := VBoxContainer.new()
 	inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -78,7 +80,44 @@ static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array 
 	if not compare_crew.is_empty():
 		var verdict: Array = compare(parts, id, compare_crew)
 		inner.add_child(_label(String(verdict[0]), UIKit.SIZE_MICRO, verdict[1], UIKit.font_strong()))
+		var completes: String = set_verdict(db, id, compare_crew)
+		if not completes.is_empty():
+			inner.add_child(_label(completes, UIKit.SIZE_MICRO, UIKit.GREEN, UIKit.font_strong()))
 	return button
+
+
+## "MAKES KESSLER x3 ON BRUTE" when fitting the part would give a machine a set bonus it does
+## not have yet, or "". Asks `CombatSetup.sets_of`, the count the fight itself uses.
+static func set_verdict(db: ContentDB, id: String, crew: Array) -> String:
+	var parts: Dictionary = db.parts
+	var maker: String = String((parts.get(id, {}) as Dictionary).get("maker", ""))
+	if maker.is_empty():
+		return ""
+	var slot: String = String((parts.get(id, {}) as Dictionary).get("slot", ""))
+	for member: Dictionary in crew:
+		if not bool(member["alive"]):
+			continue
+		var loadout: Array = member["parts"]
+		var before: int = _tiers(db, loadout, maker)
+		for s: int in 5:
+			if RunSetup.socket_slot(s) != slot:
+				continue
+			var trial: Array = loadout.duplicate()
+			trial[s] = id
+			var after: int = _tiers(db, trial, maker)
+			if after > before:
+				for entry: Dictionary in CombatSetup.sets_of(PackedStringArray(trial), parts, db.makers):
+					if String(entry["maker"]) == maker:
+						return "MAKES %s x%d ON %s" % [PartText.maker_short(db.makers, parts, id), int(entry["count"]),
+							String(member["name"]).to_upper()]
+	return ""
+
+
+static func _tiers(db: ContentDB, loadout: Array, maker: String) -> int:
+	for entry: Dictionary in CombatSetup.sets_of(PackedStringArray(loadout), db.parts, db.makers):
+		if String(entry["maker"]) == maker:
+			return (entry["active"] as Array).size()
+	return 0
 
 
 ## `[text, colour]`: which fitted part this one would beat, by rarity, or that it beats none.
