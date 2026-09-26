@@ -358,7 +358,7 @@ func _test_real_chassis_binds() -> void:
 	var walked: int = 0
 	for part_id: String in db.parts:
 		var part: Dictionary = db.parts[part_id]
-		if String(part.get("slot", "")) != "chassis":
+		if String(part.get("slot", "")) != "chassis" or PartTuning.is_tuned(part_id):
 			continue
 		var unit := SimUnit.new()
 		unit.unit_ref = 0
