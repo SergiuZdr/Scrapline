@@ -1527,7 +1527,7 @@ func _weapon_detail(u: GridUnit, w: int) -> String:
 		bits.append("marks")
 	if bool(weapon["tears"]):
 		bits.append("tears")
-	bits.append("+%d heat" % (int(weapon["heat"]) + u.heat_bonus))
+	bits.append("+%d heat" % CombatSim.attack_heat(u, weapon))
 	return " · ".join(bits)
 
 

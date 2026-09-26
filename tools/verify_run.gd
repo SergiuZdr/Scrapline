@@ -21,6 +21,10 @@ func _initialize() -> void:
 	_test_wreck_and_rebuild()
 	_test_boss_held()
 	_test_levels()
+	_test_perks()
+	_test_tuning()
+	_test_sets()
+	_test_salvage()
 	_test_assembly()
 	_test_refit()
 	_test_determinism_and_save()
@@ -233,28 +237,173 @@ func _test_boss_held() -> void:
 	_check("a boss fight that is not won ends the run", state.outcome == RunState.LOST)
 
 
-## Play-test 3: scrap buys machine levels.
+## Play-test 3: scrap buys machine levels; 011: every level also keeps one perk of three.
 func _test_levels() -> void:
 	var setup: RunSetup = _setup(8)
 	var state: RunState = RunSim.start(setup)
 	var member: Dictionary = state.crew[0]
 	var full: int = RunSim.max_hp(setup, member)
 	state.scrap = 14
-	_check("a level cannot be bought without the scrap (15)", not RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0]))
+	_check("a level cannot be bought without the scrap (15)", not RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0, 0]))
 	state.scrap = 100
-	_check("a level costs 15 scrap", RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0]) and state.scrap == 85 and int(member["level"]) == 1)
-	_check("level 1 adds 2 max HP and 2 HP now", RunSim.max_hp(setup, member) == full + 2 and int(member["hp"]) == full + 2)
-	RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0])
-	RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0])
+	var offer: Array[String] = RunSim.perk_offer(state, setup, 0)
+	_check("a level offers three different perks %s" % [offer], offer.size() == 3 and offer[0] != offer[1]
+		and offer[1] != offer[2] and offer[0] != offer[2])
+	_check("the offer is the same when asked again", RunSim.perk_offer(state, setup, 0) == offer)
+	_check("a level needs a perk from its offer", not RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0, 3])
+		and not RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0]) and int(member["level"]) == 0)
+	var perk_hp: int = int((((setup.rules["perks"] as Dictionary)[offer[1]] as Dictionary).get("grid", {}) as Dictionary).get("hp", 0))
+	_check("a level costs 15 scrap and keeps the chosen perk", RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0, 1])
+		and state.scrap == 85 and int(member["level"]) == 1 and (member["perks"] as Array) == [offer[1]])
+	_check("level 1 adds 2 max HP (and any the perk adds), and that HP now",
+		RunSim.max_hp(setup, member) == full + 2 + perk_hp and int(member["hp"]) == full + 2 + perk_hp)
+	_check("a perk once taken is not offered again", not RunSim.perk_offer(state, setup, 0).has(offer[1]))
+	RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0, 0])
+	RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0, 2])
 	_check("levels cost 25 and 40, and stop at 3", int(member["level"]) == 3 and state.scrap == 20
-		and not RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0]))
+		and not RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0, 0]) and RunSim.perk_offer(state, setup, 0).is_empty())
+	_check("three levels, three different perks", (member["perks"] as Array).size() == 3
+		and not (member["perks"][0] == member["perks"][1] or member["perks"][1] == member["perks"][2]))
 	var fight_site: int = RunSim.destinations(state)[0]
 	state.sites[fight_site]["type"] = "skirmish"
 	RunSim.apply(state, setup, [RunSim.TRAVEL, fight_site])
-	_check("no levels bought mid-fight", not RunSim.apply(state, setup, [RunSim.LEVEL_UP, 1]))
+	_check("no levels bought mid-fight", not RunSim.apply(state, setup, [RunSim.LEVEL_UP, 1, 0]))
 	var combat: CombatSetup = RunSim.fight_setup(state, setup)
-	_check("a level-3 machine fights with +7 max HP and +1 damage (2 + 2 + 3; damage at level 2)",
-		combat.units[0].max_hp == full + 7 and RunSim.level_bonus(setup, member, "damage") == 1)
+	_check("the fight fields the machine the run describes (max HP %d)" % RunSim.max_hp(setup, member),
+		combat.units[0].max_hp == RunSim.max_hp(setup, member))
+
+
+## 011: what perks do, and that a level only offers ones that do something for the machine.
+func _test_perks() -> void:
+	var setup: RunSetup = _setup(3)
+	var brute: Dictionary = {"name": "B", "parts": ["ch_brute", "co_slug", "ar_saw", "ar_hammer", "mo_scavenger"],
+		"alive": true, "hp": 99, "level": 0, "perks": []}
+	var plain: GridUnit = RunSim.preview_machine(setup, brute)
+	var built: Dictionary = brute.duplicate(true)
+	built["perks"] = ["frame", "reflexes", "quick_cycle", "plating"]
+	var perked: GridUnit = RunSim.preview_machine(setup, built)
+	_check("Reinforced Frame: +3 HP", perked.max_hp == plain.max_hp + 3)
+	_check("Combat Reflexes: it can move after attacking", perked.move_after_attack and not plain.move_after_attack)
+	_check("Quick Cycle: Charge is ready a round sooner (3 -> 2)",
+		int(plain.abilities[0]["cooldown"]) == 3 and int(perked.abilities[0]["cooldown"]) == 2)
+	_check("Extra Plating: +1 armour", perked.armor == plain.armor + 1)
+	var chainless: bool = true
+	var saw_relay: bool = false
+	var line_reflexes: bool = false
+	for seed_value: int in range(1, 60):
+		var s: RunSetup = _setup(seed_value)
+		var state: RunState = RunSim.start(s)
+		state.scrap = 999
+		chainless = chainless and not RunSim.perk_offer(state, s, 0).has("arc_relay")
+		saw_relay = saw_relay or RunSim.perk_offer(state, s, 1).has("arc_relay")
+		line_reflexes = line_reflexes or RunSim.perk_offer(state, s, 1).has("reflexes")
+	_check("a machine with no chain weapon is never offered Arc Relay", chainless)
+	_check("the Hauler (a pulse emitter) is offered Arc Relay on some seed", saw_relay)
+	_check("a line frame (already moves after attacking) is never offered Combat Reflexes", not line_reflexes)
+
+
+## 011: a workshop tunes a part once, one of two ways.
+func _test_tuning() -> void:
+	var setup: RunSetup = _setup(21)
+	var every: bool = true
+	for id: Variant in setup.parts:
+		if not (setup.parts[id] as Dictionary).has("base"):
+			every = every and setup.parts.has(String(id) + ":a") and setup.parts.has(String(id) + ":b")
+	_check("every part has both its tunings", every)
+	var pooled: bool = false
+	for slot: Variant in setup.pools:
+		for id: Variant in (setup.pools[slot] as Array):
+			pooled = pooled or PartTuning.is_tuned(String(id))
+	_check("no tuned part is in a loot pool", not pooled)
+	_check("no tuned part is on the assembly bench", RunSim.bench_count(setup, "ar_hammer:a") == 0)
+	var sledge: Dictionary = setup.parts["ar_hammer:a"]
+	_check("a tuning merges its option (Sledge Head: 4 damage), keeps its maker, is named with a +",
+		int(sledge["grid"]["damage"]) == 4 and String(sledge["name"]) == "Breaker Hammer+"
+		and String(sledge["base"]) == "ar_hammer" and String(sledge["maker"]) == "kessler")
+	_check("an option can take a number off (Cold Striker: heat 0)", int(setup.parts["ar_hammer:b"]["grid"]["heat"]) == 0)
+	_check("a flag option sets it (Tearing Teeth: the saw tears arms)", bool(setup.parts["ar_saw:a"]["grid"]["tears"]))
+	var state: RunState = RunSim.start(setup)
+	state.scrap = 50
+	_check("no tuning away from a workshop", not RunSim.apply(state, setup, [RunSim.TUNE, 0, 3, 0]))
+	state.pending = {"kind": "workshop"}
+	_check("tuning a common costs 6 and changes the socket", RunSim.apply(state, setup, [RunSim.TUNE, 0, 3, 0])
+		and state.scrap == 44 and String(state.crew[0]["parts"][3]) == "ar_hammer:a")
+	_check("a part is tuned only once", not RunSim.apply(state, setup, [RunSim.TUNE, 0, 3, 1]))
+	_check("the option is 0 or 1", not RunSim.apply(state, setup, [RunSim.TUNE, 0, 2, 2]))
+	var unit: GridUnit = RunSim.preview_machine(setup, state.crew[0])
+	_check("the fight uses the tuned numbers (the hammer hits for 4)", int(unit.weapons[1]["damage"]) == 4)
+	state.cargo.append("ar_lance")
+	_check("a part in the hold can be tuned (an uncommon costs 10)",
+		RunSim.apply(state, setup, [RunSim.TUNE, -1, state.cargo.size() - 1, 1]) and state.cargo[-1] == "ar_lance:b" and state.scrap == 34)
+	var full: int = RunSim.max_hp(setup, state.crew[0])
+	var hp: int = int(state.crew[0]["hp"])
+	_check("a tuning that adds HP adds it now (Reinforced frame: +3)", RunSim.apply(state, setup, [RunSim.TUNE, 0, 0, 0])
+		and RunSim.max_hp(setup, state.crew[0]) == full + 3 and int(state.crew[0]["hp"]) == hp + 3)
+	state.scrap = 5
+	_check("no tuning without the scrap", not RunSim.apply(state, setup, [RunSim.TUNE, 0, 2, 0]))
+
+
+## 011: parts from one maker add up -- on the player's machines.
+func _test_sets() -> void:
+	var setup: RunSetup = _setup(5)
+	var one_each: Dictionary = {"name": "T", "parts": ["ch_brute", "co_arc", "ar_scanner", "ar_ripper", ""], "alive": true, "hp": 99, "level": 0, "perks": []}
+	var two: Dictionary = one_each.duplicate(true)
+	two["parts"] = ["ch_brute", "co_slug", "ar_scanner", "ar_ripper", ""]
+	var three: Dictionary = one_each.duplicate(true)
+	three["parts"] = ["ch_brute", "co_slug", "ar_hammer:a", "ar_ripper", ""]
+	var none_unit: GridUnit = RunSim.preview_machine(setup, one_each)
+	var two_unit: GridUnit = RunSim.preview_machine(setup, two)
+	var three_unit: GridUnit = RunSim.preview_machine(setup, three)
+	_check("one part from each maker is no set", CombatSetup.sets_of(PackedStringArray(one_each["parts"]), setup.parts,
+		setup.combat_rules["makers"]).is_empty() and none_unit.max_hp == 11)
+	_check("two Kessler parts: +2 HP", two_unit.max_hp == 13 and two_unit.armor == 0)
+	_check("three (a tuned part counts): +2 HP and +1 armour", three_unit.max_hp == 13 and three_unit.armor == 1)
+	var sets: Array = CombatSetup.sets_of(PackedStringArray(three["parts"]), setup.parts, setup.combat_rules["makers"])
+	_check("the set is reported for the screens %s" % [sets], sets.size() == 1 and String(sets[0]["maker"]) == "kessler"
+		and int(sets[0]["count"]) == 3 and (sets[0]["active"] as Array) == [2, 3])
+	var errors: PackedStringArray = []
+	var rules: Dictionary = setup.combat_rules
+	var enemy: GridUnit = CombatSetup._build_unit({"name": "E", "parts": three["parts"]}, GridUnit.TEAM_ENEMY, 0,
+		setup.parts, rules.get("roles", {}), rules.get("damage_types", []), rules.get("armor_types", []), errors,
+		rules.get("abilities", {}), rules.get("makers", {}))
+	_check("an enemy wears no set (its parts are rolled, not chosen)", enemy.max_hp == 11 and enemy.armor == 0)
+	var vektor: Dictionary = one_each.duplicate(true)
+	vektor["parts"] = ["ch_strider", "co_dynamo", "ar_scanner", "ar_lance", ""]
+	var v: GridUnit = RunSim.preview_machine(setup, vektor)
+	var base_v: GridUnit = RunSim.preview_machine(setup, {"name": "T", "parts": ["ch_strider", "co_arc", "ar_ripper", "ar_hammer", ""],
+		"alive": true, "hp": 99, "level": 0, "perks": []})
+	_check("Vektor 3 (4 parts): +1 move, +1 range", v.move == base_v.move + 1 and v.range_bonus == base_v.range_bonus + 1)
+
+
+## 011: salvage is a real choice -- three slots, a lean toward the crew's makers, scrap instead.
+func _test_salvage() -> void:
+	var distinct: bool = true
+	var favoured: int = 0
+	var tuned: bool = true
+	var runs: int = 0
+	for seed_value: int in range(1, 60):
+		var setup: RunSetup = _setup(seed_value)
+		var state: RunState = RunSim.start(setup)
+		var options: Array = RunSim._roll_parts(setup, RunSim._rng(setup, 4, 5), 1, ["kessler"])
+		var slots: Dictionary = {}
+		for id: Variant in options:
+			slots[String((setup.parts[id] as Dictionary)["slot"])] = true
+		distinct = distinct and options.size() == 3 and slots.size() == 3
+		if String((setup.parts[options[1]] as Dictionary).get("maker", "")) == "kessler":
+			favoured += 1
+		var elite: Dictionary = RunSim.salvage(state, setup, "elite")
+		tuned = tuned and PartTuning.is_tuned(String(elite["options"][0])) and setup.rarity(String(elite["options"][0])) >= 2
+		runs += 1
+	_check("salvage offers three parts from three different slots", distinct)
+	_check("the second part leans to a maker the crew builds (%d of %d)" % [favoured, runs], favoured * 100 >= runs * 80)
+	_check("an elite's guaranteed part comes tuned", tuned)
+	var setup: RunSetup = _setup(9)
+	var state: RunState = RunSim.start(setup)
+	_check("the default crew builds sets from %s" % [RunSim.crew_makers(state, setup)], RunSim.crew_makers(state, setup).has("kessler"))
+	state.pending = RunSim.salvage(state, setup, "skirmish")
+	var scrap: int = state.scrap
+	_check("salvage can be left for scrap (8)", RunSim.apply(state, setup, [RunSim.PICK, -1]) and state.scrap == scrap + 8
+		and state.pending.is_empty())
 
 
 ## Play-test 4: the crew is built from a bench at the start of a run.

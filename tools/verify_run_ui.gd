@@ -203,13 +203,68 @@ func _go() -> void:
 			await _frames(2)
 			var shown: int = int(panel.get("selected"))
 			var level_before: int = int(state.crew[shown].get("level", 0))
+			var offer: Array[String] = RunSim.perk_offer(state, _run.get("setup"), shown)
 			_press(_find_button_prefix(panel, "LEVEL UP"))
 			await _frames(3)
+			var pick: Node = panel.get("_picker")
+			_check("LEVEL UP opens the perk pick: three perks", pick != null and pick.find_child("perk_2", true, false) != null)
+			_check("nothing is bought until a perk is picked", int(state.crew[shown].get("level", 0)) == level_before)
+			if pick != null:
+				_press(pick.find_child("perk_1", true, false))
+			await _frames(3)
 			state = _run.get("state")
-			_check("LEVEL UP buys the machine on show a level", int(state.crew[shown].get("level", 0)) == level_before + 1)
+			_check("picking a perk buys the level and keeps that perk", int(state.crew[shown].get("level", 0)) == level_before + 1
+				and (state.crew[shown]["perks"] as Array).back() == offer[1] and panel.get("_picker") == null)
+			await create_timer(2.0).timeout
 			_press(_find_button(panel, "BACK TO MAP"))
 			await _frames(3)
 			_check("BACK TO MAP closes the garage", map.get("_garage") == null)
+
+		# --- 011: the workshop's TUNE bench, and salvage left for scrap.
+		state = _run.get("state")
+		if state.outcome == RunState.ONGOING and state.pending.is_empty():
+			state.pending = {"kind": "workshop"}
+			state.scrap = 60
+			map.call("_refresh")
+			await _frames(3)
+			var tune_button: Button = _find_button_prefix(map, "TUNE A PART")
+			_check("a workshop offers TUNE A PART", tune_button != null)
+			_press(tune_button)
+			await _frames(3)
+			var tuner: Node = map.get("_tuner")
+			_check("TUNE A PART opens the tune bench", tuner != null)
+			if tuner != null:
+				var socket: int = -1
+				for s: int in 5:
+					if socket < 0 and PartTuning.can_tune(_run.get("db").parts, String(state.crew[int(tuner.get("_tab"))]["parts"][s])):
+						socket = s
+				var machine: int = int(tuner.get("_tab"))
+				var part: String = String(state.crew[machine]["parts"][socket])
+				_press(tuner.find_child("tune_row_%d" % socket, true, false))
+				await _frames(3)
+				_check("choosing a part shows its two tunings", tuner.find_child("tune_option_1", true, false) != null)
+				var scrap_before: int = state.scrap
+				_press(tuner.find_child("tune_option_1", true, false))
+				await _frames(3)
+				state = _run.get("state")
+				_check("pressing an option tunes the part and charges for it",
+					String(state.crew[machine]["parts"][socket]) == PartTuning.variant(part, 1)
+					and state.scrap == scrap_before - RunSim.tune_cost(_run.get("setup"), part))
+				_check("a tuned part is a label, not a button", tuner.find_child("tune_row_%d" % socket, true, false) == null)
+				_press(_find_button(tuner, "BACK TO WORKSHOP"))
+				await _frames(3)
+				_check("BACK TO WORKSHOP closes the bench", map.get("_tuner") == null and _find_button(map, "MOVE ON") != null)
+			_press(_find_button(map, "MOVE ON"))
+			await _frames(3)
+			state = _run.get("state")
+			state.pending = RunSim.salvage(state, _run.get("setup"), "skirmish")
+			map.call("_refresh")
+			await _frames(3)
+			var scrap_now: int = state.scrap
+			_press(_find_button(map, "TAKE 8 SCRAP INSTEAD"))
+			await _frames(3)
+			state = _run.get("state")
+			_check("salvage can be left for scrap", state.scrap == scrap_now + 8 and state.pending.is_empty())
 
 	RunStore.clear()
 	print("")

@@ -148,6 +148,13 @@ static func _before(a: Vector2i, b: Vector2i, cost: Dictionary) -> bool:
 	return a.x < b.x
 
 
+## The heat one attack with `weapon` adds to `u`: the arm's, the core's and module's, and any
+## boost it has armed. Never below zero -- a tuning can take heat off an arm, and a cold
+## weapon must not cool the machine by firing.
+static func attack_heat(u: GridUnit, weapon: Dictionary) -> int:
+	return maxi(0, int(weapon.get("heat", 0)) + u.heat_bonus + u.boost_heat)
+
+
 ## Effective reach of weapon `w` for `u` standing where it stands now.
 static func weapon_reach(state: CombatState, u: GridUnit, w: int) -> int:
 	var weapon: Dictionary = u.weapons[w]
@@ -391,7 +398,7 @@ static func preview_attack(state: CombatState, ref: int, w: int, target: Vector2
 	var plan: Dictionary = strike_plan(state, u, w, target)
 	plan["legal"] = can_attack(state, ref, w, target)
 	var weapon: Dictionary = u.weapons[w] if w >= 0 and w < u.weapons.size() else {}
-	plan["overheats"] = not weapon.is_empty() and u.heat + int(weapon.get("heat", 0)) + u.heat_bonus >= u.heat_cap
+	plan["overheats"] = not weapon.is_empty() and u.heat + attack_heat(u, weapon) >= u.heat_cap
 	var kills: Array = []
 	var tears: Array = []
 	for hit: Dictionary in (plan["hits"] as Array):
@@ -579,7 +586,7 @@ static func _execute_attack(state: CombatState, u: GridUnit, w: int, target: Vec
 	# Heat is the PLAYER's resource. Enemies ignore it: an enemy that sometimes cannot
 	# fire would be one more hidden state to read off the board every turn.
 	if u.team == GridUnit.TEAM_PLAYER:
-		u.heat += int(weapon["heat"]) + u.heat_bonus + u.boost_heat
+		u.heat += attack_heat(u, weapon)
 		u.boost_heat = 0
 		state.emit(GridEv.HEAT, u.ref, -1, u.x, u.y, u.heat, u.heat_cap)
 		if u.heat >= u.heat_cap and not u.overheated:

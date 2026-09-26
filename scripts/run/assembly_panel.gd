@@ -103,6 +103,12 @@ func _column(i: int) -> Control:
 	var member := {"name": "", "parts": _draft[i], "alive": true, "hp": 0, "level": 0}
 	var unit: GridUnit = RunSim.preview_machine(Run.setup, member)
 	inner.add_child(_label("%s  ·  %d HP  ·  MOVE %d" % [_name_of(i), unit.max_hp, unit.move], UIKit.SIZE_HEADING, UIKit.TEXT, UIKit.font_strong()))
+	# Sets are a build decision from the first minute (011): two parts from one maker add up.
+	var sets: PackedStringArray = PartText.set_lines(Run.db.parts, Run.db.makers, _draft[i])
+	for line: String in sets:
+		inner.add_child(_label(line, UIKit.SIZE_LABEL, UIKit.GREEN, UIKit.font_strong()))
+	if sets.is_empty():
+		inner.add_child(_label("No maker set yet: two parts from one maker add a bonus.", UIKit.SIZE_LABEL, UIKit.TEXT_FAINT))
 	for s: int in 5:
 		inner.add_child(_socket_row(i, s))
 	return panel
@@ -121,7 +127,8 @@ func _socket_row(i: int, s: int) -> Control:
 	row.add_child(text)
 	text.add_child(_label("%s  ·  %s" % [SOCKET_NAMES[s], PartText.name_of(Run.db.parts, part)], UIKit.SIZE_BODY,
 		PartText.rarity_colour(Run.db.parts, part).lightened(0.3), UIKit.font_strong()))
-	var summary := _label(PartText.summary(Run.db.parts, part, Run.db.combat_abilities), UIKit.SIZE_LABEL, UIKit.TEXT_DIM)
+	var summary := _label("%s  ·  %s" % [PartText.maker_short(Run.db.makers, Run.db.parts, part),
+		PartText.summary(Run.db.parts, part, Run.db.combat_abilities)], UIKit.SIZE_LABEL, UIKit.TEXT_DIM)
 	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	summary.custom_minimum_size = Vector2(COLUMN_WIDTH - 170, 0)
 	summary.max_lines_visible = 1

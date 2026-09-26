@@ -35,6 +35,10 @@ var story: Dictionary = {}
 var combat_abilities: Dictionary = {}
 var enemy_kinds: Dictionary = {}
 var bosses: Dictionary = {}
+## `data/parts/makers.json`: who made each part, and what a set of theirs adds (011).
+var makers: Dictionary = {}
+## `data/run/perks.json`: what a level-up can offer (011).
+var perks: Dictionary = {}
 var balance: Balance = null
 
 var errors: PackedStringArray = []
@@ -45,6 +49,12 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 
 	for file_name: String in ["chassis", "cores", "arms", "modules"]:
 		db._load_into(db.parts, "%s/parts/%s.json" % [root, file_name], "id")
+	# Every part's two tunings become parts of their own (`ar_hammer:a`), so anything that
+	# looks a part up by id works on a tuned one (011, `PartTuning`).
+	PartTuning.expand(db.parts)
+	var maker_data: Variant = db._read_json("%s/parts/makers.json" % root)
+	if maker_data is Dictionary:
+		db.makers = _without_comments(maker_data as Dictionary)
 
 	db._load_into(db.abilities, "%s/abilities/abilities.json" % root, "id")
 	db._load_into(db.conditions, "%s/conditions/conditions.json" % root, "id")
@@ -64,6 +74,11 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	var run_data: Variant = db._read_json("%s/run/run.json" % root)
 	if run_data is Dictionary:
 		db.run_rules = run_data as Dictionary
+	var perk_data: Variant = db._read_json("%s/run/perks.json" % root)
+	if perk_data is Dictionary:
+		db.perks = _without_comments(perk_data as Dictionary)
+	# Perks travel inside the run rules, the one dictionary `RunSim` is handed.
+	db.run_rules["perks"] = db.perks
 	var story_data: Variant = db._read_json("%s/run/story.json" % root)
 	if story_data is Dictionary:
 		db.story = story_data as Dictionary
@@ -80,6 +95,7 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	# the one dictionary it is already handed.
 	db.combat_rules["abilities"] = db.combat_abilities
 	db.combat_rules["enemy_kinds"] = db.enemy_kinds
+	db.combat_rules["makers"] = db.makers
 
 	# Sorted, so which file wins a duplicate id never depends on the filesystem.
 	var fight_files: PackedStringArray = DirAccess.get_files_at("%s/fights" % root)
@@ -129,6 +145,15 @@ func content_version() -> String:
 	hash_value = _hash_value(hash_value, enemy_kinds)
 	hash_value = _hash_value(hash_value, balance.to_dict())
 	return "%08x" % hash_value
+
+
+## A content file's entries without its `_comment` keys, so iterating it finds only content.
+static func _without_comments(data: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for key: Variant in data:
+		if not String(key).begins_with("_"):
+			out[key] = data[key]
+	return out
 
 
 ## FNV-1a over a canonical rendering of a value. Dictionaries are visited in sorted key

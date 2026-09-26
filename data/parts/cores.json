@@ -4,6 +4,7 @@
     "name": "Slug Core",
     "slot": "core",
     "rarity": 1,
+    "maker": "kessler",
     "damage_type": "kinetic",
     "attack": 14,
     "heat_per_attack": 7,
@@ -13,13 +14,29 @@
       "damage": 0,
       "heat": 0,
       "vent": 1
-    }
+    },
+    "tuning": [
+      {
+        "name": "Dense Rounds",
+        "grid": {
+          "damage": 1,
+          "heat": 1
+        }
+      },
+      {
+        "name": "Heat Exchanger",
+        "grid": {
+          "vent": 1
+        }
+      }
+    ]
   },
   {
     "id": "co_furnace",
     "name": "Furnace Core",
     "slot": "core",
     "rarity": 1,
+    "maker": "cinder",
     "damage_type": "thermal",
     "attack": 16,
     "heat_per_attack": 11,
@@ -29,13 +46,28 @@
       "damage": 1,
       "heat": 1,
       "vent": 1
-    }
+    },
+    "tuning": [
+      {
+        "name": "Clean Burn",
+        "grid": {
+          "heat": -1
+        }
+      },
+      {
+        "name": "Big Vents",
+        "grid": {
+          "vent": 1
+        }
+      }
+    ]
   },
   {
     "id": "co_arc",
     "name": "Arc Core",
     "slot": "core",
     "rarity": 1,
+    "maker": "arclight",
     "damage_type": "emp",
     "attack": 12,
     "heat_per_attack": 9,
@@ -45,13 +77,29 @@
       "damage": 0,
       "heat": 0,
       "vent": 1
-    }
+    },
+    "tuning": [
+      {
+        "name": "Overcharge",
+        "grid": {
+          "damage": 1,
+          "heat": 1
+        }
+      },
+      {
+        "name": "Heat Exchanger",
+        "grid": {
+          "vent": 1
+        }
+      }
+    ]
   },
   {
     "id": "co_bile",
     "name": "Bile Core",
     "slot": "core",
     "rarity": 2,
+    "maker": "kessler",
     "damage_type": "corrosive",
     "attack": 15,
     "heat_per_attack": 8,
@@ -61,13 +109,29 @@
       "damage": 1,
       "heat": 0,
       "vent": 1
-    }
+    },
+    "tuning": [
+      {
+        "name": "Pressurised",
+        "grid": {
+          "damage": 1,
+          "heat": 1
+        }
+      },
+      {
+        "name": "Concentrate",
+        "grid": {
+          "vent": 1
+        }
+      }
+    ]
   },
   {
     "id": "co_dynamo",
     "name": "Dynamo Core",
     "slot": "core",
     "rarity": 1,
+    "maker": "vektor",
     "damage_type": "kinetic",
     "attack": 10,
     "heat_per_attack": 3,
@@ -77,13 +141,29 @@
       "damage": 0,
       "heat": 0,
       "vent": 2
-    }
+    },
+    "tuning": [
+      {
+        "name": "Overcharge",
+        "grid": {
+          "damage": 1,
+          "heat": 1
+        }
+      },
+      {
+        "name": "Flywheel",
+        "grid": {
+          "vent": 1
+        }
+      }
+    ]
   },
   {
     "id": "co_ember",
     "name": "Ember Core",
     "slot": "core",
     "rarity": 2,
+    "maker": "cinder",
     "damage_type": "thermal",
     "attack": 12,
     "heat_per_attack": 5,
@@ -93,13 +173,29 @@
       "damage": 0,
       "heat": 0,
       "vent": 2
-    }
+    },
+    "tuning": [
+      {
+        "name": "Stoked",
+        "grid": {
+          "damage": 1,
+          "heat": 1
+        }
+      },
+      {
+        "name": "Flywheel",
+        "grid": {
+          "vent": 1
+        }
+      }
+    ]
   },
   {
     "id": "co_tesla",
     "name": "Tesla Core",
     "slot": "core",
     "rarity": 3,
+    "maker": "arclight",
     "damage_type": "emp",
     "attack": 19,
     "heat_per_attack": 14,
@@ -109,13 +205,28 @@
       "damage": 1,
       "heat": 1,
       "vent": 1
-    }
+    },
+    "tuning": [
+      {
+        "name": "Clean Coils",
+        "grid": {
+          "heat": -1
+        }
+      },
+      {
+        "name": "Heat Exchanger",
+        "grid": {
+          "vent": 1
+        }
+      }
+    ]
   },
   {
     "id": "co_solvent",
     "name": "Solvent Core",
     "slot": "core",
     "rarity": 2,
+    "maker": "cinder",
     "damage_type": "corrosive",
     "attack": 11,
     "heat_per_attack": 4,
@@ -125,13 +236,29 @@
       "damage": 0,
       "heat": 0,
       "vent": 2
-    }
+    },
+    "tuning": [
+      {
+        "name": "Pressurised",
+        "grid": {
+          "damage": 1,
+          "heat": 1
+        }
+      },
+      {
+        "name": "Flywheel",
+        "grid": {
+          "vent": 1
+        }
+      }
+    ]
   },
   {
     "id": "co_mag",
     "name": "Mag Core",
     "slot": "core",
     "rarity": 3,
+    "maker": "kessler",
     "damage_type": "kinetic",
     "attack": 20,
     "heat_per_attack": 13,
@@ -141,13 +268,28 @@
       "damage": 1,
       "heat": 1,
       "vent": 1
-    }
+    },
+    "tuning": [
+      {
+        "name": "Clean Coils",
+        "grid": {
+          "heat": -1
+        }
+      },
+      {
+        "name": "Heat Exchanger",
+        "grid": {
+          "vent": 1
+        }
+      }
+    ]
   },
   {
     "id": "co_null",
     "name": "Null Core",
     "slot": "core",
     "rarity": 2,
+    "maker": "arclight",
     "damage_type": "emp",
     "attack": 9,
     "heat_per_attack": 2,
@@ -157,6 +299,21 @@
       "damage": 0,
       "heat": 0,
       "vent": 2
-    }
+    },
+    "tuning": [
+      {
+        "name": "Overcharge",
+        "grid": {
+          "damage": 1,
+          "heat": 1
+        }
+      },
+      {
+        "name": "Flywheel",
+        "grid": {
+          "vent": 1
+        }
+      }
+    ]
   }
 ]

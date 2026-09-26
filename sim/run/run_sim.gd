@@ -20,6 +20,10 @@ extends RefCounted
 ##   [REFIT,   crew_index, socket, cargo_index]   swap a socket with cargo; -1 = unfit into cargo
 ##   [SCRAP_PART, cargo_index]           break a part in the hold down for scrap (any time but a fight)
 ##   [EXPAND_HOLD]                       workshop: buy more room in the hold
+##   [LEVEL_UP, crew_index, perk]        garage: the next level, keeping perk `perk` (0-2) of its offer
+##   [ASSEMBLE, loadouts]                before the first move: build the crew from the bench
+##   [TUNE, where, index, option]        workshop: tune a part once, option 0 or 1; `where` is a
+##                                       crew index (then `index` is a socket) or -1 (the hold)
 
 const TRAVEL: int = 0
 const FIGHT: int = 1
@@ -32,6 +36,7 @@ const SCRAP_PART: int = 7
 const EXPAND_HOLD: int = 8
 const LEVEL_UP: int = 9
 const ASSEMBLE: int = 10
+const TUNE: int = 11
 
 const FIGHT_TYPES: PackedStringArray = ["skirmish", "elite", "boss"]
 
@@ -45,7 +50,7 @@ static func start(setup: RunSetup) -> RunState:
 		var parts: Array = []
 		for id: Variant in spec.get("parts", []):
 			parts.append(String(id))
-		var member: Dictionary = {"name": String(spec.get("name", "")), "parts": parts, "alive": true, "hp": 0, "level": 0}
+		var member: Dictionary = {"name": String(spec.get("name", "")), "parts": parts, "alive": true, "hp": 0, "level": 0, "perks": []}
 		member["hp"] = max_hp(setup, member)
 		state.crew.append(member)
 	_generate_region(state, setup)
@@ -89,9 +94,11 @@ static func apply(state: RunState, setup: RunSetup, action: Array) -> bool:
 		EXPAND_HOLD:
 			return _expand_hold(state, setup)
 		LEVEL_UP:
-			return _level_up(state, setup, int(action[1]))
+			return action.size() >= 3 and _level_up(state, setup, int(action[1]), int(action[2]))
 		ASSEMBLE:
 			return _assemble(state, setup, action[1] as Array)
+		TUNE:
+			return action.size() >= 4 and _tune(state, setup, int(action[1]), int(action[2]), int(action[3]))
 	return false
 
 
@@ -129,19 +136,37 @@ static func fight_setup(state: RunState, setup: RunSetup) -> CombatSetup:
 		setup.wheel, IntentAI.mix(setup.rng_seed, state.current, 17, 0))
 
 
-## A machine's full HP: its chassis plus its module, the same sum `CombatSetup` makes.
+## A machine's full HP, read off the unit a fight would field -- parts, sets, levels and
+## perks all included -- so the run, the garage and the fight cannot disagree about it.
 static func max_hp(setup: RunSetup, member: Dictionary) -> int:
-	var parts: Array = member["parts"]
-	var cg: Dictionary = (setup.parts.get(String(parts[0]), {}) as Dictionary).get("grid", {})
-	var mg: Dictionary = (setup.parts.get(String(parts[4]), {}) as Dictionary).get("grid", {})
-	return int(cg.get("hp", 8)) + int(mg.get("hp", 0)) + level_bonus(setup, member, "hp")
+	return preview_machine(setup, member).max_hp
 
 
-## A crew member as a fight's unit spec: parts, HP now, and its levels as bonuses.
+## A crew member as a fight's unit spec: parts, HP now, and its levels and perks as one
+## bonus block (`CombatSetup.apply_bonus`).
 static func machine_spec(setup: RunSetup, member: Dictionary) -> Dictionary:
 	return {"name": String(member["name"]), "parts": (member["parts"] as Array).duplicate(),
-		"hp_now": maxi(1, int(member["hp"])), "bonus_hp": level_bonus(setup, member, "hp"),
-		"bonus_damage": level_bonus(setup, member, "damage"), "level": int(member.get("level", 0))}
+		"hp_now": maxi(1, int(member["hp"])), "bonus": bonus_of(setup, member),
+		"level": int(member.get("level", 0))}
+
+
+## Everything a machine's levels and perks add, summed into one additive block.
+static func bonus_of(setup: RunSetup, member: Dictionary) -> Dictionary:
+	var total: Dictionary = {}
+	var steps: Array = (setup.rules.get("levels", {}) as Dictionary).get("bonus", [])
+	for n: int in mini(int(member.get("level", 0)), steps.size()):
+		_add_grid(total, steps[n])
+	var perks: Dictionary = setup.rules.get("perks", {})
+	for id: Variant in (member.get("perks", []) as Array):
+		_add_grid(total, (perks.get(String(id), {}) as Dictionary).get("grid", {}))
+	return total
+
+
+static func _add_grid(total: Dictionary, grid: Dictionary) -> void:
+	var keys: Array = grid.keys()
+	keys.sort()
+	for key: Variant in keys:
+		total[key] = int(total.get(key, 0)) + int(grid[key])
 
 
 ## The machine as the next fight will field it, for the garage's numbers.
@@ -171,6 +196,86 @@ static func level_cost(state: RunState, setup: RunSetup, index: int) -> int:
 	var costs: Array = (setup.rules.get("levels", {}) as Dictionary).get("costs", [])
 	var level: int = int(state.crew[index].get("level", 0))
 	return int(costs[level]) if level < costs.size() else -1
+
+
+## The three perks machine `index`'s next level offers (011): the ones it has not taken that
+## would do something for it as it is built now, in an order seeded by the run, the machine
+## and the level -- the same offer on every replay. Empty at the top level.
+static func perk_offer(state: RunState, setup: RunSetup, index: int) -> Array[String]:
+	var out: Array[String] = []
+	if index < 0 or index >= state.crew.size() or level_cost(state, setup, index) < 0:
+		return out
+	var member: Dictionary = state.crew[index]
+	var unit: GridUnit = preview_machine(setup, member)
+	var perks: Dictionary = setup.rules.get("perks", {})
+	var level: int = int(member.get("level", 0))
+	var taken: Array = member.get("perks", [])
+	var eligible: Array = []
+	var ids: Array = perks.keys()
+	ids.sort()
+	for id: Variant in ids:
+		if taken.has(String(id)) or not _perk_fits(unit, String((perks[id] as Dictionary).get("needs", ""))):
+			continue
+		eligible.append([IntentAI.mix(setup.rng_seed, index, level, _text_hash(String(id))), String(id)])
+	eligible.sort_custom(func(a: Array, b: Array) -> bool:
+		return int(a[0]) < int(b[0]) or (int(a[0]) == int(b[0]) and String(a[1]) < String(b[1])))
+	for pair: Array in eligible.slice(0, int((setup.rules.get("levels", {}) as Dictionary).get("perk_choices", 3))):
+		out.append(String(pair[1]))
+	return out
+
+
+## Whether a perk would do anything for this machine (`needs` in perks.json).
+static func _perk_fits(u: GridUnit, needs: String) -> bool:
+	match needs:
+		"melee", "ranged", "chain":
+			for w: Dictionary in u.weapons:
+				if bool(w["empty"]):
+					continue
+				var shape: String = String(w["shape"])
+				if (needs == "melee" and shape == "melee") or (needs == "ranged" and shape != "melee") \
+						or (needs == "chain" and int(w["chain"]) > 0):
+					return true
+			return false
+		"ability":
+			return not u.abilities.is_empty()
+		"shovable":
+			return not u.unshovable
+		"stops":
+			return not u.move_after_attack
+	return true
+
+
+## FNV-1a of a string, for seeding by name: a real hash, never a sum of characters.
+static func _text_hash(text: String) -> int:
+	var h: int = 0x811C9DC5
+	for byte: int in text.to_utf8_buffer():
+		h = ((h ^ byte) * 0x01000193) & 0xFFFFFFFF
+	return h
+
+
+## Scrap to tune `part` at a workshop (`workshop.tune_costs`, by rarity).
+static func tune_cost(setup: RunSetup, part: String) -> int:
+	var costs: Array = (setup.rules.get("workshop", {}) as Dictionary).get("tune_costs", [6, 10, 14])
+	return int(costs[clampi(setup.rarity(part) - 1, 0, costs.size() - 1)])
+
+
+## The makers the crew is building sets from: every maker with two or more parts on one
+## living machine. Salvage leans toward these, so a set can be finished on purpose.
+static func crew_makers(state: RunState, setup: RunSetup) -> Array:
+	var out: Array = []
+	for member: Dictionary in state.crew:
+		if not bool(member["alive"]):
+			continue
+		var counts: Dictionary = {}
+		for id: Variant in (member["parts"] as Array):
+			var maker: String = String((setup.parts.get(String(id), {}) as Dictionary).get("maker", ""))
+			if not maker.is_empty():
+				counts[maker] = int(counts.get(maker, 0)) + 1
+		for maker: Variant in counts:
+			if int(counts[maker]) >= 2 and not out.has(maker):
+				out.append(maker)
+	out.sort()
+	return out
 
 
 static func can_refit(state: RunState) -> bool:
@@ -206,7 +311,7 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 		state.log.append("%s at site %d." % ["The act boss" if kind == "boss" else kind.capitalize(), to])
 	elif kind == "scrapyard":
 		var rewards: Dictionary = setup.rules.get("rewards", {})
-		state.pending = {"kind": "scrapyard", "options": _roll_parts(setup, _rng(setup, to, 3), 1),
+		state.pending = {"kind": "scrapyard", "options": _roll_parts(setup, _rng(setup, to, 3), 1, crew_makers(state, setup)),
 			"scrap": int(rewards.get("scrapyard_scrap", 15))}
 		state.log.append("A scrapyard. Something in here still works.")
 	elif kind == "workshop":
@@ -263,11 +368,22 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 	var gained: int = int(rewards.get("elite_scrap" if kind == "elite" else "skirmish_scrap", 10))
 	gained += result.caches().size() * int(rewards.get("cache_scrap", 6))
 	state.scrap += gained
-	var min_rarity: int = int(rewards.get("elite_min_rarity", 2)) if kind == "elite" else 1
-	state.pending = {"kind": "reward", "options": _roll_parts(setup, _rng(setup, state.current, 5), min_rarity)}
+	state.pending = salvage(state, setup, kind)
 	state.log.append("Won. +%d scrap%s, and salvage to pick through." % [gained,
 		" (+%d from piles)" % result.scrap_collected if result.scrap_collected > 0 else ""])
 	return true
+
+
+## What a won fight at the current site offers: three parts or `salvage_scrap` scrap. An
+## elite's guaranteed part comes off the wreck already tuned.
+static func salvage(state: RunState, setup: RunSetup, kind: String) -> Dictionary:
+	var rewards: Dictionary = setup.rules.get("rewards", {})
+	var min_rarity: int = int(rewards.get("elite_min_rarity", 2)) if kind == "elite" else 1
+	var rng: SimRNG = _rng(setup, state.current, 5)
+	var options: Array = _roll_parts(setup, rng, min_rarity, crew_makers(state, setup))
+	if kind == "elite" and not options.is_empty() and PartTuning.can_tune(setup.parts, String(options[0])):
+		options[0] = PartTuning.variant(String(options[0]), rng.range_int(0, 1))
+	return {"kind": "reward", "options": options, "scrap": int(rewards.get("salvage_scrap", 8))}
 
 
 static func _pick(state: RunState, setup: RunSetup, index: int) -> bool:
@@ -278,9 +394,11 @@ static func _pick(state: RunState, setup: RunSetup, index: int) -> bool:
 	if index < -1 or index >= options.size():
 		return false
 	if index == -1:
-		if kind == "scrapyard":
-			state.scrap += int(state.pending["scrap"])
-			state.log.append("Stripped the yard for %d scrap." % int(state.pending["scrap"]))
+		# Every salvage screen has a scrap alternative, so leaving the parts is a choice too.
+		var value: int = int(state.pending.get("scrap", 0))
+		state.scrap += value
+		if value > 0:
+			state.log.append("Stripped the %s for %d scrap." % ["yard" if kind == "scrapyard" else "wrecks", value])
 		state.pending = {}
 		return true
 	# Always allowed. If the hold goes over, travel waits until something is fitted or
@@ -387,20 +505,63 @@ static func expand_cost(state: RunState, setup: RunSetup) -> int:
 	return int(costs[bought]) if bought < costs.size() else -1
 
 
-## Scrap buys a machine a level: more HP (and that HP now), more damage on every weapon.
-## Play-test 3: scrap had nothing to buy once the crew was healthy.
-static func _level_up(state: RunState, setup: RunSetup, index: int) -> bool:
+## Scrap buys a machine a level: its HP (and that HP now) and one perk of three (011). Play-
+## test 3: scrap had nothing to buy; play-test 4: a level did not feel like the machine
+## becoming something. The perk is the part of the level that is a decision.
+static func _level_up(state: RunState, setup: RunSetup, index: int, choice: int) -> bool:
 	if not can_refit(state) or index < 0 or index >= state.crew.size():
 		return false
 	var member: Dictionary = state.crew[index]
 	var cost: int = level_cost(state, setup, index)
 	if not bool(member["alive"]) or cost < 0 or state.scrap < cost:
 		return false
-	var gain: Dictionary = next_level_bonus(state, setup, index)
+	var offer: Array[String] = perk_offer(state, setup, index)
+	if offer.is_empty() or choice < 0 or choice >= offer.size():
+		return false
+	var before: int = max_hp(setup, member)
 	state.scrap -= cost
 	member["level"] = int(member.get("level", 0)) + 1
-	member["hp"] = int(member["hp"]) + int(gain.get("hp", 0))
-	state.log.append("%s is overhauled to level %d." % [member["name"], int(member["level"])])
+	var perks: Array = member.get("perks", [])
+	perks.append(offer[choice])
+	member["perks"] = perks
+	# The new HP arrives now as well as at full: a level-up is a repair of what it adds.
+	member["hp"] = int(member["hp"]) + maxi(0, max_hp(setup, member) - before)
+	state.log.append("%s is overhauled to level %d: %s." % [member["name"], int(member["level"]),
+		String(((setup.rules.get("perks", {}) as Dictionary).get(offer[choice], {}) as Dictionary).get("name", offer[choice]))])
+	return true
+
+
+## Tunes a part at a workshop, once: option 0 or 1 of its two (`PartTuning`). `where` is a
+## crew index and `index` a socket, or `where` is -1 and `index` is a place in the hold.
+static func _tune(state: RunState, setup: RunSetup, where: int, index: int, option: int) -> bool:
+	if String(state.pending.get("kind", "")) != "workshop" or option < 0 or option >= PartTuning.OPTIONS.size():
+		return false
+	var part: String = ""
+	if where == -1:
+		if index < 0 or index >= state.cargo.size():
+			return false
+		part = state.cargo[index]
+	else:
+		if where < 0 or where >= state.crew.size() or index < 0 or index > 4 or not bool(state.crew[where]["alive"]):
+			return false
+		part = String((state.crew[where]["parts"] as Array)[index])
+	if not PartTuning.can_tune(setup.parts, part):
+		return false
+	var tuned: String = PartTuning.variant(part, option)
+	var cost: int = tune_cost(setup, part)
+	if not setup.parts.has(tuned) or state.scrap < cost:
+		return false
+	state.scrap -= cost
+	if where == -1:
+		state.cargo[index] = tuned
+	else:
+		var member: Dictionary = state.crew[where]
+		var before: int = max_hp(setup, member)
+		(member["parts"] as Array)[index] = tuned
+		# A tuning that adds HP adds it now, like a level.
+		member["hp"] = mini(max_hp(setup, member), int(member["hp"]) + maxi(0, max_hp(setup, member) - before))
+	state.log.append("Tuned %s: %s." % [String((setup.parts[part] as Dictionary).get("name", part)),
+		String((setup.parts[tuned] as Dictionary).get("tune", ""))])
 	return true
 
 
@@ -414,7 +575,7 @@ static func can_assemble(state: RunState) -> bool:
 ## extras (the defaults' uncommons) once each, anything else not at all (0).
 static func bench_count(setup: RunSetup, part: String) -> int:
 	var bench: Dictionary = setup.rules.get("assembly", {})
-	if part.is_empty() or not setup.parts.has(part):
+	if part.is_empty() or not setup.parts.has(part) or PartTuning.is_tuned(part):
 		return 0
 	if setup.rarity(part) <= int(bench.get("free_rarity", 1)):
 		return -1
@@ -753,18 +914,22 @@ static func _roll_slot(setup: RunSetup, rng: SimRNG, slot: String, cap: int) -> 
 	return String(rng.pick(pool))
 
 
-## `choices` distinct parts, weighted by rarity; at least one at `min_rarity` or above.
-static func _roll_parts(setup: RunSetup, rng: SimRNG, min_rarity: int) -> Array:
+## Salvage: `choices` parts from as many DIFFERENT slots, so the options pull in different
+## directions (011: "rewards that are always a real choice"). Each is weighted by rarity; the
+## first is at `min_rarity` or above; the second comes from a maker in `favour` when one
+## fits, so a set can be finished on purpose rather than by luck.
+static func _roll_parts(setup: RunSetup, rng: SimRNG, min_rarity: int, favour: Array = []) -> Array:
 	var rewards: Dictionary = setup.rules.get("rewards", {})
 	var weights: Array = rewards.get("rarity_weights", [60, 30, 10])
 	var choices: int = int(rewards.get("choices", 3))
-	var all: Array = []
-	for slot: String in ["chassis", "core", "arm", "module"]:
-		all.append_array(setup.pools[slot])
+	var slots: Array = []
+	var left: Array = ["chassis", "core", "arm", "module"]
+	while slots.size() < choices:
+		if left.is_empty():
+			left = ["chassis", "core", "arm", "module"]
+		slots.append(left.pop_at(rng.range_int(0, left.size() - 1)))
 	var out: Array = []
-	var guard: int = 0
-	while out.size() < choices and guard < 200:
-		guard += 1
+	for i: int in slots.size():
 		var rarity: int = 1
 		var roll: int = rng.range_int(1, 100)
 		for r: int in weights.size():
@@ -772,9 +937,17 @@ static func _roll_parts(setup: RunSetup, rng: SimRNG, min_rarity: int) -> Array:
 			if roll <= 0:
 				rarity = r + 1
 				break
-		if out.is_empty():
+		if i == 0:
 			rarity = maxi(rarity, min_rarity)
-		var pool: Array = all.filter(func(id: String) -> bool: return setup.rarity(id) == rarity and not out.has(id))
+		var candidates: Array = (setup.pools[slots[i]] as Array).filter(func(id: String) -> bool: return not out.has(id))
+		var pool: Array = candidates.filter(func(id: String) -> bool: return setup.rarity(id) == rarity)
+		if pool.is_empty():
+			pool = candidates
+		if i == 1 and not favour.is_empty():
+			var theirs: Array = pool.filter(func(id: String) -> bool:
+				return favour.has(String((setup.parts[id] as Dictionary).get("maker", ""))))
+			if not theirs.is_empty():
+				pool = theirs
 		if not pool.is_empty():
 			out.append(String(rng.pick(pool)))
 	return out

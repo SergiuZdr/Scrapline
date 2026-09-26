@@ -57,6 +57,8 @@ var _view: SubViewportContainer
 var _model_key: String = ""
 ## True while a level-up plays, so a second press cannot start another over it.
 var _celebrating: bool = false
+## The perk pick (011), open between LEVEL UP and the level-up event.
+var _picker: Control
 var _stage_root: Control
 
 
@@ -427,6 +429,14 @@ func _build_info() -> void:
 	if alive:
 		var full: int = RunSim.max_hp(Run.setup, member)
 		_info.add_child(_label("%d / %d HP" % [int(member["hp"]), full], UIKit.SIZE_BODY, UIKit.TEXT_DIM, UIKit.font_numbers()))
+		# What it is built into (011): its maker sets, then the perks its levels bought.
+		for line: String in PartText.set_lines(Run.db.parts, Run.db.makers, member["parts"]):
+			_info.add_child(_label(line, UIKit.SIZE_LABEL, UIKit.GREEN, UIKit.font_strong()))
+		var names: PackedStringArray = []
+		for id: Variant in (member.get("perks", []) as Array):
+			names.append(String((Run.db.perks.get(String(id), {}) as Dictionary).get("name", id)).to_upper())
+		if not names.is_empty():
+			_info.add_child(_label("  ·  ".join(names), UIKit.SIZE_LABEL, UIKit.TEXT, UIKit.font_strong()))
 	# LEVEL UP sits under the name, clear of the machine.
 	var foot := VBoxContainer.new()
 	foot.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -435,15 +445,13 @@ func _build_info() -> void:
 		return
 	var cost: int = RunSim.level_cost(Run.state, Run.setup, selected)
 	var next: Dictionary = RunSim.next_level_bonus(Run.state, Run.setup, selected)
-	var gain: String = "next level: +%d HP" % int(next.get("hp", 0))
-	if int(next.get("damage", 0)) > 0:
-		gain += ", +%d damage on every weapon" % int(next.get("damage", 0))
+	var gain: String = "next level: %s, and one perk of three" % PartText.bonus_text(next)
 	if cost < 0:
 		foot.add_child(_label("TOP LEVEL", UIKit.SIZE_HEADING, UIKit.GREEN, UIKit.font_strong()))
 	elif Run.state.scrap >= cost:
 		var up := _button("LEVEL UP  ·  %d SCRAP" % cost, UIKit.choice(), UIKit.TEXT, Vector2(300, 52))
 		up.tooltip_text = "Overhaul %s (%s)" % [String(member["name"]), gain]
-		up.pressed.connect(_level_up)
+		up.pressed.connect(_offer_perks)
 		foot.add_child(up)
 		foot.add_child(_label(gain, UIKit.SIZE_LABEL, UIKit.GREEN))
 	else:
@@ -508,9 +516,11 @@ func _socket(i: int, s: int, alive: bool) -> Control:
 	var summary := _label(PartText.summary(Run.db.parts, part, Run.db.combat_abilities) if not part.is_empty()
 		else "Drag a %s here from the hold." % RunSetup.socket_slot(s), UIKit.SIZE_BODY, UIKit.TEXT_DIM)
 	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	summary.custom_minimum_size = Vector2(980, 0)
+	summary.custom_minimum_size = Vector2(820, 0)
 	summary.max_lines_visible = 2
 	text.add_child(summary)
+	if not part.is_empty():
+		row.add_child(_maker_tag(i, part))
 	button.mouse_entered.connect(_focus_socket.bind(s))
 	button.mouse_exited.connect(func() -> void:
 		if _focus == s:
@@ -552,7 +562,7 @@ func _build_stats() -> void:
 		var shape: String = String(w["shape"])
 		var reach: String = "melee" if shape == "melee" else ("lob %d-%d" % [int(w["range_min"]), int(w["range"])] if shape == "lob" else "shot %d" % int(w["range"]))
 		var dmg: int = int(w["damage"]) + u.damage_bonus + (u.melee_bonus if shape == "melee" else 0)
-		_right.add_child(_label("%s  ·  %s  ·  %d damage  ·  +%d heat" % [String(w["name"]).to_upper(), reach, dmg, int(w["heat"]) + u.heat_bonus],
+		_right.add_child(_label("%s  ·  %s  ·  %d damage  ·  +%d heat" % [String(w["name"]).to_upper(), reach, dmg, CombatSim.attack_heat(u, w)],
 			UIKit.SIZE_BODY, UIKit.AMBER.lightened(0.2)))
 	for ability: Dictionary in u.abilities:
 		var line := _label("%s  ·  %s  ·  cooldown %d:  %s" % [String(ability["name"]).to_upper(),
@@ -561,6 +571,44 @@ func _build_stats() -> void:
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		line.custom_minimum_size = Vector2(1100, 0)
 		_right.add_child(line)
+	for id: Variant in (member.get("perks", []) as Array):
+		var perk: Dictionary = Run.db.perks.get(String(id), {})
+		_right.add_child(_label("PERK  ·  %s  ·  %s" % [String(perk.get("name", id)).to_upper(), String(perk.get("text", ""))],
+			UIKit.SIZE_LABEL, UIKit.GREEN.lightened(0.2)))
+	for line_text: String in PartText.set_lines(Run.db.parts, Run.db.makers, member["parts"]):
+		_right.add_child(_label("SET  ·  " + line_text, UIKit.SIZE_LABEL, UIKit.GREEN.lightened(0.2)))
+
+
+## Who made a part, and how many of that maker's parts the machine carries: three pips that
+## turn green once two or more make a set (011).
+func _maker_tag(i: int, part: String) -> Control:
+	var box := VBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.custom_minimum_size = Vector2(150, 0)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	var maker: String = String((Run.db.parts.get(part, {}) as Dictionary).get("maker", ""))
+	if maker.is_empty():
+		return box
+	var count: int = 0
+	for id: Variant in (Run.state.crew[i]["parts"] as Array):
+		if String((Run.db.parts.get(String(id), {}) as Dictionary).get("maker", "")) == maker:
+			count += 1
+	var colour: Color = UIKit.GREEN if count >= 2 else UIKit.TEXT_DIM
+	var name := _label(PartText.maker_short(Run.db.makers, Run.db.parts, part), UIKit.SIZE_LABEL, colour, UIKit.font_strong())
+	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	box.add_child(name)
+	var pips := HBoxContainer.new()
+	pips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pips.alignment = BoxContainer.ALIGNMENT_END
+	pips.add_theme_constant_override("separation", 4)
+	for n: int in 3:
+		var pip := ColorRect.new()
+		pip.custom_minimum_size = Vector2(20, 6)
+		pip.color = colour if n < count else UIKit.SURFACE_SUNK
+		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pips.add_child(pip)
+	box.add_child(pips)
+	return box
 
 
 func _role_note(u: GridUnit) -> String:
@@ -728,19 +776,101 @@ func _select(i: int) -> void:
 	_rebuild()
 
 
-func _level_up() -> void:
+## LEVEL UP opens the choice first (011): three perks, and the machine keeps one for the rest
+## of the run. The level-up event plays after the pick, and names what was picked.
+func _offer_perks() -> void:
+	if _celebrating or _picker != null:
+		return
+	var offer: Array[String] = RunSim.perk_offer(Run.state, Run.setup, selected)
+	var cost: int = RunSim.level_cost(Run.state, Run.setup, selected)
+	if offer.is_empty() or cost < 0 or Run.state.scrap < cost:
+		_after(false, "not enough scrap.")
+		return
+	var member: Dictionary = Run.state.crew[selected]
+	var next: Dictionary = RunSim.next_level_bonus(Run.state, Run.setup, selected)
+	_picker = Control.new()
+	_picker.name = "perk_pick"
+	add_child(_picker)
+	_picker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.74)
+	_picker.add_child(shade)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var center := CenterContainer.new()
+	_picker.add_child(center)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", UIKit.SPACE_LG)
+	center.add_child(box)
+	box.add_child(_label("%s  ·  LEVEL %d" % [String(member["name"]).to_upper(), int(member.get("level", 0)) + 1],
+		UIKit.SIZE_DISPLAY, UIKit.TEXT, UIKit.font_display()))
+	box.add_child(_label("%s for %d scrap, and it keeps ONE of these for the rest of the run." % [PartText.bonus_text(next), cost],
+		UIKit.SIZE_BODY, UIKit.TEXT_DIM))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", UIKit.SPACE_LG)
+	box.add_child(row)
+	for k: int in offer.size():
+		row.add_child(_perk_card(k, offer[k]))
+	var later := _button("NOT NOW", UIKit.secondary(), UIKit.TEXT, Vector2(220, 56))
+	later.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	later.pressed.connect(_close_picker)
+	box.add_child(later)
+
+
+## A perk as a card: its name, what it does, the numbers in the colour of a gain.
+func _perk_card(k: int, id: String) -> Button:
+	var perk: Dictionary = Run.db.perks.get(id, {})
+	var card := Button.new()
+	card.name = "perk_%d" % k
+	card.custom_minimum_size = Vector2(430, 200)
+	card.focus_mode = Control.FOCUS_NONE
+	var style: StyleBoxFlat = UIKit.choice()
+	var hover: StyleBoxFlat = style.duplicate()
+	hover.bg_color = UIKit.SURFACE_HIGH.lightened(0.05)
+	for key: String in ["normal", "pressed", "focus"]:
+		card.add_theme_stylebox_override(key, style)
+	card.add_theme_stylebox_override("hover", hover)
+	var inner := VBoxContainer.new()
+	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	card.add_child(inner)
+	inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_LG)
+	inner.add_child(_label(String(perk.get("name", id)).to_upper(), UIKit.SIZE_TITLE, UIKit.TEXT, UIKit.font_strong()))
+	var text := _label(String(perk.get("text", "")), UIKit.SIZE_BODY, UIKit.TEXT_DIM)
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.custom_minimum_size = Vector2(390, 0)
+	inner.add_child(text)
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.add_child(spacer)
+	inner.add_child(_label(PartText.bonus_text(perk.get("grid", {})).to_upper(), UIKit.SIZE_HEADING, UIKit.GREEN, UIKit.font_strong()))
+	card.pressed.connect(_level_up.bind(k))
+	return card
+
+
+func _close_picker() -> void:
+	if _picker != null:
+		_picker.queue_free()
+		_picker = null
+
+
+func _level_up(choice: int) -> void:
 	if _celebrating:
 		return
 	var member: Dictionary = Run.state.crew[selected]
 	var gains: Dictionary = RunSim.next_level_bonus(Run.state, Run.setup, selected)
+	var offer: Array[String] = RunSim.perk_offer(Run.state, Run.setup, selected)
 	var old_scale: float = 1.0 + ConstructView.LEVEL_SCALE * float(int(member.get("level", 0)))
-	if not Run.apply([RunSim.LEVEL_UP, selected]):
+	_close_picker()
+	if choice < 0 or choice >= offer.size() or not Run.apply([RunSim.LEVEL_UP, selected, choice]):
 		_after(false, "not enough scrap.")
 		return
+	var perk: String = String((Run.db.perks.get(offer[choice], {}) as Dictionary).get("name", offer[choice]))
 	_celebrating = true
-	_message = "%s is now level %d." % [String(member["name"]), int(member["level"])]
+	_message = "%s is now level %d: %s." % [String(member["name"]), int(member["level"]), perk]
 	_rebuild()
-	await _celebrate(int(member["level"]), gains, old_scale)
+	await _celebrate(int(member["level"]), gains, old_scale, perk)
 	_celebrating = false
 
 
@@ -749,7 +879,7 @@ func _level_up() -> void:
 ## chord, a lamp flare, sparks from the shoulders, a ring of light sweeping up the frame,
 ## the frame swelling to its new size, the new armour arriving piece by piece, the camera
 ## leaning in, and a banner with what was gained. Input on the stage waits for it.
-func _celebrate(level: int, gains: Dictionary, old_scale: float) -> void:
+func _celebrate(level: int, gains: Dictionary, old_scale: float, perk: String = "") -> void:
 	Audio.play("level_up", -5.0, 0.0)
 	var h: float = ConstructView.height_of(_model)
 	var viewport: SubViewport = _pivot.get_parent() as SubViewport
@@ -799,7 +929,7 @@ func _celebrate(level: int, gains: Dictionary, old_scale: float) -> void:
 		go.tween_property(fresh[i], "scale", Vector3.ONE, 0.3).set_delay(0.3 + 0.07 * float(i)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	go.tween_property(_camera, "fov", 27.0, 0.25).set_delay(0.15).set_trans(Tween.TRANS_SINE)
 	go.tween_property(_camera, "fov", 32.0, 0.6).set_delay(0.9).set_trans(Tween.TRANS_SINE)
-	_banner(level, gains)
+	_banner(level, gains, perk)
 	await go.finished
 	flare.queue_free()
 	ring.queue_free()
@@ -835,8 +965,8 @@ func _sparks(h: float) -> CPUParticles3D:
 	return sparks
 
 
-## "LEVEL 2" over the stage, the gains under it in the colour of a gain.
-func _banner(level: int, gains: Dictionary) -> void:
+## "LEVEL 2" over the stage, the gains -- and the perk it kept -- under it in the colour of a gain.
+func _banner(level: int, gains: Dictionary, perk: String = "") -> void:
 	var banner := VBoxContainer.new()
 	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	banner.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -850,6 +980,8 @@ func _banner(level: int, gains: Dictionary) -> void:
 		bits.append("+%d HP" % int(gains["hp"]))
 	if int(gains.get("damage", 0)) > 0:
 		bits.append("+%d DAMAGE" % int(gains["damage"]))
+	if not perk.is_empty():
+		bits.append(perk.to_upper())
 	bits.append("NEW ARMOUR")
 	var line := _label("  ·  ".join(bits), UIKit.SIZE_TITLE, UIKit.GREEN.lightened(0.15), UIKit.font_strong())
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

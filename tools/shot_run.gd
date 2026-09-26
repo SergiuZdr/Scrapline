@@ -4,7 +4,8 @@ extends SceneTree
 ## requested moment, then the map is opened and photographed.
 ##
 ##   godot --path . --resolution 1920x1080 --script res://tools/shot_run.gd -- \
-##       --seed 7 --until reward --out shots/reward.png [--refit [--stats] [--focus S]] [--choose] [--fill-hold] [--brief]
+##       --seed 7 --until reward --out shots/reward.png [--refit [--stats] [--focus S] [--perks] [--levelup N]]
+##       [--choose] [--fill-hold] [--brief] [--tune S]   (--tune needs --until workshop; S = the socket to show)
 ##
 ## `--until` is a pending kind (reward, scrapyard, workshop, fight) or "moves:N".
 ## Uses the real `Run` autoload, so it overwrites `user://run.json`; it clears it after.
@@ -74,7 +75,7 @@ func _go() -> void:
 			garage.call("_rebuild")
 			for i: int in 3:
 				await process_frame
-			garage.call("_level_up")
+			garage.call("_level_up", 0)
 			for i: int in _arg(args, "--levelup", "24").to_int():
 				await process_frame
 			var shot: Image = root.get_texture().get_image()
@@ -83,6 +84,13 @@ func _go() -> void:
 			RunStore.clear()
 			quit()
 			return
+		if args.has("--perks"):
+			# The perk pick LEVEL UP opens (011): scrap for it, screenshot only.
+			(run.get("state") as RunState).scrap = 200
+			garage.call("_rebuild")
+			for i: int in 3:
+				await process_frame
+			garage.call("_offer_perks")
 		if args.has("--focus"):
 			for i: int in 3:
 				await process_frame
@@ -90,6 +98,17 @@ func _go() -> void:
 		for i: int in 40:
 			await process_frame
 		for i: int in 10:
+			await process_frame
+	if args.has("--tune"):
+		(run.get("state") as RunState).scrap = maxi(30, (run.get("state") as RunState).scrap)
+		current_scene.call("_refresh")
+		current_scene.call("_open_tuner")
+		for i: int in 3:
+			await process_frame
+		var tuner: Node = current_scene.get("_tuner")
+		tuner.set("_chosen", _arg(args, "--tune", "3").to_int())
+		tuner.call("_rebuild")
+		for i: int in 20:
 			await process_frame
 	var image: Image = root.get_texture().get_image()
 	DirAccess.make_dir_recursive_absolute(out.get_base_dir())
