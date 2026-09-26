@@ -29,6 +29,12 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	# A test profile with every first-time hint seen: a hint callout must not sit between the
+	# test's clicks and the board, and the player's own profile is never touched (012).
+	var profile: Node = root.get_node("Profile")
+	profile.call("use_path", "user://test_profile_input.json")
+	for id: Variant in (ContentDB.load_all().tutorial.get("hints", {}) as Dictionary):
+		profile.call("mark_seen", String(id))
 	var packed: PackedScene = load("res://scenes/combat.tscn")
 	_scene = packed.instantiate()
 	root.add_child(_scene)

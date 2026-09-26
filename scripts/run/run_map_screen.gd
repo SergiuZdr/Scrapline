@@ -221,7 +221,7 @@ func _build_top_bar() -> void:
 	add_child(_ground_chip)
 
 	var right := HBoxContainer.new()
-	right.position = Vector2(1320, 28)
+	right.position = Vector2(1246, 28)
 	right.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	add_child(right)
 	_scrap_label = _label("", UIKit.SIZE_TITLE, UIKit.TEXT, UIKit.font_numbers())
@@ -230,6 +230,12 @@ func _build_top_bar() -> void:
 	_garage_button = _button("GARAGE", UIKit.secondary(), UIKit.TEXT, Vector2(200, 56))
 	_garage_button.pressed.connect(_open_garage.bind(0))
 	right.add_child(_garage_button)
+	# Every word the game uses (012).
+	var words := _button("?", UIKit.secondary(), UIKit.TEXT, Vector2(56, 56))
+	words.name = "glossary_button"
+	words.tooltip_text = "Glossary"
+	words.pressed.connect(func() -> void: Glossary.open(self, Run.db.glossary))
+	right.add_child(words)
 	var quit := _button("TITLE", UIKit.secondary(), UIKit.TEXT, Vector2(130, 56))
 	quit.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/main.tscn"))
 	right.add_child(quit)
@@ -520,8 +526,13 @@ func _show_overlay() -> void:
 			_fight_panel()
 		"reward", "scrapyard":
 			_pick_panel()
+			Hints.show_once(_overlay, "salvage", Run.db, Vector2(40, 140))
 		"workshop":
 			_workshop_panel()
+			Hints.show_once(_overlay, "workshop", Run.db, Vector2(40, 140))
+		_:
+			# First time on the map with nothing to resolve: say what it is for (012).
+			Hints.show_once(self, "map", Run.db, Vector2(420, 150))
 
 
 func _modal(title: String, subtitle: String, width: float = 1100.0) -> VBoxContainer:
@@ -544,7 +555,8 @@ func _modal(title: String, subtitle: String, width: float = 1100.0) -> VBoxConta
 	panel.add_child(box)
 	box.add_child(_label(title, UIKit.SIZE_DISPLAY, UIKit.TEXT, UIKit.font_display()))
 	if not subtitle.is_empty():
-		box.add_child(_wrap(subtitle, UIKit.SIZE_BODY, UIKit.TEXT_DIM, width - 100))
+		# Rich text: the game's words in it are glossary links (012).
+		box.add_child(Glossary.label(subtitle, UIKit.SIZE_BODY, UIKit.TEXT_DIM, Run.db.glossary, width - 100))
 	_preview.visible = false
 	return box
 

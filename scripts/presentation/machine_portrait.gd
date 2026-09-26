@@ -65,7 +65,10 @@ func show_machine(parts: Array, level: int, alive: bool = true, number: int = -1
 	_key = key
 	for child: Node in _pivot.get_children():
 		child.queue_free()
-	var model: Node3D = ConstructView.build_parts(PackedStringArray(parts), Run.db, Color("4fa8d8"), level, number)
+	# No content needed (build_parts ignores it), and none taken from the `Run` autoload: a
+	# display class that names an autoload cannot be compiled by a `--script` tool (012 found
+	# this one through CombatHUD).
+	var model: Node3D = ConstructView.build_parts(PackedStringArray(parts), null, Color("4fa8d8"), level, number)
 	_pivot.add_child(model)
 	var h: float = ConstructView.height_of(model)
 	# Head and shoulders, the way a crew photo is framed: the top two thirds of the machine.

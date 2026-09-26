@@ -75,6 +75,7 @@ func _ready() -> void:
 			_tab = i
 			break
 	_rebuild()
+	Hints.show_once(self, "tune", Run.db, Vector2(960, 660))
 
 
 func _rebuild() -> void:

@@ -761,7 +761,11 @@ static func _fielded_crew(state: RunState) -> Array:
 ## now, and an enemy squad rolled from the parts pool by column and site type.
 static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: String) -> Dictionary:
 	var rng: SimRNG = _rng(setup, site_id, 2)
-	var ids: Array = setup.fights.keys()
+	var ids: Array = []
+	for id: Variant in setup.fights:
+		# The shakedown (012) is the tutorial's own board, never a run's.
+		if not bool((setup.fights[id] as Dictionary).get("tutorial", false)):
+			ids.append(id)
 	ids.sort()
 	var template: Dictionary = setup.fights[ids[rng.range_int(0, ids.size() - 1)]]
 	var col: int = int(state.sites[site_id]["col"])

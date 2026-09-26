@@ -1,11 +1,12 @@
 extends Control
 
-## Title: CONTINUE (when a run is saved), NEW RUN, PRACTICE FIGHT, QUIT.
+## Title: CONTINUE (when a run is saved), NEW RUN, PRACTICE FIGHT, TUTORIAL, GLOSSARY, QUIT.
 ##
 ## CONTINUE is not drawn at all without a save rather than drawn disabled: a button that
-## can never be pressed is a label.
+## can never be pressed is a label. The first NEW RUN on a profile offers the shakedown (012).
 
 var _problem: Label
+var _column: VBoxContainer
 
 
 func _ready() -> void:
@@ -32,6 +33,7 @@ func _ready() -> void:
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 	var column := VBoxContainer.new()
+	_column = column
 	column.position = Vector2(120, 250)
 	column.custom_minimum_size = Vector2(620, 0)
 	column.add_theme_constant_override("separation", UIKit.SPACE_LG)
@@ -59,9 +61,7 @@ func _ready() -> void:
 	var saved: bool = Run.has_saved()
 	if saved:
 		column.add_child(_menu_button("CONTINUE", true, _continue_run))
-	column.add_child(_menu_button("NEW RUN", not saved, func() -> void:
-		Run.new_run()
-		get_tree().change_scene_to_file("res://scenes/run_map.tscn")))
+	column.add_child(_menu_button("NEW RUN", not saved, _new_run))
 	column.add_child(_menu_button("PRACTICE FIGHT", false, func() -> void:
 		get_tree().change_scene_to_file("res://scenes/combat.tscn")))
 
@@ -70,9 +70,53 @@ func _ready() -> void:
 	_problem.add_theme_color_override("font_color", UIKit.RED)
 	column.add_child(_problem)
 
+	var extras := HBoxContainer.new()
+	extras.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	column.add_child(extras)
+	var shakedown := _menu_button("TUTORIAL", false, _play_shakedown)
+	shakedown.custom_minimum_size = Vector2(164, 52)
+	extras.add_child(shakedown)
+	var words := _menu_button("GLOSSARY", false, func() -> void: Glossary.open(self, Run.db.glossary))
+	words.custom_minimum_size = Vector2(164, 52)
+	extras.add_child(words)
+
 	var quit := _menu_button("QUIT", false, func() -> void: get_tree().quit())
 	quit.custom_minimum_size = Vector2(220, 52)
 	column.add_child(quit)
+
+
+## The first NEW RUN on a profile offers the shakedown first (play-test 1: "a tutorial at
+## the start would solve most of it"). Skipping counts: it is offered once, then lives on
+## the title as TUTORIAL.
+func _new_run() -> void:
+	if Profile.tutorial_done():
+		Run.new_run()
+		get_tree().change_scene_to_file("res://scenes/run_map.tscn")
+		return
+	for child: Node in _column.get_children():
+		child.queue_free()
+	var head := Label.new()
+	head.text = "FIRST TIME IN THE YARD?"
+	head.add_theme_font_override("font", UIKit.font_display())
+	head.add_theme_font_size_override("font_size", 64)
+	head.add_theme_color_override("font_color", UIKit.TEXT)
+	_column.add_child(head)
+	var line := Label.new()
+	line.text = "The shakedown is one short, guided fight: moving, reading the enemy, attacking, heat, the yard's drums and scrap. About five minutes."
+	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	line.custom_minimum_size = Vector2(600, 0)
+	line.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
+	line.add_theme_color_override("font_color", UIKit.TEXT_DIM)
+	_column.add_child(line)
+	_column.add_child(_menu_button("PLAY THE SHAKEDOWN", true, _play_shakedown))
+	_column.add_child(_menu_button("SKIP TO THE RUN", false, func() -> void:
+		Profile.finish_tutorial()
+		Run.new_run()
+		get_tree().change_scene_to_file("res://scenes/run_map.tscn")))
+
+
+func _play_shakedown() -> void:
+	get_tree().change_scene_to_file("res://scenes/shakedown.tscn")
 
 
 func _continue_run() -> void:
