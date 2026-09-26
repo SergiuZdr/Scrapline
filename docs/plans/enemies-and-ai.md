@@ -9,7 +9,9 @@
 | Tracker | Intent locks onto a machine; the shot follows it. Counter: line of sight, range, kill, shove |
 | Bomber | 4 damage to all 6 neighbours on death, both sides |
 | Warden | Neighbours take 2 less per hit |
-| Hive | Every 2 rounds marks a neighbouring hex; builds a drone there next round unless it is occupied |
+| Hive | Sets down one pad beside itself; it builds a drone every 2 rounds (warning red the round before) unless something stands on it (009) |
+| Sorter (013) | The Sorting Gate's keeper: authored (Citadel frame, maul, mortar, 18 HP), 3 less from every hit while any **gate pylon** stands (props, 6 HP, red beams to it), and a pad that builds a drone every 3 rounds |
+| Reclaimer drone (013) | Arrives in a fight fought in the column the Reclaimer takes next: two, at round 3, on the crew's back row, marked a round ahead; a machine standing on the hex blocks it |
 
 The AI re-scores its 6 best candidates by dry run (`IntentAI._dry_value`), so it uses
 drums and pits and avoids its own bombers' blasts.
@@ -44,6 +46,13 @@ as blueprints later.
   over from the old sim's `_tie_key` bug.
 
 ## Elites and bosses
+
+**Built (013): the Sorter at the Sorting Gate** (`data/fights/sorting_gate.json`). The gate is
+its own authored map -- the Sorter between two pylons, scrap walls, three escorts rolled by
+the run -- and the first boss teaches the lesson the plan asked for: part targeting, by way of
+the pylons (break the shield, then burst the keeper). The player's bot values breaking a pylon
+(`IntentAI.SCORE_PYLON`). The multi-part Colossus-style boss below stays the plan for acts 2-3.
+
 
 - **Elite** = a normal enemy with a rare part and one affix (armoured, volatile, regenerating…).
 - **Boss** = a multi-part construct in the style of the old Colossus: limbs as separate

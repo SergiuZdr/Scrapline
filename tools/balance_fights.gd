@@ -42,8 +42,13 @@ func _initialize() -> void:
 	print("=== random squads on authored maps (%d fights) ===" % count)
 	var total: Dictionary = _new_stats()
 	var arm_wins: Dictionary = {}
+	# The run's own maps only: the tutorial's board and the gate are not where squads meet
+	# at random (013), and counting them skews the comparison with earlier iterations.
+	var pool: Array = ids.filter(func(id: Variant) -> bool:
+		var map: Dictionary = _db.fights[id]
+		return not bool(map.get("tutorial", false)) and not bool(map.get("boss", false)))
 	for i: int in count:
-		var template: Dictionary = _db.fights[ids[i % ids.size()]]
+		var template: Dictionary = _db.fights[pool[i % pool.size()]]
 		var rng := SimRNG.new(7919 * (i + 1))
 		var fight: Dictionary = template.duplicate(true)
 		fight["player"] = _random_squad(rng, template["player"])
