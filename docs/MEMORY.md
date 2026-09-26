@@ -71,6 +71,9 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-25 | **Levels show on the model** (armour, chest plate, stacks, a bigger frame) and levelling up is an event | PT4-4 |
 | 2026-09-26 | **The colour registry**: blue = yours, red = danger, amber = your action, copper = machine condition, green = a gain, purple = something being built, hazard ochre = overdrive, core lenses = damage type, rarity colours only on parts | 010, the art-direction skill: one meaning per signal colour. Caches moved from amber to blue |
 | 2026-09-26 | **Surfaces are photographed, tinted, low-frequency; machines stay the brightest solid things** — and that is measured (`measure_contrast.gd`), not argued | 010: fidelity creep is the named risk of photo textures |
+| 2026-09-26 | **Build progression: perks on level-up (1 of 3), tuning once per part at workshops (the plan's design), maker sets (2 and 3 pieces)**, all through one additive bonus path; salvage from three slots with a scrap option | Play-test 1: "no perks, no sets, nothing that makes a build strong"; play-test 4: levels did not feel like the machine becoming something |
+| 2026-09-26 | **Sets are for player machines only** | Enemy parts are rolled per slot, so an enemy set would be noise; authored enemies can wear sets on purpose |
+| 2026-09-26 | **Boss fight 5 enemies** (was 4), after trying four dials side by side | The crew now reaches the gate with 29.6 HP (24.3); the bot went 92.7% -> 88.0% |
 
 ## Lessons carried over from the old codebase
 
@@ -96,42 +99,34 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-24 | `--shot` used to be copied into each scene. It is now a `DevShot` autoload, so a new screen can be photographed with no code |
 | 2026-09-24 | Keep docs as clean UTF-8. One invalid byte from an editor made Python tooling crash on `docs/README.md` |
 | 2026-09-24 | `verify_animation.gd` prints an ObjectDB leak warning at exit. It is harmless for now, but check whether it predates 001 when the rig is next touched |
-
 | 2026-09-24 | A melee unit's adjacent tiles are both "move" and "attack line". With attack first, a brawler could not step forward. Any overlapping tap meanings need an explicit priority |
 | 2026-09-24 | `push_input(event)` treats positions as window coordinates; tests must pass `true` for viewport-local points. The headless root viewport is 1920×1920 |
 | 2026-09-24 | A "put it back" check passes vacuously if nothing moved. Assert the precondition first |
 | 2026-09-24 | `--check-only` does not know autoloads, so `Identifier not found: Audio` is a false positive. Launch the scene to be sure |
 | 2026-09-24 | Set Control anchors AFTER `add_child`; before, the preset is computed against a zero-size parent |
 | 2026-09-24 | **Free dodging kills intent pressure.** Bot fight: enemy set 12 intents and dealt 6 damage total, against 42 from the player |
-
 | 2026-09-24 | Only a piercing weapon hits through a blocker, so shielding is a per-weapon question. Tests and the bot must know which lines can be blocked |
 | 2026-09-24 | A HUD that rebuilds its buttons on refresh invalidates any reference held across a refresh. Look controls up again after every tap |
 | 2026-09-24 | A script error inside a test coroutine stops it without quitting: the test hangs and looks slow, not failed. Every coroutine test gets a watchdog |
 | 2026-09-24 | With the bot winning most fights, raw per-arm win rates all sit near the mean. Judge arms by their offset from the average, not a fixed band |
 | 2026-09-24 | Enemy damage share understates pressure against a bot that dodges well; Crawler losses are the clearer signal |
-
 | 2026-09-24 | zsh does not word-split an unquoted `$var` in a command line: use `${=var}` or the arguments arrive as one string |
 | 2026-09-24 | JSON has no integers. A saved action comes back with floats and is a different action unless every number is turned back into an int (`RunStore._ints`) |
 | 2026-09-24 | Bot route preferences change pacing a lot: preferring scrapyards gave about 1 fight a run. Tool biases show up as design numbers, so read run_bot results with the bot's policy in mind |
-
 | 2026-09-24 | A hex line must be drawn in integers (fixed-point cube lerp + a constant nudge + floor-correct rounding) or the sim is no longer deterministic |
 | 2026-09-24 | Free aim + tile-targeted intents make dodging free again: 005 bot runs won 100%. Objectives (defend) are the only pressure until enemy types and terrain arrive (006) |
 | 2026-09-24 | Spawn fight models from the SETUP when animating from event 0; the state after `start` already has the enemies' opening moves applied |
 | 2026-09-24 | Validate authored AND generated fights for overlapping starts: a clash does not crash, it just draws wrong |
-
 | 2026-09-24 | The bot barely uses the new tools, so bot numbers after 006 are a FLOOR on player power. A smarter bot (ability use) is needed before trusting balance numbers again |
-
 | 2026-09-25 | **A mesh has an orientation of its own.** `CylinderMesh` with 6 sides is already pointy-top; the extra 30° turn drew a flat-top board over pointy-top maths, so hexes met at their corners and every distance looked one short (PT2-10, and most of PT2-5/7). Check a board from its RENDERED geometry, not from the maths |
 | 2026-09-25 | "Works on an ally, not on an enemy" was a hidden rule (anchors cannot be moved) plus a board that lied about distance. A rule the player cannot see reads as a bug: tag it (ANCHORED) |
 | 2026-09-25 | Rebuilding a Control tree during a drag frees the node being dragged. During a drag only restyle; rebuild deferred, after the drop |
 | 2026-09-25 | A "the road goes on" rule has to hold at the END of the road. Losing the boss objective with the crew alive left the run with no legal action; only the whole-game bot found it |
-
 | 2026-09-25 | Measure a balance change by switching pieces OFF on the same seeds. "Levels made it easy" was half right: with levels priced out the run was still 8 points easier than 007, from pile scrap paying for repairs |
 | 2026-09-25 | A coil that only arcs unit to unit never touches a drum, and nothing on screen says so: the player reads a missing interaction as a bug (PT3-7). When a mechanic meets terrain, the default must be that it interacts |
 | 2026-09-25 | Leftover vocabulary lies quietly: `PartText` kept 002's "line" shape and printed every shot weapon as a "lob" for three iterations. Text generated from data needs a test or a screenshot that someone reads |
 | 2026-09-25 | A CPUParticles3D pre-simulated before its parent is placed leaves its puffs where it was built. Set `local_coords` (and a soft texture, or every puff is a hard square) |
 | 2026-09-25 | Test the 3D map through the real input path: `push_input` a mouse event at `YardView.screen_pos`. A test that called `_choose` directly would pass with picking broken |
-
 | 2026-09-25 | **Judge an art source in the game, not by its reputation.** The same vignette rendered twice (`art_probe.gd`) settled in minutes what reviews could not: Poly Haven textures lift everything, its saturated props break the palette, free AI art ignores the prompt |
 | 2026-09-25 | Respect `skillOverrides`: a skill switched off for Claude is not read around by opening its files. Say which ones are off and let the user decide |
 | 2026-09-25 | `BILLBOARD_PARTICLES` discards the particle's scale unless `billboard_keep_scale` is on: every "tiny" mote was a 1 m square |
@@ -142,6 +137,8 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-26 | **Photographed texture raised contrast rather than lowering it**, because it went in darker and lower-frequency than the flat colours it replaced. Measure before and after; intuition said the opposite |
 | 2026-09-26 | **The roster generator does not reproduce the committed roster.** Regenerating changed heads and dropped most pauldrons. Compare old and new thumbnails before trusting any regeneration, and restore on mismatch |
 | 2026-09-26 | A photograph carries its own hue: rusty RED paint multiplied by a yellow livery is brown. Bake it to a hue-free wear map (white paint, rust-orange chips) and let the livery colour it |
+| 2026-09-26 | A content id that is not a file (a tuned `ar_hammer:a`) breaks every tool that turns ids into paths. Resolve to the base in the few places that draw, and make every sampler skip variants |
+| 2026-09-26 | A bot's reserve policy can hide a rule from the only test that plays the game: it tuned 0.1 parts a run until its reserve was halved |
 
 ## Open questions
 
@@ -161,3 +158,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-23 | Keep 3D or go 2D? | Keep 3D. The whole art pipeline exists, and a tilted camera suits a grid |agree with the propose |
 | 2026-09-25 | **Difficulty after 008**: the run bot wins 88.7% (76.7% after 007), and it barely uses abilities | Dials, in order: enemy count by column (`run.json` enemies), the speed of the front (`front.every`), level costs. Decide after play-test 4 | |
 | 2026-09-26 | **Which roster is right: pauldrons on every arm (the shipped roster, CLAUDE.md) or per-archetype shoulders (`builders/arm.py` today)?** The generator no longer reproduces the roster, which blocks exporting the aluminium light value | Proposed: keep the shipped look (pauldrons everywhere), make the generator reproduce it, then export the aluminium. The user decides | |
+| 2026-09-26 | **The gate now decides two thirds of the bot's losses** (12 of 18). A climax or a wall? | 013 replaces the gate fight with a real boss; judge it in the play-test | |

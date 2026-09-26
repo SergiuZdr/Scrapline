@@ -139,6 +139,9 @@ func _random_squad(rng: SimRNG, template: Array) -> Array:
 	var ids: Array = _db.parts.keys()
 	ids.sort()
 	for id: Variant in ids:
+		# Tuned parts (011) are workshop-made, not rolled.
+		if PartTuning.is_tuned(String(id)):
+			continue
 		var slot: String = String((_db.parts[id] as Dictionary).get("slot", ""))
 		if pools.has(slot):
 			(pools[slot] as Array).append(id)

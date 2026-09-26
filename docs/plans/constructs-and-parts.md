@@ -2,7 +2,8 @@
 
 **Status:** implemented in 003 (2026-09-24). Every part has a `grid` block; a construct is
 built from its five parts' blocks plus its chassis role's trait (`data/combat/rules.json`).
-Salvage and the cargo hold are 004; content growth is 005.
+Salvage and the cargo hold are 004; content growth is 005. **011 (2026-09-26) built tuning,
+makers and sets, and perks** (below).
 
 ## The crew
 
@@ -18,7 +19,7 @@ Salvage and the cargo hold are 004; content growth is 005.
 | Slot | Grants | Existing data it maps from |
 |---|---|---|
 | Chassis | HP, armour type, move range, **role trait** | `hp`, `armor_type`, `move_speed`, `role` |
-| Arm (×2) | one weapon action each: shape, damage, heat cost | `weapon_class`, `ability` |
+| Arm (×2) | one weapon action each: shape, damage, heat cost (never below 0 an attack) | `weapon_class`, `ability` |
 | Core | damage type of both arms, max heat, vent amount | `damage_type`, `heat_max`, `vent_rate` |
 | Module | one utility action OR passive | `mo_*` (governor, coolant, servo, scavenger…) |
 
@@ -44,14 +45,54 @@ Salvage and the cargo hold are 004; content growth is 005.
 
 ## Part rarity and upgrades
 
-- Rarity: common, uncommon, rare, prototype.
-- **No levels.** A part can be **tuned once** at a workshop, which picks one of two
-  upgrades (e.g. hammer: +1 damage *or* shove 2). One choice per part keeps it simple
-  and makes each copy of a part different.
-- **Synergies** come from combinations rather than set bonuses: a thermal core with a
-  mortar fits a burn build, a scanner with a railgun fits a mark-and-snipe build, a
-  bypass module unlocks overdrive (double damage and triple heat) on any arm.
-  Existing `linkages.json` ideas get reviewed in 005.
+- Rarity: common, uncommon, rare (prototype is not built).
+- **No levels. A part is tuned once, at a workshop, one of two ways** (built in 011). Every
+  part carries its two options in its JSON (`"tuning": [{ "name", "grid" }, ...]`, numbers
+  added to the part's grid, flags set). The breaker hammer is *Sledge Head* (+1 damage) or
+  *Cold Striker* (-1 heat); a frame is usually more HP or a faster ability; a core, more
+  damage for more heat or more venting. Tuning costs 6 / 10 / 14 scrap by rarity. A tuned
+  part is its own content entry, `ar_hammer:a`, named "Breaker Hammer+", built by
+  `PartTuning.expand` when the content loads, so every lookup that works on a part works on a
+  tuned one; loot pools and the assembly bench skip them, and the model, livery and picture
+  are the base part's. An elite's guaranteed part comes already tuned.
+- **Synergies** come from combinations (a thermal core with a mortar, a scanner with a
+  railgun, a bypass on anything) **and, since 011, from makers** (below): the plan said
+  "rather than set bonuses", but with 40 parts and no sets, salvage had nothing to pull a
+  crew toward, so a pick was a rarity comparison. A set is a reason to take a common part.
+
+## Makers and sets (011)
+
+Every part has a `maker` (`data/parts/makers.json`). Two parts from one maker on a machine
+give the 2-piece bonus, three give the 3-piece one as well (duplicates count; five sockets
+can hold two sets). **Player machines only**: enemy loadouts are rolled slot by slot, so a
+set on one would be an accident, not a design; authored elites and bosses can wear real ones.
+
+| Maker | Makes | 2 pieces | 3 pieces |
+|---|---|---|---|
+| Kessler Mining | Brute, Dredge, Citadel; Slug, Mag, Bile; hammer, maul; ablative, reactive | +2 HP | +1 armour |
+| Arclight Electric | Skirmisher, Bulwark; Arc, Tesla, Null; pulse emitter; governor, coolant, capacitor | vents 1 more | abilities ready a round sooner |
+| Vektor Ballistics | Courier, Strider, Lancer; Dynamo; scanner, lance, railgun, scattergun; targeting, servo | +1 move | +1 range |
+| Cinder Foundry | Hauler, Reaper; Furnace, Ember, Solvent; ripper, saw, mortar; bypass, overclock, scavenger | +2 heat cap | +1 damage |
+
+Every maker has a common in most slots, so a set can be built on the assembly bench from
+the first minute. `CombatSetup.sets_of` is the one place a set is counted; the fight applies
+it and the garage, bay and part cards show it ("MAKES KESSLER x3 ON BRUTE").
+
+## Perks (011)
+
+A level-up (garage, scrap) adds its HP and offers **three perks**; the machine keeps one for
+the run (`data/run/perks.json`). The offer is seeded by the run, the machine and the level,
+never repeats a perk it has, and only holds ones that do something for the machine as built
+(no Arc Relay without an arcing weapon, no Combat Reflexes on a frame that already moves
+after attacking). Twelve perks: Reinforced Frame (+3 HP), Extra Plating (+1 armour), Uprated
+Servos (+1 move), Hot Loads (+1 damage, +1 heat), Heavy Hands (+1 melee), Long Barrels (+1
+range), Heat Sinks (+3 heat cap), Coolant Jacket (+1 vent), Quick Cycle (abilities a round
+sooner), Arc Relay (+1 chain jump), Ground Spikes (cannot be shoved), Combat Reflexes (moves
+after attacking).
+
+**One way numbers reach a machine**: tunings are merged into the part's grid; sets, levels
+and perks are additive blocks applied by `CombatSetup.apply_bonus`, so a number means the
+same thing wherever it came from, and `RunSim.max_hp` reads the unit the fight would build.
 
 ## Content targets
 

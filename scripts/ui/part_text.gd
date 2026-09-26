@@ -35,7 +35,11 @@ static func summary(parts: Dictionary, id: String, abilities: Dictionary = {}) -
 			var shape: String = String(g.get("shape", "melee"))
 			var reach: String = "melee" if shape == "melee" else ("lob %d-%d" % [int(g.get("range_min", 1)), int(g.get("range", 1))] if shape == "lob"
 				else "shot %d" % int(g.get("range", 1)))
-			bits.append("%s · %d dmg · +%d heat" % [reach, int(g.get("damage", 0)), int(g.get("heat", 0))])
+			var line: String = "%s · %d dmg" % [reach, int(g.get("damage", 0))]
+			# A cold weapon says nothing about heat: "+0 heat" is noise on a card.
+			if int(g.get("heat", 0)) > 0:
+				line += " · +%d heat" % int(g.get("heat", 0))
+			bits.append(line)
 			var extra: PackedStringArray = []
 			for key: String in ["pierce", "splash", "shove", "chain"]:
 				if int(g.get(key, 0)) > 0:

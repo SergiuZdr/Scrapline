@@ -1,7 +1,7 @@
 # Iteration 011 — Build progression
 
-**Status:** in progress (batch 009–013; play-test after 013)
-**Started:** 2026-09-26 · **Finished:** —
+**Status:** done (batch 009–013; play-test after 013)
+**Started:** 2026-09-26 · **Finished:** 2026-09-26
 **Answers:** play-test 1 ("no build progression"), play-test 3 ("scrap seems pretty useless"),
 play-test 4 ("the level-up doesn't sell the robot getting stronger"). Follows the design already
 written in [constructs-and-parts](../plans/constructs-and-parts.md): tuning, not part levels.
@@ -69,24 +69,65 @@ cold core must not cool the machine by firing).
 4. Screenshots, docs, merge.
 
 ## Acceptance criteria
-- [ ] verify_run: every part has two tunings and both variants load; pools and bench hold no tuned
+- [x] verify_run: every part has two tunings and both variants load; pools and bench hold no tuned
   part; `TUNE` only at a workshop, costs scrap by rarity, changes the socket or hold entry, never
   twice, and the fight unit shows it; a perk offer is three distinct eligible perks, the same on
   replay, and only an offered perk can be taken; a machine's sets change its numbers (2 and 3
   pieces), enemies get none; reward options are three different slots; skipping a fight's
   salvage pays scrap; an elite's first option is tuned; `max_hp` equals the fight unit's.
-- [ ] verify_combat: heat per attack is never negative; a cooldown cut shortens an ability's wait.
-- [ ] verify_run_ui: level up through the perk pick; tune a part at a workshop through the panel;
+- [x] verify_combat: heat per attack is never negative; a cooldown cut shortens an ability's wait.
+- [x] verify_run_ui: level up through the perk pick; tune a part at a workshop through the panel;
   take scrap instead of salvage.
-- [ ] run_bot 150 and balance_fights 600 recorded; win rate not above 92% (it was 89.3%).
-- [ ] Screenshots: the perk pick, the garage with sets and perks, the workshop tune panel, the
-  reward screen.
+- [x] run_bot 150 and balance_fights 600 recorded; win rate not above 92% -- 88.0%, after one dial.
+- [x] Screenshots: the perk pick, the garage with sets and perks, the workshop tune panel, the
+  reward screen (`shots/011_sheet.png`).
 
 ## Result
-(filled in on completion)
 
+| Suite | Result |
+|---|---|
+| verify_run | **107** passed (70): levels with perks, perks' effects and eligibility over 59 seeds, tuning (variants, pools, bench, costs, once, hold, HP now), sets (2/3 pieces, tuned parts count, enemies none, Vektor), salvage (three slots over 59 seeds, the maker lean 80%+, a tuned elite part, the scrap option) |
+| verify_combat | **140** passed (134): heat never below 0, cooldown cut and its floor, chain only on arcing weapons, flags; the stats test now names the sets its fixtures carry |
+| verify_run_ui | **42** passed (33): the perk pick (nothing bought until a pick, the pick kept), the tune bench by clicks (a tuned row becomes a label), TAKE 8 SCRAP INSTEAD |
+| verify_combat_input / save / assembly / animation | 20 / 14 / 100 / 34 passed |
+
+**Balance.** The new systems made the crew stronger, as intended -- the default crew now carries
+sets (Brute: Kessler 3 and Cinder 2; Strider: Vektor 3 and Arclight 2) and HP going into the boss
+rose from 24.3 to 29.6. Four dials were tried side by side (`run_bot.gd --set`, 150 runs each):
+
+| Variant | Won |
+|---|---|
+| 011 as built | 92.7% |
+| enemies 5 from column 6 | 92.7% |
+| elite / boss HP +2 / +3 | 92.0% |
+| **boss fight 5 enemies (was 4)** | **87.3%**, kept |
+
+Final run bot: **88.0%** won (89.3% after 009), **0 illegal actions**, 8.2 moves and 5.7 fights a
+run, 3.9 levels bought and 0.3 parts tuned a run, 27 scrap unspent at the end; 12 of 18 losses
+at the gate. balance_fights (random squads, now with sets): **89.5%** (87.3%); ripper -4.1 and
+coil -3.3 are still the weakest arms, railgun +2.8 the strongest.
+
+### Found on the way
+- **The bot hoarded a whole rebuild in reserve and tuned 0.1 parts a run** -- too rarely to test
+  the rule. It keeps half a rebuild for tuning now (0.3 a run). Scrap is genuinely contested:
+  levels, tuning, repairs, rebuilds and hold room all want it (play-test 3's "scrap is useless").
+- **Five tools iterated every part id** (balance, animation, assembly checks, gait preview) and
+  would have looked for `ar_hammer:a.glb`. Anything that pictures or samples parts skips tuned ones.
+
+### Different from the plan
+- The plan doc said synergies come "rather than set bonuses". Sets were built because, with no
+  pull toward a build, every salvage pick was a rarity comparison (play-test 1: "no perks, no
+  sets"). Recorded as a decision.
+- Makers are words and pips, not colours: the colour registry has no free colour, and a maker
+  is not a signal the player must read at 40 px in a fight.
 ## Decisions, lessons, open questions
-(filled in on completion; also copied into MEMORY.md)
+- **Sets are player-only**; enemy loadouts are random, so an enemy set would be an accident.
+  Authored elites and bosses (013) can wear them on purpose.
+- **Level 2's +1 damage became a perk** (Hot Loads): damage on every level was the dial that took
+  the bot from 85% to 94% in 008; now it is one choice among three.
+- **The boss fight has 5 enemies** (was 4): the crew arrives with more HP, so the gate carries the
+  difficulty. Open question for the play-test: is a gate that decides two thirds of the losses a
+  climax or a wall? 013 replaces it with a real boss anyway.
 
 ## Next
 012 Onboarding: the new words (perk, tune, maker, set) join the glossary it builds.

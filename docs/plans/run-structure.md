@@ -37,7 +37,7 @@ proposal:
 | Skirmish | standard fight, salvage reward | common |
 | Elite wreck-field | hard fight, rare part guaranteed | 2–3 per act |
 | Scrapyard | no fight; pick 1 of 3 parts or take scrap | common |
-| Workshop | repair, rebuild a wreck, tune a part (costs scrap) | 2 per act |
+| Workshop | repair, rebuild a wreck, more hold, **tune a part** (011; costs scrap) | 2 per act |
 | Trader | buy and sell parts for scrap | 1–2 per act |
 | Signal (event) | text event with choices; risk/reward | common |
 | Watchtower | reveals fog in a radius | 1–2 per act |
@@ -113,13 +113,31 @@ common part (no limit) plus one each of the default crew's uncommons (`run.json`
 build is in the action list and a replay rebuilds it. The frame names the machine ("Brute",
 "Brute II"). Unlocks (meta-progression) will widen the bench.
 
-## Machine levels (008): where scrap goes
+## Machine levels (008) and perks (011): where scrap goes
 
 Play-test 3: "scrap seems pretty useless". In the garage a machine buys its next level for
-15, 25, then 40 scrap (3 levels): +2 HP, then +2 HP and +1 damage on every weapon and
-Charge, then +3 HP (max HP, and that much HP now). +1 damage on EVERY level took the run
-bot from 85% to 94% and was cut. A wreck keeps its level when rebuilt. Numbers in `run.json`
-`levels`. Part upgrades, perks and sets are 009.
+15, 25, then 40 scrap (3 levels). Since 011 every level is +2 HP (max, and that much now)
+**and one perk of three** ([constructs-and-parts](constructs-and-parts.md)): LEVEL UP opens
+the pick, the pick is part of the `LEVEL_UP` action, and the level-up event names it. The
++1 damage that level 2 used to give became a perk (Hot Loads). +1 damage on EVERY level
+took the run bot from 85% to 94% in 008. A wreck keeps its level and perks when rebuilt.
+Numbers in `run.json` `levels`.
+
+## Salvage (011): always a real choice
+
+A won fight or a scrapyard offers **three parts from three different slots** (so the options
+pull in different directions), each rolled by rarity; the first meets the elite minimum; the
+second comes from a maker the crew is building a set from when one fits. **Every salvage
+screen has a scrap alternative** (8 after a fight, 15 at a scrapyard), so leaving the parts is
+a choice, not a skip. An elite's guaranteed part comes tuned. Each card says what it would
+beat and which set it would make ("MAKES CINDER x3 ON BRUTE").
+
+## Workshops (011): tuning
+
+Besides patching, rebuilding and hold room, a workshop **tunes** a part, fitted or in the
+hold, one of its two ways, once (6 / 10 / 14 scrap by rarity): the TUNE bench lists the
+crew's parts by machine and the hold, and shows the two options side by side with the
+numbers before and after.
 
 ## Currency
 
