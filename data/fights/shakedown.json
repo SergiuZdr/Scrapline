@@ -1,0 +1,27 @@
+{
+  "id": "shakedown",
+  "name": "The Shakedown",
+  "tutorial": true,
+  "_comment": "012: the tutorial's board, never a run's (RunSim skips `tutorial` fights). Three yard runners with 4 HP and spotter arrays (1 damage): enough to show intents, safe enough to learn on. The near runner carries scrap so the first kill drops a pile; a drum sits between the far two.",
+  "rows": [
+    "........",
+    "...s....",
+    "..b.....",
+    "........",
+    ".r......",
+    "....c...",
+    "........",
+    "........"
+  ],
+  "player": [
+    {"name": "Brute", "parts": ["ch_brute", "co_slug", "ar_saw", "ar_hammer", "mo_scavenger"], "x": 2, "y": 6},
+    {"name": "Hauler", "parts": ["ch_hauler", "co_furnace", "ar_pulse", "ar_lance", "mo_ablative"], "x": 4, "y": 7},
+    {"name": "Strider", "parts": ["ch_strider", "co_arc", "ar_scanner", "ar_scatter", "mo_governor"], "x": 5, "y": 6}
+  ],
+  "enemy": [
+    {"name": "Yard Runner", "parts": ["ch_courier", "co_slug", "ar_scanner", "ar_scanner", "mo_governor"], "hp": 4, "carries": true, "x": 2, "y": 3},
+    {"name": "Yard Runner", "parts": ["ch_courier", "co_slug", "ar_scanner", "ar_scanner", "mo_governor"], "hp": 4, "carries": false, "x": 3, "y": 2},
+    {"name": "Runner Boss", "parts": ["ch_courier", "co_slug", "ar_scanner", "ar_scanner", "mo_governor"], "hp": 5, "carries": true, "x": 5, "y": 1}
+  ],
+  "objective": {"type": "rout"}
+}

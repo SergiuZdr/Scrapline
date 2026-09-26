@@ -122,6 +122,7 @@ func _ready() -> void:
 	_glow.albedo_color = Color(1.0, 0.72, 0.25, 0.4)
 	selected = clampi(selected, 0, Run.state.crew.size() - 1)
 	_rebuild()
+	Hints.show_once(self, "garage", Run.db, Vector2(1180, 700), 420)
 
 
 func _notification(what: int) -> void:
@@ -412,6 +413,11 @@ func _build_header() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_header.add_child(spacer)
+	var words := _button("?", UIKit.secondary(), UIKit.TEXT, Vector2(60, 60))
+	words.name = "glossary_button"
+	words.tooltip_text = "Glossary"
+	words.pressed.connect(func() -> void: Glossary.open(self, Run.db.glossary))
+	_header.add_child(words)
 	_header.add_child(_label("SCRAP %d" % state.scrap, UIKit.SIZE_TITLE, UIKit.TEXT, UIKit.font_numbers()))
 	var done := _button("BACK TO MAP", UIKit.primary(), UIKit.BG, Vector2(260, 64))
 	done.pressed.connect(func() -> void: closed.emit())
@@ -555,28 +561,28 @@ func _build_stats() -> void:
 	_stat(grid, "ARMOUR", u.armor, 3, "%d · %s" % [u.armor, String(armor_types[u.armor_type]) if u.armor_type < armor_types.size() else ""])
 	_stat(grid, "DAMAGE BONUS", u.damage_bonus, 4, "+%d · %s" % [u.damage_bonus, String(damage_types[u.damage_type]) if u.damage_type < damage_types.size() else ""])
 
-	_right.add_child(_label("ROLE  ·  %s%s" % [u.role.to_upper(), _role_note(u)], UIKit.SIZE_BODY, UIKit.TEXT, UIKit.font_strong()))
+	# The lines below are rich text: every glossary word in them can be tapped (012).
+	var words: Dictionary = Run.db.glossary
+	_right.add_child(Glossary.label("ROLE  ·  %s%s" % [u.role.to_upper(), _role_note(u)], UIKit.SIZE_BODY, UIKit.TEXT, words, 1100,
+		UIKit.font_strong()))
 	for w: Dictionary in u.weapons:
 		if bool(w["empty"]):
 			continue
 		var shape: String = String(w["shape"])
 		var reach: String = "melee" if shape == "melee" else ("lob %d-%d" % [int(w["range_min"]), int(w["range"])] if shape == "lob" else "shot %d" % int(w["range"]))
 		var dmg: int = int(w["damage"]) + u.damage_bonus + (u.melee_bonus if shape == "melee" else 0)
-		_right.add_child(_label("%s  ·  %s  ·  %d damage  ·  +%d heat" % [String(w["name"]).to_upper(), reach, dmg, CombatSim.attack_heat(u, w)],
-			UIKit.SIZE_BODY, UIKit.AMBER.lightened(0.2)))
+		_right.add_child(Glossary.label("%s  ·  %s  ·  %d damage  ·  +%d heat" % [String(w["name"]).to_upper(), reach, dmg,
+			CombatSim.attack_heat(u, w)], UIKit.SIZE_BODY, UIKit.AMBER.lightened(0.2), words, 1100))
 	for ability: Dictionary in u.abilities:
-		var line := _label("%s  ·  %s  ·  cooldown %d:  %s" % [String(ability["name"]).to_upper(),
+		_right.add_child(Glossary.label("%s  ·  %s  ·  cooldown %d:  %s" % [String(ability["name"]).to_upper(),
 			"free" if bool(ability["free"]) else "uses the action", int(ability["cooldown"]), String(ability.get("text", ""))],
-			UIKit.SIZE_LABEL, UIKit.BLUE.lightened(0.35))
-		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		line.custom_minimum_size = Vector2(1100, 0)
-		_right.add_child(line)
+			UIKit.SIZE_LABEL, UIKit.TEXT_DIM, words, 1100))
 	for id: Variant in (member.get("perks", []) as Array):
 		var perk: Dictionary = Run.db.perks.get(String(id), {})
-		_right.add_child(_label("PERK  ·  %s  ·  %s" % [String(perk.get("name", id)).to_upper(), String(perk.get("text", ""))],
-			UIKit.SIZE_LABEL, UIKit.GREEN.lightened(0.2)))
+		_right.add_child(Glossary.label("PERK  ·  %s  ·  %s" % [String(perk.get("name", id)).to_upper(), String(perk.get("text", ""))],
+			UIKit.SIZE_LABEL, UIKit.GREEN.lightened(0.2), words, 1100))
 	for line_text: String in PartText.set_lines(Run.db.parts, Run.db.makers, member["parts"]):
-		_right.add_child(_label("SET  ·  " + line_text, UIKit.SIZE_LABEL, UIKit.GREEN.lightened(0.2)))
+		_right.add_child(Glossary.label("SET  ·  " + line_text, UIKit.SIZE_LABEL, UIKit.GREEN.lightened(0.2), words, 1100))
 
 
 ## Who made a part, and how many of that maker's parts the machine carries: three pips that
@@ -815,6 +821,7 @@ func _offer_perks() -> void:
 	later.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	later.pressed.connect(_close_picker)
 	box.add_child(later)
+	Hints.show_once(_picker, "perks", Run.db, Vector2(40, 40))
 
 
 ## A perk as a card: its name, what it does, the numbers in the colour of a gain.

@@ -44,7 +44,7 @@
 
 | Screen | Purpose |
 |---|---|
-| Title | continue run / new run / workshop / settings |
+| Title | continue run / new run (the first offers the shakedown) / practice fight / tutorial / glossary / quit |
 | Workshop (meta) | pick crew and tier, codex, run history |
 | Region map | a 3D yard: landmarks, the Reclaimer wall, hover card, one click travels, crew strip, briefing (008) |
 | Combat | as above |
@@ -52,6 +52,17 @@
 | Garage | replaces refit (008): the machine whole in 3D, PARTS / STATS tabs, hover lights a part, LEVEL UP, the hold as a sorted strip with SCRAP. 009: a real bay behind the machine, no black flash (models load in the background; the stage fades in), the SCRAP square is the button, levelling up is an event |
 | Assembly bay | (009) after the briefing: build the three machines from a bench of basic parts |
 | Site screens | workshop, trader, event text |
+
+## Onboarding (012)
+
+- **The shakedown** (`scenes/shakedown.tscn`, `data/tutorial.json`, `scripts/combat/coach.gd`):
+  the real fight with a coach panel and an amber marker (a ring and chevron on the board, an
+  outline on a button). A step ends when its thing happened in the event stream, or on NEXT.
+- **Tap for meaning**: `Glossary.linkify` makes every term in running text a link (blue,
+  underlined); a tap opens its card, the next tap anywhere closes it. Buttons do not carry
+  links -- a link inside a button fights its tap.
+- **First-time hints** (`Hints.show_once`): one callout per screen, amber-edged, GOT IT once.
+- The **profile** (`Profile` autoload) remembers the tutorial and the hints; nothing else yet.
 
 ## Carried over from the old UI
 

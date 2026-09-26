@@ -25,6 +25,12 @@ func _initialize() -> void:
 
 func _go() -> void:
 	_run = root.get_node("Run")
+	# A test profile with every first-time hint seen, so no callout sits over a click, and
+	# the player's own profile is never touched (012).
+	var profile: Node = root.get_node("Profile")
+	profile.call("use_path", "user://test_profile_ui.json")
+	for id: Variant in ((_run.get("db") as ContentDB).tutorial.get("hints", {}) as Dictionary):
+		profile.call("mark_seen", String(id))
 	RunStore.clear()
 	_run.call("new_run", 4242)
 	var state: RunState = _run.get("state")

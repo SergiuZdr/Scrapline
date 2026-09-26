@@ -141,6 +141,11 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 	for u: GridUnit in setup.units:
 		if u.team == GridUnit.TEAM_ENEMY:
 			u.carries_scrap = IntentAI.mix(seed_value, u.ref, 0, 53) % 100 < setup.pile_drop_pct
+			# An authored fight may say for itself (012: the shakedown teaches piles with a
+			# runner it knows will drop one).
+			var spec: Dictionary = (slot_lists[1] as Array)[u.slot]
+			if spec.has("carries"):
+				u.carries_scrap = bool(spec["carries"])
 
 	var drone_spec: Dictionary = (setup.kinds.get("hive", {}) as Dictionary).get("drone", {})
 	if not drone_spec.is_empty():
