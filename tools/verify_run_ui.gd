@@ -272,6 +272,43 @@ func _go() -> void:
 			state = _run.get("state")
 			_check("salvage can be left for scrap", state.scrap == scrap_now + 8 and state.pending.is_empty())
 
+			# --- 013: a trader, a watchtower and a signal, through their panels.
+			state.pending = {"kind": "trader", "stock": ["ar_hammer", "co_slug", "mo_governor:a"], "sold": []}
+			state.scrap = 100
+			map.call("_refresh")
+			await _frames(3)
+			var stock_card: Node = map.find_child("stock_0", true, false)
+			_check("a trader shows its stock as cards to buy", stock_card != null)
+			var cargo: int = state.cargo.size()
+			_press(stock_card)
+			await _frames(3)
+			state = _run.get("state")
+			_check("pressing a card buys it (12 scrap)", state.cargo.size() == cargo + 1 and state.scrap == 88)
+			var sold: String = state.cargo[0]
+			_press(map.find_child("sell_0", true, false))
+			await _frames(3)
+			state = _run.get("state")
+			_check("SELL pays twice the scrap value", state.scrap == 88 + 2 * RunSim.scrap_value(_run.get("setup"), sold))
+			_press(_find_button(map, "MOVE ON"))
+			await _frames(3)
+			state = _run.get("state")
+			_check("MOVE ON leaves the trader", state.pending.is_empty())
+			state.pending = {"kind": "tower", "scouted": 3}
+			map.call("_refresh")
+			await _frames(3)
+			_press(_find_button(map, "CLIMB DOWN"))
+			await _frames(3)
+			state = _run.get("state")
+			_check("a watchtower's panel closes with CLIMB DOWN", state.pending.is_empty())
+			state.pending = {"kind": "signal", "event": "fuel_cache"}
+			var scrap_signal: int = state.scrap
+			map.call("_refresh")
+			await _frames(3)
+			_press(map.find_child("option_1", true, false))
+			await _frames(3)
+			state = _run.get("state")
+			_check("a signal's option does what its button says (SELL THE DRUMS: +14)", state.scrap == scrap_signal + 14 and state.pending.is_empty())
+
 	RunStore.clear()
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])

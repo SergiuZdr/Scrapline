@@ -33,6 +33,11 @@ var crate_hp: int = 3
 var kinds: Dictionary = {}
 ## What a hive builds, resolved from its parts once so a spawn is a copy, not a lookup.
 var drone: GridUnit = null
+## The Reclaimer reaching into a fight near its line (013): `reclaimer_count` of its drones
+## arrive on the player's back row at round `reclaimer_round` (0 = not this fight).
+var reclaimer_round: int = 0
+var reclaimer_count: int = 0
+var reclaimer_drone: GridUnit = null
 
 var max_rounds: int = 20
 var min_damage: int = 1
@@ -153,6 +158,17 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 			armor_types, setup.errors)
 		setup.drone.name = String(drone_spec.get("name", "Drone"))
 		setup.drone.carries_scrap = false
+
+	var reclaimer: Dictionary = fight.get("reclaimer", {})
+	var reclaimer_spec: Dictionary = (setup.kinds.get("reclaimer", {}) as Dictionary).get("drone", {})
+	if not reclaimer.is_empty() and not reclaimer_spec.is_empty():
+		setup.reclaimer_round = int(reclaimer.get("round", 3))
+		setup.reclaimer_count = int(reclaimer.get("count", 2))
+		setup.reclaimer_drone = _build_unit(reclaimer_spec, GridUnit.TEAM_ENEMY, 9, parts, roles, damage_types,
+			armor_types, setup.errors)
+		setup.reclaimer_drone.name = String(reclaimer_spec.get("name", "Reclaimer Drone"))
+		setup.reclaimer_drone.kind = "reclaimer"
+		setup.reclaimer_drone.carries_scrap = false
 
 	# Salvage caches (the defend objective): immobile, unarmed, on the player's side. They
 	# take refs after the crew, so the crew's refs are always 0..2.

@@ -22,7 +22,8 @@ const AssemblyPanel := preload("res://scripts/run/assembly_panel.gd")
 const TunePanel := preload("res://scripts/run/tune_panel.gd")
 
 const SITE_NAMES: Dictionary = {"start": "CAMP", "skirmish": "FIGHT", "elite": "ELITE",
-	"scrapyard": "SCRAPYARD", "workshop": "WORKSHOP", "boss": "THE GATE"}
+	"scrapyard": "SCRAPYARD", "workshop": "WORKSHOP", "boss": "THE GATE",
+	"trader": "TRADER", "tower": "WATCHTOWER", "signal": "SIGNAL"}
 const RECLAIMER_RED := Color("ff5a3d")
 
 var _yard: YardView
@@ -530,6 +531,12 @@ func _show_overlay() -> void:
 		"workshop":
 			_workshop_panel()
 			Hints.show_once(_overlay, "workshop", Run.db, Vector2(40, 140))
+		"trader":
+			_trader_panel()
+		"tower":
+			_tower_panel()
+		"signal":
+			_signal_panel()
 		_:
 			# First time on the map with nothing to resolve: say what it is for (012).
 			Hints.show_once(self, "map", Run.db, Vector2(420, 150))
@@ -610,6 +617,10 @@ func _fight_panel() -> void:
 	var box := _modal(String(titles.get(kind, "FIGHT")),
 		"%s\n\n%s\n\n%d enemies: %s.\nDamage your machines take here stays with them after the fight." % [
 			flavour, String(goals.get(String(objective.get("type", "rout")), "")), enemies.size(), ", ".join(enemies)], 960)
+	if (fight as Dictionary).has("reclaimer"):
+		# 013: fighting by the line -- say so before the player walks in.
+		box.add_child(_label("THE RECLAIMER IS CLOSE: its drones come in behind you at round %d." % int((fight["reclaimer"] as Dictionary).get("round", 3)),
+			UIKit.SIZE_HEADING, RECLAIMER_RED, UIKit.font_strong()))
 	if Run.fight_actions.size() > 0:
 		box.add_child(_label("This fight is in progress. It resumes where you left it.", UIKit.SIZE_BODY, UIKit.GOLD))
 	var go := _button("ENTER FIGHT" if Run.fight_actions.is_empty() else "RESUME FIGHT", UIKit.primary(), UIKit.BG, Vector2(300, 64))
@@ -697,6 +708,79 @@ func _open_tuner() -> void:
 		_tuner.queue_free()
 		_tuner = null
 		_refresh())
+
+
+## A trader (013): three parts for sale, and an offer for anything in the hold.
+func _trader_panel() -> void:
+	var state: RunState = Run.state
+	var box := _modal("TRADER", "%s  You have %d scrap.  Hold: %d / %d." % [String((Run.db.story.get("sites", {}) as Dictionary).get("trader", "")),
+		state.scrap, state.cargo.size(), state.hold_size], 1240)
+	var row := _row(box)
+	var stock: Array = state.pending.get("stock", [])
+	for i: int in stock.size():
+		var column := VBoxContainer.new()
+		column.add_theme_constant_override("separation", UIKit.SPACE_XS)
+		row.add_child(column)
+		var price: int = RunSim.trader_price(state, Run.setup, i)
+		var card: Button = PartCard.build(Run.db, String(stock[i]), Vector2(380, 236), state.crew)
+		column.add_child(card)
+		if price < 0:
+			card.modulate = Color(1, 1, 1, 0.35)
+			column.add_child(_label("SOLD", UIKit.SIZE_HEADING, UIKit.TEXT_FAINT, UIKit.font_strong()))
+		elif state.scrap >= price:
+			card.name = "stock_%d" % i
+			card.pressed.connect(func() -> void: _apply([RunSim.BUY, i]))
+			column.add_child(_label("BUY  ·  %d SCRAP" % price, UIKit.SIZE_HEADING, UIKit.AMBER, UIKit.font_strong()))
+		else:
+			column.add_child(_label("%d SCRAP  (you have %d)" % [price, state.scrap], UIKit.SIZE_HEADING, UIKit.TEXT_FAINT, UIKit.font_strong()))
+	if not state.cargo.is_empty():
+		box.add_child(_label("SELL FROM THE HOLD  ·  the trader pays twice what breaking a part down would", UIKit.SIZE_BODY, UIKit.TEXT_DIM, UIKit.font_strong()))
+		var flow := HFlowContainer.new()
+		flow.add_theme_constant_override("h_separation", UIKit.SPACE_SM)
+		flow.add_theme_constant_override("v_separation", UIKit.SPACE_SM)
+		flow.custom_minimum_size = Vector2(1140, 0)
+		box.add_child(flow)
+		for c: int in state.cargo.size():
+			var part: String = state.cargo[c]
+			var sell := _button("%s  ·  +%d" % [PartText.name_of(Run.db.parts, part).to_upper(), RunSim.trader_offer(Run.setup, part)],
+				UIKit.choice(), UIKit.TEXT, Vector2(0, 48))
+			sell.name = "sell_%d" % c
+			sell.add_theme_font_size_override("font_size", UIKit.SIZE_LABEL)
+			sell.pressed.connect(func() -> void: _apply([RunSim.SELL, c]))
+			flow.add_child(sell)
+	var leave := _button("MOVE ON", UIKit.primary(), UIKit.BG, Vector2(240, 60))
+	leave.pressed.connect(func() -> void: _apply([RunSim.LEAVE]))
+	_row(box).add_child(leave)
+
+
+## A watchtower (013): what it scouted.
+func _tower_panel() -> void:
+	var seen: int = int(Run.state.pending.get("scouted", 0))
+	var box := _modal("WATCHTOWER", "%s  From the cab you scout %s within two zones." % [
+		String((Run.db.story.get("sites", {}) as Dictionary).get("tower", "")),
+		("%d more site%s" % [seen, "" if seen == 1 else "s"]) if seen > 0 else "nothing new"], 900)
+	var leave := _button("CLIMB DOWN", UIKit.primary(), UIKit.BG, Vector2(260, 60))
+	leave.pressed.connect(func() -> void: _apply([RunSim.LEAVE]))
+	_row(box).add_child(leave)
+
+
+## A signal (013): a scene and its choices, every cost stated on the button.
+func _signal_panel() -> void:
+	var state: RunState = Run.state
+	var event: Dictionary = (Run.setup.rules.get("events", {}) as Dictionary).get(String(state.pending.get("event", "")), {})
+	var box := _modal(String(event.get("title", "SIGNAL")), String(event.get("text", "")), 1000)
+	var options: Array = event.get("options", [])
+	for i: int in options.size():
+		var option: Dictionary = options[i]
+		var text: String = "%s  ·  %s" % [String(option.get("label", "")), String(option.get("text", ""))]
+		if RunSim.can_choose(state, Run.setup, i):
+			var choice := _button(text, UIKit.choice(), UIKit.TEXT, Vector2(900, 60))
+			choice.name = "option_%d" % i
+			choice.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			choice.pressed.connect(func() -> void: _apply([RunSim.CHOOSE, i]))
+			box.add_child(choice)
+		else:
+			box.add_child(_label("%s  (you have %d scrap)" % [text, state.scrap], UIKit.SIZE_BODY, UIKit.TEXT_FAINT, UIKit.font_strong()))
 
 
 func _offer(text: String, cost: int, scrap: int, action: Array) -> Control:

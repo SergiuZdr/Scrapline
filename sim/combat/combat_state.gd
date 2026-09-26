@@ -28,6 +28,8 @@ var props: Dictionary = {}
 var spawn_marks: Dictionary = {}
 ## Hive ref -> the round its pad builds the next drone.
 var spawn_due: Dictionary = {}
+## Where the Reclaimer's drones will come in next round (013), marked a round ahead.
+var arrivals: Array = []
 ## What the player has collected this fight.
 var piles_collected: int = 0
 var scrap_collected: int = 0
@@ -159,6 +161,7 @@ func clone() -> CombatState:
 	c.props = props.duplicate(true)
 	c.spawn_marks = spawn_marks.duplicate()
 	c.spawn_due = spawn_due.duplicate()
+	c.arrivals = arrivals.duplicate()
 	c.piles_collected = piles_collected
 	c.scrap_collected = scrap_collected
 	return c

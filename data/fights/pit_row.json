@@ -1,0 +1,108 @@
+{
+  "id": "pit_row",
+  "name": "Pit Row",
+  "_comment": "013: two pairs of pits across the middle. Shoves and grapples decide this one; the gaps are where everyone wants to stand.",
+  "rows": [
+    "........",
+    "..r..r..",
+    "........",
+    ".oo..oo.",
+    "...b....",
+    "..c...r.",
+    "........",
+    "........"
+  ],
+  "player": [
+    {
+      "name": "Brute",
+      "parts": [
+        "ch_brute",
+        "co_slug",
+        "ar_saw",
+        "ar_hammer",
+        "mo_servo"
+      ],
+      "x": 2,
+      "y": 6
+    },
+    {
+      "name": "Hauler",
+      "parts": [
+        "ch_hauler",
+        "co_furnace",
+        "ar_pulse",
+        "ar_lance",
+        "mo_coolant"
+      ],
+      "x": 4,
+      "y": 7
+    },
+    {
+      "name": "Strider",
+      "parts": [
+        "ch_strider",
+        "co_arc",
+        "ar_scanner",
+        "ar_railgun",
+        "mo_targeting"
+      ],
+      "x": 5,
+      "y": 6
+    }
+  ],
+  "enemy": [
+    {
+      "name": "Reaper",
+      "parts": [
+        "ch_reaper",
+        "co_bile",
+        "ar_ripper",
+        "ar_saw",
+        "mo_bypass"
+      ],
+      "x": 1,
+      "y": 0
+    },
+    {
+      "name": "Courier",
+      "parts": [
+        "ch_courier",
+        "co_ember",
+        "ar_pulse",
+        "ar_scatter",
+        "mo_servo"
+      ],
+      "x": 3,
+      "y": 0
+    },
+    {
+      "name": "Lancer",
+      "parts": [
+        "ch_lancer",
+        "co_mag",
+        "ar_scanner",
+        "ar_railgun",
+        "mo_targeting"
+      ],
+      "kind": "tracker",
+      "x": 5,
+      "y": 1
+    },
+    {
+      "name": "Dredge",
+      "parts": [
+        "ch_dredge",
+        "co_solvent",
+        "ar_maul",
+        "ar_mortar",
+        "mo_ablative"
+      ],
+      "kind": "bomber",
+      "x": 7,
+      "y": 0
+    }
+  ],
+  "objective": {
+    "type": "rout"
+  }
+}

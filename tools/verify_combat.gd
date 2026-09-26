@@ -56,7 +56,8 @@ func _initialize() -> void:
 	_test_abilities()
 	_test_enemy_kinds()
 	_test_dry_run_matches()
-	for id: String in ["proto_yard", "slag_pit", "container_row"]:
+	_test_gate_and_reclaimer()
+	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown"]:
 		_test_bot_fight(id)
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
@@ -343,6 +344,62 @@ func _test_bonus_blocks() -> void:
 	CombatSetup.apply_bonus(u, {"chain": 1, "hp": 2, "move_after_attack": 1})
 	_check("chain adds a jump to an arcing weapon only", int(u.weapons[1]["chain"]) == chain + 1 and int(u.weapons[0]["chain"]) == 0)
 	_check("flags and numbers land (+2 max HP, moves after attacking)", u.move_after_attack and u.max_hp == state.setup.units[0].max_hp + 2)
+
+
+## 013: the Sorter behind its pylons, and the Reclaimer's drones arriving from behind.
+func _test_gate_and_reclaimer() -> void:
+	var marks: Dictionary = {Vector2i(1, 1): "p", Vector2i(6, 1): "p"}
+	var sorter: Dictionary = {"name": "The Sorter", "kind": "sorter", "hp": 18,
+		"parts": ["ch_citadel", "co_mag", "ar_maul", "ar_mortar", "mo_reactive"], "x": 3, "y": 1}
+	var state: CombatState = _fight(_rows(marks), [_unit(RAIL, Vector2i(3, 6))], [sorter])
+	var keeper: GridUnit = state.unit(10)
+	var shooter: GridUnit = state.unit(0)
+	var shielded: int = CombatSim.damage_to(state, shooter, keeper, 12, true)
+	state.props.erase(Vector2i(1, 1))
+	var one_left: int = CombatSim.damage_to(state, shooter, keeper, 12, true)
+	state.props.erase(Vector2i(6, 1))
+	var bare: int = CombatSim.damage_to(state, shooter, keeper, 12, true)
+	_check("a standing pylon takes 3 off every hit on the Sorter (%d / %d / %d)" % [shielded, one_left, bare],
+		shielded == bare - 3 and one_left == shielded and bare > shielded)
+	_check("a pylon is a prop with 6 HP: it neither acts nor counts for ROUT",
+		state.crew(GridUnit.TEAM_ENEMY).size() == 1 and int((_fight(_rows(marks), [_unit(RAIL, Vector2i(3, 6))], [sorter]).props[Vector2i(1, 1)] as Dictionary)["hp"]) == 6)
+	var pads: CombatState = _fight(_rows(), [_unit(RAIL, Vector2i(3, 7))], [sorter])
+	_check("the Sorter sets down a pad beside itself", pads.spawn_marks.has(10) and CombatSim.drone_in(pads, 10) == 3)
+	for r: int in 3:
+		CombatSim.apply(pads, [CombatSim.ACT_END, -1, 0, 0])
+	var built: int = 0
+	for u: GridUnit in pads.units:
+		if u.team == GridUnit.TEAM_ENEMY and u.ref != 10 and u.alive:
+			built += 1
+	_check("and its pad builds a drone after 3 rounds (round %d, %d built)" % [pads.round_number, built], built == 1)
+
+	var fight: Dictionary = {"id": "t", "rows": _rows(), "player": [_unit(RAIL, Vector2i(1, 3))],
+		"enemy": [_unit(HAMMER, Vector2i(4, 0), 40)], "reclaimer": {"round": 3, "count": 2}}
+	var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 5)
+	var r_state: CombatState = CombatSim.start(setup)
+	_check("no arrival is marked in round 1", r_state.arrivals.is_empty())
+	CombatSim.apply(r_state, [CombatSim.ACT_END, -1, 0, 0])
+	var marked: Array = r_state.arrivals.duplicate()
+	_check("round 2: two arrival hexes marked on the crew's back row %s" % [marked], marked.size() == 2
+		and marked.all(func(c: Vector2i) -> bool: return c.y == SIZE - 1))
+	# A machine standing on one blocks that drone.
+	var blocker: GridUnit = r_state.unit(0)
+	blocker.x = (marked[0] as Vector2i).x
+	blocker.y = (marked[0] as Vector2i).y
+	CombatSim.apply(r_state, [CombatSim.ACT_END, -1, 0, 0])
+	var drones: Array = []
+	for u: GridUnit in r_state.units:
+		if u.kind == "reclaimer":
+			drones.append(u)
+	_check("round 3: a Reclaimer drone arrives on the free hex, none on the blocked one (%d)" % drones.size(),
+		drones.size() == 1 and r_state.arrivals.is_empty() and not (drones[0] as GridUnit).carries_scrap)
+	var far: Dictionary = fight.duplicate(true)
+	far.erase("reclaimer")
+	var quiet: CombatState = CombatSim.start(CombatSetup.build(far, _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 5))
+	for r: int in 3:
+		CombatSim.apply(quiet, [CombatSim.ACT_END, -1, 0, 0])
+	_check("a fight without the Reclaimer's reach gets no arrivals", quiet.arrivals.is_empty()
+		and not quiet.units.any(func(u: GridUnit) -> bool: return u.kind == "reclaimer"))
 
 
 func _test_tearing() -> void:
