@@ -39,6 +39,10 @@ var bosses: Dictionary = {}
 var makers: Dictionary = {}
 ## `data/run/perks.json`: what a level-up can offer (011).
 var perks: Dictionary = {}
+## `data/glossary.json`: every word the game uses and what it means (012). Text only.
+var glossary: Dictionary = {}
+## `data/tutorial.json`: the shakedown's steps (012). Text and coaching, not rules.
+var tutorial: Dictionary = {}
 var balance: Balance = null
 
 var errors: PackedStringArray = []
@@ -82,6 +86,13 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	var story_data: Variant = db._read_json("%s/run/story.json" % root)
 	if story_data is Dictionary:
 		db.story = story_data as Dictionary
+	# Words, not rules: like the story, NOT in the content hash.
+	var glossary_data: Variant = db._read_json("%s/glossary.json" % root)
+	if glossary_data is Dictionary:
+		db.glossary = glossary_data as Dictionary
+	var tutorial_data: Variant = db._read_json("%s/tutorial.json" % root)
+	if tutorial_data is Dictionary:
+		db.tutorial = tutorial_data as Dictionary
 
 	for pair: Array in [["abilities", "combat_abilities"], ["enemy_kinds", "enemy_kinds"]]:
 		var data: Variant = db._read_json("%s/combat/%s.json" % [root, pair[0]])

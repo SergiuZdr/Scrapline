@@ -1,13 +1,13 @@
 class_name SaveFile
 extends RefCounted
 
-## Versioned save with a migration chain, built before there is anything to save.
+## The player's profile: versioned, migrated, written atomically with a backup.
 ##
-## This exists on day one on purpose. A free-to-play game patches constantly, and every
-## patch that adds a currency, a part slot or a building changes the shape of the save.
-## A format that cannot migrate strands every existing player the first time the schema
-## moves -- which in practice means month three, with real players in it. Retrofitting
-## migration after that is the expensive kind of impossible.
+## Since 012 it holds what outlives a run -- whether the shakedown (the tutorial) was played
+## and which first-time hints were seen -- and nothing else yet. Version 1 was the archived
+## free-to-play game's profile; migrating from it keeps the tips it had seen and drops the
+## rest. A format that cannot migrate strands every player the first time the schema moves,
+## which is why this existed before there was anything to save.
 ##
 ## Rules:
 ##   - `VERSION` goes up by one whenever the saved shape changes.
@@ -15,10 +15,20 @@ extends RefCounted
 ##   - Migrations run in sequence, so a save from version 1 walks all the way up.
 ##   - Writes are atomic: a power cut mid-write must not destroy the previous save.
 
-const VERSION: int = 1
+const VERSION: int = 2
 const SAVE_PATH: String = "user://profile.json"
 const BACKUP_PATH: String = "user://profile.backup.json"
 const TEMP_PATH: String = "user://profile.tmp.json"
+
+
+## The backup and temp files live beside the save they belong to: a test writing its own
+## profile must never promote itself into the real profile's backup (it did, until 012).
+static func backup_of(path: String) -> String:
+	return BACKUP_PATH if path == SAVE_PATH else path.get_basename() + ".backup.json"
+
+
+static func temp_of(path: String) -> String:
+	return TEMP_PATH if path == SAVE_PATH else path.get_basename() + ".tmp.json"
 
 enum Status { OK, MISSING, CORRUPT, TOO_NEW, MIGRATED }
 
@@ -37,7 +47,7 @@ static func load_from(path: String = SAVE_PATH) -> SaveFile:
 	var raw: Variant = file._read(path)
 	if raw == null:
 		# The main save failed. Try the backup before giving up on the player.
-		raw = file._read(BACKUP_PATH)
+		raw = file._read(backup_of(path))
 		if raw != null:
 			file.message = "main save unreadable, recovered from backup"
 
@@ -72,7 +82,7 @@ static func save_to(data: Dictionary, path: String = SAVE_PATH) -> bool:
 	payload["version"] = VERSION
 	payload["saved_at"] = Time.get_unix_time_from_system()
 
-	var temp: FileAccess = FileAccess.open(TEMP_PATH, FileAccess.WRITE)
+	var temp: FileAccess = FileAccess.open(temp_of(path), FileAccess.WRITE)
 	if temp == null:
 		push_error("save: cannot open temp file")
 		return false
@@ -83,9 +93,9 @@ static func save_to(data: Dictionary, path: String = SAVE_PATH) -> bool:
 	if directory == null:
 		return false
 	if FileAccess.file_exists(path):
-		directory.remove(BACKUP_PATH)
-		directory.rename(path, BACKUP_PATH)
-	return directory.rename(TEMP_PATH, path) == OK
+		directory.remove(backup_of(path))
+		directory.rename(path, backup_of(path))
+	return directory.rename(temp_of(path), path) == OK
 
 
 ## The shape a brand-new player starts with. Every field the game reads must appear
@@ -93,25 +103,10 @@ static func save_to(data: Dictionary, path: String = SAVE_PATH) -> bool:
 static func default_profile() -> Dictionary:
 	return {
 		"version": VERSION,
-		"player": {"name": "Reclaimer", "level": 1, "xp": 0},
-		"currencies": {"scrap": 500, "alloy": 0, "cores": 0},
-		# part id -> {"level": int, "copies": int, "rarity_tier": int}
-		"inventory": {},
-		# Named squads, each six build specs in formation order.
-		"squads": {"main": []},
-		"doctrines": {},
-		"foundry": {"buildings": {}, "last_collected": 0},
-		# crate id -> {"opened": int, "since_pity": int}; "seed" advances every open so
-		# any pull can be replayed exactly for a support ticket or a server check.
-		"crates": {"seed": 20260809, "counters": {}},
-		"campaign": {"cleared": [], "current_zone": 0},
-		"stats": {"battles": 0, "wins": 0},
-		# Which one-time tips the player has already been shown.
+		# The shakedown (012's tutorial fight) has been played through, or skipped for good.
+		"tutorial_done": false,
+		# Which one-time hints the player has already been shown.
 		"seen_tips": [],
-		# Async PvP standing. Rating survives a season; matches reset with it.
-		"pvp": {"id": "", "rating": 1000, "matches": 0, "wins": 0, "losses": 0, "season": -1},
-		# Endless tower. `best_depth` is kept forever; the run resets weekly.
-		"gauntlet": {"floor": 1, "best_depth": 0, "week": -1, "week_best": 0},
 	}
 
 
@@ -127,6 +122,8 @@ func _migrate(loaded: Dictionary, from_version: int) -> Dictionary:
 		match version:
 			0:
 				working = _migrate_0_to_1(working)
+			1:
+				working = _migrate_1_to_2(working)
 			_:
 				# Unknown gap: fill in anything missing rather than losing the save.
 				working = _fill_defaults(working)
@@ -139,6 +136,14 @@ func _migrate(loaded: Dictionary, from_version: int) -> Dictionary:
 ## Version 0 is any save written before versioning existed.
 func _migrate_0_to_1(working: Dictionary) -> Dictionary:
 	return _fill_defaults(working)
+
+
+## Version 1 was the archived free-to-play game's profile (currencies, crates, squads, PvP).
+## None of it means anything to the roguelike; the tips it had shown still do.
+func _migrate_1_to_2(working: Dictionary) -> Dictionary:
+	var fresh: Dictionary = default_profile()
+	fresh["seen_tips"] = (working.get("seen_tips", []) as Array).duplicate()
+	return fresh
 
 
 ## Backfills every key the current build expects. Runs after every migration so a

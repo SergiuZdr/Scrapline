@@ -14,6 +14,9 @@ extends Node3D
 ##   --fight <id>   which fight (default proto_yard)
 ##   --seed <n>     tie-break seed
 ##   --bot          the player's turns are played by `CombatBot`, for demos and screenshots
+##
+## `scenes/shakedown.tscn` is this scene with `tutorial` on (012): the shakedown fight from
+## `data/tutorial.json`, with the coach (`coach.gd`) over it.
 
 ## Centre-to-corner size of a hex, in metres. Pointy-top: a hex is sqrt(3) * HEX wide.
 const HEX: float = 0.78
@@ -54,8 +57,16 @@ const T_HIT: float = 0.16
 const T_DESTROY: float = 0.30
 const T_BANNER: float = 0.30
 
+## The shakedown (012): set in `scenes/shakedown.tscn`.
+@export var tutorial: bool = false
+
+const Coach := preload("res://scripts/combat/coach.gd")
+
 var _db: ContentDB
 var _fight_id: String = "proto_yard"
+var _coach: Control
+## The coach's marker on the board: a ring and a bobbing chevron in the colour of your action.
+var _coach_marker: Node3D
 var _seed: int = 2026
 var _bot: bool = false
 ## The fight belongs to the live run (`Run`): read from it, saved into it, reported to it.
@@ -111,8 +122,12 @@ var _hud: CombatHUD
 func _ready() -> void:
 	_read_args()
 	_db = ContentDB.load_all()
+	if tutorial:
+		_fight_id = String(_db.tutorial.get("fight", "shakedown"))
+		_seed = int(_db.tutorial.get("seed", 1))
 	_build_world()
 	_hud = CombatHUD.new()
+	_hud.glossary = _db.glossary
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	layer.add_child(_hud)
@@ -126,7 +141,12 @@ func _ready() -> void:
 	_hud.retry_pressed.connect(_start_fight)
 	_hud.title_pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/main.tscn"))
 	_hud.continue_pressed.connect(_back_to_run)
-	_run_mode = Run.in_fight() and not OS.get_cmdline_user_args().has("--fight")
+	_run_mode = Run.in_fight() and not OS.get_cmdline_user_args().has("--fight") and not tutorial
+	if tutorial:
+		_coach = Coach.new()
+		_coach.setup(self, _db.tutorial)
+		_coach.finished.connect(_finish_tutorial)
+		layer.add_child(_coach)
 	_start_fight()
 
 
@@ -144,6 +164,8 @@ func _read_args() -> void:
 func _start_fight() -> void:
 	_hud.hide_result()
 	_actions = []
+	if _coach != null:
+		_coach.call("restart")
 	if _run_mode:
 		_setup = Run.fight_setup()
 		# Resuming mid-fight: the saved combat actions replay to the exact turn.
@@ -174,6 +196,64 @@ func _start_fight() -> void:
 		_spawn_units()
 		_shown = _state.events.size()
 	_after_events()
+
+
+## The coach's marker: stands on `cell`, or hides for null.
+func coach_point(cell: Variant) -> void:
+	if _coach_marker == null:
+		_coach_marker = Node3D.new()
+		add_child(_coach_marker)
+		var ring := MeshInstance3D.new()
+		var torus := TorusMesh.new()
+		torus.inner_radius = HEX * 0.72
+		torus.outer_radius = HEX * 0.86
+		ring.mesh = torus
+		var glow := StandardMaterial3D.new()
+		glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		glow.albedo_color = UIKit.AMBER
+		glow.emission_enabled = true
+		glow.emission = UIKit.AMBER
+		glow.emission_energy_multiplier = 2.0
+		ring.material_override = glow
+		_coach_marker.add_child(ring)
+		# The chevron hangs just over the ring on an empty hex and over the head of whatever
+		# stands there -- high above an empty hex, the tilted camera puts it hexes away.
+		var holder := Node3D.new()
+		holder.name = "chevron_holder"
+		_coach_marker.add_child(holder)
+		var chevron := MeshInstance3D.new()
+		var cone := CylinderMesh.new()
+		cone.top_radius = 0.2
+		cone.bottom_radius = 0.0
+		cone.height = 0.34
+		cone.radial_segments = 4
+		chevron.mesh = cone
+		chevron.material_override = glow
+		holder.add_child(chevron)
+		var bob := create_tween().set_loops()
+		bob.tween_property(chevron, "position:y", 0.3, 0.45).set_trans(Tween.TRANS_SINE)
+		bob.tween_property(chevron, "position:y", 0.0, 0.45).set_trans(Tween.TRANS_SINE)
+	_coach_marker.visible = cell != null
+	if cell != null:
+		var at: Vector2i = cell
+		_coach_marker.position = _to_world(at.x, at.y) + Vector3(0, _tile_top(at.x, at.y) + 0.06, 0)
+		var height: float = 0.8
+		if _state != null and _state.unit_at(at.x, at.y) != null:
+			height = 2.4
+		elif _state != null and _state.props.has(at):
+			height = 1.5
+		(_coach_marker.get_node("chevron_holder") as Node3D).position.y = height
+
+
+## The shakedown is over (or skipped): it counts as played either way, so the first NEW RUN
+## stops offering it. `to_run` starts a run; otherwise back to the title.
+func _finish_tutorial(to_run: bool) -> void:
+	Profile.finish_tutorial()
+	if to_run:
+		Run.new_run()
+		get_tree().change_scene_to_file("res://scenes/run_map.tscn")
+	else:
+		get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 
 ## Hands the finished fight's action log to the run, which replays it for itself.
@@ -1263,6 +1343,14 @@ func _wait(seconds: float) -> void:
 func _after_events() -> void:
 	for u: GridUnit in _state.units:
 		_refresh_tag(u.ref)
+	if _coach != null and _state.outcome != CombatState.ONGOING:
+		# The shakedown ends in its coach, not on the practice fight's result screen.
+		_selected = -1
+		_refresh()
+		_hud.set_banner("FIGHT OVER", UIKit.TEXT_DIM)
+		if _state.outcome != CombatState.WON:
+			_hud.show_result(false, "Try the shakedown again: FIGHT AGAIN.", false)
+		return
 	if _state.outcome != CombatState.ONGOING:
 		_selected = -1
 		_refresh()
@@ -1282,6 +1370,8 @@ func _after_events() -> void:
 	_weapon = _default_weapon(_selected, _weapon)
 	_hud.set_banner("ROUND %d  ·  YOUR TURN" % _state.round_number)
 	_refresh()
+	if _coach == null and not _bot:
+		Hints.show_once(_hud, "fight", _db, Vector2(1535, 600), 360)
 	if _bot:
 		await _wait(0.6)
 		await _bot_turn()
@@ -1334,6 +1424,8 @@ func _refresh() -> void:
 			for cell: Variant in CombatSim.reachable(_state, _selected):
 				_mark(_hint_quads, cell, COL_MOVE)
 	_refresh_hud(threats)
+	if _coach != null:
+		_coach.refresh()
 
 
 func _refresh_hud(threats: Dictionary) -> void:
@@ -1527,7 +1619,9 @@ func _weapon_detail(u: GridUnit, w: int) -> String:
 		bits.append("marks")
 	if bool(weapon["tears"]):
 		bits.append("tears")
-	bits.append("+%d heat" % CombatSim.attack_heat(u, weapon))
+	# A cold weapon says nothing about heat ("+0 heat" is noise).
+	if CombatSim.attack_heat(u, weapon) > 0:
+		bits.append("+%d heat" % CombatSim.attack_heat(u, weapon))
 	return " · ".join(bits)
 
 

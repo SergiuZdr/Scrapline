@@ -70,6 +70,7 @@ func _ready() -> void:
 	go.pressed.connect(_roll_out)
 	bar.add_child(go)
 	_rebuild()
+	Hints.show_once(self, "bay", Run.db, Vector2(1440, 16))
 
 
 func _rebuild() -> void:

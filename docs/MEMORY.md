@@ -74,6 +74,8 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-26 | **Build progression: perks on level-up (1 of 3), tuning once per part at workshops (the plan's design), maker sets (2 and 3 pieces)**, all through one additive bonus path; salvage from three slots with a scrap option | Play-test 1: "no perks, no sets, nothing that makes a build strong"; play-test 4: levels did not feel like the machine becoming something |
 | 2026-09-26 | **Sets are for player machines only** | Enemy parts are rolled per slot, so an enemy set would be noise; authored enemies can wear sets on purpose |
 | 2026-09-26 | **Boss fight 5 enemies** (was 4), after trying four dials side by side | The crew now reaches the gate with 29.6 HP (24.3); the bot went 92.7% -> 88.0% |
+| 2026-09-26 | **The tutorial is the real fight with a coach on top**, stepping on what happened in the event stream | It cannot teach anything the rules do not do, and a player acting out of order is never stuck |
+| 2026-09-26 | **Skipping the shakedown counts as played**; it stays on the title as TUTORIAL | Offered once, never nagging |
 
 ## Lessons carried over from the old codebase
 
@@ -139,6 +141,9 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-26 | A photograph carries its own hue: rusty RED paint multiplied by a yellow livery is brown. Bake it to a hue-free wear map (white paint, rust-orange chips) and let the livery colour it |
 | 2026-09-26 | A content id that is not a file (a tuned `ar_hammer:a`) breaks every tool that turns ids into paths. Resolve to the base in the few places that draw, and make every sampler skip variants |
 | 2026-09-26 | A bot's reserve policy can hide a rule from the only test that plays the game: it tuned 0.1 parts a run until its reserve was halved |
+| 2026-09-26 | A display class that reads an autoload for an argument nobody uses still breaks every `--script` tool that names a class that uses it (`MachinePortrait` -> `CombatHUD`) |
+| 2026-09-26 | One fixed backup path meant every test profile overwrote the player's backup. Derive side files from the save they belong to |
+| 2026-09-26 | A glossary link has to mean the word's sense: "the marked hex" linked to MARK. Write tutorial text around the linked vocabulary |
 
 ## Open questions
 

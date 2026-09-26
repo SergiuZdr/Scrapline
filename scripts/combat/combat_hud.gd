@@ -38,7 +38,10 @@ var _ability_bar: HBoxContainer
 var _bar_area: VBoxContainer
 var _lines_button: Button
 var _info_title: Label
-var _info_body: Label
+## Rich text: the words in it are glossary links (012).
+var _info_body: RichTextLabel
+## `ContentDB.glossary`, set by the scene before the HUD enters the tree.
+var glossary: Dictionary = {}
 var _hint: Label
 var _undo: Button
 var _end_turn: Button
@@ -101,9 +104,7 @@ func _ready() -> void:
 	panel.add_child(info)
 	_info_title = _label("", UIKit.SIZE_HEADING, UIKit.TEXT, UIKit.font_strong())
 	info.add_child(_info_title)
-	_info_body = _label("", UIKit.SIZE_BODY, UIKit.TEXT_DIM)
-	_info_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_info_body.custom_minimum_size = Vector2(PANEL_WIDTH - UIKit.SPACE_LG * 2, 0)
+	_info_body = Glossary.label("", UIKit.SIZE_BODY, UIKit.TEXT_DIM, glossary, PANEL_WIDTH - UIKit.SPACE_LG * 2)
 	info.add_child(_info_body)
 
 	_hint = _label("", UIKit.SIZE_BODY, UIKit.TEXT_DIM)
@@ -142,6 +143,12 @@ func _ready() -> void:
 	_lines_button.add_theme_font_size_override("font_size", UIKit.SIZE_LABEL)
 	_lines_button.pressed.connect(func() -> void: lines_pressed.emit())
 	camera.add_child(_lines_button)
+	# Every word the fight uses (012). The same words are links in the info panel.
+	var words := _button("?", UIKit.secondary(), UIKit.TEXT, Vector2(64, 64))
+	words.name = "glossary_button"
+	words.tooltip_text = "Glossary"
+	words.pressed.connect(func() -> void: Glossary.open(self, glossary))
+	camera.add_child(words)
 	camera.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, UIKit.SPACE_XL)
 
 	_build_result()
@@ -255,6 +262,20 @@ func _action_button(info: Dictionary, index: int, selected: bool, ability: bool)
 	return button
 
 
+## What the shakedown's coach points at (012): "weapon" / "ability" -- the first live button
+## in that row -- or "end_turn". Looked up every frame: the bars are rebuilt on every refresh.
+func control_for(kind: String) -> Control:
+	match kind:
+		"end_turn":
+			return _end_turn
+		"weapon", "ability":
+			for child: Node in (_weapon_bar if kind == "weapon" else _ability_bar).get_children():
+				if child is Button and child.has_meta("item") and not child.is_queued_for_deletion() \
+						and (child as Button).is_visible_in_tree():
+					return child
+	return null
+
+
 func set_banner(text: String, colour: Color = UIKit.TEXT) -> void:
 	_banner.text = text
 	_banner.add_theme_color_override("font_color", colour)
@@ -262,7 +283,7 @@ func set_banner(text: String, colour: Color = UIKit.TEXT) -> void:
 
 func set_info(title: String, body: String) -> void:
 	_info_title.text = title
-	_info_body.text = body
+	_info_body.text = Glossary.linkify(body, glossary)
 
 
 func set_hint(text: String) -> void:

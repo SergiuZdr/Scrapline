@@ -2,6 +2,22 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [012] Onboarding — 2026-09-26 ([detail](iterations/012-onboarding.md))
+
+Play-test 1: "names and jargon are explained nowhere. A tutorial at the start would solve
+most of it."
+
+### Added
+- **The shakedown**: a guided first fight on the real rules, a coach giving one step at a time with an amber marker on what to click; offered on the first NEW RUN, and as TUTORIAL on the title.
+- **The glossary**: 56 terms. Blue words are tappable links in the fight's info panel, the garage STATS, site panels, the coach and hints; the GLOSSARY screen from the title and a `?` on the map, garage and fight.
+- **First-time hints** on eight screens, dismissed once for good.
+- **The profile** (`Profile` autoload, `user://profile.json`): the tutorial flag and the hints seen.
+- `tools/verify_onboarding.gd` (the shakedown played by real clicks) and `tools/shot_onboarding.gd`.
+
+### Changed
+- The profile save is version 2: the archived game's profile migrates, keeping its tips. Backups live beside their own save.
+- A weapon that makes no heat no longer says "+0 heat" in the fight.
+
 ## [011] Build progression — 2026-09-26 ([detail](iterations/011-build-progression.md))
 
 A crew is now BUILT over a run: levels are choices, parts can be re-cut, makers add up, and

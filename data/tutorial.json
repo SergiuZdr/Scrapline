@@ -1,0 +1,138 @@
+{
+  "_comment": "012: the shakedown -- the tutorial fight's coaching, one step at a time. `until` is what ends a step: next (the NEXT button), selected (machine `unit` picked; note the first ready machine is picked automatically), moved, armed (a weapon armed), attacked, ability, prop (a drum went off, or none is left), round (round `round` reached), won. `point` is what the marker shows: {unit}, {beside_enemy} (a hex the selected machine can reach next to an enemy), {enemy_near} (the enemy nearest the selected machine), {prop: barrel}, {pile}, {button: weapon|ability|end_turn}, and {unit, then: button} (the machine until it is picked, then the button). Text only: NOT in the content hash.",
+  "fight": "shakedown",
+  "seed": 1,
+  "steps": [
+    {
+      "id": "welcome",
+      "title": "THE SHAKEDOWN",
+      "text": "Three machines, a yard, three scrap runners. Each turn every machine can MOVE once and ATTACK once, in any order. Then you END TURN and the enemies act. The enemies always show what they will do first.",
+      "until": "next"
+    },
+    {
+      "id": "move",
+      "title": "MOVE",
+      "text": "The BRUTE is picked: its card is outlined (click a machine, or press 1-3, to pick another). The blue hexes are where it can walk this turn. Click the hex with the amber ring, next to a runner.",
+      "until": "moved",
+      "point": {
+        "beside_enemy": true
+      }
+    },
+    {
+      "id": "intents",
+      "title": "READ THE ENEMY",
+      "text": "The red hexes and numbered badges are INTENTS: where each enemy will fire when you end your turn. Nothing hits you until then. Step out of the red, or break the enemy first.",
+      "until": "next"
+    },
+    {
+      "id": "arm",
+      "title": "ARM A WEAPON",
+      "text": "Click a weapon in the WEAPONS row at the bottom. Its targets light up yellow.",
+      "until": "armed",
+      "point": {
+        "button": "weapon"
+      }
+    },
+    {
+      "id": "fire",
+      "title": "AIM, THEN FIRE",
+      "text": "Click the runner to aim: the panel on the right says exactly what will happen. Click it again to fire.",
+      "until": "attacked",
+      "point": {
+        "enemy_near": true
+      }
+    },
+    {
+      "id": "heat",
+      "title": "HEAT",
+      "text": "Every attack makes heat (the number on the machine's card). At the heat cap it overheats and skips its next attack. VENT (V) dumps the heat instead of attacking.",
+      "until": "next"
+    },
+    {
+      "id": "focus",
+      "title": "ABILITIES",
+      "text": "Click the STRIDER, then FOCUS in the ABILITIES row. It is free: +2 damage on the Strider's next shot.",
+      "until": "ability",
+      "point": {
+        "unit": 2,
+        "then": "ability"
+      }
+    },
+    {
+      "id": "drum",
+      "title": "USE THE YARD",
+      "text": "Fuel drums explode when hit: 3 damage to everything next to them. Arm the Strider's gun and shoot the drum in the amber ring.",
+      "until": "prop",
+      "point": {
+        "prop": "barrel"
+      }
+    },
+    {
+      "id": "end",
+      "title": "END TURN",
+      "text": "Done with your machines? END TURN (Space). The enemies do exactly what their intents showed, then show the next round's.",
+      "until": "round",
+      "round": 2,
+      "point": {
+        "button": "end_turn"
+      }
+    },
+    {
+      "id": "piles",
+      "title": "SCRAP PILES",
+      "text": "An enemy with the scrap mark on its tag carries scrap: break it and it leaves a pile. End a move on a pile for scrap and 2 HP. Enemies grab them too.",
+      "until": "next",
+      "point": {
+        "pile": true
+      }
+    },
+    {
+      "id": "rout",
+      "title": "FINISH IT",
+      "text": "Every fight has an OBJECTIVE, top left. This one is ROUT: break every enemy. Tap anything on the board, or any blue word, to see what it is.",
+      "until": "won"
+    },
+    {
+      "id": "done",
+      "title": "THAT IS THE LOOP",
+      "text": "A run is this, site after site: fight, take salvage, build your machines in the garage, and reach the gate before the Reclaimer catches the key.",
+      "until": "next",
+      "final": true
+    }
+  ],
+  "hints": {
+    "map": {
+      "title": "THE MAP",
+      "text": "Click a lit site to travel there: your crew walks the road. Every 2 moves the Reclaimer takes a zone (its gauge is at the top; its red ghost shows the line it takes next). Sites in the fog are not scouted yet."
+    },
+    "bay": {
+      "title": "BUILD YOUR CREW",
+      "text": "Step each socket through the bench with < and >. Two parts from one maker on a machine make a set: the green lines under its name. ROLL OUT when the crew is ready."
+    },
+    "salvage": {
+      "title": "SALVAGE",
+      "text": "Take one part into the hold, or the scrap instead. The green lines on a card say what it would beat and which maker set it would make."
+    },
+    "garage": {
+      "title": "THE GARAGE",
+      "text": "Drag a part from the hold onto a socket (or tap it, then tap the socket). Hover a part to see it on the machine. LEVEL UP spends scrap: +2 HP and a perk of your choice."
+    },
+    "perks": {
+      "title": "PERKS",
+      "text": "A level adds its HP and ONE of these, kept for the rest of the run. Each card says exactly what it adds."
+    },
+    "workshop": {
+      "title": "WORKSHOP",
+      "text": "Patch the crew, rebuild a wreck, buy room in the hold, or TUNE a part: one of two upgrades, once per part."
+    },
+    "tune": {
+      "title": "TUNING",
+      "text": "Pick a part on the left, then one of its two tunings on the right. A tuned part is marked + and cannot be tuned again."
+    },
+    "fight": {
+      "title": "YOUR TURN",
+      "text": "Blue hexes: where the picked machine can move. Red: where the enemies will fire when you END TURN. Tap anything on the board to see what it is; blue words are links."
+    }
+  },
+  "_comment_hints": "First-time hints: one per screen, shown the first time it opens, remembered in the profile once dismissed (Hints.show_once)."
+}
