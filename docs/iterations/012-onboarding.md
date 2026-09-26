@@ -65,6 +65,7 @@ itself once, the first time it opens.
 | verify_save | **15** passed (14): the profile is version 2; the old game's profile migrates keeping its tips; a test profile's backup lives beside it |
 | verify_combat / combat_input / run / run_ui | 140 / 20 / 107 / 42 passed |
 | verify_assembly / animation | 100 / 34 passed |
+| run_bot 150 | **88.0%**, 0 illegal actions: identical to 011 -- the shakedown's board never reaches a run |
 
 **What the player gets**
 - **The shakedown** (`scenes/shakedown.tscn`): a guided first fight on the real rules. A coach
