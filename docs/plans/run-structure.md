@@ -38,9 +38,9 @@ proposal:
 | Elite wreck-field | hard fight, rare part guaranteed | 2–3 per act |
 | Scrapyard | no fight; pick 1 of 3 parts or take scrap | common |
 | Workshop | repair, rebuild a wreck, more hold, **tune a part** (011; costs scrap) | 2 per act |
-| Trader | buy and sell parts for scrap | 1–2 per act |
-| Signal (event) | text event with choices; risk/reward | common |
-| Watchtower | reveals fog in a radius | 1–2 per act |
+| Trader | **built (013)**: three parts for sale (one tuned) by rarity; buys hold parts for twice their scrap value | weight 8 |
+| Signal (event) | **built (013)**: one of seven events (`data/run/events.json`), never twice a run; every option states its cost and gain; effects are scrap, HP, parts, tuned parts, scouting, the Reclaimer moving, or a fight | weight 14 |
+| Watchtower | **built (013)**: scouts every site within two columns | weight 6 |
 | Boss gate | the act boss; exit to the next region | 1 |
 
 ## Crew HP carries (005, replacing the Crawler)
@@ -138,6 +138,13 @@ Besides patching, rebuilding and hold room, a workshop **tunes** a part, fitted 
 hold, one of its two ways, once (6 / 10 / 14 scrap by rarity): the TUNE bench lists the
 crew's parts by machine and the hold, and shows the two options side by side with the
 numbers before and after.
+
+## The Reclaimer reaches into fights (013)
+
+A fight at a site in the column the Reclaimer takes next gets its drones: two arrive on the
+crew's back row at round 3, on hexes marked red at round 2 (stand on one to block it). The
+fight panel says so before the player walks in. Lingering by the line now costs inside a
+fight as well as on the road.
 
 ## Currency
 

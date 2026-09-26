@@ -76,6 +76,9 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-26 | **Boss fight 5 enemies** (was 4), after trying four dials side by side | The crew now reaches the gate with 29.6 HP (24.3); the bot went 92.7% -> 88.0% |
 | 2026-09-26 | **The tutorial is the real fight with a coach on top**, stepping on what happened in the event stream | It cannot teach anything the rules do not do, and a player acting out of order is never stuck |
 | 2026-09-26 | **Skipping the shakedown counts as played**; it stays on the title as TUTORIAL | Offered once, never nagging |
+| 2026-09-26 | **Gate pylons are props; the Sorter's shield is `pylon_armor` while any stands** | Props already block, break and never act: no unit rule had to change |
+| 2026-09-26 | **Signals state every cost and gain up front** (no hidden dice) | A choice without the information is a guess |
+| 2026-09-26 | **The Reclaimer's drones join fights in the column it takes next** | Lingering by the line has to cost inside fights too, not only on the road |
 
 ## Lessons carried over from the old codebase
 
@@ -144,6 +147,8 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-26 | A display class that reads an autoload for an argument nobody uses still breaks every `--script` tool that names a class that uses it (`MachinePortrait` -> `CombatHUD`) |
 | 2026-09-26 | One fixed backup path meant every test profile overwrote the player's backup. Derive side files from the save they belong to |
 | 2026-09-26 | A glossary link has to mean the word's sense: "the marked hex" linked to MARK. Write tutorial text around the linked vocabulary |
+| 2026-09-26 | An event that encodes a kind as "barrel or not" silently draws every new kind as the "not". Encode kinds as an index into a named list |
+| 2026-09-26 | A balance tool that samples every map samples the tutorial too. Measure on what the run actually uses |
 
 ## Open questions
 
@@ -164,3 +169,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-25 | **Difficulty after 008**: the run bot wins 88.7% (76.7% after 007), and it barely uses abilities | Dials, in order: enemy count by column (`run.json` enemies), the speed of the front (`front.every`), level costs. Decide after play-test 4 | |
 | 2026-09-26 | **Which roster is right: pauldrons on every arm (the shipped roster, CLAUDE.md) or per-archetype shoulders (`builders/arm.py` today)?** The generator no longer reproduces the roster, which blocks exporting the aluminium light value | Proposed: keep the shipped look (pauldrons everywhere), make the generator reproduce it, then export the aluminium. The user decides | |
 | 2026-09-26 | **The gate now decides two thirds of the bot's losses** (12 of 18). A climax or a wall? | 013 replaces the gate fight with a real boss; judge it in the play-test | |
+| 2026-09-26 | **Play-test 5 (009-013)**: is the Sorter a climax? Do signals, traders and towers fix "the map feels empty"? Does the shakedown teach enough? | The user plays | |

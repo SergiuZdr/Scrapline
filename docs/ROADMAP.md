@@ -25,7 +25,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 010 | [The look](iterations/010-the-look.md) | Style bible and colour registry; measured contrast (1.8 → 2.2); photographed board and worn-paint machines, crew numbers; effects; portraits in the HUD; the title as a scene | ✅ |
 | 011 | [Build progression](iterations/011-build-progression.md) | Perks (1 of 3 per level), tuning once per part at workshops, maker sets, salvage from three slots with a scrap option; boss fight 5 enemies (bot 88.0%) | ✅ |
 | 012 | [Onboarding](iterations/012-onboarding.md) | The shakedown (a guided first fight on the real rules), a 56-term glossary with tappable words, first-time hints on eight screens, the profile | ✅ |
-| 013 | Act 1 content | Real boss, the Reclaimer's drones in fights, more fight maps, more parts, events, traders, watchtowers; **user play-test of 009–013** | ⬜ |
+| 013 | [Act 1 content](iterations/013-act1-content.md) | The Sorter at the gate (pylons, summons); the Reclaimer's drones in fights by its line; traders, watchtowers, signals (7 events); three new maps; **user play-test of 009–013** next | ✅ |
 | 014 | Acts 2–3 | The Slag Flats and the Crucible | ⬜ |
 | 015 | Feel pass | Audio, camera, final VFX | ⬜ |
 | 016 | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |

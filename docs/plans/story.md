@@ -27,7 +27,8 @@ through three yards to the Crucible before it catches you.
 | Scrap piles | What a machine is when it stops. Scrap buys levels: the Wright rebuilds a machine heavier each time |
 | Workshops | Combine service halls with the lights still on |
 | Scrapyards | Heaps the Reclaimer has not reached yet |
-| The gate | Each yard ends at a Combine gate held by a Reclaimer warlord |
+| The gate | Each yard ends at a Combine gate held by a Reclaimer warlord. Act 1's is **the Sorter**, shielded by the gate's own pylons (013) |
+| Traders, signals, watchtowers | Other free machines trading from containers; things by the road worth a look (a crashed hauler, a lone spiked rig, scavengers at a fire, a relay mast, a welded locker, a downed drone, a fuel cache); crane cabs to climb (013) |
 
 ## The three yards (acts)
 

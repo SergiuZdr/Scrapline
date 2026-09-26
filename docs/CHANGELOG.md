@@ -2,6 +2,21 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [013] Act 1 content — 2026-09-26 ([detail](iterations/013-act1-content.md))
+
+The map has things to find and the act a boss worth reaching (play-test 4, PT4-8).
+
+### Added
+- **The Sorter** holds the Sorting Gate: big, shielded by two gate pylons (3 less from every hit while one stands; red beams show it), calling a drone every 3 rounds. Its own map, with three rolled escorts.
+- **The Reclaimer reaches into fights**: fight in the zone it takes next and two of its drones come in behind you at round 3, on hexes marked red a round ahead (stand on one to block it). The fight panel warns you.
+- **New sites**: traders (three parts for sale, one tuned; they buy your spares at twice the scrap value), watchtowers (scout two zones), signals (seven events with stated costs and gains: a crashed hauler, a lone rig, scavengers, a relay mast, a sealed locker, a downed drone, a fuel cache).
+- **Three new fight maps**: Pit Row, Crane Legs, Slag Channel.
+- Glossary terms for all of it; `shot_run.gd --force KIND`, `combat.tscn -- --reclaimer`.
+
+### Changed
+- Site mix: fewer scrapyards (12), plus traders 8, towers 6, signals 14. Run bot 90.0%.
+- balance_fights samples the run's maps only (not the tutorial's or the gate's).
+
 ## [012] Onboarding — 2026-09-26 ([detail](iterations/012-onboarding.md))
 
 Play-test 1: "names and jargon are explained nowhere. A tutorial at the start would solve
