@@ -25,6 +25,10 @@ func _initialize() -> void:
 	_test_tuning()
 	_test_sets()
 	_test_salvage()
+	_test_gate_and_reach()
+	_test_trader()
+	_test_tower()
+	_test_signals()
 	_test_assembly()
 	_test_refit()
 	_test_determinism_and_save()
@@ -404,6 +408,136 @@ func _test_salvage() -> void:
 	var scrap: int = state.scrap
 	_check("salvage can be left for scrap (8)", RunSim.apply(state, setup, [RunSim.PICK, -1]) and state.scrap == scrap + 8
 		and state.pending.is_empty())
+
+
+## A fresh run with the first reachable site turned into `kind`, travelled to.
+func _visit(seed_value: int, kind: String) -> Array:
+	var setup: RunSetup = _setup(seed_value)
+	var state: RunState = RunSim.start(setup)
+	var site: int = RunSim.destinations(state)[0]
+	state.sites[site]["type"] = kind
+	RunSim.apply(state, setup, [RunSim.TRAVEL, site])
+	return [setup, state, site]
+
+
+## 013: the gate is the Sorter's; fights by the Reclaimer's line get its drones.
+func _test_gate_and_reach() -> void:
+	var setup: RunSetup = _setup(14)
+	var state: RunState = RunSim.start(setup)
+	var boss: int = state.sites.size() - 1
+	var fight: Dictionary = RunSim._make_fight(state, setup, boss, "boss")
+	var enemies: Array = fight["enemy"]
+	_check("the gate fight is the Sorter's map: the Sorter, its pylons, %d escorts" % (enemies.size() - 1),
+		String((enemies[0] as Dictionary).get("kind", "")) == "sorter" and enemies.size() == 1 + int(setup.rules["enemies"]["boss_escorts"])
+		and "".join(PackedStringArray(fight["rows"])).count("p") == 2)
+	var combat: CombatSetup = CombatSetup.build(fight, setup.combat_rules, setup.parts, setup.tiles, setup.wheel, 1)
+	_check("and it builds with no errors %s" % [combat.errors], combat.errors.is_empty())
+	var near: int = -1
+	var far: int = -1
+	for s: Dictionary in state.sites:
+		if int(s["col"]) == state.front_col + 1 and near < 0:
+			near = int(s["id"])
+		if int(s["col"]) == state.front_col + 3 and far < 0:
+			far = int(s["id"])
+	_check("a site in the column the Reclaimer takes next is within its reach; one further on is not",
+		RunSim.reclaimer_reaches(state, near) and not RunSim.reclaimer_reaches(state, far))
+	RunSim._start_fight(state, setup, near, "skirmish")
+	var reach: Dictionary = (state.pending["fight"] as Dictionary).get("reclaimer", {})
+	_check("its fight carries the Reclaimer's drones (round %d, %d)" % [int(reach.get("round", 0)), int(reach.get("count", 0))],
+		int(reach.get("round", 0)) == 3 and int(reach.get("count", 0)) == 2)
+	RunSim._start_fight(state, setup, far, "skirmish")
+	_check("a fight further from the line does not", not (state.pending["fight"] as Dictionary).has("reclaimer"))
+
+
+## 013: traders sell three parts (one tuned) and buy from the hold at twice the scrap value.
+func _test_trader() -> void:
+	var visit: Array = _visit(31, "trader")
+	var setup: RunSetup = visit[0]
+	var state: RunState = visit[1]
+	var stock: Array = state.pending.get("stock", [])
+	var tuned: int = stock.filter(func(id: String) -> bool: return PartTuning.is_tuned(id)).size()
+	_check("a trader stocks three parts, one of them tuned %s" % [stock], stock.size() == 3 and tuned == 1)
+	var price: int = RunSim.trader_price(state, setup, 0)
+	state.scrap = price - 1
+	_check("a part costs its price (%d): not a scrap less" % price, not RunSim.apply(state, setup, [RunSim.BUY, 0]))
+	state.scrap = price + 5
+	var cargo: int = state.cargo.size()
+	_check("buying pays the price and loads the hold", RunSim.apply(state, setup, [RunSim.BUY, 0]) and state.scrap == 5
+		and state.cargo.size() == cargo + 1 and state.cargo[-1] == String(stock[0]))
+	state.scrap = 999
+	_check("the same part cannot be bought twice", not RunSim.apply(state, setup, [RunSim.BUY, 0]))
+	var part: String = state.cargo[-1]
+	var before: int = state.scrap
+	_check("selling pays twice what breaking the part down would", RunSim.apply(state, setup, [RunSim.SELL, state.cargo.size() - 1])
+		and state.scrap == before + 2 * RunSim.scrap_value(setup, part))
+	_check("LEAVE closes the trader", RunSim.apply(state, setup, [RunSim.LEAVE]) and state.pending.is_empty())
+	_check("and there is no buying outside one", not RunSim.apply(state, setup, [RunSim.BUY, 1]))
+
+
+## 013: a watchtower scouts two columns each way.
+func _test_tower() -> void:
+	var visit: Array = _visit(33, "tower")
+	var setup: RunSetup = visit[0]
+	var state: RunState = visit[1]
+	var col: int = int(state.site(int(visit[2]))["col"])
+	var all: bool = true
+	for s: Dictionary in state.sites:
+		if absi(int(s["col"]) - col) <= 2:
+			all = all and RunSim.revealed(state, int(s["id"]))
+	_check("climbing a watchtower scouts every site within two columns (%d new)" % int(state.pending.get("scouted", 0)),
+		all and int(state.pending.get("scouted", 0)) > 0)
+	_check("LEAVE climbs down", RunSim.apply(state, setup, [RunSim.LEAVE]) and state.pending.is_empty())
+
+
+## 013: every signal's every option does exactly what it says, and costs what it says.
+func _test_signals() -> void:
+	var setup: RunSetup = _setup(40)
+	var events: Dictionary = setup.rules["events"]
+	var exact: bool = true
+	var detail: String = ""
+	for id: Variant in events:
+		var options: Array = (events[id] as Dictionary)["options"]
+		for i: int in options.size():
+			var visit: Array = _visit(40, "signal")
+			var state: RunState = visit[1]
+			state.pending = {"kind": "signal", "event": String(id)}
+			state.scrap = 50
+			for member: Dictionary in state.crew:
+				member["hp"] = RunSim.max_hp(setup, member) - 5
+			var hp_before: Array = state.crew.map(func(m: Dictionary) -> int: return int(m["hp"]))
+			var cargo: int = state.cargo.size()
+			var front: int = state.front_col
+			var effects: Dictionary = (options[i] as Dictionary).get("effects", {})
+			if not RunSim.apply(state, setup, [RunSim.CHOOSE, i]):
+				exact = false
+				detail = "%s/%d refused" % [id, i]
+				continue
+			var ok: bool = state.scrap == 50 + int(effects.get("scrap", 0))
+			ok = ok and int(state.crew[0]["hp"]) == clampi(int(hp_before[0]) + int(effects.get("hp", 0)) + int(effects.get("hp_one", 0)), 1, RunSim.max_hp(setup, state.crew[0]))
+			ok = ok and int(state.crew[1]["hp"]) == clampi(int(hp_before[1]) + int(effects.get("hp", 0)), 1, RunSim.max_hp(setup, state.crew[1]))
+			var parts: int = (1 if effects.has("part") else 0) + (1 if effects.has("tuned_part") else 0)
+			ok = ok and state.cargo.size() == cargo + parts
+			if effects.has("tuned_part"):
+				ok = ok and PartTuning.is_tuned(state.cargo[-1])
+			ok = ok and state.front_col == front + int(effects.get("front", 0))
+			ok = ok and (String(state.pending.get("kind", "")) == "fight") == effects.has("fight")
+			if not ok:
+				exact = false
+				detail = "%s/%d" % [id, i]
+	_check("every signal option applies exactly its stated effects %s" % detail, exact)
+	var broke: Array = _visit(41, "signal")
+	var poor: RunState = broke[1]
+	poor.pending = {"kind": "signal", "event": "scavengers"}
+	poor.scrap = 11
+	_check("an option costing scrap is refused without it (TRADE: 12)", not RunSim.apply(poor, broke[0], [RunSim.CHOOSE, 0])
+		and RunSim.apply(poor, broke[0], [RunSim.CHOOSE, 2]))
+	var run: RunState = RunSim.start(setup)
+	var seen: Dictionary = {}
+	for n: int in events.size():
+		var picked: String = RunSim._pick_event(run, setup, n + 1)
+		seen[picked] = true
+		run.seen_events.append(picked)
+	_check("no signal repeats until every one has been met (%d of %d)" % [seen.size(), events.size()], seen.size() == events.size())
 
 
 ## Play-test 4: the crew is built from a bench at the start of a run.

@@ -42,7 +42,7 @@ static func start(setup: CombatSetup) -> CombatState:
 	for prop: Dictionary in setup.start_props:
 		var cell := Vector2i(int(prop["x"]), int(prop["y"]))
 		state.props[cell] = {"kind": String(prop["kind"]), "hp": int(prop["hp"])}
-		state.emit(GridEv.PROP_PLACED, -1, -1, cell.x, cell.y, 1 if String(prop["kind"]) == "barrel" else 0)
+		state.emit(GridEv.PROP_PLACED, -1, -1, cell.x, cell.y, maxi(0, GridEv.PROP_KINDS.find(String(prop["kind"]))))
 	for pile: Dictionary in setup.start_piles:
 		var cell := Vector2i(int(pile["x"]), int(pile["y"]))
 		state.piles[cell] = int(state.piles.get(cell, 0)) + int(pile["value"])
@@ -372,10 +372,24 @@ static func damage_to(state: CombatState, u: GridUnit, target: GridUnit, amount:
 	var dmg: int = (amount * pct + 50) / 100
 	if shot:
 		dmg -= state.cover(target.x, target.y)
-	dmg -= target.armor + target.shield + _warden_cover(state, target)
+	dmg -= target.armor + target.shield + _warden_cover(state, target) + _pylon_cover(state, target)
 	if target.marked:
 		dmg += state.setup.mark_bonus
 	return maxi(state.setup.min_damage, dmg)
+
+
+## The Sorter (013) takes `pylon_armor` off every hit while any gate pylon stands.
+static func _pylon_cover(state: CombatState, target: GridUnit) -> int:
+	if target.kind != "sorter" or not has_pylon(state):
+		return 0
+	return int((state.setup.kinds.get("sorter", {}) as Dictionary).get("pylon_armor", 3))
+
+
+static func has_pylon(state: CombatState) -> bool:
+	for cell: Variant in state.props:
+		if String((state.props[cell] as Dictionary).get("kind", "")) == "pylon":
+			return true
+	return false
 
 
 ## A warden takes damage off every hit on its neighbours (not on itself).
@@ -780,6 +794,7 @@ static func _begin_round(state: CombatState) -> void:
 		return
 
 	_hives(state)
+	_reclaimer(state)
 
 	# Enemies move and commit in ref order. Each plans against the board as the earlier
 	# ones have already left it, so two never pick the same hex.
@@ -817,8 +832,7 @@ static func _hives(state: CombatState) -> void:
 	# then the hive walked off, so the site seemed to wander. Now a hive sets down ONE
 	# fabricator pad and it stays put: every `every` rounds it builds a drone, the round
 	# before it the pad warns, standing on it blocks the build, and it dies with its hive.
-	var hive: Dictionary = state.setup.kinds.get("hive", {})
-	var every: int = maxi(1, int(hive.get("every", 2)))
+	# 013: any kind that `builds` has a pad (the hive, the Sorter), each at its own pace.
 	var refs: Array = state.spawn_marks.keys()
 	refs.sort()
 	for ref: Variant in refs:
@@ -831,7 +845,7 @@ static func _hives(state: CombatState) -> void:
 			continue
 		if int(state.spawn_due.get(ref, 0)) != state.round_number:
 			continue
-		state.spawn_due[ref] = state.round_number + every
+		state.spawn_due[ref] = state.round_number + _build_every(state, builder.kind)
 		if state.unit_at(cell.x, cell.y) != null or state.solid(cell) or state.is_pit(cell):
 			state.emit(GridEv.SPAWN_BLOCKED, builder.ref, -1, cell.x, cell.y, 0)
 			continue
@@ -848,8 +862,9 @@ static func _hives(state: CombatState) -> void:
 		state.units.sort_custom(func(a: GridUnit, b: GridUnit) -> bool: return a.ref < b.ref)
 		state.emit(GridEv.SPAWNED, builder.ref, drone.ref, cell.x, cell.y)
 	for u: GridUnit in state.units:
-		if not u.alive or u.kind != "hive" or state.spawn_marks.has(u.ref):
+		if not u.alive or not _builds(state, u.kind) or state.spawn_marks.has(u.ref):
 			continue
+		var every: int = _build_every(state, u.kind)
 		var free: Array[Vector2i] = []
 		for n: Vector2i in Hex.neighbors(Vector2i(u.x, u.y)):
 			if state.inside(n) and not state.solid(n) and not state.is_pit(n) and state.unit_at(n.x, n.y) == null \
@@ -861,6 +876,55 @@ static func _hives(state: CombatState) -> void:
 		state.spawn_marks[u.ref] = pick
 		state.spawn_due[u.ref] = state.round_number + every
 		state.emit(GridEv.SPAWN_MARKED, u.ref, -1, pick.x, pick.y, every)
+
+
+static func _builds(state: CombatState, kind: String) -> bool:
+	return not kind.is_empty() and bool((state.setup.kinds.get(kind, {}) as Dictionary).get("builds", false))
+
+
+static func _build_every(state: CombatState, kind: String) -> int:
+	return maxi(1, int((state.setup.kinds.get(kind, {}) as Dictionary).get("every", 2)))
+
+
+## The Reclaimer reaching into a fight fought near its line (013). The round before its
+## drones arrive it marks where -- open hexes on the player's back row, chosen by a hash --
+## and at `reclaimer_round` a drone comes in on each marked hex nothing stands on.
+static func _reclaimer(state: CombatState) -> void:
+	var setup: CombatSetup = state.setup
+	if setup.reclaimer_round <= 0 or setup.reclaimer_drone == null:
+		return
+	if state.round_number == setup.reclaimer_round - 1 and state.arrivals.is_empty():
+		var row: int = state.height - 1
+		var open: Array[Vector2i] = []
+		for x: int in state.width:
+			var cell := Vector2i(x, row)
+			if not state.solid(cell) and not state.is_pit(cell):
+				open.append(cell)
+		open.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+			var ha: int = IntentAI.mix(setup.rng_seed, a.x, a.y, 61)
+			var hb: int = IntentAI.mix(setup.rng_seed, b.x, b.y, 61)
+			return ha < hb or (ha == hb and a.x < b.x))
+		for i: int in mini(setup.reclaimer_count, open.size()):
+			state.arrivals.append(open[i])
+			state.emit(GridEv.ARRIVAL_MARKED, -1, -1, open[i].x, open[i].y, 1)
+	elif state.round_number == setup.reclaimer_round and not state.arrivals.is_empty():
+		for cell: Vector2i in state.arrivals:
+			if state.unit_at(cell.x, cell.y) != null or state.solid(cell):
+				state.emit(GridEv.SPAWN_BLOCKED, -1, -1, cell.x, cell.y, 0)
+				continue
+			var drone: GridUnit = setup.reclaimer_drone.copy()
+			var slot: int = 0
+			for u: GridUnit in state.units:
+				if u.team == GridUnit.TEAM_ENEMY:
+					slot = maxi(slot, u.slot + 1)
+			drone.slot = slot
+			drone.ref = GridUnit.TEAM_ENEMY * 10 + slot
+			drone.x = cell.x
+			drone.y = cell.y
+			state.units.append(drone)
+			state.units.sort_custom(func(a: GridUnit, b: GridUnit) -> bool: return a.ref < b.ref)
+			state.emit(GridEv.SPAWNED, -1, drone.ref, cell.x, cell.y)
+		state.arrivals.clear()
 
 
 ## Rounds until hive `ref`'s pad builds its next drone (1 = at the start of next round), or

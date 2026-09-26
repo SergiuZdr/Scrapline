@@ -34,11 +34,15 @@ const EXPLOSION: int = 23    ## something exploded at (x, y) for v1 to every nei
 const FELL: int = 24         ## target fell into the pit at (x, y) and is gone
 const ABILITY: int = 25      ## actor used its ability v1 at (x, y)
 const PULLED: int = 26       ## actor dragged target to (x, y); v1/v2 = where it was
-const PROP_PLACED: int = 27  ## a prop appeared at (x, y); v1 = 0 crate, 1 barrel
+const PROP_PLACED: int = 27  ## a prop appeared at (x, y); v1 = PROP_KINDS index (0 crate, 1 barrel, 2 pylon)
 const SPAWN_MARKED: int = 28 ## hive actor set down its pad at (x, y); v1 = rounds until the first drone
 const SPAWNED: int = 29      ## a new unit (target) appeared at (x, y), built by actor
 const SPAWN_BLOCKED: int = 30 ## the pad at (x, y) built nothing: v1 0 = something stood on it, 1 = its hive is gone (pad shut down)
 const SHIELDED: int = 31     ## target takes v1 less from every hit until the player's next turn
+const ARRIVAL_MARKED: int = 32 ## the Reclaimer's drones arrive at (x, y) in v1 rounds (013). Blocked if something stands there
+
+## What a PROP_PLACED / PROP_BROKEN `v1` names. An int, because events are flat ints.
+const PROP_KINDS: PackedStringArray = ["crate", "barrel", "pylon"]
 
 const F_KIND: int = 0
 const F_ACTOR: int = 1
@@ -53,7 +57,7 @@ const NAMES: PackedStringArray = [
 	"DAMAGE", "DESTROYED", "MISSED", "TURN_END", "FIGHT_END", "SHOVED", "BUMP",
 	"HEAT", "OVERHEAT", "SEIZED", "VENTED", "MARKED", "PART_TORN", "PILE_DROPPED", "PILE_TAKEN",
 	"PROP_HIT", "PROP_BROKEN", "EXPLOSION", "FELL", "ABILITY", "PULLED", "PROP_PLACED",
-	"SPAWN_MARKED", "SPAWNED", "SPAWN_BLOCKED", "SHIELDED",
+	"SPAWN_MARKED", "SPAWNED", "SPAWN_BLOCKED", "SHIELDED", "ARRIVAL_MARKED",
 ]
 
 

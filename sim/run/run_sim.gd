@@ -24,6 +24,9 @@ extends RefCounted
 ##   [ASSEMBLE, loadouts]                before the first move: build the crew from the bench
 ##   [TUNE, where, index, option]        workshop: tune a part once, option 0 or 1; `where` is a
 ##                                       crew index (then `index` is a socket) or -1 (the hold)
+##   [BUY, index]                        trader: buy part `index` of its stock
+##   [SELL, cargo_index]                 trader: sell a part from the hold
+##   [CHOOSE, option]                    signal: take one of the event's options
 
 const TRAVEL: int = 0
 const FIGHT: int = 1
@@ -37,6 +40,11 @@ const EXPAND_HOLD: int = 8
 const LEVEL_UP: int = 9
 const ASSEMBLE: int = 10
 const TUNE: int = 11
+const BUY: int = 12
+const SELL: int = 13
+const CHOOSE: int = 14
+## Site panels LEAVE closes (a signal is closed by one of its own options).
+const LEAVABLE: PackedStringArray = ["workshop", "trader", "tower"]
 
 const FIGHT_TYPES: PackedStringArray = ["skirmish", "elite", "boss"]
 
@@ -83,10 +91,16 @@ static func apply(state: RunState, setup: RunSetup, action: Array) -> bool:
 		REBUILD:
 			return _rebuild(state, setup, int(action[1]))
 		LEAVE:
-			if String(state.pending.get("kind", "")) != "workshop":
+			if not LEAVABLE.has(String(state.pending.get("kind", ""))):
 				return false
 			state.pending = {}
 			return true
+		BUY:
+			return _buy(state, setup, int(action[1]))
+		SELL:
+			return _sell(state, setup, int(action[1]))
+		CHOOSE:
+			return _choose(state, setup, int(action[1]))
 		REFIT:
 			return _refit(state, setup, int(action[1]), int(action[2]), int(action[3]))
 		SCRAP_PART:
@@ -120,7 +134,7 @@ static func destinations(state: RunState) -> Array[int]:
 ## crew has visited.
 static func revealed(state: RunState, id: int) -> bool:
 	var s: Dictionary = state.site(id)
-	if bool(s["visited"]) or String(s["type"]) == "boss":
+	if bool(s["visited"]) or String(s["type"]) == "boss" or state.scouted.has(id):
 		return true
 	for other: Variant in (s["links"] as Array):
 		if bool(state.site(int(other))["visited"]):
@@ -307,7 +321,7 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 	s["visited"] = true
 	var kind: String = String(s["type"])
 	if FIGHT_TYPES.has(kind):
-		state.pending = {"kind": "fight", "site_type": kind, "fight": _make_fight(state, setup, to, kind)}
+		_start_fight(state, setup, to, kind)
 		state.log.append("%s at site %d." % ["The act boss" if kind == "boss" else kind.capitalize(), to])
 	elif kind == "scrapyard":
 		var rewards: Dictionary = setup.rules.get("rewards", {})
@@ -317,7 +331,163 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 	elif kind == "workshop":
 		state.pending = {"kind": "workshop"}
 		state.log.append("A workshop with the lights still on.")
+	elif kind == "trader":
+		var stock: Array = _roll_parts(setup, _rng(setup, to, 8), 1, crew_makers(state, setup))
+		# The rarest in the stock comes tuned: a trader is where tuned parts can be bought.
+		var best: int = 0
+		for i: int in stock.size():
+			if setup.rarity(String(stock[i])) > setup.rarity(String(stock[best])):
+				best = i
+		if not stock.is_empty() and PartTuning.can_tune(setup.parts, String(stock[best])):
+			stock[best] = PartTuning.variant(String(stock[best]), _rng(setup, to, 9).range_int(0, 1))
+		state.pending = {"kind": "trader", "stock": stock, "sold": []}
+		state.log.append("A trader's container, lamps on.")
+	elif kind == "tower":
+		var seen: int = _scout(state, setup, to, int((setup.rules.get("tower", {}) as Dictionary).get("radius", 2)))
+		state.pending = {"kind": "tower", "scouted": seen}
+		state.log.append("From the tower: %d sites scouted." % seen)
+	elif kind == "signal":
+		state.pending = {"kind": "signal", "event": _pick_event(state, setup, to)}
+		state.seen_events.append(String(state.pending["event"]))
+		state.log.append("A signal.")
 	return true
+
+
+## A fight at site `to`; if it is in the column the Reclaimer takes next, its drones reach
+## in (013: lingering by the line costs inside fights too).
+static func _start_fight(state: RunState, setup: RunSetup, to: int, kind: String) -> void:
+	var fight: Dictionary = _make_fight(state, setup, to, kind)
+	if reclaimer_reaches(state, to):
+		fight["reclaimer"] = (setup.rules.get("reclaimer_reach", {"round": 3, "count": 2}) as Dictionary).duplicate()
+	state.pending = {"kind": "fight", "site_type": kind, "fight": fight}
+
+
+## Whether a fight at `id` would have the Reclaimer's drones: it stands in the column the
+## Reclaimer takes next.
+static func reclaimer_reaches(state: RunState, id: int) -> bool:
+	return int(state.site(id).get("col", -9)) == state.front_col + 1
+
+
+## Scouts every site within `radius` columns of `id`. Returns how many it newly revealed.
+static func _scout(state: RunState, setup: RunSetup, id: int, radius: int) -> int:
+	var col: int = int(state.site(id)["col"])
+	var fresh: int = 0
+	for s: Dictionary in state.sites:
+		if absi(int(s["col"]) - col) <= radius and not revealed(state, int(s["id"])):
+			state.scouted.append(int(s["id"]))
+			fresh += 1
+	state.scouted.sort()
+	return fresh
+
+
+## The price of part `index` of the trader's stock, or -1 if it is gone.
+static func trader_price(state: RunState, setup: RunSetup, index: int) -> int:
+	var stock: Array = state.pending.get("stock", [])
+	if index < 0 or index >= stock.size() or (state.pending.get("sold", []) as Array).has(index):
+		return -1
+	var trader: Dictionary = setup.rules.get("trader", {})
+	var prices: Array = trader.get("prices", [12, 20, 32])
+	var part: String = String(stock[index])
+	return int(prices[clampi(setup.rarity(part) - 1, 0, prices.size() - 1)]) \
+		+ (int(trader.get("tuned_extra", 6)) if PartTuning.is_tuned(part) else 0)
+
+
+## What a trader pays for a part from the hold: a multiple of its scrap value.
+static func trader_offer(setup: RunSetup, part: String) -> int:
+	return scrap_value(setup, part) * int((setup.rules.get("trader", {}) as Dictionary).get("buy_multiplier", 2))
+
+
+static func _buy(state: RunState, setup: RunSetup, index: int) -> bool:
+	if String(state.pending.get("kind", "")) != "trader":
+		return false
+	var price: int = trader_price(state, setup, index)
+	if price < 0 or state.scrap < price:
+		return false
+	var part: String = String((state.pending["stock"] as Array)[index])
+	state.scrap -= price
+	state.cargo.append(part)
+	(state.pending["sold"] as Array).append(index)
+	state.log.append("Bought %s for %d scrap." % [String((setup.parts[part] as Dictionary).get("name", part)), price])
+	return true
+
+
+static func _sell(state: RunState, setup: RunSetup, index: int) -> bool:
+	if String(state.pending.get("kind", "")) != "trader" or index < 0 or index >= state.cargo.size():
+		return false
+	var part: String = state.cargo[index]
+	var value: int = trader_offer(setup, part)
+	state.cargo.remove_at(index)
+	state.scrap += value
+	state.log.append("Sold %s for %d scrap." % [String((setup.parts[part] as Dictionary).get("name", part)), value])
+	return true
+
+
+## The signal's event for site `id`: seeded, and never one already seen this run while an
+## unseen one is left.
+static func _pick_event(state: RunState, setup: RunSetup, id: int) -> String:
+	var events: Dictionary = setup.rules.get("events", {})
+	var ids: Array = events.keys()
+	ids.sort()
+	if ids.is_empty():
+		return ""
+	var fresh: Array = ids.filter(func(e: String) -> bool: return not state.seen_events.has(e))
+	var pool: Array = fresh if not fresh.is_empty() else ids
+	return String(pool[_rng(setup, id, 10).range_int(0, pool.size() - 1)])
+
+
+## Whether option `index` of the pending signal can be taken: its scrap cost is affordable.
+static func can_choose(state: RunState, setup: RunSetup, index: int) -> bool:
+	if String(state.pending.get("kind", "")) != "signal":
+		return false
+	var options: Array = ((setup.rules.get("events", {}) as Dictionary).get(String(state.pending["event"]), {}) as Dictionary).get("options", [])
+	if index < 0 or index >= options.size():
+		return false
+	var cost: int = -int(((options[index] as Dictionary).get("effects", {}) as Dictionary).get("scrap", 0))
+	return cost <= 0 or state.scrap >= cost
+
+
+## Takes a signal's option: exactly the effects it states, in the order events.json lists.
+static func _choose(state: RunState, setup: RunSetup, index: int) -> bool:
+	if not can_choose(state, setup, index):
+		return false
+	var site: int = state.current
+	var event: Dictionary = (setup.rules.get("events", {}) as Dictionary).get(String(state.pending["event"]), {})
+	var effects: Dictionary = ((event["options"] as Array)[index] as Dictionary).get("effects", {})
+	state.pending = {}
+	state.scrap = maxi(0, state.scrap + int(effects.get("scrap", 0)))
+	var hp: int = int(effects.get("hp", 0))
+	var first: bool = true
+	for member: Dictionary in state.crew:
+		if not bool(member["alive"]):
+			continue
+		var change: int = hp + (int(effects.get("hp_one", 0)) if first else 0)
+		first = false
+		member["hp"] = clampi(int(member["hp"]) + change, 1, max_hp(setup, member))
+	var rng: SimRNG = _rng(setup, site, 11)
+	if effects.has("part"):
+		state.cargo.append(_roll_at_least(setup, rng, int(effects["part"])))
+	if effects.has("tuned_part"):
+		var part: String = _roll_at_least(setup, rng, int(effects["tuned_part"]))
+		state.cargo.append(PartTuning.variant(part, rng.range_int(0, 1)) if PartTuning.can_tune(setup.parts, part) else part)
+	if effects.has("reveal"):
+		_scout(state, setup, site, int(effects["reveal"]))
+	if int(effects.get("front", 0)) > 0:
+		state.front_col += int(effects["front"])
+		state.log.append("The Reclaimer lurches forward.")
+	if effects.has("fight"):
+		_start_fight(state, setup, site, String(effects["fight"]))
+	state.log.append("%s: %s" % [String(event.get("title", "")), String(((event["options"] as Array)[index] as Dictionary).get("label", ""))])
+	return true
+
+
+## One part of at least `min_rarity`, from every slot's pool.
+static func _roll_at_least(setup: RunSetup, rng: SimRNG, min_rarity: int) -> String:
+	var all: Array = []
+	for slot: String in ["chassis", "core", "arm", "module"]:
+		for id: Variant in (setup.pools[slot] as Array):
+			if setup.rarity(String(id)) >= min_rarity:
+				all.append(id)
+	return String(rng.pick(all)) if not all.is_empty() else ""
 
 
 static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> bool:
@@ -762,12 +932,18 @@ static func _fielded_crew(state: RunState) -> Array:
 static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: String) -> Dictionary:
 	var rng: SimRNG = _rng(setup, site_id, 2)
 	var ids: Array = []
+	var gate: String = ""
 	for id: Variant in setup.fights:
-		# The shakedown (012) is the tutorial's own board, never a run's.
-		if not bool((setup.fights[id] as Dictionary).get("tutorial", false)):
+		var map: Dictionary = setup.fights[id]
+		# The shakedown (012) is the tutorial's own board and the gate's (013) the boss's.
+		if bool(map.get("boss", false)):
+			gate = String(id)
+		elif not bool(map.get("tutorial", false)):
 			ids.append(id)
 	ids.sort()
 	var template: Dictionary = setup.fights[ids[rng.range_int(0, ids.size() - 1)]]
+	if kind == "boss" and not gate.is_empty():
+		return _make_gate_fight(state, setup, site_id, setup.fights[gate], rng)
 	var col: int = int(state.sites[site_id]["col"])
 	var enemies_rules: Dictionary = setup.rules.get("enemies", {})
 	var counts: Array = enemies_rules.get("count_by_column", [3])
@@ -817,6 +993,32 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 			spec["hp"] = int(cg.get("hp", 8)) + int(mg.get("hp", 0)) + hp_bonus
 			spec["name"] = String(spec["name"]) + (" Warlord" if kind == "boss" else " Veteran")
 		enemy.append(spec)
+	fight["enemy"] = enemy
+	return fight
+
+
+## The act's gate (013): its authored map and keeper, escorts rolled at its other positions.
+static func _make_gate_fight(state: RunState, setup: RunSetup, site_id: int, template: Dictionary, rng: SimRNG) -> Dictionary:
+	var enemies_rules: Dictionary = setup.rules.get("enemies", {})
+	var fight: Dictionary = {"id": "run_site_%d" % site_id, "name": String(template.get("name", "")),
+		"rows": (template["rows"] as Array).duplicate(), "objective": {"type": "rout"}}
+	var player: Array = []
+	var slots: Array = template.get("player", [])
+	var fielded: Array = _fielded_crew(state)
+	for i: int in mini(fielded.size(), slots.size()):
+		var spec: Dictionary = machine_spec(setup, state.crew[int(fielded[i])])
+		spec["x"] = int(slots[i]["x"])
+		spec["y"] = int(slots[i]["y"])
+		player.append(spec)
+	fight["player"] = player
+	var positions: Array = template.get("enemy", [])
+	var enemy: Array = [(positions[0] as Dictionary).duplicate(true)]
+	var escorts: int = int(enemies_rules.get("boss_escorts", 3))
+	for i: int in range(1, mini(escorts + 1, positions.size())):
+		var parts: Array = [_roll_slot(setup, rng, "chassis", 3), _roll_slot(setup, rng, "core", 3),
+			_roll_slot(setup, rng, "arm", 3), _roll_slot(setup, rng, "arm", 3), _roll_slot(setup, rng, "module", 3)]
+		enemy.append({"name": String((setup.parts[parts[0]] as Dictionary).get("name", "")).replace(" Frame", ""),
+			"parts": parts, "x": int(positions[i]["x"]), "y": int(positions[i]["y"])})
 	fight["enemy"] = enemy
 	return fight
 

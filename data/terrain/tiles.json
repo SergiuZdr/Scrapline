@@ -120,5 +120,18 @@
       "move_cost": 1,
       "prop": "crate"
     }
+  },
+  {
+    "id": "pylon",
+    "name": "Gate Pylon",
+    "glyph": "p",
+    "colour": "1a1e26",
+    "height": 0.0,
+    "blocks": false,
+    "text": "A pylon of the Sorting Gate. While any stands, the Sorter takes 3 less from every hit. Blocks movement and shots until broken (6 HP).",
+    "grid": {
+      "move_cost": 1,
+      "prop": "pylon"
+    }
   }
 ]

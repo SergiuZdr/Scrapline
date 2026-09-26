@@ -528,7 +528,8 @@ func _style_site(id: int, targets: Array[int]) -> void:
 
 
 const _ICONS: Dictionary = {"start": "yard", "skirmish": "fight", "elite": "colossus",
-	"scrapyard": "scrap", "workshop": "foundry", "boss": "gauntlet"}
+	"scrapyard": "scrap", "workshop": "foundry", "boss": "gauntlet",
+	"trader": "store", "tower": "yardview", "signal": "doctrine"}
 
 
 ## What stands on a site. Built from the arena kit, so the map is made of the same
@@ -553,6 +554,20 @@ func _landmark(type: String, id: int) -> Node3D:
 		"workshop":
 			_prop(root, "service_gantry", Vector3(0, 0, 0), 90.0, 0.6)
 			_lamp(root, Vector3(0.0, 0, 0.0), Color("ffc27a"), 4.0)
+		"trader":
+			# A container shop: doors open, a warm lamp over the counter.
+			_prop(root, "container_0", Vector3(-0.2, 0, -0.3), 25.0, 0.62)
+			_prop(root, "tyre_stack_0", Vector3(0.9, 0, 0.5), 0.0)
+			_lamp(root, Vector3(0.4, 0, 0.4), Color("ffd08a"), 3.5)
+		"tower":
+			# A lookout: the tallest thing near the road, lit at the top.
+			_prop(root, "floodlight", Vector3(0, 0, 0), float(_h(id, 2) % 90), 1.1)
+			_prop(root, "barrier_0", Vector3(0.7, 0, 0.5), 30.0)
+		"signal":
+			# Something out of place by the road, and a blinking mast over it.
+			_prop(root, "car_stack_1", Vector3(-0.4, 0, 0.2), float(_h(id, 3) % 120), 0.55)
+			_prop(root, "floodlight", Vector3(0.6, 0, -0.4), 180.0, 0.7)
+			_lamp(root, Vector3(0.6, 0, -0.4), Color("9ad0ff"), 2.5)
 		"boss":
 			_prop(root, "gantry", Vector3(0, 0, 0), 0.0, 0.7)
 			for i: int in 4:

@@ -81,8 +81,11 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	var perk_data: Variant = db._read_json("%s/run/perks.json" % root)
 	if perk_data is Dictionary:
 		db.perks = _without_comments(perk_data as Dictionary)
-	# Perks travel inside the run rules, the one dictionary `RunSim` is handed.
+	# Perks and events travel inside the run rules, the one dictionary `RunSim` is handed.
 	db.run_rules["perks"] = db.perks
+	var event_data: Variant = db._read_json("%s/run/events.json" % root)
+	if event_data is Dictionary:
+		db.run_rules["events"] = _without_comments(event_data as Dictionary)
 	var story_data: Variant = db._read_json("%s/run/story.json" % root)
 	if story_data is Dictionary:
 		db.story = story_data as Dictionary

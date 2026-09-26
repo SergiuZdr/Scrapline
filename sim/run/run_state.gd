@@ -30,6 +30,9 @@ var hold_size: int = 8
 ##   { "kind": "reward", "options": [part ids], "scrap": int }
 ##   { "kind": "scrapyard", "options": [part ids], "scrap": int }
 ##   { "kind": "workshop" }
+##   { "kind": "trader", "stock": [part ids], "sold": [stock indices] }
+##   { "kind": "tower", "scouted": int }
+##   { "kind": "signal", "event": event id }
 var pending: Dictionary = {}
 
 var outcome: int = ONGOING
@@ -38,6 +41,10 @@ var end_reason: String = ""
 var fights_won: int = 0
 ## Whether the crew was built from the bench at the start (play-test 4). Once only.
 var assembled: bool = false
+## Sites a watchtower or a signal scouted (013), sorted.
+var scouted: Array = []
+## Signal events already met this run, so the next picks a fresh one.
+var seen_events: Array = []
 ## Human-readable history, newest last. Deterministic like everything else.
 var log: PackedStringArray = []
 
@@ -71,6 +78,6 @@ func fingerprint() -> String:
 	var visited: PackedStringArray = []
 	for s: Dictionary in sites:
 		visited.append("1" if bool(s["visited"]) else "0")
-	return "cur=%d moves=%d front=%d scrap=%d hold=%d crew=[%s] cargo=[%s] visited=%s pending=%s outcome=%d built=%s" % [
+	return "cur=%d moves=%d front=%d scrap=%d hold=%d crew=[%s] cargo=[%s] visited=%s pending=%s outcome=%d built=%s scouted=%s events=%s" % [
 		current, moves, front_col, scrap, hold_size, ";".join(crew_text),
-		",".join(cargo), "".join(visited), str(pending.get("kind", "")), outcome, assembled]
+		",".join(cargo), "".join(visited), str(pending.get("kind", "")), outcome, assembled, str(scouted), ",".join(PackedStringArray(seen_events))]
