@@ -57,6 +57,7 @@ func _initialize() -> void:
 	_test_enemy_kinds()
 	_test_dry_run_matches()
 	_test_gate_and_reclaimer()
+	_test_playtest5()
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown"]:
 		_test_bot_fight(id)
 	print("")
@@ -346,6 +347,119 @@ func _test_bonus_blocks() -> void:
 	_check("flags and numbers land (+2 max HP, moves after attacking)", u.move_after_attack and u.max_hp == state.setup.units[0].max_hp + 2)
 
 
+## Play-test 5: the wreck a killing shove throws, pierce through props, the arc's best
+## route through heaps, and straighter paths.
+func _test_playtest5() -> void:
+	var foe: Vector2i = Hex.neighbor(C, 0)
+	var back: Vector2i = Hex.neighbor(foe, 0)
+	# Into a machine: it takes the bump.
+	var s1: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, foe, 3), _unit(HAMMER, back, 20)])
+	_place(s1, 0, C)
+	_place(s1, 10, foe)
+	_place(s1, 11, back)
+	_attack(s1, 0, 1, foe)
+	_check("a killing shove throws the wreck into the machine behind, which takes the bump",
+		not s1.unit(10).alive and s1.unit(11).hp == 20 - s1.setup.bump_damage)
+	# Into a drum: it goes off.
+	var s2: CombatState = _fight(_rows({back: "b"}), [_unit(HAMMER, C)], [_unit(HAMMER, foe, 3), _unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(s2, 0, C)
+	_place(s2, 10, foe)
+	_place(s2, 11, Vector2i(0, 0))
+	_attack(s2, 0, 1, foe)
+	_check("a wreck thrown into a drum sets it off", not s2.props.has(back) and _count(s2, 0, GridEv.EXPLOSION) >= 1)
+	# Into a pit: its scrap goes with it.
+	var s3: CombatState = _fight(_rows({back: "o"}), [_unit(HAMMER, C)], [_unit(HAMMER, foe, 3), _unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(s3, 0, C)
+	_place(s3, 10, foe)
+	_place(s3, 11, Vector2i(0, 0))
+	s3.unit(10).carries_scrap = true
+	_attack(s3, 0, 1, foe)
+	_check("a wreck thrown into a pit takes its scrap with it", s3.piles.is_empty() and _count(s3, 0, GridEv.FELL) >= 1)
+	# Onto open ground: the pile lands there.
+	var s4: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, foe, 3), _unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(s4, 0, C)
+	_place(s4, 10, foe)
+	_place(s4, 11, Vector2i(0, 0))
+	s4.unit(10).carries_scrap = true
+	_attack(s4, 0, 1, foe)
+	_check("a wreck thrown onto open ground lands there, and its pile with it", s4.piles.has(back) and not s4.piles.has(foe))
+	var preview: Array = CombatSim.dry_run(_fight(_rows({back: "b"}), [_unit(HAMMER, C)], [_unit(HAMMER, foe, 3), _unit(HAMMER, Vector2i(0, 0), 20)]),
+		[CombatSim.ACT_ATTACK, 0, 1, foe.x, foe.y])
+	_check("the aim preview (a dry run) sees the drum the wreck will set off",
+		preview.any(func(e: Dictionary) -> bool: return e.has("prop") and e["prop"] == back))
+
+	# Pierce through props.
+	var drum_cell: Vector2i = Hex.neighbor(C, 0)
+	var past: Vector2i = Hex.neighbor(drum_cell, 0)
+	var p1: CombatState = _fight(_rows({drum_cell: "b"}), [_unit(LANCE, C)], [_unit(HAMMER, past, 20), _unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(p1, 0, C)
+	_place(p1, 10, past)
+	_place(p1, 11, Vector2i(0, 0))
+	_attack(p1, 0, 1, past)
+	_check("a piercing shot goes through a drum (which goes off) and hits the machine behind it",
+		not p1.props.has(drum_cell) and p1.unit(10).hp < 20 - 3)
+	var two: Vector2i = Hex.neighbor(past, 0)
+	var p2: CombatState = _fight(_rows({drum_cell: "c"}), [_unit(LANCE, C)], [_unit(HAMMER, past, 20), _unit(HAMMER, two, 20)])
+	_place(p2, 0, C)
+	_place(p2, 10, past)
+	_place(p2, 11, two)
+	_attack(p2, 0, 1, past)
+	_check("a prop counts against pierce: pierce 1 through a crate hits one machine, not two",
+		p2.unit(10).hp < 20 and p2.unit(11).hp == 20)
+
+	# The arc's best route.
+	var coil_at: Vector2i = Hex.neighbor(C, 3)
+	var first: Vector2i = C
+	var lone: Vector2i = Hex.neighbor(first, 5)
+	var keg: Vector2i = Hex.neighbor(first, 1)
+	var pair_a: Vector2i = Hex.neighbor(keg, 1)
+	var pair_b: Vector2i = Hex.neighbor(keg, 2)
+	var a1: CombatState = _fight(_rows({keg: "b"}), [_unit(COIL, coil_at)],
+		[_unit(HAMMER, first, 30), _unit(HAMMER, lone, 30), _unit(HAMMER, pair_a, 30), _unit(HAMMER, pair_b, 30)])
+	for pair: Array in [[0, coil_at], [10, first], [11, lone], [12, pair_a], [13, pair_b]]:
+		_place(a1, int(pair[0]), pair[1])
+	var plan: Dictionary = CombatSim.strike_plan(a1, a1.unit(0), 0, first)
+	_check("the arc takes the drum by two enemies over a lone enemy %s" % [plan["tiles"]],
+		(plan["tiles"] as Array).has(keg))
+	var mate: Vector2i = Hex.neighbor(first, 1)
+	var a2: CombatState = _fight(_rows(), [_unit(COIL, coil_at), _unit(HAMMER, mate)], [_unit(HAMMER, first, 30), _unit(HAMMER, Vector2i(0, 0), 30)])
+	_place(a2, 0, coil_at)
+	_place(a2, 1, mate)
+	_place(a2, 10, first)
+	_place(a2, 11, Vector2i(0, 0))
+	var mate_hp: int = a2.unit(1).hp
+	_attack(a2, 0, 0, first)
+	_check("the arc never jumps into its own side", a2.unit(1).hp == mate_hp)
+	var heap: Vector2i = Hex.neighbor(first, 1)
+	var beyond: Vector2i = Hex.neighbor(heap, 1)
+	var a3: CombatState = _fight(_rows({heap: "s"}), [_unit(COIL, coil_at)], [_unit(HAMMER, first, 30), _unit(HAMMER, beyond, 30)])
+	_place(a3, 0, coil_at)
+	_place(a3, 10, first)
+	_place(a3, 11, beyond)
+	_attack(a3, 0, 0, first)
+	_check("a scrap heap conducts: the arc runs through it to the machine beyond", a3.unit(11).hp < 30)
+	var dry: CombatState = _fight(_rows({keg: "b"}), [_unit(COIL, coil_at)],
+		[_unit(HAMMER, first, 30), _unit(HAMMER, lone, 30), _unit(HAMMER, pair_a, 30), _unit(HAMMER, pair_b, 30)])
+	for pair: Array in [[0, coil_at], [10, first], [11, lone], [12, pair_a], [13, pair_b]]:
+		_place(dry, int(pair[0]), pair[1])
+	var predicted: Array = CombatSim.dry_run(dry, [CombatSim.ACT_ATTACK, 0, 0, first.x, first.y])
+	_attack(dry, 0, 0, first)
+	var hurt_refs: Array = []
+	for effect: Dictionary in predicted:
+		if effect.has("ref") and int(effect["hp_lost"]) > 0:
+			hurt_refs.append(int(effect["ref"]))
+	_check("the arc's preview is what happens", hurt_refs.all(func(r: int) -> bool: return dry.unit(r).hp < 30))
+
+	# Straighter paths: through rubble when going round costs the same.
+	var middle: Vector2i = Hex.neighbor(C, 0)
+	var far: Vector2i = Hex.neighbor(middle, 0)
+	var walk: CombatState = _fight(_rows({middle: "r"}), [_unit(HAMMER, C)], [_unit(HAMMER, Vector2i(0, 0), 30)])
+	_place(walk, 0, C)
+	var route: Array = CombatSim.reachable(walk, 0).get(far, [])
+	_check("of two routes that cost the same, the straighter wins (through the rubble) %s" % [route],
+		route.size() == 2 and route[0] == middle)
+
+
 ## 013: the Sorter behind its pylons, and the Reclaimer's drones arriving from behind.
 func _test_gate_and_reclaimer() -> void:
 	var marks: Dictionary = {Vector2i(1, 1): "p", Vector2i(6, 1): "p"}
@@ -464,7 +578,7 @@ func _test_piles() -> void:
 	_place(state, 10, n)
 	_place(state, 11, Vector2i(0, 0))
 	state.unit(10).carries_scrap = true
-	_attack(state, 0, 1, n)
+	_attack(state, 0, 0, n)   # the saw: no shove, so the wreck stays where it fell
 	_check("a destroyed machine that carries scrap leaves a pile on its hex", not state.unit(10).alive and state.piles.has(n))
 	_check("and no longer blocks it", state.unit_at(n.x, n.y) == null)
 
@@ -565,8 +679,9 @@ func _test_barrels_and_props() -> void:
 	var crate: CombatState = _fight(_rows({wall: "c"}), [_unit(LANCE, C)], [_unit(HAMMER, behind, 20)])
 	_place(crate, 0, C)
 	_place(crate, 10, behind)
-	_attack(crate, 0, 1, behind)
-	_check("a crate wall stops a shot and takes the damage (3 -> 0 HP, broken)", crate.unit(10).hp == 20 and not crate.props.has(wall))
+	_attack(crate, 0, 0, behind)   # the spotter array: no pierce
+	_check("a crate wall stops a plain shot and takes the damage (3 -> 2 HP)", crate.unit(10).hp == 20
+		and int((crate.props[wall] as Dictionary)["hp"]) == 2)
 
 
 func _test_pits() -> void:

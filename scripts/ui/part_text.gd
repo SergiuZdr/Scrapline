@@ -41,7 +41,12 @@ static func summary(parts: Dictionary, id: String, abilities: Dictionary = {}) -
 				line += " · +%d heat" % int(g.get("heat", 0))
 			bits.append(line)
 			var extra: PackedStringArray = []
-			for key: String in ["pierce", "splash", "shove", "chain"]:
+			# The numbers are the rule (play-test 5: "how does pierce 2 work?"): pierce N goes
+			# through N things, chain N jumps N times.
+			for key: String in ["pierce", "chain"]:
+				if int(g.get(key, 0)) > 0:
+					extra.append("%s %d" % [key, int(g[key])])
+			for key: String in ["splash", "shove"]:
 				if int(g.get(key, 0)) > 0:
 					extra.append(key)
 			if bool(g.get("mark", false)):

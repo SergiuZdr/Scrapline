@@ -485,13 +485,51 @@ func _show_preview() -> void:
 		text = "Already cleared. Nothing happens there now."
 	box.add_child(_wrap(text, UIKit.SIZE_BODY, UIKit.TEXT, 340))
 	if reachable:
+		# 014 (review point R5-3): what the move gives, what it risks, and what it gives up.
+		var move: Dictionary = RunSim.move_preview(state, Run.setup, _hover)
+		if known and not bool(site["visited"]):
+			box.add_child(_wrap(_gives(String(site["type"])), UIKit.SIZE_LABEL, UIKit.GREEN.lightened(0.15), 340))
+			if int(move["enemies"]) > 0:
+				box.add_child(_wrap("%d enemies%s" % [int(move["enemies"]), ", the Reclaimer's drones join at round 3" if bool(move["reach"]) else ""],
+					UIKit.SIZE_LABEL, UIKit.RED.lightened(0.2), 340))
 		for line: String in _move_costs(_hover):
 			box.add_child(_wrap(line, UIKit.SIZE_LABEL, RECLAIMER_RED, 340))
+		if bool(move["advances"]):
+			var lost: Array = move["lost"]
+			var names: PackedStringArray = []
+			for id: Variant in lost:
+				names.append(String(SITE_NAMES.get(String(state.site(int(id))["type"]), "?")) if RunSim.revealed(state, int(id)) else "UNSCOUTED")
+			box.add_child(_wrap("The Reclaimer moves as you go and takes zone %d%s." % [int(move["front_after"]) + 1,
+				(": %d unvisited site%s lost there (%s)" % [lost.size(), "" if lost.size() == 1 else "s", ", ".join(names)]) if not lost.is_empty() else ""],
+				UIKit.SIZE_LABEL, RECLAIMER_RED, 340))
 		box.add_child(_label("CLICK TO GO", UIKit.SIZE_LABEL, UIKit.BLUE.lightened(0.35), UIKit.font_strong()))
 	elif _hover == state.current:
 		box.add_child(_label("YOU ARE HERE", UIKit.SIZE_LABEL, UIKit.AMBER, UIKit.font_strong()))
 	else:
 		box.add_child(_label("No road from here.", UIKit.SIZE_LABEL, UIKit.TEXT_FAINT))
+
+
+## What a site gives, in a line, from the run's own numbers.
+func _gives(kind: String) -> String:
+	var rewards: Dictionary = Run.setup.rules.get("rewards", {})
+	match kind:
+		"skirmish":
+			return "A fight: +%d scrap, then 1 of 3 parts or %d scrap." % [int(rewards.get("skirmish_scrap", 10)), int(rewards.get("salvage_scrap", 8))]
+		"elite":
+			return "A hard fight: +%d scrap and an uncommon or better part, already tuned." % int(rewards.get("elite_scrap", 20))
+		"scrapyard":
+			return "No fight: 1 of 3 parts, or %d scrap." % int(rewards.get("scrapyard_scrap", 15))
+		"workshop":
+			return "Repairs, rebuilds, room in the hold and tuning, for scrap."
+		"trader":
+			return "Three parts for sale; your spares sell for twice their scrap."
+		"tower":
+			return "Scouts every site within two zones."
+		"signal":
+			return "An event with a choice; each option says what it costs."
+		"boss":
+			return "The Sorting Gate: the act's last fight."
+	return ""
 
 
 func _move_costs(to: int) -> PackedStringArray:
