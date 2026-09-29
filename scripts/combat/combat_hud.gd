@@ -25,8 +25,11 @@ signal title_pressed
 signal continue_pressed
 
 const CARD_SIZE := Vector2(340, 150)
+## A machine not picked shrinks to a slim row (016, review point R5-2): its name, what it has
+## left this turn, its HP. The picked one is the only full card, so the column asks for less.
+const SLIM_SIZE := Vector2(340, 94)
 const WEAPON_SIZE := Vector2(310, 76)
-const ABILITY_SIZE := Vector2(176, 58)
+const ABILITY_SIZE := Vector2(250, 58)
 ## The action bar's box: right of the camera buttons, left of UNDO / END TURN.
 const BAR_LEFT: float = 356.0
 const BAR_WIDTH: float = 1150.0
@@ -416,7 +419,7 @@ func _build_card(ref: int) -> Dictionary:
 	row.add_child(heat)
 
 	return {"button": button, "name": name, "detail": detail, "arms": arms, "bar": bar, "hp": hp,
-		"heat": heat, "move": move, "act": act, "portrait": portrait}
+		"heat": heat, "move": move, "act": act, "portrait": portrait, "frame": frame}
 
 
 func _fill_card(parts: Dictionary, card: Dictionary) -> void:
@@ -433,6 +436,11 @@ func _fill_card(parts: Dictionary, card: Dictionary) -> void:
 		button.add_theme_stylebox_override(state, style)
 	button.disabled = not alive
 	button.modulate = Color(1, 1, 1, 1.0 if alive else 0.5)
+	var slim: bool = not selected
+	button.custom_minimum_size = SLIM_SIZE if slim else CARD_SIZE
+	button.size = button.custom_minimum_size
+	for key: String in ["frame", "detail", "arms"]:
+		(parts[key] as Control).visible = not slim
 
 	(parts["name"] as Label).text = String(card["name"]).to_upper() + ("" if alive else "  ·  WRECKED")
 	(parts["detail"] as Label).text = String(card["detail"])

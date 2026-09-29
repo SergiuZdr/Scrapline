@@ -19,12 +19,10 @@ static func show_once(parent: Control, id: String, db: ContentDB, at: Vector2, w
 		return null
 	var panel := PanelContainer.new()
 	panel.name = "hint_" + id
-	var style: StyleBoxFlat = UIKit.card(UIKit.SURFACE_HIGH, UIKit.RADIUS_CARD, UIKit.SPACE_LG, UIKit.SPACE_MD)
-	style.border_color = UIKit.AMBER.darkened(0.25)
-	style.set_border_width_all(2)
-	style.border_width_left = 6
-	style.shadow_color = Color(0, 0, 0, 0.45)
-	style.shadow_size = 10
+	# Ink & Rust (016): a hint is the narrator speaking -- the pale caption box, like the coach.
+	var style: InkBox = UIKit.ink_caption(UIKit.SPACE_LG, UIKit.SPACE_MD)
+	style.border_width = 3.0
+	style.shadow = Vector2(5, 5)
 	panel.add_theme_stylebox_override("panel", style)
 	panel.custom_minimum_size = Vector2(width, 0)
 	var box := VBoxContainer.new()
@@ -32,9 +30,9 @@ static func show_once(parent: Control, id: String, db: ContentDB, at: Vector2, w
 	panel.add_child(box)
 	var title := Label.new()
 	title.text = String(hint.get("title", ""))
-	title.add_theme_font_override("font", UIKit.font_strong())
-	title.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
-	title.add_theme_color_override("font_color", UIKit.AMBER)
+	title.add_theme_font_override("font", UIKit.font_comic())
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", UIKit.TEXT)
 	box.add_child(title)
 	box.add_child(Glossary.label(String(hint.get("text", "")), UIKit.SIZE_BODY, UIKit.TEXT, db.glossary, width - UIKit.SPACE_LG * 2))
 	var ok := Button.new()
@@ -43,10 +41,12 @@ static func show_once(parent: Control, id: String, db: ContentDB, at: Vector2, w
 	ok.focus_mode = Control.FOCUS_NONE
 	ok.custom_minimum_size = Vector2(140, 44)
 	ok.size_flags_horizontal = Control.SIZE_SHRINK_END
-	ok.add_theme_font_override("font", UIKit.font_strong())
-	ok.add_theme_font_size_override("font_size", UIKit.SIZE_LABEL)
-	for key: String in ["normal", "hover", "pressed", "focus"]:
-		ok.add_theme_stylebox_override(key, UIKit.secondary())
+	ok.add_theme_font_override("font", UIKit.font_comic())
+	ok.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
+	var ok_style: StyleBoxFlat = UIKit.secondary()
+	for key: String in ["normal", "hover", "focus"]:
+		ok.add_theme_stylebox_override(key, ok_style)
+	ok.add_theme_stylebox_override("pressed", UIKit.pressed(ok_style))
 	for key: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		ok.add_theme_color_override(key, UIKit.TEXT)
 	ok.pressed.connect(func() -> void:

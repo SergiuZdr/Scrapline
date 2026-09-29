@@ -18,10 +18,16 @@ extends Node3D
 const SPACING_X: float = 8.5       # metres between columns
 const DEPTH: float = 30.0          # metres across the rows (site y 0..100)
 const RECLAIMER_RED := Color("ff3b24")
-const RING_HERE := Color("e5b33d")
-const RING_GO := Color("5aa9ff")
-const RING_DONE := Color("5b5750")
-const RING_FAR := Color("8a8478")
+## Ink & Rust (016): the rings are signals -- amber where the crew is (your action), your blue
+## where it can go, grey for the rest.
+const RING_HERE := Color("ffc43d")
+const RING_GO := Color("33c8e0")
+const RING_DONE := Color("4a4a50")
+const RING_FAR := Color("7c7a78")
+## Each site's landmark wears one livery, so a kind of place has a colour of its own.
+const SITE_LIVERY: Dictionary = {"start": Color("d9a441"), "skirmish": Color("8a8f8c"), "elite": Color("9c3b2e"),
+	"scrapyard": Color("b4532a"), "workshop": Color("d9a441"), "trader": Color("6e7443"),
+	"tower": Color("8a8f8c"), "signal": Color("6e7443"), "boss": Color("2a2628")}
 const LANDMARK_SCALE: float = 0.46
 const PICK_RADIUS: float = 70.0
 const PITCH_DEG: float = 56.0
@@ -146,6 +152,7 @@ func set_crew(crew: Array) -> void:
 		add_child(root)
 		var model: Node3D = ConstructView.build_parts(PackedStringArray(member["parts"]), _db,
 			Color("4fa8d8"), int(member.get("level", 0)), alive[slot] + 1)
+		Ink.dress_machine(model, PackedStringArray(member["parts"]), Ink.YOURS)
 		model.scale = Vector3.ONE * CREW_SCALE
 		root.add_child(model)
 		var rig := ConstructRig.new()
@@ -267,48 +274,11 @@ func _process(delta: float) -> void:
 # --- World --------------------------------------------------------------------
 
 func _build_world() -> void:
-	# The fight's lighting rig (CLAUDE.md, "The visual system"), with the night HDRI for sky
-	# light and reflections (art-sourcing.md, mode c): the camera sees the dark sky.
+	# Ink & Rust (016): the fight's light -- a flat night, one hard key from the camera's left.
 	var env := WorldEnvironment.new()
-	var environment := Environment.new()
-	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color("0b0c10")
-	var sky := Sky.new()
-	var panorama := PanoramaSkyMaterial.new()
-	panorama.panorama = load("res://art/thirdparty/polyhaven/hdris/dresden_station_night/dresden_station_night_1k.hdr")
-	panorama.energy_multiplier = 0.45
-	sky.sky_material = panorama
-	environment.sky = sky
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	environment.ambient_light_sky_contribution = 0.5
-	environment.ambient_light_energy = 0.8
-	environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
-	environment.fog_enabled = true
-	environment.fog_light_color = Color("1d1a20")
-	environment.fog_density = 0.006
-	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	environment.tonemap_exposure = 1.1
-	environment.glow_enabled = true
-	environment.glow_intensity = 0.5
-	environment.glow_bloom = 0.08
-	environment.glow_hdr_threshold = 0.95
-	environment.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-	env.environment = environment
+	env.environment = Ink.environment(Color("10131a"))
 	add_child(env)
-
-	var key := DirectionalLight3D.new()
-	key.rotation_degrees = Vector3(-50, 150, 0)
-	key.light_energy = 0.95
-	key.light_color = Color("ffd3a4")
-	key.shadow_enabled = true
-	key.directional_shadow_max_distance = 70.0
-	add_child(key)
-	var fill := DirectionalLight3D.new()
-	fill.rotation_degrees = Vector3(-30, -30, 0)
-	fill.light_energy = 0.7
-	fill.light_color = Color("8aa3de")
-	fill.light_specular = 0.3
-	add_child(fill)
+	add_child(Ink.key_light(Vector3(-48, -36, 0), 110.0))
 
 	_camera = Camera3D.new()
 	_camera.fov = 38.0
@@ -335,7 +305,8 @@ func _build_ground() -> void:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(width + 140.0, DEPTH + 120.0)
 	ground.mesh = plane
-	ground.material_override = Surfaces.pbr("asphalt_02", Color(0.3, 0.29, 0.28), 0.12)
+	# The yard floor: night ground with a drawn grain.
+	ground.material_override = Ink.patterned(Color("20232b"), 2, Color("1a1d24"), 1.1, 0.22)
 	add_child(ground)
 	# The zones: a faint seam between columns and a name on the far edge.
 	for col: int in _columns:
@@ -346,14 +317,14 @@ func _build_ground() -> void:
 			box.size = Vector3(0.1, 0.02, DEPTH + 6.0)
 			seam.mesh = box
 			seam.position = Vector3(x - SPACING_X * 0.5, 0.01, 0.0)
-			seam.material_override = _flat(Color("3b352e"), 1.0)
+			seam.material_override = Ink.flat(Color("2c2f38"))
 			add_child(seam)
 		var name := Label3D.new()
 		name.text = "CAMP" if col == 0 else ("GATE" if col == _columns - 1 else "ZONE %d" % (col + 1))
-		name.font = UIKit.font_strong()
+		name.font = UIKit.font_comic()
 		name.font_size = 96
 		name.pixel_size = 0.012
-		name.modulate = Color(0.75, 0.72, 0.66, 0.55)
+		name.modulate = Color(Ink.PAPER, 0.5)
 		name.outline_size = 0
 		name.rotation_degrees = Vector3(-90, 0, 0)
 		name.position = Vector3(x, 0.03, -DEPTH * 0.5 - 2.2)
@@ -361,7 +332,8 @@ func _build_ground() -> void:
 
 	_reclaimed = MeshInstance3D.new()
 	_reclaimed.mesh = PlaneMesh.new()
-	_reclaimed.material_override = Surfaces.pbr("burned_ground_01", Color(0.55, 0.2, 0.13), 0.15)
+	# Reclaimed ground: taken, and drawn as such -- hatched in the danger red.
+	_reclaimed.material_override = Ink.patterned(Color("2a1614"), 2, Color("6a1f17"), 1.4, 0.3)
 	add_child(_reclaimed)
 	_next_zone = MeshInstance3D.new()
 	var next_plane := PlaneMesh.new()
@@ -382,7 +354,7 @@ func _build_ground() -> void:
 func _build_skyline() -> void:
 	var width: float = SPACING_X * float(_columns - 1)
 	var names: PackedStringArray = ["building-a", "building-c", "building-f", "building-q", "water-tower", "detail-tank-large", "chimney-large"]
-	var dark := _flat(Color("16151a"), 0.9)
+	var dark: Material = Ink.toon(Color("121419"), "clean")
 	var x: float = -width * 0.5 - 18.0
 	var i: int = 0
 	while x < width * 0.5 + 24.0:
@@ -392,6 +364,7 @@ func _build_skyline() -> void:
 			var block: Node3D = packed.instantiate()
 			for mesh: MeshInstance3D in ConstructView.meshes_of(block):
 				mesh.material_override = dark
+				Ink.line(mesh, Ink.LINE_WORLD * 0.7, Color("252a38"))
 			var s: float = 4.5 + float(_h(i, 9) % 100) / 40.0
 			block.scale = Vector3.ONE * s
 			block.position = Vector3(x, 0, -DEPTH * 0.5 - 20.0 - float(_h(i, 13) % 100) / 12.0)
@@ -414,12 +387,7 @@ func _build_skyline() -> void:
 				add_child(lamp)
 		x += 9.0 + float(_h(i, 21) % 60) / 10.0
 		i += 1
-	var crucible := OmniLight3D.new()
-	crucible.light_color = Color("ff6a2a")
-	crucible.light_energy = 6.0
-	crucible.omni_range = 60.0
-	crucible.position = Vector3(width * 0.5 + 40.0, 18.0, -DEPTH * 0.5 - 30.0)
-	add_child(crucible)
+
 
 
 ## The unscaled height of a prop from its meshes' own bounds (it is not in the tree yet).
@@ -444,7 +412,8 @@ func _build_site(site: Dictionary) -> void:
 	disc.height = 0.16
 	pad.mesh = disc
 	pad.position.y = 0.08
-	pad.material_override = Surfaces.pbr("metal_plate_02", Color(0.42, 0.41, 0.39), 0.9, 0.5)
+	pad.material_override = Ink.toon(Color("3a3b41"))
+	Ink.line(pad, Ink.LINE_WORLD)
 	root.add_child(pad)
 	var ring := MeshInstance3D.new()
 	var torus := TorusMesh.new()
@@ -452,6 +421,9 @@ func _build_site(site: Dictionary) -> void:
 	torus.outer_radius = 1.55
 	ring.mesh = torus
 	ring.position.y = 0.17
+	ring.scale = Vector3(1, 0.5, 1)
+	ring.material_override = Ink.flat(RING_FAR)
+	Ink.line(ring, Ink.LINE_WORLD)
 	root.add_child(ring)
 	var icon := Sprite3D.new()
 	icon.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -461,6 +433,16 @@ func _build_site(site: Dictionary) -> void:
 	icon.render_priority = 10
 	icon.position.y = 2.25
 	root.add_child(icon)
+	# The glyph on an ink disc: a badge, readable over anything behind it.
+	var badge := Sprite3D.new()
+	badge.texture = _disc_texture()
+	badge.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	badge.pixel_size = 0.0145
+	badge.no_depth_test = true
+	badge.shaded = false
+	badge.render_priority = 9
+	badge.name = "disc"
+	icon.add_child(badge)
 	_sites[id] = {"root": root, "ring": ring, "icon": icon, "landmark": null, "type": "", "smoke": null}
 	if String(site["type"]) == "boss":
 		# The gate's beacon: the one thing that shows through the fog, so the goal is always
@@ -516,11 +498,17 @@ func _style_site(id: int, targets: Array[int]) -> void:
 	elif bool(site["visited"]):
 		colour = RING_DONE
 		glow = 0.2
-	(entry["ring"] as MeshInstance3D).material_override = _glow(colour, glow)
+	# Flat signal colour, a touch of glow only where the crew is or could go.
+	(entry["ring"] as MeshInstance3D).material_override = Ink.glow(colour, 0.35 if glow >= 1.4 else 0.0)
 	var icon: Sprite3D = entry["icon"]
 	var faded: bool = _state.consumed(id) or (bool(site["visited"]) and id != _state.current)
-	icon.modulate = Color(1, 1, 1, 0.35) if faded else Color(1, 1, 1, 1)
+	icon.modulate = Color(Ink.PAPER, 0.45) if faded else Ink.PAPER
 	icon.pixel_size = 0.012 if id == _hover else 0.009
+	var disc: Sprite3D = icon.get_node_or_null("disc")
+	if disc != null:
+		# The disc's ring says what the ring on the ground says.
+		disc.modulate = Color(colour, 0.6) if faded else colour
+		disc.pixel_size = icon.pixel_size * 1.6
 	# A cleared fight leaves its wrecks smoking.
 	var fought: bool = bool(site["visited"]) and ["skirmish", "elite", "boss"].has(String(site["type"])) and id != 0
 	if fought and entry["smoke"] == null:
@@ -536,6 +524,7 @@ const _ICONS: Dictionary = {"start": "yard", "skirmish": "fight", "elite": "colo
 ## things the fights are.
 func _landmark(type: String, id: int) -> Node3D:
 	var root := Node3D.new()
+	_livery = SITE_LIVERY.get(type, Ink.STEEL)
 	match type:
 		"start":
 			_prop(root, "container_0", Vector3(-0.3, 0, -0.9), 12.0)
@@ -574,7 +563,12 @@ func _landmark(type: String, id: int) -> Node3D:
 				_prop(root, "barrier_%d" % (i % 2), Vector3(0.0, 0, -2.6 - float(i) * 0.8), 90.0, 0.8)
 				_prop(root, "barrier_%d" % ((i + 1) % 2), Vector3(0.0, 0, 2.6 + float(i) * 0.8), 90.0, 0.8)
 			_lamp(root, Vector3(0.0, 0, 0.0), RECLAIMER_RED, 3.0)
+	_livery = Color(0, 0, 0, 0)
 	return root
+
+
+## The livery the landmark being built wears (016); clear while building clutter.
+var _livery: Color = Color(0, 0, 0, 0)
 
 
 func _prop(parent: Node3D, name: String, at: Vector3, yaw: float, scale_by: float = LANDMARK_SCALE,
@@ -585,17 +579,25 @@ func _prop(parent: Node3D, name: String, at: Vector3, yaw: float, scale_by: floa
 	prop.position = at
 	prop.rotation_degrees.y = yaw
 	prop.scale = Vector3.ONE * scale_by
+	# A landmark is a place, drawn in its own colours; everything else is scenery.
+	if _livery.a > 0.0:
+		Ink.dress_prop(prop, _livery)
+	else:
+		Ink.dress_scenery(prop, dim)
 	parent.add_child(prop)
 	return prop
 
 
 func _lamp(parent: Node3D, at: Vector3, colour: Color, energy: float) -> void:
-	var light := OmniLight3D.new()
-	light.light_color = colour
-	light.light_energy = energy
-	light.omni_range = 5.0
-	light.position = at + Vector3(0, 2.2, 0)
-	parent.add_child(light)
+	# Ink (016): a lamp is a lit bulb, not a light -- the toon ramp is drawn by the key alone.
+	var bulb := MeshInstance3D.new()
+	var ball := SphereMesh.new()
+	ball.radius = 0.12
+	ball.height = 0.24
+	bulb.mesh = ball
+	bulb.material_override = Ink.glow(colour, clampf(energy * 0.4, 0.8, 1.6))
+	bulb.position = at + Vector3(0, 1.4, 0)
+	parent.add_child(bulb)
 
 
 func _smoke(parent: Node3D) -> CPUParticles3D:
@@ -620,7 +622,7 @@ func _smoke(parent: Node3D) -> CPUParticles3D:
 	material.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	material.billboard_keep_scale = true
 	material.albedo_texture = _soft_texture()
-	material.albedo_color = Color(0.12, 0.11, 0.11, 0.5)
+	material.albedo_color = Color(0.09, 0.09, 0.11, 0.55)
 	material.vertex_color_use_as_albedo = true
 	puff.material = material
 	smoke.mesh = puff
@@ -631,12 +633,6 @@ func _smoke(parent: Node3D) -> CPUParticles3D:
 	smoke.color_ramp = fade
 	smoke.position = Vector3(0.2, 0.6, 0)
 	parent.add_child(smoke)
-	var ember := OmniLight3D.new()
-	ember.light_color = Color("ff7a2a")
-	ember.light_energy = 1.2
-	ember.omni_range = 3.0
-	ember.position = Vector3(0.2, 0.4, 0.2)
-	parent.add_child(ember)
 	return smoke
 
 
@@ -647,7 +643,8 @@ func _build_roads() -> void:
 		for other: Variant in (a["links"] as Array):
 			if int(other) < int(a["id"]):
 				continue
-			var road: MeshInstance3D = _strip(site_world(int(a["id"])), site_world(int(other)), 1.1, 0.03, _flat(Color("403d37"), 0.85))
+			var road: MeshInstance3D = _strip(site_world(int(a["id"])), site_world(int(other)), 1.1, 0.03, Ink.toon(Color("3b3e47")))
+			Ink.line(road, Ink.LINE_WORLD)
 			_roads.add_child(road)
 			_road_nodes.append({"node": road, "a": int(a["id"]), "b": int(other)})
 
@@ -658,8 +655,10 @@ func _mark_roads(targets: Array[int]) -> void:
 	var here: Vector3 = site_world(_state.current)
 	for id: int in targets:
 		var hot: bool = id == _hover
-		_road_marks.add_child(_strip(here, site_world(id), 0.24 if hot else 0.16, 0.05,
-			_glow(RING_HERE if hot else RING_GO, 1.8 if hot else 0.9)))
+		var mark: MeshInstance3D = _strip(here, site_world(id), 0.28 if hot else 0.2, 0.05,
+			Ink.glow(RING_HERE if hot else RING_GO, 0.5 if hot else 0.0))
+		Ink.line(mark, Ink.LINE_WORLD)
+		_road_marks.add_child(mark)
 
 
 ## A flat strip on the ground from `a` to `b`, stopping short of the pads.
@@ -736,8 +735,9 @@ func _stand_crew(id: int) -> void:
 func _build_reclaimer() -> void:
 	_reclaimer = Node3D.new()
 	add_child(_reclaimer)
-	var dark: StandardMaterial3D = _flat(Color("171314"), 0.7)
-	dark.metallic = 0.6
+	# Ink (016): a black shape edged in dark red -- lit by nothing but its own teeth and beacons.
+	var dark: Material = Ink.toon(Color("161214"), "clean")
+	var edge := Color("6a1c16")
 	# The mouth: a long low harvester blade across the whole map, lit red along its teeth.
 	var blade := MeshInstance3D.new()
 	var blade_box := BoxMesh.new()
@@ -745,13 +745,14 @@ func _build_reclaimer() -> void:
 	blade.mesh = blade_box
 	blade.position = Vector3(-0.6, 0.45, 0)
 	blade.material_override = dark
+	Ink.line(blade, Ink.LINE_ACT, edge)
 	_reclaimer.add_child(blade)
 	var teeth := MeshInstance3D.new()
 	var teeth_box := BoxMesh.new()
 	teeth_box.size = Vector3(0.12, 0.14, DEPTH + 12.0)
 	teeth.mesh = teeth_box
 	teeth.position = Vector3(0.12, 0.25, 0)
-	teeth.material_override = _glow(RECLAIMER_RED, 2.4)
+	teeth.material_override = Ink.glow(RECLAIMER_RED, 1.6)
 	_reclaimer.add_child(teeth)
 	var z: float = -DEPTH * 0.5 - 5.0
 	var i: int = 0
@@ -761,6 +762,7 @@ func _build_reclaimer() -> void:
 		if rig != null:
 			for mesh: MeshInstance3D in ConstructView.meshes_of(rig):
 				mesh.material_override = dark
+				Ink.line(mesh, Ink.LINE_WORLD, edge)
 			rig.position = Vector3(-2.2 - float(_h(i, 3) % 100) / 100.0, 0, z)
 			rig.rotation_degrees.y = 90.0 if name == "service_gantry" else 0.0
 			rig.scale = Vector3.ONE * (0.62 if name == "gantry" else 0.75)
@@ -770,16 +772,9 @@ func _build_reclaimer() -> void:
 		ball.radius = 0.16
 		ball.height = 0.32
 		beacon.mesh = ball
-		beacon.material_override = _glow(RECLAIMER_RED, 4.0)
+		beacon.material_override = Ink.glow(RECLAIMER_RED, 2.0)
 		beacon.position = Vector3(-2.2, 5.2 if name == "gantry" else 2.5, z)
 		_reclaimer.add_child(beacon)
-		if i % 2 == 0:
-			var light := OmniLight3D.new()
-			light.light_color = RECLAIMER_RED
-			light.light_energy = 2.2
-			light.omni_range = 7.0
-			light.position = Vector3(0.5, 1.5, z)
-			_reclaimer.add_child(light)
 		z += 3.4
 		i += 1
 	var dust := CPUParticles3D.new()
@@ -860,7 +855,7 @@ func _place_front(x: float) -> void:
 # --- The Reclaimer's scouts ----------------------------------------------------
 
 func _build_drones() -> void:
-	var dark: StandardMaterial3D = _flat(Color("1b1719"), 0.6)
+	var dark: Material = Ink.toon(Color("1b1719"), "clean")
 	for i: int in 3:
 		var drone := Node3D.new()
 		# Small and low: at camera height a scout the size of a car reads as a blot.
@@ -871,6 +866,7 @@ func _build_drones() -> void:
 		box.size = Vector3(0.7, 0.22, 0.5)
 		body.mesh = box
 		body.material_override = dark
+		Ink.line(body, Ink.LINE_WORLD, Color("6a1c16"))
 		drone.add_child(body)
 		var rotors: Array[Node3D] = []
 		for corner: Vector3 in [Vector3(0.45, 0.1, 0.35), Vector3(-0.45, 0.1, 0.35), Vector3(0.45, 0.1, -0.35), Vector3(-0.45, 0.1, -0.35)]:
@@ -880,7 +876,7 @@ func _build_drones() -> void:
 			disc.bottom_radius = 0.28
 			disc.height = 0.02
 			rotor.mesh = disc
-			rotor.material_override = _flat(Color("2a2628"), 0.5)
+			rotor.material_override = Ink.toon(Color("2a2628"), "clean")
 			rotor.position = corner
 			drone.add_child(rotor)
 			rotors.append(rotor)
@@ -889,16 +885,9 @@ func _build_drones() -> void:
 		ball.radius = 0.09
 		ball.height = 0.18
 		eye.mesh = ball
-		eye.material_override = _glow(RECLAIMER_RED, 5.0)
+		eye.material_override = Ink.glow(RECLAIMER_RED, 2.0)
 		eye.position = Vector3(0, -0.12, 0.2)
 		drone.add_child(eye)
-		var search := SpotLight3D.new()
-		search.light_color = Color("ff5a3a")
-		search.light_energy = 4.0
-		search.spot_range = 16.0
-		search.spot_angle = 16.0
-		search.rotation_degrees = Vector3(-72, 0, 0)
-		drone.add_child(search)
 		_drones.append({"node": drone, "phase": float(i) * 2.1, "speed": 0.16 + 0.04 * float(i),
 			"lane": -DEPTH * 0.3 + float(i) * DEPTH * 0.3, "rotors": rotors})
 
@@ -926,30 +915,26 @@ func _build_fog() -> void:
 	_fog_image = Image.create(size.x, size.y, false, Image.FORMAT_L8)
 	_fog_image.fill(Color(1, 1, 1))
 	_fog_texture = ImageTexture.create_from_image(_fog_image)
-	var shader: Shader = load("res://scripts/presentation/fog_of_war.gdshader")
-	for layer: int in 3:
-		var plane := MeshInstance3D.new()
-		var mesh := PlaneMesh.new()
-		mesh.size = _fog_rect.size
-		plane.mesh = mesh
-		plane.position = Vector3(_fog_rect.position.x + _fog_rect.size.x * 0.5, 0.9 + float(layer) * 0.95,
-			_fog_rect.position.y + _fog_rect.size.y * 0.5)
-		var material := ShaderMaterial.new()
-		material.shader = shader
-		material.set_shader_parameter("mask", _fog_texture)
-		material.set_shader_parameter("origin", _fog_rect.position)
-		material.set_shader_parameter("extent", _fog_rect.size)
-		# Pale, not black: night mist catching the lamps. A near-black haze over near-black
-		# asphalt was drawn and simply could not be seen.
-		material.set_shader_parameter("tint", Color(0.15, 0.16, 0.19))
-		material.set_shader_parameter("density", 1.0 if layer == 0 else 0.8)
-		material.set_shader_parameter("seed", float(layer) * 17.3)
-		# Drawn AFTER the other see-through things (ground labels, smoke), so it covers them.
-		material.render_priority = 2
-		plane.material_override = material
-		plane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(plane)
-		_fog_planes.append(plane)
+	# Ink (016): one layer of unfinished drawing over what is not scouted (`ink_fog.gdshader`),
+	# high enough to cover every landmark and prop under it.
+	var shader: Shader = load("res://scripts/presentation/ink_fog.gdshader")
+	var plane := MeshInstance3D.new()
+	var mesh := PlaneMesh.new()
+	mesh.size = _fog_rect.size
+	plane.mesh = mesh
+	plane.position = Vector3(_fog_rect.position.x + _fog_rect.size.x * 0.5, 3.4,
+		_fog_rect.position.y + _fog_rect.size.y * 0.5)
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter("mask", _fog_texture)
+	material.set_shader_parameter("origin", _fog_rect.position)
+	material.set_shader_parameter("extent", _fog_rect.size)
+	# Drawn AFTER the other see-through things (ground labels, smoke), so it covers them.
+	material.render_priority = 2
+	plane.material_override = material
+	plane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(plane)
+	_fog_planes.append(plane)
 
 
 ## Clears the fog around every scouted site and along the roads between them, and over the
@@ -1034,6 +1019,19 @@ func _soft_texture() -> GradientTexture2D:
 	soft.gradient = falloff
 	_materials["soft"] = soft
 	return soft
+
+
+## An ink disc with a white ring (tinted by the sprite's modulate): a site icon's badge.
+func _disc_texture() -> Texture2D:
+	return Ink.texture("site_disc", Vector2i(96, 96), func(image: Image) -> void:
+		image.fill(Color(0, 0, 0, 0))
+		for y: int in 96:
+			for x: int in 96:
+				var r: float = Vector2(float(x) - 47.5, float(y) - 47.5).length()
+				if r < 38.0:
+					image.set_pixel(x, y, Color(0.08, 0.07, 0.06, 1.0))
+				elif r < 46.5:
+					image.set_pixel(x, y, Color(1, 1, 1, clampf(46.5 - r, 0.0, 1.0))))
 
 
 func _flat(colour: Color, roughness: float) -> StandardMaterial3D:

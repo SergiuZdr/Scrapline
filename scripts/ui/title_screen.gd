@@ -39,11 +39,12 @@ func _ready() -> void:
 	column.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	add_child(column)
 
+	# Ink & Rust (016): the wordmark is comic lettering, paper on a heavy ink edge.
 	var wordmark := Label.new()
 	wordmark.text = "SCRAPLINE"
-	wordmark.add_theme_font_override("font", UIKit.font_display())
-	wordmark.add_theme_font_size_override("font_size", 132)
-	wordmark.add_theme_color_override("font_color", UIKit.TEXT)
+	wordmark.add_theme_font_override("font", UIKit.font_letters())
+	wordmark.add_theme_font_size_override("font_size", 150)
+	UIKit.on_page(wordmark, 30)
 	column.add_child(wordmark)
 
 	var tagline := Label.new()
@@ -51,7 +52,8 @@ func _ready() -> void:
 	tagline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tagline.custom_minimum_size = Vector2(600, 0)
 	tagline.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
-	tagline.add_theme_color_override("font_color", UIKit.TEXT_DIM)
+	tagline.add_theme_font_override("font", UIKit.font_strong())
+	UIKit.on_page(tagline, 6)
 	column.add_child(tagline)
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 24)
@@ -67,7 +69,8 @@ func _ready() -> void:
 
 	_problem = Label.new()
 	_problem.add_theme_font_size_override("font_size", UIKit.SIZE_BODY)
-	_problem.add_theme_color_override("font_color", UIKit.RED)
+	UIKit.on_page(_problem, 6)
+	_problem.add_theme_color_override("font_color", Ink.DANGER)
 	column.add_child(_problem)
 
 	var extras := HBoxContainer.new()
@@ -99,14 +102,15 @@ func _new_run() -> void:
 	head.text = "FIRST TIME IN THE YARD?"
 	head.add_theme_font_override("font", UIKit.font_display())
 	head.add_theme_font_size_override("font_size", 64)
-	head.add_theme_color_override("font_color", UIKit.TEXT)
+	UIKit.on_page(head, 12)
 	_column.add_child(head)
 	var line := Label.new()
 	line.text = "The shakedown is one short, guided fight: moving, reading the enemy, attacking, heat, the yard's drums and scrap. About five minutes."
 	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	line.custom_minimum_size = Vector2(600, 0)
 	line.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
-	line.add_theme_color_override("font_color", UIKit.TEXT_DIM)
+	line.add_theme_font_override("font", UIKit.font_strong())
+	UIKit.on_page(line, 6)
 	_column.add_child(line)
 	_column.add_child(_menu_button("PLAY THE SHAKEDOWN", true, _play_shakedown))
 	_column.add_child(_menu_button("SKIP TO THE RUN", false, func() -> void:
@@ -132,11 +136,13 @@ func _menu_button(text: String, primary: bool, on_press: Callable) -> Button:
 	button.custom_minimum_size = Vector2(340, 64)
 	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	button.focus_mode = Control.FOCUS_NONE
-	button.add_theme_font_override("font", UIKit.font_strong())
-	button.add_theme_font_size_override("font_size", UIKit.SIZE_TITLE if primary else UIKit.SIZE_HEADING)
-	var ink: Color = UIKit.BG if primary else UIKit.TEXT
-	for state: String in ["normal", "hover", "pressed", "focus"]:
-		button.add_theme_stylebox_override(state, UIKit.primary() if primary else UIKit.secondary())
+	button.add_theme_font_override("font", UIKit.font_comic())
+	button.add_theme_font_size_override("font_size", 30 if primary else 24)
+	var ink: Color = UIKit.TEXT
+	var up: StyleBoxFlat = UIKit.primary() if primary else UIKit.secondary()
+	for state: String in ["normal", "hover", "focus"]:
+		button.add_theme_stylebox_override(state, up)
+	button.add_theme_stylebox_override("pressed", UIKit.pressed(up))
 	for key: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		button.add_theme_color_override(key, ink)
 	button.pressed.connect(on_press)

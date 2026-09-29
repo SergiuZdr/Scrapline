@@ -8,48 +8,47 @@ extends RefCounted
 ## as polish: corner radius, hairline colour, how far a pressed button moves, what "dim
 ## text" means this week.
 ##
-## The palette is the reference sheets' MATERIAL list carried indoors (see
-## `art/reference/STYLE.md`), not a UI palette with the yard's name on it. The earlier
-## navy-and-amber set was the default look of a dark dashboard, and it read as one: nothing
-## in it came from a scrapyard. Now every surface is a material the machines are made of --
-## dark steel plates, dirty aluminium for anything bright, construction-yellow paint for
-## the one thing to press.
+## Ink & Rust (016): the whole interface is comic panels -- paper cards with heavy ink borders
+## and hard offset shadows on a dark night page, ink lettering, one amber action per screen.
+## The play-test 6 verdict on the fight's style frame was "apply this look to the entire game".
+##
+## The constant NAMES are the old ones, so no call site moved; their values are now paper and
+## ink. What changed meaning: SURFACE is paper, TEXT is ink, HAIRLINE is a full ink line. Text
+## that sits on the dark page or over the 3D world (titles, the map's labels) uses `PAGE_TEXT`
+## with an ink outline instead (`on_page`).
 ##
 ## Colour is used as a signal, not as decoration:
 ##
-##   AMBER   construction yellow: the primary action on a screen. One per screen.
-##   BLUE    the visor light: information and the player's own team.
-##   GREEN   olive livery: confirmation, gains, things already earned.
-##   RED     oxide red: danger, costs, losses.
-##   GOLD    copper: premium currency, and nothing else.
+##   AMBER   the primary action on a screen. One per screen. Also the selection mark.
+##   BLUE    information and the player's own side (a dark blue that reads on paper).
+##   GREEN   gains, things already earned.
+##   RED     danger, costs, losses.
+##   GOLD    rust: heat and machine condition, rare parts on cards.
 
 # --- Surfaces ----------------------------------------------------------------
-#
-# Dark steel, warm rather than blue. The range is still spent upward, on the plates: there
-# is very little room below the page before a surface turns pure black.
-const BG := Color("0d0c0a")          ## The page behind everything: tar.
-const BG_TOP := Color("111317")      ## Backdrop, overhead: smog.
-const BG_GLOW := Color("1d1712")     ## Backdrop, underfoot: sodium spill off the yard.
-const SURFACE := Color("1b1a17")     ## A plate sitting on the page.
-const SURFACE_HIGH := Color("28261f") ## A plate on a plate, or a hover state.
-const SURFACE_SUNK := Color("080807") ## Wells: progress tracks, input fields.
-const HAIRLINE := Color("3a362d")    ## Plate edges. Never a full-strength line.
-const EDGE_LIGHT := Color("5c564a")  ## A lit edge.
+const BG := Color("10131a")          ## The page behind everything: the yard at night.
+const BG_TOP := Color("171c28")      ## Backdrop, overhead.
+const BG_GLOW := Color("1d1b22")     ## Backdrop, underfoot.
+const SURFACE := Color("f7efdc")     ## A paper card on the page.
+const SURFACE_HIGH := Color("efe3c8") ## A card on a card, or a hover state.
+const SURFACE_SUNK := Color("d9ceb6") ## Wells: progress tracks, input fields, a card that cannot act.
+const HAIRLINE := Color("14110f")    ## Card edges: the ink line.
+const EDGE_LIGHT := Color("3a3533")
 
-# --- Ink ---------------------------------------------------------------------
-const TEXT := Color("e6e1d5")        ## Dirty aluminium: the one light value.
-const TEXT_DIM := Color("9d9788")    ## Primer grey.
-const TEXT_FAINT := Color("676152")
+# --- Ink -----------------------------------------------------------------------
+const TEXT := Color("14110f")        ## Ink, on paper.
+const TEXT_DIM := Color("5b5247")
+const TEXT_FAINT := Color("9a8f7e")
+const PAGE_TEXT := Color("efe3c8")   ## Paper lettering, on the dark page or the 3D world.
 
 # --- Signals -----------------------------------------------------------------
-const AMBER := Color("e5b33d")       ## Primary action. Construction yellow.
-const AMBER_DEEP := Color("b88a25")
-const BLUE := Color("62b3de")
-const GREEN := Color("98ae58")
-const RED := Color("cf5638")
-## Copper, despite the name: heat and machine condition in the HUD, rare parts on cards.
-## (It was "premium" in the old game; there is no premium now.) See art-and-audio.md.
-const GOLD := Color("d68b52")
+const AMBER := Color("ffc43d")       ## Primary action.
+const AMBER_DEEP := Color("c9922a")
+const BLUE := Color("1f6a8f")
+const GREEN := Color("4d7f1d")
+const RED := Color("b3261e")
+## Rust, despite the name: heat and machine condition, rare parts on cards.
+const GOLD := Color("b4532a")
 
 # --- Ink & Rust (015) ---------------------------------------------------------
 #
@@ -129,18 +128,11 @@ static func font_strong() -> Font:
 	return _font_strong
 
 
-## The display face: Big Shoulders Stencil, the lettering sprayed on a container.
-##
-## Used with restraint -- the wordmark, screen titles and group names. Set any smaller
-## than a heading the stencil breaks read as noise, so body text never uses it.
+## The display face: Anton since 016, the comic's title lettering (the stencil face it
+## replaced belonged to the photographed look). Screen titles, names, buttons, numbers.
 static func font_display() -> Font:
 	if _font_display == null:
-		var face := FontVariation.new()
-		face.base_font = _load("BigShouldersStencilDisplay.ttf")
-		# Keyed by the numeric tag, not the string: a "wght" string key is accepted
-		# silently and ignored, and the face falls back to its thinnest master.
-		face.variation_opentype = {_tag("wght"): 800}
-		_font_display = face
+		_font_display = font_comic()
 	return _font_display
 
 
@@ -212,32 +204,37 @@ static func ink_caption(margin_x: int = SPACE_MD, margin_y: int = SPACE_XS + 2) 
 	return box
 
 
-## A plate: the default surface for a group of related things.
-static func card(fill: Color = SURFACE, radius: int = RADIUS_CARD,
+## A card: the default surface for a group of related things -- paper, a heavy ink border,
+## and a hard shadow. `StyleBoxFlat` blurs its shadow by `shadow_size`, so the size is 1: an
+## offset block with a one-pixel edge, which reads as the cut-out the style wants. (`InkBox`
+## draws the same thing exactly and adds bands and halftone; this stays a `StyleBoxFlat`
+## because screens tweak its colours and borders.)
+static func card(fill: Color = SURFACE, radius: int = 0,
 		margin_x: int = SPACE_LG, margin_y: int = SPACE_MD) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = fill
-	style.set_corner_radius_all(radius)
+	style.set_corner_radius_all(0)
 	style.content_margin_left = margin_x
 	style.content_margin_right = margin_x
 	style.content_margin_top = margin_y
 	style.content_margin_bottom = margin_y
-	style.set_border_width_all(1)
+	style.set_border_width_all(3)
 	style.border_color = HAIRLINE
-	# Tight and dark: a plate bolted to the page, not a card floating over it.
-	style.shadow_color = Color(0, 0, 0, 0.45)
-	style.shadow_size = 3
-	style.shadow_offset = Vector2(0, 2)
-	style.anti_aliasing = true
+	style.shadow_color = HAIRLINE
+	style.shadow_size = 1
+	style.shadow_offset = Vector2(5, 5)
+	style.anti_aliasing = false
 	return style
 
 
-## A plate with no shadow, for surfaces already inside another plate. Nested shadows stack
+## A card with no shadow, for surfaces already inside another card. Nested shadows stack
 ## into mud.
-static func inset(fill: Color = SURFACE_HIGH, radius: int = RADIUS_CONTROL,
+static func inset(fill: Color = SURFACE_HIGH, radius: int = 0,
 		margin_x: int = SPACE_MD, margin_y: int = SPACE_SM) -> StyleBoxFlat:
 	var style := card(fill, radius, margin_x, margin_y)
 	style.shadow_size = 0
+	style.shadow_offset = Vector2.ZERO
+	style.set_border_width_all(2)
 	return style
 
 
@@ -256,38 +253,50 @@ static func plain(fill: Color, radius: int = 0,
 	return style
 
 
-## The primary action. Yellow paint, dark ink -- the only high-chroma block on a screen, so
-## the eye lands on it before it lands on anything else. The darker bottom lip is what
-## makes it read as a thing that goes down when pressed.
+## The primary action: amber, ink-bordered, on its shadow -- the only saturated block on a
+## screen, so the eye lands on it first.
 static func primary(fill: Color = AMBER) -> StyleBoxFlat:
-	var style := plain(fill, RADIUS_CONTROL, SPACE_LG, SPACE_MD)
+	var style := card(fill, 0, SPACE_LG, SPACE_MD)
 	style.skew = Vector2(SLANT, 0.0)
-	style.border_width_bottom = 3
-	style.border_color = fill.darkened(0.38)
-	style.shadow_color = Color(0, 0, 0, 0.35)
-	style.shadow_size = 3
-	style.shadow_offset = Vector2(0, 2)
+	style.shadow_offset = Vector2(4, 4)
 	return style
 
 
-## A repeated parallel action: OPEN this crate, BUY this pack.
-##
-## Yellow outline on a dark fill rather than a yellow block. A screen that offers three
-## or ten instances of the SAME action has no single primary -- and painting each of them
-## yellow puts the screen's loudest colour on every row at once.
+## A repeated parallel action: OPEN this crate, BUY this pack. A paper card with an amber
+## border rather than an amber block: a screen that offers three or ten instances of the SAME
+## action has no single primary.
 static func choice(tint: Color = AMBER) -> StyleBoxFlat:
-	var style := plain(SURFACE_HIGH, RADIUS_CONTROL, SPACE_LG, SPACE_MD)
-	style.set_border_width_all(1)
-	style.border_color = tint.darkened(0.10)
+	var style := card(SURFACE, 0, SPACE_LG, SPACE_MD)
+	style.set_border_width_all(4)
+	style.border_color = tint.darkened(0.15)
+	style.shadow_offset = Vector2(4, 4)
 	return style
 
 
-## Everything that is not the primary action.
-static func secondary(fill: Color = SURFACE_HIGH) -> StyleBoxFlat:
-	var style := plain(fill, RADIUS_CONTROL, SPACE_LG, SPACE_MD)
-	style.set_border_width_all(1)
-	style.border_color = HAIRLINE
+## Everything that is not the primary action: paper, ink, a smaller shadow.
+static func secondary(fill: Color = SURFACE) -> StyleBoxFlat:
+	var style := card(fill, 0, SPACE_LG, SPACE_MD)
+	style.shadow_offset = Vector2(4, 4)
 	return style
+
+
+## The pressed state of any of the above: the shadow gone and the card dropped into its place.
+static func pressed(style: StyleBoxFlat) -> StyleBoxFlat:
+	var down: StyleBoxFlat = style.duplicate()
+	down.shadow_size = 0
+	down.expand_margin_left = -3
+	down.expand_margin_right = 3
+	down.expand_margin_top = -3
+	down.expand_margin_bottom = 3
+	return down
+
+
+## A label that sits on the dark page or over the 3D world: paper lettering with an ink edge.
+static func on_page(label: Label, outline: int = 8) -> Label:
+	label.add_theme_color_override("font_color", PAGE_TEXT)
+	label.add_theme_color_override("font_outline_color", HAIRLINE)
+	label.add_theme_constant_override("outline_size", outline)
+	return label
 
 
 ## How far a plate leans. A slanted edge is the cheapest thing that separates a game's
@@ -322,10 +331,8 @@ static func icon(name: String, size: int, tint: Color = TEXT) -> TextureRect:
 	return rect
 
 
-## The page backdrop: smog overhead grading to sodium spill at the floor.
-##
-## Deliberately very low contrast. It has to give the page a floor and a ceiling without
-## ever competing with a plate sitting on it.
+## The page backdrop: the yard at night, a little lighter overhead. The comic's gutter:
+## paper cards sit on it like panels on a dark page.
 static func backdrop() -> TextureRect:
 	var gradient := Gradient.new()
 	gradient.offsets = PackedFloat32Array([0.0, 0.52, 1.0])
@@ -403,29 +410,27 @@ static func theme() -> Theme:
 	theme.default_font = font()
 	theme.default_font_size = SIZE_BODY
 
-	# --- Button
-	theme.set_font("font", "Button", font_strong())
-	# Every button leans a little less than a tab does, so the whole interface shares the
-	# one angle without every control shouting it.
+	# --- Button: comic lettering, ink on paper, dropping onto its shadow when pressed.
+	theme.set_font("font", "Button", font_comic())
 	var lean := Vector2(SLANT * 0.6, 0.0)
 	var normal := secondary()
-	var hover := secondary(SURFACE_HIGH.lightened(0.06))
-	var pressed := secondary(SURFACE_HIGH.darkened(0.18))
-	# Pressed states lose the top edge, so the control reads as pushed INTO the page.
-	pressed.border_width_top = 0
-	var disabled := plain(SURFACE.darkened(0.3), RADIUS_CONTROL, SPACE_LG, SPACE_MD)
-	for style: StyleBoxFlat in [normal, hover, pressed, disabled]:
+	var hover := secondary(SURFACE_HIGH)
+	var down := pressed(normal)
+	var disabled := secondary(SURFACE_SUNK)
+	disabled.shadow_offset = Vector2(2, 2)
+	for style: StyleBoxFlat in [normal, hover, down, disabled]:
 		style.skew = lean
 	theme.set_stylebox("normal", "Button", normal)
 	theme.set_stylebox("hover", "Button", hover)
-	theme.set_stylebox("pressed", "Button", pressed)
+	theme.set_stylebox("pressed", "Button", down)
 	theme.set_stylebox("disabled", "Button", disabled)
-	theme.set_stylebox("focus", "Button", plain(Color(0, 0, 0, 0), RADIUS_CONTROL))
+	theme.set_stylebox("focus", "Button", plain(Color(0, 0, 0, 0), 0))
 	theme.set_color("font_color", "Button", TEXT)
-	theme.set_color("font_hover_color", "Button", Color.WHITE)
-	theme.set_color("font_pressed_color", "Button", AMBER)
+	theme.set_color("font_hover_color", "Button", TEXT)
+	theme.set_color("font_pressed_color", "Button", TEXT)
+	theme.set_color("font_focus_color", "Button", TEXT)
 	theme.set_color("font_disabled_color", "Button", TEXT_FAINT)
-	theme.set_font_size("font_size", "Button", SIZE_BODY)
+	theme.set_font_size("font_size", "Button", SIZE_HEADING + 2)
 
 	# --- Panel
 	theme.set_stylebox("panel", "Panel", card())
@@ -434,21 +439,23 @@ static func theme() -> Theme:
 	# --- Label
 	theme.set_color("font_color", "Label", TEXT)
 	theme.set_font_size("font_size", "Label", SIZE_BODY)
+	theme.set_color("font_outline_color", "Label", HAIRLINE)
 
-	# --- ProgressBar: a sunk track with a flat fill, so a bar reads as a measurement
-	# rather than as another button.
-	theme.set_stylebox("background", "ProgressBar", plain(SURFACE_SUNK, 1))
-	theme.set_stylebox("fill", "ProgressBar", plain(AMBER, 1))
-	theme.set_color("font_color", "ProgressBar", TEXT_DIM)
+	# --- RichTextLabel
+	theme.set_color("default_color", "RichTextLabel", TEXT)
+
+	# --- ProgressBar: a sunk well with a flat fill, so a bar reads as a measurement.
+	theme.set_stylebox("background", "ProgressBar", inset(SURFACE_SUNK, 0, 0, 0))
+	theme.set_stylebox("fill", "ProgressBar", plain(AMBER, 0))
+	theme.set_color("font_color", "ProgressBar", TEXT)
 	theme.set_font_size("font_size", "ProgressBar", SIZE_MICRO)
 
-	# --- Scrollbars, tooltips and separators. Nobody designs these and everybody sees
-	# them.
-	theme.set_stylebox("scroll", "VScrollBar", plain(SURFACE_SUNK, RADIUS_PILL))
-	theme.set_stylebox("grabber", "VScrollBar", plain(HAIRLINE, RADIUS_PILL))
-	theme.set_stylebox("grabber_highlight", "VScrollBar", plain(EDGE_LIGHT, RADIUS_PILL))
-	theme.set_stylebox("grabber_pressed", "VScrollBar", plain(AMBER_DEEP, RADIUS_PILL))
-	theme.set_stylebox("panel", "TooltipPanel", card(SURFACE_HIGH, RADIUS_CONTROL))
+	# --- Scrollbars, tooltips and separators. Nobody designs these and everybody sees them.
+	theme.set_stylebox("scroll", "VScrollBar", plain(SURFACE_SUNK, 0))
+	theme.set_stylebox("grabber", "VScrollBar", plain(HAIRLINE, 0))
+	theme.set_stylebox("grabber_highlight", "VScrollBar", plain(EDGE_LIGHT, 0))
+	theme.set_stylebox("grabber_pressed", "VScrollBar", plain(AMBER_DEEP, 0))
+	theme.set_stylebox("panel", "TooltipPanel", card(SURFACE, 0, SPACE_MD, SPACE_SM))
 	theme.set_color("font_color", "TooltipLabel", TEXT)
 	theme.set_color("separator", "HSeparator", HAIRLINE)
 	theme.set_color("separator", "VSeparator", HAIRLINE)

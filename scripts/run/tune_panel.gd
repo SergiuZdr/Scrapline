@@ -34,14 +34,14 @@ func _ready() -> void:
 	add_child(floor_colour)
 	floor_colour.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(UIKit.backdrop())
-	var title := _label("TUNE A PART", UIKit.SIZE_DISPLAY, UIKit.TEXT, UIKit.font_display())
+	var title := UIKit.on_page(_label("TUNE A PART", UIKit.SIZE_DISPLAY, UIKit.PAGE_TEXT, UIKit.font_display()), 10)
 	title.position = Vector2(40, 20)
 	add_child(title)
-	var line := _label("Re-cut a part one of two ways. Each part can be tuned once, for good; a tuned part is marked +.",
-		UIKit.SIZE_BODY, UIKit.TEXT_DIM)
+	var line := UIKit.on_page(_label("Re-cut a part one of two ways. Each part can be tuned once, for good; a tuned part is marked +.",
+		UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()), 5)
 	line.position = Vector2(42, 84)
 	add_child(line)
-	_scrap = _label("", UIKit.SIZE_TITLE, UIKit.TEXT, UIKit.font_numbers())
+	_scrap = UIKit.on_page(_label("", 30, UIKit.PAGE_TEXT, UIKit.font_comic()), 8)
 	_scrap.position = Vector2(1560, 30)
 	add_child(_scrap)
 
@@ -67,7 +67,7 @@ func _ready() -> void:
 	var back := _button("BACK TO WORKSHOP", UIKit.primary(), UIKit.BG, Vector2(320, 64))
 	back.pressed.connect(func() -> void: done.emit())
 	bar.add_child(back)
-	_status = _label("", UIKit.SIZE_BODY, UIKit.TEXT, UIKit.font_strong())
+	_status = UIKit.on_page(_label("", UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()), 5)
 	_status.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.add_child(_status)
 	for i: int in Run.state.crew.size():
@@ -113,8 +113,7 @@ func _entries() -> Array:
 
 func _tab_button(text: String, tab: int) -> Button:
 	var selected: bool = tab == _tab
-	var button := _button(text, UIKit.choice() if selected else UIKit.secondary(), UIKit.AMBER if selected else UIKit.TEXT,
-		Vector2(220, 56))
+	var button := _button(text, UIKit.choice() if selected else UIKit.secondary(), UIKit.TEXT, Vector2(220, 56))
 	button.pressed.connect(func() -> void:
 		_tab = tab
 		_chosen = -1
@@ -162,8 +161,8 @@ func _row(index: int, part: String, where: String) -> Control:
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(text)
-	text.add_child(_label("%s  ·  %s" % [where, PartText.name_of(parts, part)], UIKit.SIZE_HEADING,
-		PartText.rarity_colour(parts, part).lightened(0.3), UIKit.font_strong()))
+	text.add_child(_label("%s  ·  %s" % [where, PartText.name_of(parts, part)], 20,
+		PartText.rarity_colour(parts, part), UIKit.font_comic()))
 	var detail: String = PartText.tune_line(parts, part) if not tunable else "%s  ·  %s" % [
 		PartText.maker_short(Run.db.makers, parts, part), PartText.slot_label(parts, part)]
 	text.add_child(_label(detail, UIKit.SIZE_LABEL, UIKit.TEXT_DIM))
@@ -178,12 +177,12 @@ func _row(index: int, part: String, where: String) -> Control:
 func _build_options() -> void:
 	var part: String = _chosen_part()
 	if part.is_empty() or not PartTuning.can_tune(Run.db.parts, part):
-		_options.add_child(_label("Pick a part on the left to see its two tunings.", UIKit.SIZE_BODY, UIKit.TEXT_FAINT))
+		_options.add_child(UIKit.on_page(_label("Pick a part on the left to see its two tunings.", UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()), 5))
 		return
 	var cost: int = RunSim.tune_cost(Run.setup, part)
-	_options.add_child(_label(PartText.name_of(Run.db.parts, part).to_upper(), UIKit.SIZE_TITLE, UIKit.TEXT, UIKit.font_strong()))
-	_options.add_child(_label("%s  ·  choose one, for %d scrap" % [PartText.summary(Run.db.parts, part, Run.db.combat_abilities), cost],
-		UIKit.SIZE_LABEL, UIKit.TEXT_DIM))
+	_options.add_child(UIKit.on_page(_label(PartText.name_of(Run.db.parts, part).to_upper(), 30, UIKit.PAGE_TEXT, UIKit.font_comic()), 8))
+	_options.add_child(UIKit.on_page(_label("%s  ·  choose one, for %d scrap" % [PartText.summary(Run.db.parts, part, Run.db.combat_abilities), cost],
+		UIKit.SIZE_LABEL, UIKit.PAGE_TEXT, UIKit.font_strong()), 5))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	_options.add_child(row)
@@ -218,7 +217,7 @@ func _option_card(part: String, option: int, cost: int) -> Control:
 	inner.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	holder.add_child(inner)
 	inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_LG)
-	inner.add_child(_label(String(tuned.get("tune", "")).to_upper(), UIKit.SIZE_TITLE, UIKit.TEXT, UIKit.font_strong()))
+	inner.add_child(_label(String(tuned.get("tune", "")).to_upper(), 28, UIKit.TEXT, UIKit.font_comic()))
 	inner.add_child(_label(PartText.bonus_text(tuned.get("tune_grid", {})), UIKit.SIZE_HEADING, UIKit.GREEN, UIKit.font_strong()))
 	var before: Dictionary = (parts.get(part, {}) as Dictionary).get("grid", {})
 	var after: Dictionary = tuned.get("grid", {})
@@ -232,7 +231,7 @@ func _option_card(part: String, option: int, cost: int) -> Control:
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	inner.add_child(spacer)
 	inner.add_child(_label(("TUNE  ·  %d SCRAP" % cost) if affordable else ("NEEDS %d SCRAP (you have %d)" % [cost, Run.state.scrap]),
-		UIKit.SIZE_HEADING, UIKit.AMBER if affordable else UIKit.TEXT_FAINT, UIKit.font_strong()))
+		22, UIKit.TEXT if affordable else UIKit.TEXT_FAINT, UIKit.font_comic()))
 	return holder
 
 
@@ -279,10 +278,11 @@ func _button(text: String, style: StyleBoxFlat, ink: Color, min_size: Vector2) -
 	button.text = text
 	button.custom_minimum_size = min_size
 	button.focus_mode = Control.FOCUS_NONE
-	button.add_theme_font_override("font", UIKit.font_strong())
-	button.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
+	button.add_theme_font_override("font", UIKit.font_comic())
+	button.add_theme_font_size_override("font_size", 22)
 	for key: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		button.add_theme_color_override(key, ink)
-	for key: String in ["normal", "hover", "pressed", "focus"]:
+	for key: String in ["normal", "hover", "focus"]:
 		button.add_theme_stylebox_override(key, style)
+	button.add_theme_stylebox_override("pressed", UIKit.pressed(style))
 	return button
