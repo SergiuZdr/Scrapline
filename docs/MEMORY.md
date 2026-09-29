@@ -79,6 +79,10 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-26 | **Gate pylons are props; the Sorter's shield is `pylon_armor` while any stands** | Props already block, break and never act: no unit rule had to change |
 | 2026-09-26 | **Signals state every cost and gain up front** (no hidden dice) | A choice without the information is a guess |
 | 2026-09-26 | **The Reclaimer's drones join fights in the column it takes next** | Lingering by the line has to cost inside fights too, not only on the road |
+| 2026-09-29 | **Photoreal PBR is abandoned as the base of the look**; the user picks one of three styles (Ink & Rust recommended), proved in one style frame first | Play-test 5: "looks done in Unreal by a bot in a day". Realism is where generated box geometry looks cheapest |
+| 2026-09-29 | **A killing shove throws the wreck; pierce passes props; the arc searches for its best route; heaps conduct** | Play-test 5, the user's calls |
+| 2026-09-29 | **The fight recap claims only what the event stream backs** | A recap that guessed at contributions would be a second, wrong model of the rules |
+| 2026-09-29 | **The gate: deep pylons, 20 rounds, 3 escorts** | Side-by-side runs: only the round limit moves difficulty, and the gate already decides most losses |
 
 ## Lessons carried over from the old codebase
 
@@ -149,6 +153,8 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-26 | A glossary link has to mean the word's sense: "the marked hex" linked to MARK. Write tutorial text around the linked vocabulary |
 | 2026-09-26 | An event that encodes a kind as "barrel or not" silently draws every new kind as the "not". Encode kinds as an index into a named list |
 | 2026-09-26 | A balance tool that samples every map samples the tutorial too. Measure on what the run actually uses |
+| 2026-09-29 | Measured contrast passed and the look still failed: a metric can guard readability, it cannot choose a style. The style has to be picked by the person who will judge it, from concrete options |
+| 2026-09-29 | A test that passes on a machine that never acted proves nothing: search for a case where the thing under test happens |
 
 ## Open questions
 
@@ -168,5 +174,7 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-23 | Keep 3D or go 2D? | Keep 3D. The whole art pipeline exists, and a tilted camera suits a grid |agree with the propose |
 | 2026-09-25 | **Difficulty after 008**: the run bot wins 88.7% (76.7% after 007), and it barely uses abilities | Dials, in order: enemy count by column (`run.json` enemies), the speed of the front (`front.every`), level costs. Decide after play-test 4 | |
 | 2026-09-26 | **Which roster is right: pauldrons on every arm (the shipped roster, CLAUDE.md) or per-archetype shoulders (`builders/arm.py` today)?** The generator no longer reproduces the roster, which blocks exporting the aluminium light value | Proposed: keep the shipped look (pauldrons everywhere), make the generator reproduce it, then export the aluminium. The user decides | |
-| 2026-09-26 | **The gate now decides two thirds of the bot's losses** (12 of 18). A climax or a wall? | 013 replaces the gate fight with a real boss; judge it in the play-test | |
+| 2026-09-26 | **The gate now decides two thirds of the bot's losses** (12 of 18). A climax or a wall? | 013 replaces the gate fight with a real boss; judge it in the play-test. 014: still 12 of 20; escorts and summon pace do not move it, the round limit does | |
 | 2026-09-26 | **Play-test 5 (009-013)**: is the Sorter a climax? Do signals, traders and towers fix "the map feels empty"? Does the shakedown teach enough? | The user plays | |
+| 2026-09-29 | **Which art direction?** A Ink & Rust, B Painted Miniatures, C Schematic Low-Poly ([options](plans/art-direction-options.md)) | A, proved first in the "decision moment" style frame | |
+| 2026-09-29 | **PT5-5: was the "scrap on the ground" rubble?** | Assumed rubble (costs 2); routes now take fewer hexes at equal cost and the route is drawn on hover | |

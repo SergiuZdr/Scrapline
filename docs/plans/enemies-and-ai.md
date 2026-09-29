@@ -53,6 +53,13 @@ the run -- and the first boss teaches the lesson the plan asked for: part target
 the pylons (break the shield, then burst the keeper). The player's bot values breaking a pylon
 (`IntentAI.SCORE_PYLON`). The multi-part Colossus-style boss below stays the plan for acts 2-3.
 
+**014: the gate's pressure comes from its ground and its clock.** Tried side by side (150 runs
+each): the escort count (2/3/4 in 013) and the summon pace (every 2 rounds) barely move the
+result; the round limit does (12 rounds: 86.0% down to 80.0%). With two thirds of the bot's
+losses already at the gate, it was not made harder. The pylons moved to the back row behind
+the Sorter, each beside a heap, so the shield is reached by piercing through the keeper, by
+lobs, or by arcs run through the heaps. Same difficulty, a different fight.
+
 
 - **Elite** = a normal enemy with a rare part and one affix (armoured, volatile, regenerating…).
 - **Boss** = a multi-part construct in the style of the old Colossus: limbs as separate
