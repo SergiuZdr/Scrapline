@@ -158,9 +158,11 @@ static func _stencil(core: Node3D, number: int) -> void:
 static func warm(part_ids: Array) -> void:
 	for id: Variant in part_ids:
 		var part_id: String = PartTuning.base_of(String(id))
-		if part_id.is_empty() or _scene_cache.has(part_id) or _warming.has(part_id):
+		if part_id.is_empty() or _warming.has(part_id):
 			continue
-		var path: String = "%s/%s.glb" % [PARTS_DIR, part_id]
+		var path: String = Models.part_path(part_id)
+		if _scene_cache.has(path):
+			continue
 		if ResourceLoader.exists(path) and ResourceLoader.load_threaded_request(path) == OK:
 			_warming[part_id] = path
 
@@ -273,15 +275,16 @@ static func _part_id(part_ids: PackedStringArray, index: int) -> String:
 static func _instance(part_id: String) -> Node3D:
 	if part_id.is_empty():
 		return null
-	if not _scene_cache.has(part_id):
-		var path: String = "%s/%s.glb" % [PARTS_DIR, part_id]
-		if _warming.has(part_id):
+	# Which file is decided by `Models` (017: the shipped set, or the new one under proof).
+	var path: String = Models.part_path(part_id)
+	if not _scene_cache.has(path):
+		if _warming.get(part_id, "") == path:
 			# Already loading in the background: collect it (waits only if not yet done).
-			_scene_cache[part_id] = ResourceLoader.load_threaded_get(path)
+			_scene_cache[path] = ResourceLoader.load_threaded_get(path)
 			_warming.erase(part_id)
 		else:
-			_scene_cache[part_id] = load(path) if ResourceLoader.exists(path) else null
-	var packed: PackedScene = _scene_cache[part_id]
+			_scene_cache[path] = load(path) if ResourceLoader.exists(path) else null
+	var packed: PackedScene = _scene_cache[path]
 	if packed == null:
 		return null
 	return packed.instantiate() as Node3D
