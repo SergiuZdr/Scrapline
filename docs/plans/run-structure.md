@@ -146,6 +146,14 @@ crew's back row at round 3, on hexes marked red at round 2 (stand on one to bloc
 fight panel says so before the player walks in. Lingering by the line now costs inside a
 fight as well as on the road.
 
+## The map in ink (016)
+
+Roads are bold strokes (the ones you can take in your blue), every site a landmark in the
+colour of its kind with its icon on an ink badge ringed in its state (amber: you are here;
+blue: you can go), reclaimed ground hatched red, the Reclaimer a black shape edged in red. What
+is not scouted is **unfinished drawing** -- pencil hatching on the night page with a ragged
+edge -- so the fog says what it means: nobody has drawn that yet.
+
 ## What a move and a fight tell you (014)
 
 Two screens answer the questions a player was left guessing at (review points R5-3, R5-1).

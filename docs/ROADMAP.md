@@ -29,11 +29,13 @@ Iterations further ahead are sketches and get refined as we get closer.
 | — | [Play-test 5](playtests/2026-09-29-playtest-5.md) | The look reads as a generic engine demo; placeholders everywhere; flat panels; shove, pierce, chain, paths and undo; an outside review | ✅ |
 | — | [Art direction options](plans/art-direction-options.md) | Three styles to pick from (Ink & Rust recommended), each with palette, shapes, materials, lighting, UI, interactables; one scene to prototype first | ✅ A picked |
 | 014 | [Play-test 5 fixes](iterations/014-playtest-5-fixes.md) | Killing shoves throw the wreck; pierce through props; the arc's best route, heaps conduct; straighter paths; UNDO keeps the machine; fight recap; map consequence preview; deep gate pylons (bot 86.7%) | ✅ |
-| 015 | [Ink & Rust: the style frame](iterations/015-ink-style-frame.md) | The fight drawn in ink: toon bands, ink lines, marks hatched by meaning, saw-blade enemy rings, the aim preview on the board, KRANG!/BOOM!, comic-panel HUD; scrap on the way (routes over piles win ties) | ✅ awaiting the user's verdict |
-| 016 | Ink & Rust everywhere | The map and the Reclaimer, every panel through the UI kit (with the HUD hierarchy of R5-2; board labels that never overlap), garage and title, thumbnails and hit effects redrawn, the generator's silhouette pass | ⬜ |
-| 017 | Acts 2–3 | The Slag Flats and the Crucible | ⬜ |
-| 018 | Feel pass | Audio, camera, final VFX | ⬜ |
-| 019 | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
+| 015 | [Ink & Rust: the style frame](iterations/015-ink-style-frame.md) | The fight drawn in ink: toon bands, ink lines, marks hatched by meaning, saw-blade enemy rings, the aim preview on the board, KRANG!/BOOM!, comic-panel HUD; scrap on the way (routes over piles win ties) | ✅ approved |
+| — | [Play-test 6](playtests/2026-09-29-playtest-6.md) | The look approved for the whole game; a beam through a crate wall; every panel in the new design; ability text; new models | ✅ |
+| 016 | [Ink & Rust everywhere](iterations/016-ink-everywhere.md) | Every screen in ink (the kit, the map with fog as unfinished drawing, the bays, portraits and part pictures); shots take the better side of a line; a quieter HUD (slim rows, ability cards that say what they do); labels that never overlap (bot 88.7%) | ✅ |
+| 017 | Models | Machines, map sites and the Reclaimer rebuilt for the ink style (PT6-5), by the route the user picks | ⬜ |
+| 018 | Acts 2–3 | The Slag Flats and the Crucible | ⬜ |
+| 019 | Feel pass | Audio, camera, final VFX (hit effects in ink) | ⬜ |
+| 020 | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
 

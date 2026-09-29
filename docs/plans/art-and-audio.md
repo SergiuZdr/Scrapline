@@ -10,11 +10,11 @@ The frame is the `art-direction-and-readability` skill's law: **readability firs
 personality second, fidelity never.** A thing on screen earns its place by answering a
 question the player is asking.
 
-## Ink & Rust (015): the look of the fight
+## Ink & Rust (015-016): the look of the game
 
-The user picked [option A](art-direction-options.md). In the combat scene it **replaces** the
-photographed surfaces, the HDRI and the sodium/blue rig below (those sections stay as the
-record of 010 until the other screens follow). The read contracts and the one-meaning
+The user picked [option A](art-direction-options.md) and, after the style frame, asked for it
+everywhere (016). It **replaces** the photographed surfaces, the HDRI and the sodium/blue rig
+described further down, which stay as the record of 010. The read contracts and the one-meaning
 colour registry carry over unchanged in meaning; only the hues moved to the ink palette.
 
 - **One place**: `scripts/presentation/ink.gd` (palette, materials, dressing),
@@ -46,6 +46,14 @@ colour registry carry over unchanged in meaning; only the hues moved to the ink 
   in a dark blue; the hint and the coach are the narrator's pale caption box. Amber still means
   your action (the armed weapon, END TURN, the band on the selected card); an armed weapon also
   carries a heavier line.
+- **Everywhere (016)**: every 3D screen uses `Ink.environment()` and `Ink.key_light()` (the
+  toon ramp draws the directional key alone -- point lights and spots do nothing to it, so a
+  lamp is a lit bulb); scenery is monochrome, landmarks keep a livery per kind of site
+  (`Ink.dress_prop`); the map's fog is **unfinished drawing** (`ink_fog.gdshader`); part
+  pictures are rendered by the game (`tools/make_ink_thumbs.gd`, `art/thumbs_ink/`).
+- **Interface everywhere (016)**: `UIKit` is paper and ink (the old constant names, new values);
+  text on the dark page or the 3D world is `UIKit.on_page` (paper, an ink edge); a selection is
+  an amber border with ink lettering -- amber text does not read on paper.
 - **Contrast** (`measure_contrast.gd`) now hides labels in both renders -- the new tags are big
   paper lettering, and counting them as surroundings measured the lettering, not the ground.
   Both looks measured with that ruler: the machines stand out more in ink on every fight.

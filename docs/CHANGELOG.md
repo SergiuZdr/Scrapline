@@ -2,6 +2,22 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [016] Ink & Rust everywhere — 2026-09-29 ([detail](iterations/016-ink-everywhere.md))
+
+The user's verdict on the style frame: "apply this look to the entire game". Play-test 6.
+
+### Changed
+- **Every screen in ink**: title, briefing, assembly bay, the map, every site panel, the garage, tuning, the perk pick, the glossary, hints, the fight's results. Paper cards, heavy ink borders, hard shadows, comic lettering; text on the dark page lettered in paper.
+- **The map**: roads as strokes, landmarks in a colour per kind of site, icon badges, the Reclaimer black edged in red, and **fog as unfinished drawing** -- pencil hatching over what is not scouted.
+- **The title stage, the garage and assembly bays, every portrait and every part picture** are drawn like the fight.
+- **Shots along hex edges take the better side**: the one that reaches the target, then the one that does more, then the one through fewer obstacles -- no more beams through a crate wall with the other side open.
+- **The fight's HUD asks for less**: machines not picked are slim rows; card lines fit; ability cards say what the ability does.
+- **Board labels never overlap**; LOCKED / MISSES read beside their badge.
+- **Ability texts** rephrased, effect first. A run saved before 016 will not resume.
+
+### Added
+- `tools/make_ink_thumbs.gd` (part pictures rendered by the game), `ink_fog.gdshader`, `UIKit.on_page`, `UIKit.pressed`.
+
 ## [015] Ink & Rust: the style frame — 2026-09-29 ([detail](iterations/015-ink-style-frame.md))
 
 The user picked art direction A. The fight is drawn in it; the rest of the game follows the
