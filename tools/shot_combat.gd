@@ -7,6 +7,8 @@ extends SceneTree
 ##       --fight slag_pit --select 1 --weapon 1 --aim 5 3 --out shots/lob.png   (aim = a hex x y)
 ##       --select 0 --ability 0 --aim 2 3     arms an ability instead of a weapon
 ##       --select 0 --move 3 4 --weapon 1 --aim 2 3   walks first, then aims
+##       --steps "select=2 weapon=0 tap=0,3 tap=0,3 select=0 hover=0,3"   any sequence, in
+##           order, before the flags above (tap settles the playback; hover draws a route)
 ##
 ## Not headless: it has to render. Everything is driven through the scene's own methods,
 ## the same ones a tap reaches.
@@ -21,6 +23,26 @@ func _run() -> void:
 	root.add_child(scene)
 	await _settle(scene)
 
+	var steps: int = args.find("--steps")
+	if steps >= 0 and steps + 1 < args.size():
+		for token: String in args[steps + 1].split(" ", false):
+			var kv: PackedStringArray = token.split("=")
+			var cell := Vector2i.ZERO
+			if kv.size() > 1 and kv[1].contains(","):
+				cell = Vector2i(kv[1].get_slice(",", 0).to_int(), kv[1].get_slice(",", 1).to_int())
+			match kv[0]:
+				"select":
+					scene.call("_select", kv[1].to_int())
+				"weapon":
+					scene.call("_choose_weapon", kv[1].to_int())
+				"ability":
+					scene.call("_choose_ability", kv[1].to_int())
+				"tap":
+					scene.call("_tap", cell)
+					await _settle(scene)
+				"hover":
+					var camera: Camera3D = scene.get("_camera")
+					scene.call("_hover_path", camera.unproject_position(scene.call("_to_world", cell.x, cell.y)))
 	var select: int = _int_arg(args, "--select", -1)
 	if select >= 0:
 		scene.call("_select", select)

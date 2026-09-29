@@ -68,6 +68,14 @@ func _hide_overlays(scene: Node) -> void:
 	var marks: Node3D = scene.get("_marks_root")
 	if marks != null:
 		marks.visible = false
+	# Labels are overlays too (015): a tag's lettering is the machine's caption, not the ground it
+	# must stand out from, and counting it as surround made a bigger, brighter tag look like a
+	# machine sinking into the board. Tags, badges and marks over units go in both renders.
+	var units: Node3D = scene.get("_units_root")
+	if units != null:
+		for node: Node in _all(units):
+			if node is Label3D or node is Sprite3D:
+				(node as Node3D).visible = false
 
 
 func _measure(full: Image, solo: Image) -> Dictionary:

@@ -49,10 +49,10 @@ func _ready() -> void:
 
 	_panel = PanelContainer.new()
 	_panel.name = "coach_panel"
-	var style: StyleBoxFlat = UIKit.card(UIKit.SURFACE_HIGH, UIKit.RADIUS_CARD, UIKit.SPACE_LG, UIKit.SPACE_MD)
-	style.border_color = UIKit.AMBER.darkened(0.25)
-	style.set_border_width_all(2)
-	style.border_width_left = 6
+	# Ink & Rust (015): the coach is the narrator -- a comic caption box, pale yellow on ink.
+	var style: InkBox = UIKit.ink_caption(UIKit.SPACE_LG, UIKit.SPACE_MD)
+	style.border_width = 3.0
+	style.shadow = Vector2(5, 5)
 	_panel.add_theme_stylebox_override("panel", style)
 	_panel.custom_minimum_size = Vector2(PANEL_WIDTH, 0)
 	add_child(_panel)
@@ -66,11 +66,12 @@ func _ready() -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	_panel.add_child(box)
-	_count = _label("", UIKit.SIZE_MICRO, UIKit.AMBER, UIKit.font_strong())
+	_count = _label("", UIKit.SIZE_LABEL, UIKit.INK_DIM, UIKit.font_comic())
 	box.add_child(_count)
-	_title = _label("", UIKit.SIZE_TITLE, UIKit.TEXT, UIKit.font_strong())
+	_title = _label("", 26, UIKit.INK, UIKit.font_comic())
 	box.add_child(_title)
-	_text = Glossary.label("", UIKit.SIZE_BODY, UIKit.TEXT_DIM, _glossary(), PANEL_WIDTH - UIKit.SPACE_LG * 2)
+	_text = Glossary.label("", UIKit.SIZE_BODY, UIKit.INK, _glossary(), PANEL_WIDTH - UIKit.SPACE_LG * 2,
+		UIKit.font_strong(), UIKit.INK_LINK)
 	box.add_child(_text)
 	_buttons = HBoxContainer.new()
 	_buttons.add_theme_constant_override("separation", UIKit.SPACE_SM)
@@ -173,14 +174,14 @@ func _show() -> void:
 		_buttons.remove_child(child)
 		child.queue_free()
 	if final:
-		_buttons.add_child(_button("START A RUN", UIKit.primary(), UIKit.BG, func() -> void: finished.emit(true)))
-		_buttons.add_child(_button("TITLE", UIKit.secondary(), UIKit.TEXT, func() -> void: finished.emit(false)))
+		_buttons.add_child(_button("START A RUN", Ink.ACTION, func() -> void: finished.emit(true)))
+		_buttons.add_child(_button("TITLE", UIKit.PAPER_CARD, func() -> void: finished.emit(false)))
 	elif String(step.get("until", "next")) == "next":
-		_buttons.add_child(_button("NEXT", UIKit.primary(), UIKit.BG, next_step))
-		_buttons.add_child(_button("SKIP TUTORIAL", UIKit.secondary(), UIKit.TEXT_DIM, func() -> void: finished.emit(false)))
+		_buttons.add_child(_button("NEXT", Ink.ACTION, next_step))
+		_buttons.add_child(_button("SKIP TUTORIAL", UIKit.PAPER_CARD, func() -> void: finished.emit(false)))
 	else:
-		_buttons.add_child(_button("SKIP STEP", UIKit.secondary(), UIKit.TEXT_DIM, next_step))
-		_buttons.add_child(_button("SKIP TUTORIAL", UIKit.secondary(), UIKit.TEXT_DIM, func() -> void: finished.emit(false)))
+		_buttons.add_child(_button("SKIP STEP", UIKit.PAPER_CARD, next_step))
+		_buttons.add_child(_button("SKIP TUTORIAL", UIKit.PAPER_CARD, func() -> void: finished.emit(false)))
 	if _scene.get("_state") != null:
 		_scene.call("coach_point", _board_target())
 
@@ -280,16 +281,17 @@ func _label(text: String, size: int, colour: Color, face: Font = null) -> Label:
 	return label
 
 
-func _button(text: String, style: StyleBoxFlat, ink: Color, on_press: Callable) -> Button:
+func _button(text: String, fill: Color, on_press: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.focus_mode = Control.FOCUS_NONE
 	button.custom_minimum_size = Vector2(0, 46)
-	button.add_theme_font_override("font", UIKit.font_strong())
-	button.add_theme_font_size_override("font_size", UIKit.SIZE_LABEL)
+	button.add_theme_font_override("font", UIKit.font_comic())
+	button.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
 	for key: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-		button.add_theme_color_override(key, ink)
-	for key: String in ["normal", "hover", "pressed", "focus"]:
-		button.add_theme_stylebox_override(key, style)
+		button.add_theme_color_override(key, UIKit.INK)
+	for key: String in ["normal", "hover", "focus"]:
+		button.add_theme_stylebox_override(key, UIKit.ink_button(fill))
+	button.add_theme_stylebox_override("pressed", UIKit.ink_button(fill, true))
 	button.pressed.connect(on_press)
 	return button
