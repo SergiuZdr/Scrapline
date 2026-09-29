@@ -110,6 +110,26 @@ As built (003), per `weapon_class`:
 Lines stop at the first unit (unless piercing), wreck or scrap heap. Cones were dropped:
 a scattergun is a short shoving line, which reads the same at a fraction of the rules.
 
+### As of play-test 5 (014)
+
+- **Pierce N** passes through the first N things in its line -- machines, drums and crates
+  alike (a drum it passes goes off) -- and hits the one after; then it flies 2 hexes past its
+  range at half damage (009). Scrap heaps still stop it.
+- **Chain N** (the coil; 2 since 009): from the first thing hit, the arc makes N jumps, each to
+  a hex next to the last, 1 weaker than the hit. It takes the **route that does the most**:
+  every route is tried, an enemy counting the damage it takes, a drum the blast on the enemies
+  around it, a crate a little; it never jumps into its own side, and it stops rather than
+  waste a jump. **Scrap heaps conduct**: an arc runs through a heap to what stands beyond it,
+  without spending a jump. (`CombatSim._arc` / `_arc_search`.)
+- **A shove that kills throws the wreck** one hex along the shove: into anything solid it
+  stops and the thing it hits takes the bump (a machine 1, a crate cracks, a drum goes off);
+  into a pit it falls with its scrap; onto open ground it lands, and its pile with it.
+  (`CombatSim.throw_wreck`, event `WRECK_THROWN`.)
+- **Paths**: of two routes that cost the same, the one with fewer hexes wins, so a machine
+  walks through rubble when going round costs no less. Hovering a hex in range draws the
+  route; hexes that cost 2 show dimmer in the move range.
+- **UNDO** returns to the machine whose action it took back; an undone attack is armed again.
+
 ## Heat: the resource
 
 - Each shot adds the weapon's heat plus core/module heat bonuses.

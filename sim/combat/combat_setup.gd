@@ -70,7 +70,8 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 	var setup := CombatSetup.new()
 	setup.fight_id = String(fight.get("id", ""))
 	setup.rng_seed = seed_value
-	setup.max_rounds = int(rules.get("max_rounds", 20))
+	# A fight may set its own limit (014: the gate closes sooner than an ordinary fight ends).
+	setup.max_rounds = int(fight.get("max_rounds", rules.get("max_rounds", 20)))
 	setup.min_damage = int(rules.get("min_damage", 1))
 	setup.tear_threshold = int(rules.get("tear_threshold", 5))
 	setup.bump_damage = int(rules.get("bump_damage", 1))

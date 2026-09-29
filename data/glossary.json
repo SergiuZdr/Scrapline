@@ -137,7 +137,7 @@
     "pierce": {
       "group": "WEAPONS",
       "name": "Pierce",
-      "text": "The shot carries on through what it hits to the next target, and 2 hexes past its range at half damage.",
+      "text": "Pierce N: the shot goes through the first N things in its line (machines, drums, crates) and hits the one after, then flies 2 hexes past its range at half damage. The rail lance (pierce 1) hits two in a line; tuned to Double Pierce (2), three; the rail driver (9), everything.",
       "forms": [
         "pierce",
         "pierces",
@@ -155,7 +155,7 @@
     "chain": {
       "group": "WEAPONS",
       "name": "Chain",
-      "text": "After the hit it arcs on to the nearest enemy (or drum, or crate), 1 weaker each jump.",
+      "text": "Chain N: after the hit the arc jumps N more times, each jump to a hex next to the last and 1 weaker. It takes the route that does the most damage (a drum by two enemies beats a lone enemy) and never jumps into your own machines. Scrap heaps conduct: it runs through them for free.",
       "forms": [
         "chain",
         "chains"
@@ -164,7 +164,7 @@
     "shove": {
       "group": "WEAPONS",
       "name": "Shove",
-      "text": "Pushes the target one hex straight away. Into something solid, both take 1. Into a pit, it falls.",
+      "text": "Pushes the target one hex straight away. Into something solid, both take 1; into a pit, it falls. A shove that kills throws the wreck: whatever it lands on takes the bump (a drum goes off), and its scrap goes where it lands.",
       "forms": [
         "shove",
         "shoves",
@@ -204,7 +204,7 @@
     "rubble": {
       "group": "TERRAIN",
       "name": "Rubble",
-      "text": "Costs 2 to cross and gives cover.",
+      "text": "Costs 2 to cross and gives cover. In the move range it shows dimmer, so a route that goes round it is a choice you can see.",
       "forms": [
         "rubble"
       ]
@@ -212,7 +212,7 @@
     "scrap_heap": {
       "group": "TERRAIN",
       "name": "Scrap heap",
-      "text": "Blocks movement and shots: the best cover on the field.",
+      "text": "Blocks movement and shots: the best cover on the field. Metal conducts: a chain arc runs through a heap to whatever stands beyond it.",
       "forms": [
         "scrap heap",
         "scrap heaps",

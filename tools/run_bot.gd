@@ -21,10 +21,19 @@ func _initialize() -> void:
 		runs = args[at + 1].to_int()
 	for i: int in args.size() - 1:
 		if args[i] == "--set":
+			# `path=json` into run.json; `combat.path=json` into the combat rules (enemy kinds
+			# included); `fight.<id>.path=json` into one fight map (014: the gate's variants).
 			var pair: PackedStringArray = args[i + 1].split("=", true, 1)
 			var keys: PackedStringArray = pair[0].split(".")
 			var node: Dictionary = db.run_rules
-			for k: int in keys.size() - 1:
+			var first: int = 0
+			if keys[0] == "combat":
+				node = db.combat_rules
+				first = 1
+			elif keys[0] == "fight":
+				node = db.fights[keys[1]]
+				first = 2
+			for k: int in range(first, keys.size() - 1):
 				node = node[keys[k]]
 			node[keys[keys.size() - 1]] = JSON.parse_string(pair[1])
 			print("  override %s = %s" % [pair[0], pair[1]])

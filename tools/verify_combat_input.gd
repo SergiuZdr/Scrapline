@@ -132,6 +132,16 @@ func _run() -> void:
 		state = _scene.get("_state")
 		_check("second tap on the same target fires", state.unit(0).acted)
 		_check("firing added heat", state.unit(0).heat > 0)
+		# Play-test 5: UNDO goes back to the machine whose action it took back, weapon armed.
+		_click_tile(state.unit(1).x, state.unit(1).y)
+		await _settle()
+		_check("(precondition) another machine is selected", int(_scene.get("_selected")) == 1)
+		_click_control(hud.get("_undo"))
+		await _settle()
+		state = _scene.get("_state")
+		_check("UNDO of an attack selects the machine that made it, its weapon armed again",
+			int(_scene.get("_selected")) == 0 and bool(_scene.get("_armed")) and int(_scene.get("_weapon")) == w
+			and not state.unit(0).acted)
 
 	# --- Tapping an ally always selects it, even inside someone's line of fire.
 	_click_tile(state.unit(1).x, state.unit(1).y)
