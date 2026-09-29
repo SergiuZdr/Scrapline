@@ -565,8 +565,12 @@ def load_parts(project_root):
         if not name.endswith(".json"):
             continue
         with open(os.path.join(parts_dir, name)) as handle:
-            for entry in json.load(handle):
-                parts[entry["id"]] = entry
+            entries = json.load(handle)
+        # `makers.json` (011) sits beside the part lists and is a table, not a list of parts.
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            parts[entry["id"]] = entry
     return parts
 
 
