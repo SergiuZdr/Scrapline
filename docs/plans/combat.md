@@ -125,9 +125,11 @@ a scattergun is a short shoving line, which reads the same at a fraction of the 
   stops and the thing it hits takes the bump (a machine 1, a crate cracks, a drum goes off);
   into a pit it falls with its scrap; onto open ground it lands, and its pile with it.
   (`CombatSim.throw_wreck`, event `WRECK_THROWN`.)
-- **Paths**: of two routes that cost the same, the one with fewer hexes wins, so a machine
-  walks through rubble when going round costs no less. Hovering a hex in range draws the
-  route; hexes that cost 2 show dimmer in the move range.
+- **Paths**: of two routes that cost the same, the one that **picks up the most scrap** wins
+  (015: every pile on a route is taken, and machines walked round piles as often as over
+  them), then the one with fewer hexes, so a machine walks through rubble when going round
+  costs no less. Never a detour: the cost and the reach are the cheapest either way. Both
+  teams. Hovering a hex in range draws the route; hexes that cost 2 show a fainter hatch.
 - **UNDO** returns to the machine whose action it took back; an undone attack is armed again.
 
 ## Heat: the resource

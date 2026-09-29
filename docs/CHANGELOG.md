@@ -2,6 +2,24 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [015] Ink & Rust: the style frame — 2026-09-29 ([detail](iterations/015-ink-style-frame.md))
+
+The user picked art direction A. The fight is drawn in it; the rest of the game follows the
+user's verdict on the frame.
+
+### Changed
+- **The fight is drawn in ink**: flat colour in three bands under one hard key, heavy ink lines on everything (three weights), no photographs, no sky, glow only on signals.
+- **The board**: flat fields with ink joints; rubble stippled with outlined stones; scrap heaps as black masses edged in paper; pits black with a torn rim; drums red with hazard chevrons and a flame glyph; piles as green bolts with a glint.
+- **Marks carry their meaning in their hatching**: where you can go one diagonal (fainter on slow ground), what will be hit the other, what you aim at crossed. The enemy stands on a saw-blade ring.
+- **The aim preview is drawn on the board**: a drum's blast over every hex it reaches, an arrow where a killed machine's wreck is thrown.
+- **KRANG!** and **BOOM!** lettered on the impacts that matter.
+- **The HUD is comic panels**: paper cards with ink borders and hard shadows, Anton lettering, ink portraits in halftone frames; the hint and the tutorial coach speak in the narrator's caption box.
+- **Scrap on the way**: of routes that cost the same, a machine takes the one over scrap (PT5-5, as the user meant it). Run bot 86.7%.
+
+### Added
+- Anton and Bangers (SIL OFL 1.1) in `art/fonts/`.
+- `combat.tscn -- --fight-file`, `tools/frames/decision.json`, `shot_combat.gd --steps`.
+
 ## [014] Play-test 5 fixes — 2026-09-29 ([detail](iterations/014-playtest-5-fixes.md))
 
 Play-test 5's combat points, and three points from an outside review. The look waits for
