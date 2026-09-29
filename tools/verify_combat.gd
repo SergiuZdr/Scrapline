@@ -59,6 +59,7 @@ func _initialize() -> void:
 	_test_gate_and_reclaimer()
 	_test_playtest5()
 	_test_scrap_on_the_way()
+	_test_shot_leanings()
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown"]:
 		_test_bot_fight(id)
 	print("")
@@ -494,6 +495,43 @@ func _test_scrap_on_the_way() -> void:
 	_check("(precondition) the pile is still there for the enemy", e.piles.has(n1))
 	var theirs: Array = CombatSim.paths_from(e, e.unit(10), 3).get(dest, [])
 	_check("an enemy's route takes the scrap on the way as well", theirs.size() == 2 and theirs[0] == n1)
+
+
+## 016 (play-test 6): past its target a beam along hex edges has two sides again; it takes the
+## one that does more, and never ploughs through a crate wall when the other side is open.
+func _test_shot_leanings() -> void:
+	var target: Vector2i = _off(C, 2, -1, -1)
+	var ray_a: Array[Vector2i] = Hex.ray(C, target, 5, 1)
+	var ray_b: Array[Vector2i] = Hex.ray(C, target, 5, -1)
+	var fork: int = -1
+	for i: int in range(2, 5):
+		if ray_a[i] != ray_b[i]:
+			fork = i
+			break
+	_check("(precondition) past the target the beam's two sides part again", fork >= 0 and ray_a[1] == target and ray_b[1] == target)
+	if fork < 0:
+		return
+	for side: int in 2:
+		var wall: Vector2i = ray_a[fork] if side == 0 else ray_b[fork]
+		var open: Vector2i = ray_b[fork] if side == 0 else ray_a[fork]
+		var s: CombatState = _fight(_rows({wall: "c"}), [_unit(LANCE, C)], [_unit(HAMMER, target, 20), _unit(HAMMER, Vector2i(0, 0), 20)])
+		_place(s, 0, C)
+		_place(s, 10, target)
+		_place(s, 11, Vector2i(0, 0))
+		var plan: Dictionary = CombatSim.strike_plan(s, s.unit(0), 1, target)
+		_check("a crate wall on one side past the target (%s): the beam takes the open side" % [wall],
+			not (plan["tiles"] as Array).has(wall) and (plan["tiles"] as Array).has(open) and (plan["props"] as Array).is_empty())
+		_attack(s, 0, 1, target)
+		_check("and firing it leaves the wall standing", s.props.has(wall) and s.unit(10).hp < 20)
+	# A second enemy on one side past the target: the beam goes through both.
+	var extra: Vector2i = ray_b[fork]
+	var two: CombatState = _fight(_rows(), [_unit(LANCE, C)], [_unit(HAMMER, target, 20), _unit(HAMMER, extra, 20)])
+	_place(two, 0, C)
+	_place(two, 10, target)
+	_place(two, 11, extra)
+	var both: Dictionary = CombatSim.strike_plan(two, two.unit(0), 1, target)
+	_check("an enemy on one side past the target: the beam takes that side and hits both",
+		(both["hits"] as Array).size() == 2 and (both["tiles"] as Array).has(extra))
 
 
 func _test_gate_and_reclaimer() -> void:
