@@ -99,7 +99,9 @@ static func thumb(id: String) -> Texture2D:
 	if id.is_empty():
 		return null
 	if not _thumbs.has(id):
-		var path: String = INK_THUMBS % id
+		var path: String = Models.thumb_path(id)
+		if path.is_empty():
+			path = INK_THUMBS % id
 		if not ResourceLoader.exists(path):
 			path = THUMBS % id
 		_thumbs[id] = load(path) if ResourceLoader.exists(path) else null

@@ -541,8 +541,13 @@ func _landmark(type: String, id: int) -> Node3D:
 			_prop(root, "tyre_stack_2", Vector3(0.5, 0, -0.5), 0.0)
 			_prop(root, "car_stack_1", Vector3(0.1, 0, 0.6), 70.0)
 		"workshop":
-			_prop(root, "service_gantry", Vector3(0, 0, 0), 90.0, 0.6)
-			_lamp(root, Vector3(0.0, 0, 0.0), Color("ffc27a"), 4.0)
+			# 017: a generated landmark (route C) when the new models are asked for; its work
+			# lamp hangs over the roof, where the kit's hung inside the gantry.
+			if _generated(root, "workshop", 35.0):
+				_lamp(root, Vector3(0.0, 1.1, 0.0), Color("ffc27a"), 4.0)
+			else:
+				_prop(root, "service_gantry", Vector3(0, 0, 0), 90.0, 0.6)
+				_lamp(root, Vector3(0.0, 0, 0.0), Color("ffc27a"), 4.0)
 		"trader":
 			# A container shop: doors open, a warm lamp over the counter.
 			_prop(root, "container_0", Vector3(-0.2, 0, -0.3), 25.0, 0.62)
@@ -569,6 +574,19 @@ func _landmark(type: String, id: int) -> Node3D:
 
 ## The livery the landmark being built wears (016); clear while building clutter.
 var _livery: Color = Color(0, 0, 0, 0)
+
+
+## A generated set piece (`Models.site`, 017) in place of the kit landmark: built at map size
+## by `tools/blender/clean_generated.py` and zoned like the kit, so it is dressed the same way.
+func _generated(parent: Node3D, kind: String, yaw: float) -> bool:
+	var packed: PackedScene = Models.site(kind)
+	if packed == null:
+		return false
+	var piece: Node3D = packed.instantiate() as Node3D
+	piece.rotation_degrees.y = yaw
+	Ink.dress_prop(piece, _livery)
+	parent.add_child(piece)
+	return true
 
 
 func _prop(parent: Node3D, name: String, at: Vector3, yaw: float, scale_by: float = LANDMARK_SCALE,
