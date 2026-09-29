@@ -131,6 +131,12 @@ a scattergun is a short shoving line, which reads the same at a fraction of the 
   costs no less. Never a detour: the cost and the reach are the cheapest either way. Both
   teams. Hovering a hex in range draws the route; hexes that cost 2 show a fainter hatch.
 - **UNDO** returns to the machine whose action it took back; an undone attack is armed again.
+- **Shots along hex edges (016)**: a line that runs between two hexes has two equally short
+  paths, and a piercing beam splits again past its target. Both are played out in
+  `strike_plan` and the better one is fired -- first the one that reaches the aimed hex, then
+  the one that does more for the shooter (`_shot_value`: damage and kills on the other side,
+  twice that against it on its own side, a drum by its blast, a crate wall as a small cost),
+  then the one through fewer obstacles. Both teams, so the preview, the AI and the shot agree.
 
 ## Heat: the resource
 

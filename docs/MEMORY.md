@@ -87,6 +87,9 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-29 | **Of equally cheap routes, the one over the most scrap wins** (both teams, never a detour) | PT5-5 as the user meant it: machines walked round piles as often as over them |
 | 2026-09-29 | **The look is applied by dressing after the build** (`Ink.dress_machine` by zone); `ConstructView`/`PartMaterials` unchanged | The other screens keep working in the old look until they follow |
 | 2026-09-29 | **Three line weights; a mark's meaning is in its hatching; the enemy's ring is a saw blade** | Readability that survives grey and colour-blindness: the frame's grey copy failed three colour-only reads |
+| 2026-09-29 | **Ink & Rust is the whole game's look** | The user, on the style frame: "apply this look to the entire game" |
+| 2026-09-29 | **A shot along hex edges fires the better of its two sides** (reaches the target, then does more, then fewer obstacles) | Play-test 6: a rail beam ploughed through a crate wall with the other side open |
+| 2026-09-29 | **Selection is an amber border; lettering on paper is ink; text on the dark page is paper with an ink edge** | Amber text does not read on paper |
 
 ## Lessons carried over from the old codebase
 
@@ -162,6 +165,9 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-29 | A grey copy of a frame finds what a colour screenshot hides: three of the style frame's reads were colour alone |
 | 2026-09-29 | Changing a measuring tool and comparing against numbers the old tool produced compares two tools. Re-measure the baseline with the new ruler first |
 | 2026-09-29 | Lit from behind, a toon ramp shows the camera every machine's shadow band: in a flat-colour style the key's direction decides whether anything reads at all |
+| 2026-09-29 | A billboard's companions (badges, marks) must be offset in the billboard's own plane: a world-height step shows at about half its size under a camera looking down, and a world sideways step turns with the camera |
+| 2026-09-29 | A label's measured size is stale for a frame after its text changes; measure from the text when placing things against it |
+| 2026-09-29 | Before reusing an engine slot for a look (`material_overlay`), find everything else that writes it |
 
 ## Open questions
 
@@ -185,4 +191,5 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-26 | **Play-test 5 (009-013)**: is the Sorter a climax? Do signals, traders and towers fix "the map feels empty"? Does the shakedown teach enough? | The user plays | |
 | 2026-09-29 | **Which art direction?** A Ink & Rust, B Painted Miniatures, C Schematic Low-Poly ([options](plans/art-direction-options.md)) | A, proved first in the "decision moment" style frame | **A** (the user, 2026-09-29) |
 | 2026-09-29 | **PT5-5: was the "scrap on the ground" rubble?** | Assumed rubble (costs 2); routes now take fewer hexes at equal cost and the route is drawn on hover | **No: the scrap piles** (the user). 015: routes over scrap win ties |
-| 2026-09-29 | **The style frame (015): should the rest of the game look like this?** | Yes, then 016 carries it to the map, the Reclaimer, every panel, the garage and the title | |
+| 2026-09-29 | **The style frame (015): should the rest of the game look like this?** | Yes, then 016 carries it to the map, the Reclaimer, every panel, the garage and the title | **Yes** (the user); done in 016 |
+| 2026-09-29 | **New models (PT6-5): from scratch, open-licence kits, or generated?** | See the 016 report and 017 | |
