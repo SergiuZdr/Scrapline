@@ -107,11 +107,18 @@ static func reachable(state: CombatState, ref: int) -> Dictionary:
 ## 2. Allies can be walked through but not stopped on; enemies, scrap heaps, props and pits
 ## cannot be entered. Scrap piles are open ground. Expansion order is fixed -- lowest cost, then row,
 ## then column -- so the path chosen between two equal routes never depends on anything else.
+##
+## Among routes of equal cost, the one that picks up the most scrap wins, then the one with
+## fewer hexes (`_better`). Every pile on a route is taken (`collect_path`), so which of two
+## equally cheap routes a machine walks is a real outcome: play-test 5 watched machines walk
+## round piles as often as over them. Never a detour -- the cost, and so the reach, is the
+## cheapest either way. Every step costs at least 1, so a hex's best route is settled before
+## it is expanded.
 static func paths_from(state: CombatState, u: GridUnit, budget: int) -> Dictionary:
 	var start := Vector2i(u.x, u.y)
 	var cost: Dictionary = {start: 0}
-	# Hexes walked, to break ties between routes of equal cost: the one with fewer hexes wins
-	# (play-test 5: a machine went round rubble when going through cost the same).
+	# Scrap picked up on the way (an objective takes none), then hexes walked: the tie-breaks.
+	var scrap: Dictionary = {start: 0}
 	var steps: Dictionary = {start: 0}
 	var came_from: Dictionary = {start: start}
 	var open: Array[Vector2i] = [start]
@@ -133,12 +140,14 @@ static func paths_from(state: CombatState, u: GridUnit, budget: int) -> Dictiona
 			if occupant != null and occupant != u and occupant.team != u.team:
 				continue
 			var c: int = int(cost[cell]) + state.move_cost(n.x, n.y)
+			var taken: int = int(scrap[cell]) + (0 if u.objective else int(state.piles.get(n, 0)))
 			var walked: int = int(steps[cell]) + 1
 			if c > budget or done.has(n):
 				continue
-			if cost.has(n) and (int(cost[n]) < c or (int(cost[n]) == c and int(steps[n]) <= walked)):
+			if cost.has(n) and not _better(c, taken, walked, int(cost[n]), int(scrap[n]), int(steps[n])):
 				continue
 			cost[n] = c
+			scrap[n] = taken
 			steps[n] = walked
 			came_from[n] = cell
 			open.append(n)
@@ -148,6 +157,16 @@ static func paths_from(state: CombatState, u: GridUnit, budget: int) -> Dictiona
 			continue
 		result[cell] = _path(came_from, start, cell)
 	return result
+
+
+## Whether a route to a hex beats the best one found so far: cheaper, then more scrap picked
+## up on the way, then fewer hexes. A tie keeps the route found first.
+static func _better(c: int, taken: int, walked: int, best_c: int, best_taken: int, best_walked: int) -> bool:
+	if c != best_c:
+		return c < best_c
+	if taken != best_taken:
+		return taken > best_taken
+	return walked < best_walked
 
 
 static func _before(a: Vector2i, b: Vector2i, cost: Dictionary) -> bool:
