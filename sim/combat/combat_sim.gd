@@ -33,6 +33,10 @@ const ACT_ABILITY: int = 4
 ## (a jump into a crate is better than none, worse than any real damage).
 const ARC_KILL: int = 60
 const ARC_CRATE: int = 2
+## A shot's value (`_shot_value`) for a gate pylon it breaks, and against a crate wall it
+## ploughs through on the way.
+const SHOT_PYLON: int = 30
+const SHOT_CRATE: int = 4
 
 
 static func start(setup: CombatSetup) -> CombatState:
@@ -250,48 +254,112 @@ static func strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector2
 					_add_hit(state, u, hits, n, int(weapon["splash"]), false, false)
 					_add_prop(state, props, n, int(weapon["splash"]))
 		_:
-			# A shot: the hex line toward the target, on whichever of the two leanings is
-			# clear (play-test 4). Piercing shots are a beam that carries on past their range
-			# (`pierce_overshoot` hexes) at reduced damage.
-			var pierce_left: int = int(weapon["pierce"])
-			var piercing: bool = pierce_left > 0
-			var overshoot: int = state.setup.pierce_overshoot if piercing else 0
-			var path: Array[Vector2i] = best_line(state, here, target, reach + overshoot if piercing else 0, u)
+			# A shot: the hex line toward the target. A line that runs along hex edges has two
+			# equally short paths (`Hex.line`'s leanings); BOTH are played out and the better one
+			# is fired (`_better_shot`) -- here, so the preview, the AI and the shot agree.
+			# Piercing shots are a beam that carries on past their range (`pierce_overshoot`
+			# hexes) at reduced damage.
+			var pierce: int = int(weapon["pierce"])
+			var length: int = reach + state.setup.pierce_overshoot if pierce > 0 else 0
 			var far: int = maxi(state.setup.min_damage, (base * state.setup.pierce_overshoot_pct + 50) / 100)
-			for i: int in path.size():
-				var c: Vector2i = path[i]
-				if not state.inside(c):
-					break
-				# Past its range a beam keeps going at reduced damage. (Not `pierce_left`: that
-				# counts down with every unit the beam passes through.)
-				var amount: int = far if piercing and i >= reach else base
-				tiles.append(c)
-				plan["end"] = c
-				if state.tile_blocks(c.x, c.y):
-					break
-				if state.props.has(c):
-					# Play-test 5: a piercing shot goes through a drum or a crate too (a drum
-					# goes off), and the prop counts against its pierce like a machine.
-					_add_prop(state, props, c, amount)
-					if pierce_left <= 0:
-						break
-					pierce_left -= 1
-					continue
-				var occupant: GridUnit = state.unit_at(c.x, c.y)
-				if occupant == null or occupant == u:
-					continue
-				_add_hit(state, u, hits, c, amount, hits.is_empty(), true)
-				if pierce_left <= 0:
-					break
-				pierce_left -= 1
-			if int(weapon["chain"]) > 0:
-				_arc(state, u, hits, props, tiles, maxi(state.setup.min_damage, base - 1), int(weapon["chain"]))
+			var first: Array[Vector2i] = Hex.ray(here, target, length, 1) if pierce > 0 else Hex.line(here, target, 1)
+			var second: Array[Vector2i] = Hex.ray(here, target, length, -1) if pierce > 0 else Hex.line(here, target, -1)
+			var best: Dictionary = _shot_along(state, u, weapon, first, reach, base, far, target)
+			if second != first:
+				var other: Dictionary = _shot_along(state, u, weapon, second, reach, base, far, target)
+				if _better_shot(other, best):
+					best = other
+			tiles.assign(best["tiles"])
+			hits.assign(best["hits"])
+			props.assign(best["props"])
+			plan["end"] = best["end"]
 
 	plan["legal"] = true
 	plan["tiles"] = tiles
 	plan["hits"] = hits
 	plan["props"] = props
 	return plan
+
+
+## One leaning of a shot, played out on the board as it stands:
+## `{ tiles, hits, props, end, reaches, value, obstacles }`. Nothing is changed.
+static func _shot_along(state: CombatState, u: GridUnit, weapon: Dictionary, path: Array[Vector2i],
+		reach: int, base: int, far: int, target: Vector2i) -> Dictionary:
+	var tiles: Array[Vector2i] = []
+	var hits: Array[Dictionary] = []
+	var props: Array[Dictionary] = []
+	var end: Vector2i = target
+	var obstacles: int = 0
+	var pierce_left: int = int(weapon["pierce"])
+	var piercing: bool = pierce_left > 0
+	for i: int in path.size():
+		var c: Vector2i = path[i]
+		if not state.inside(c):
+			break
+		# Past its range a beam keeps going at reduced damage. (Not `pierce_left`: that
+		# counts down with every unit the beam passes through.)
+		var amount: int = far if piercing and i >= reach else base
+		tiles.append(c)
+		end = c
+		if state.tile_blocks(c.x, c.y):
+			obstacles += 1
+			break
+		if state.props.has(c):
+			# Play-test 5: a piercing shot goes through a drum or a crate too (a drum goes
+			# off), and the prop counts against its pierce like a machine.
+			obstacles += 1
+			_add_prop(state, props, c, amount)
+			if pierce_left <= 0:
+				break
+			pierce_left -= 1
+			continue
+		var occupant: GridUnit = state.unit_at(c.x, c.y)
+		if occupant == null or occupant == u:
+			continue
+		_add_hit(state, u, hits, c, amount, hits.is_empty(), true)
+		if pierce_left <= 0:
+			break
+		pierce_left -= 1
+	if int(weapon["chain"]) > 0:
+		_arc(state, u, hits, props, tiles, maxi(state.setup.min_damage, base - 1), int(weapon["chain"]))
+	return {"tiles": tiles, "hits": hits, "props": props, "end": end, "reaches": tiles.has(target),
+		"value": _shot_value(state, u, hits, props), "obstacles": obstacles}
+
+
+## Which of a shot's two leanings to fire. First, the one that gets to the hex aimed at (a
+## shot is aimed to get THERE: play-test 4 caught shots dying in a heap beside a clear path).
+## Then the one that does more for the side firing it (`_shot_value`). Then the one through
+## fewer obstacles: play-test 6 watched a rail beam plough through a crate wall with the other
+## side of the line open. A tie keeps the first (the +1 leaning), so the choice never varies.
+static func _better_shot(a: Dictionary, b: Dictionary) -> bool:
+	if bool(a["reaches"]) != bool(b["reaches"]):
+		return bool(a["reaches"])
+	if int(a["value"]) != int(b["value"]):
+		return int(a["value"]) > int(b["value"])
+	return int(a["obstacles"]) < int(b["obstacles"])
+
+
+## What a shot's hits are worth to the side firing it, on the scale the arc uses: damage and
+## kills on the other side; its own side counted against it twice over; a drum by what its
+## blast catches; a gate pylon by whose shield it is; a crate wall as a small cost -- an
+## obstacle the beam did not need.
+static func _shot_value(state: CombatState, u: GridUnit, hits: Array[Dictionary], props: Array[Dictionary]) -> int:
+	var value: int = 0
+	for hit: Dictionary in hits:
+		var t: GridUnit = state.unit(int(hit["ref"]))
+		var dmg: int = mini(int(hit["damage"]), t.hp)
+		var worth: int = dmg * 10 + (ARC_KILL if int(hit["damage"]) >= t.hp else 0)
+		value += worth if t.team != u.team else -2 * worth
+	for p: Dictionary in props:
+		var cell: Vector2i = p["cell"]
+		match String((state.props.get(cell, {}) as Dictionary).get("kind", "")):
+			"barrel":
+				value += _arc_prop_value(state, u, cell)
+			"pylon":
+				value += SHOT_PYLON if u.team == GridUnit.TEAM_PLAYER else -SHOT_PYLON
+			_:
+				value -= SHOT_CRATE
+	return value
 
 
 ## A coil arcs from the first thing it hits -- a machine or a prop -- into a neighbour,
