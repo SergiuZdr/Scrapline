@@ -1,78 +1,87 @@
 {
-  "_comment": "Active abilities granted by parts (a part's grid.ability names one of these). `free` abilities do not use the machine's action. `cooldown` is in rounds, counted from the round it was used.",
+  "_comment": "Active abilities granted by parts (a part's grid.ability names one of these). `free` abilities do not use the machine's action. `cooldown` is in rounds, counted from the round it was used. `short` is the effect in a few words, on the ability's card in the fight (016); `text` the whole of it, effect first -- whether it is free is said by the card, not by the text.",
   "charge": {
     "name": "Charge",
+    "short": "run 3, slam, shove",
     "kind": "charge",
     "cooldown": 3,
     "free": false,
     "range": 3,
     "damage": 3,
     "per_hex": 1,
-    "text": "Run up to 3 hexes in a straight line, even after moving, and slam into the first thing in the way: 3 damage, +1 for every hex run first (up to 5), and a shove."
+    "text": "Run up to 3 hexes in a straight line and slam into the first thing there: 3 damage, +1 for every hex run (up to 5), and a shove. Works after moving."
   },
   "grapple": {
     "name": "Grapple",
+    "short": "drag a unit to you",
     "kind": "grapple",
     "cooldown": 3,
     "free": false,
     "range": 3,
-    "text": "Hook any unit 2-3 hexes away that nothing blocks, and drag it next to you. Dragged over a pit, it falls. Anchored frames cannot be moved."
+    "text": "Hook a unit 2-3 hexes away in a clear line and drag it next to you. Dragged over a pit, it falls in. Anchored frames hold their ground."
   },
   "barricade": {
     "name": "Barricade",
+    "short": "drop a crate wall",
     "kind": "barricade",
     "cooldown": 3,
     "free": false,
     "hp": 3,
-    "text": "Drop a crate wall on an empty neighbouring hex. It blocks movement and shots until broken (3 HP)."
+    "text": "Drop a crate wall (3 HP) on an empty hex next to you. It blocks moves and shots until it breaks."
   },
   "focus": {
     "name": "Focus",
+    "short": "+2 on the next hit",
     "kind": "boost",
     "cooldown": 2,
     "free": true,
     "damage": 2,
     "heat": 0,
-    "text": "Free. Your next attack or Charge this turn deals +2."
+    "text": "Your next attack or Charge this turn deals +2."
   },
   "dash": {
     "name": "Dash",
+    "short": "move 2 more",
     "kind": "dash",
     "cooldown": 2,
     "free": true,
     "range": 2,
-    "text": "Free. Move again, up to 2 hexes, even after attacking."
+    "text": "Move again, up to 2 hexes -- even after attacking."
   },
   "overdrive": {
     "name": "Overdrive",
+    "short": "+2 damage, +2 heat",
     "kind": "boost",
     "cooldown": 3,
     "free": true,
     "damage": 2,
     "heat": 2,
-    "text": "Free. Your next attack or Charge this turn deals +2, for +2 heat."
+    "text": "Your next attack or Charge this turn deals +2, and costs 2 more heat."
   },
   "flush": {
     "name": "Flush",
+    "short": "heat to 0",
     "kind": "flush",
     "cooldown": 3,
     "free": true,
-    "text": "Free. Dump all heat."
+    "text": "Drop this machine's heat to 0."
   },
   "shield": {
     "name": "Shield",
+    "short": "-2 per hit, you and allies",
     "kind": "shield",
     "cooldown": 3,
     "free": false,
     "armor": 2,
-    "text": "This machine and every ally next to it take 2 less from each hit until your next turn."
+    "text": "This machine and every ally next to it take 2 less from each hit, until your next turn."
   },
   "magnet": {
     "name": "Magnet",
+    "short": "pull in a pile",
     "kind": "magnet",
     "cooldown": 2,
     "free": true,
     "range": 2,
-    "text": "Free. Collect a scrap pile up to 2 hexes away (scrap and 2 HP) without moving."
+    "text": "Pull in a scrap pile up to 2 hexes away -- its scrap and 2 HP -- without moving."
   }
 }

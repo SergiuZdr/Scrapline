@@ -79,7 +79,9 @@ func _ready() -> void:
 
 	var stage := PanelContainer.new()
 	stage.position = Vector2(40, 116)
-	stage.add_theme_stylebox_override("panel", UIKit.inset(Color("15120f"), UIKit.RADIUS_CARD, 0, 0))
+	var frame := UIKit.inset(Color("12151d"), 0, 0, 0)
+	frame.set_border_width_all(3)
+	stage.add_theme_stylebox_override("panel", frame)
 	add_child(stage)
 	_stage_root = stage
 	var view := SubViewportContainer.new()
@@ -148,58 +150,29 @@ func _build_stage(viewport: SubViewport) -> void:
 	# plated floor, a corrugated back wall, the service gantry and stacked scrap in the
 	# shadows, two work lamps overhead and dust hanging in their light. The night HDRI
 	# lights and reflects (art-sourcing.md, mode c); the camera never sees it.
+	# Ink & Rust (016): the fight's light in the bay -- a flat night, one hard key from the
+	# camera's left -- so a machine looks here exactly as it will on the board.
 	var env := WorldEnvironment.new()
-	var environment := Environment.new()
-	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color("0c0b0d")
-	var sky := Sky.new()
-	var panorama := PanoramaSkyMaterial.new()
-	panorama.panorama = load("res://art/thirdparty/polyhaven/hdris/dresden_station_night/dresden_station_night_1k.hdr")
-	panorama.energy_multiplier = 0.6
-	sky.sky_material = panorama
-	environment.sky = sky
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	environment.ambient_light_sky_contribution = 0.55
-	environment.ambient_light_energy = 0.7
-	environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
-	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	environment.tonemap_exposure = 1.1
-	environment.fog_enabled = true
-	environment.fog_light_color = Color("1e1a1c")
-	environment.fog_density = 0.02
-	environment.glow_enabled = true
-	environment.glow_intensity = 0.4
-	environment.glow_hdr_threshold = 1.0
-	env.environment = environment
+	env.environment = Ink.environment(Color("12151d"))
 	viewport.add_child(env)
-
-	var key := DirectionalLight3D.new()
-	key.rotation_degrees = Vector3(-42, 30, 0)
-	key.light_energy = 0.9
-	key.light_color = Color("ffd3a4")
-	key.shadow_enabled = true
-	viewport.add_child(key)
-	var fill := DirectionalLight3D.new()
-	fill.rotation_degrees = Vector3(-20, -140, 0)
-	fill.light_energy = 0.8
-	fill.light_color = Color("8aa3de")
-	viewport.add_child(fill)
+	viewport.add_child(Ink.key_light(Vector3(-34, -30, 0), 20.0))
 
 	var floor_plane := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(14, 10)
 	floor_plane.mesh = plane
-	floor_plane.material_override = Surfaces.pbr("metal_plate_02", Color(0.36, 0.35, 0.34), 1.2, 0.55, 0.9)
+	floor_plane.material_override = Ink.patterned(Color("20232b"), 2, Color("1a1d24"), 2.4, 0.22)
 	viewport.add_child(floor_plane)
 	var wall := MeshInstance3D.new()
 	var slab := BoxMesh.new()
 	slab.size = Vector3(14, 5, 0.2)
 	wall.mesh = slab
 	wall.position = Vector3(0, 2.4, -2.6)
-	wall.material_override = Surfaces.pbr("corrugated_iron_02", Color(0.42, 0.38, 0.34), 0.9, 0.4)
+	# Corrugated steel, drawn: vertical strokes on a dark wall.
+	wall.material_override = Ink.patterned(Color("262a33"), 2, Color("1d2028"), 3.0, 0.32)
 	viewport.add_child(wall)
 
-	# The lift the machine stands on: a steel hex with a lamp strip round its edge.
+	# The lift the machine stands on: a steel hex ringed with a lamp strip.
 	_floor = MeshInstance3D.new()
 	var lift := CylinderMesh.new()
 	lift.top_radius = 0.95
@@ -208,7 +181,8 @@ func _build_stage(viewport: SubViewport) -> void:
 	lift.radial_segments = 6
 	_floor.mesh = lift
 	_floor.position.y = 0.04
-	_floor.material_override = Surfaces.pbr("metal_plate_02", Color(0.5, 0.49, 0.47), 1.6, 0.6)
+	_floor.material_override = Ink.toon(Color("3d3e44"))
+	Ink.line(_floor, Ink.LINE_WORLD)
 	viewport.add_child(_floor)
 	var strip := MeshInstance3D.new()
 	var torus := TorusMesh.new()
@@ -219,9 +193,7 @@ func _build_stage(viewport: SubViewport) -> void:
 	strip.mesh = torus
 	strip.scale = Vector3(1, 0.25, 1)
 	strip.position.y = 0.08
-	var lamp_glow := StandardMaterial3D.new()
-	lamp_glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	lamp_glow.albedo_color = Color("ffc27a")
+	var lamp_glow: StandardMaterial3D = Ink.glow(Ink.PAPER, 0.6)
 	strip.material_override = lamp_glow
 	_floor.add_child(strip)
 
@@ -232,22 +204,18 @@ func _build_stage(viewport: SubViewport) -> void:
 			prop.position = dressing[1]
 			prop.rotation_degrees.y = float(dressing[2])
 			prop.scale = Vector3.ONE * float(dressing[3])
+			Ink.dress_scenery(prop, 0.4)
 			viewport.add_child(prop)
 
+	# Two work lamps overhead: lit shades, not lights (the toon ramp is drawn by the key).
 	for x: float in [-0.9, 0.9]:
-		var lamp := OmniLight3D.new()
-		lamp.light_color = Color("ffc27a")
-		lamp.light_energy = 1.3
-		lamp.omni_range = 3.5
-		lamp.position = Vector3(x, 2.4, 0.6)
-		viewport.add_child(lamp)
 		var shade := MeshInstance3D.new()
 		var cone := CylinderMesh.new()
 		cone.top_radius = 0.05
 		cone.bottom_radius = 0.16
 		cone.height = 0.12
 		shade.mesh = cone
-		shade.position = lamp.position + Vector3(0, 0.08, 0)
+		shade.position = Vector3(x, 2.48, 0.6)
 		shade.material_override = lamp_glow
 		viewport.add_child(shade)
 
@@ -273,7 +241,7 @@ func _build_stage(viewport: SubViewport) -> void:
 	# square -- which washed the whole bay out in blocky pale rectangles.
 	mote_material.billboard_keep_scale = true
 	mote_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mote_material.albedo_color = Color(1.0, 0.85, 0.6, 0.35)
+	mote_material.albedo_color = Color(0.94, 0.89, 0.78, 0.3)
 	mote.material = mote_material
 	dust.mesh = mote
 	dust.position = Vector3(0, 1.3, 0.2)
@@ -297,6 +265,7 @@ func _rebuild_model() -> void:
 	if _model != null:
 		_model.queue_free()
 	_model = ConstructView.build_parts(PackedStringArray(member["parts"]), Run.db, TEAM, int(member.get("level", 0)), selected + 1)
+	Ink.dress_machine(_model, PackedStringArray(member["parts"]), Ink.YOURS)
 	_pivot.add_child(_model)
 	# Framed by the machine's own height, so a squat anchor and a tall marksman both fill
 	# the stage; nudged right because the name sits over the left of it.
@@ -346,7 +315,7 @@ func _light(s: int, on: bool) -> void:
 	if part == null:
 		return
 	for mesh: MeshInstance3D in _part_meshes(part):
-		mesh.material_overlay = _glow if on else null
+		mesh.material_overlay = Ink.outline(Ink.LINE_ACT + 1.5, Ink.ACTION) if on else Ink.outline(Ink.LINE_MACHINE)
 	if s != 0:
 		# Stand the part proud of the frame while it is lit.
 		if not part.has_meta("rest_scale"):
@@ -395,7 +364,7 @@ func _rebuild() -> void:
 
 func _build_header() -> void:
 	var state: RunState = Run.state
-	_header.add_child(_label("GARAGE", UIKit.SIZE_DISPLAY, UIKit.TEXT, UIKit.font_display()))
+	_header.add_child(UIKit.on_page(_label("GARAGE", UIKit.SIZE_DISPLAY, UIKit.PAGE_TEXT, UIKit.font_display()), 10))
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(30, 0)
 	_header.add_child(gap)
@@ -405,8 +374,9 @@ func _build_header() -> void:
 		var text: String = String(member["name"]).to_upper() + ("  LV %d" % level if level > 0 else "")
 		if not bool(member["alive"]):
 			text += "  · WRECK"
-		var tab := _button(text, UIKit.choice() if i == selected else UIKit.secondary(),
-			UIKit.AMBER if i == selected else UIKit.TEXT, Vector2(220, 60))
+		# The amber BORDER marks the selection; the lettering stays ink (amber text does not
+		# read on paper).
+		var tab := _button(text, UIKit.choice() if i == selected else UIKit.secondary(), UIKit.TEXT, Vector2(220, 60))
 		tab.pressed.connect(_select.bind(i))
 		tab.set_drag_forwarding(Callable(), _can_drop_tab.bind(i), _drop_tab.bind(i))
 		_header.add_child(tab)
@@ -418,7 +388,7 @@ func _build_header() -> void:
 	words.tooltip_text = "Glossary"
 	words.pressed.connect(func() -> void: Glossary.open(self, Run.db.glossary))
 	_header.add_child(words)
-	_header.add_child(_label("SCRAP %d" % state.scrap, UIKit.SIZE_TITLE, UIKit.TEXT, UIKit.font_numbers()))
+	_header.add_child(UIKit.on_page(_label("SCRAP %d" % state.scrap, 30, UIKit.PAGE_TEXT, UIKit.font_comic()), 8))
 	var done := _button("BACK TO MAP", UIKit.primary(), UIKit.BG, Vector2(260, 64))
 	done.pressed.connect(func() -> void: closed.emit())
 	_header.add_child(done)
@@ -429,20 +399,21 @@ func _build_info() -> void:
 	var member: Dictionary = Run.state.crew[selected]
 	var alive: bool = bool(member["alive"])
 	var level: int = int(member.get("level", 0))
-	_info.add_child(_label(String(member["name"]).to_upper(), UIKit.SIZE_DISPLAY, UIKit.TEXT, UIKit.font_display()))
-	_info.add_child(_label(("LEVEL %d" % level) if alive else "WRECK: rebuild it at a workshop", UIKit.SIZE_HEADING,
-		UIKit.AMBER if alive else UIKit.RED, UIKit.font_strong()))
+	# Lettered over the bay's night (016): paper on an ink edge, each line its meaning's colour.
+	_info.add_child(_page(String(member["name"]).to_upper(), UIKit.SIZE_DISPLAY, UIKit.PAGE_TEXT, UIKit.font_display(), 10))
+	_info.add_child(_page(("LEVEL %d" % level) if alive else "WRECK: rebuild it at a workshop", 24,
+		Ink.ACTION if alive else Ink.DANGER, UIKit.font_comic()))
 	if alive:
 		var full: int = RunSim.max_hp(Run.setup, member)
-		_info.add_child(_label("%d / %d HP" % [int(member["hp"]), full], UIKit.SIZE_BODY, UIKit.TEXT_DIM, UIKit.font_numbers()))
+		_info.add_child(_page("%d / %d HP" % [int(member["hp"]), full], UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_comic()))
 		# What it is built into (011): its maker sets, then the perks its levels bought.
 		for line: String in PartText.set_lines(Run.db.parts, Run.db.makers, member["parts"]):
-			_info.add_child(_label(line, UIKit.SIZE_LABEL, UIKit.GREEN, UIKit.font_strong()))
+			_info.add_child(_page(line, UIKit.SIZE_LABEL, Ink.GAIN, UIKit.font_strong()))
 		var names: PackedStringArray = []
 		for id: Variant in (member.get("perks", []) as Array):
 			names.append(String((Run.db.perks.get(String(id), {}) as Dictionary).get("name", id)).to_upper())
 		if not names.is_empty():
-			_info.add_child(_label("  ·  ".join(names), UIKit.SIZE_LABEL, UIKit.TEXT, UIKit.font_strong()))
+			_info.add_child(_page("  ·  ".join(names), UIKit.SIZE_LABEL, UIKit.PAGE_TEXT, UIKit.font_strong()))
 	# LEVEL UP sits under the name, clear of the machine.
 	var foot := VBoxContainer.new()
 	foot.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -453,16 +424,16 @@ func _build_info() -> void:
 	var next: Dictionary = RunSim.next_level_bonus(Run.state, Run.setup, selected)
 	var gain: String = "next level: %s, and one perk of three" % PartText.bonus_text(next)
 	if cost < 0:
-		foot.add_child(_label("TOP LEVEL", UIKit.SIZE_HEADING, UIKit.GREEN, UIKit.font_strong()))
+		foot.add_child(_page("TOP LEVEL", UIKit.SIZE_HEADING, Ink.GAIN, UIKit.font_comic()))
 	elif Run.state.scrap >= cost:
 		var up := _button("LEVEL UP  ·  %d SCRAP" % cost, UIKit.choice(), UIKit.TEXT, Vector2(300, 52))
 		up.tooltip_text = "Overhaul %s (%s)" % [String(member["name"]), gain]
 		up.pressed.connect(_offer_perks)
 		foot.add_child(up)
-		foot.add_child(_label(gain, UIKit.SIZE_LABEL, UIKit.GREEN))
+		foot.add_child(_page(gain, UIKit.SIZE_LABEL, Ink.GAIN, UIKit.font_strong()))
 	else:
-		foot.add_child(_label("LEVEL UP  ·  %d SCRAP (you have %d)" % [cost, Run.state.scrap], UIKit.SIZE_BODY, UIKit.TEXT_FAINT, UIKit.font_strong()))
-		foot.add_child(_label(gain, UIKit.SIZE_LABEL, UIKit.TEXT_FAINT))
+		foot.add_child(_page("LEVEL UP  ·  %d SCRAP (you have %d)" % [cost, Run.state.scrap], UIKit.SIZE_BODY, Color("a9a192"), UIKit.font_comic()))
+		foot.add_child(_page(gain, UIKit.SIZE_LABEL, Color("a9a192"), UIKit.font_strong()))
 
 
 func _build_tabs() -> void:
@@ -470,8 +441,7 @@ func _build_tabs() -> void:
 	tabs.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	_right.add_child(tabs)
 	for name: String in ["PARTS", "STATS"]:
-		var tab := _button(name, UIKit.choice() if name == _tab else UIKit.secondary(),
-			UIKit.AMBER if name == _tab else UIKit.TEXT_DIM, Vector2(180, 48))
+		var tab := _button(name, UIKit.choice() if name == _tab else UIKit.secondary(), UIKit.TEXT, Vector2(180, 48))
 		tab.pressed.connect(func() -> void:
 			_tab = name
 			_rebuild())
@@ -518,7 +488,7 @@ func _socket(i: int, s: int, alive: bool) -> Control:
 	if not part.is_empty():
 		rarity = "  ·  " + PartCard.RARITY_NAMES[clampi(int((Run.db.parts.get(part, {}) as Dictionary).get("rarity", 1)), 1, 3) - 1]
 	text.add_child(_label("%s  ·  %s%s" % [SOCKET_NAMES[s], PartText.name_of(Run.db.parts, part) if not part.is_empty() else "EMPTY", rarity],
-		UIKit.SIZE_HEADING, PartText.rarity_colour(Run.db.parts, part).lightened(0.3) if not part.is_empty() else UIKit.RED, UIKit.font_strong()))
+		20, PartText.rarity_colour(Run.db.parts, part) if not part.is_empty() else UIKit.RED, UIKit.font_comic()))
 	var summary := _label(PartText.summary(Run.db.parts, part, Run.db.combat_abilities) if not part.is_empty()
 		else "Drag a %s here from the hold." % RunSetup.socket_slot(s), UIKit.SIZE_BODY, UIKit.TEXT_DIM)
 	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -547,11 +517,18 @@ func _build_stats() -> void:
 	var member: Dictionary = Run.state.crew[selected]
 	var u: GridUnit = RunSim.preview_machine(Run.setup, member)
 	var rules: Dictionary = Run.setup.combat_rules
+	# On a paper card (016): ink text needs paper under it.
+	var sheet := PanelContainer.new()
+	sheet.add_theme_stylebox_override("panel", UIKit.card(UIKit.SURFACE, 0, UIKit.SPACE_LG, UIKit.SPACE_MD))
+	_right.add_child(sheet)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	sheet.add_child(body)
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", UIKit.SPACE_XL)
 	grid.add_theme_constant_override("v_separation", UIKit.SPACE_XS)
-	_right.add_child(grid)
+	body.add_child(grid)
 	var armor_types: Array = rules.get("armor_types", [])
 	var damage_types: Array = rules.get("damage_types", [])
 	_stat(grid, "HEALTH", u.max_hp, 24, "%d" % u.max_hp)
@@ -563,7 +540,7 @@ func _build_stats() -> void:
 
 	# The lines below are rich text: every glossary word in them can be tapped (012).
 	var words: Dictionary = Run.db.glossary
-	_right.add_child(Glossary.label("ROLE  ·  %s%s" % [u.role.to_upper(), _role_note(u)], UIKit.SIZE_BODY, UIKit.TEXT, words, 1100,
+	body.add_child(Glossary.label("ROLE  ·  %s%s" % [u.role.to_upper(), _role_note(u)], UIKit.SIZE_BODY, UIKit.TEXT, words, 1060,
 		UIKit.font_strong()))
 	for w: Dictionary in u.weapons:
 		if bool(w["empty"]):
@@ -571,18 +548,18 @@ func _build_stats() -> void:
 		var shape: String = String(w["shape"])
 		var reach: String = "melee" if shape == "melee" else ("lob %d-%d" % [int(w["range_min"]), int(w["range"])] if shape == "lob" else "shot %d" % int(w["range"]))
 		var dmg: int = int(w["damage"]) + u.damage_bonus + (u.melee_bonus if shape == "melee" else 0)
-		_right.add_child(Glossary.label("%s  ·  %s  ·  %d damage  ·  +%d heat" % [String(w["name"]).to_upper(), reach, dmg,
-			CombatSim.attack_heat(u, w)], UIKit.SIZE_BODY, UIKit.AMBER.lightened(0.2), words, 1100))
+		body.add_child(Glossary.label("%s  ·  %s  ·  %d damage  ·  +%d heat" % [String(w["name"]).to_upper(), reach, dmg,
+			CombatSim.attack_heat(u, w)], UIKit.SIZE_BODY, UIKit.TEXT, words, 1060, UIKit.font_strong()))
 	for ability: Dictionary in u.abilities:
-		_right.add_child(Glossary.label("%s  ·  %s  ·  cooldown %d:  %s" % [String(ability["name"]).to_upper(),
+		body.add_child(Glossary.label("%s  ·  %s  ·  cooldown %d:  %s" % [String(ability["name"]).to_upper(),
 			"free" if bool(ability["free"]) else "uses the action", int(ability["cooldown"]), String(ability.get("text", ""))],
-			UIKit.SIZE_LABEL, UIKit.TEXT_DIM, words, 1100))
+			UIKit.SIZE_LABEL, UIKit.TEXT_DIM, words, 1060))
 	for id: Variant in (member.get("perks", []) as Array):
 		var perk: Dictionary = Run.db.perks.get(String(id), {})
-		_right.add_child(Glossary.label("PERK  ·  %s  ·  %s" % [String(perk.get("name", id)).to_upper(), String(perk.get("text", ""))],
-			UIKit.SIZE_LABEL, UIKit.GREEN.lightened(0.2), words, 1100))
+		body.add_child(Glossary.label("PERK  ·  %s  ·  %s" % [String(perk.get("name", id)).to_upper(), String(perk.get("text", ""))],
+			UIKit.SIZE_LABEL, UIKit.GREEN, words, 1060))
 	for line_text: String in PartText.set_lines(Run.db.parts, Run.db.makers, member["parts"]):
-		_right.add_child(Glossary.label("SET  ·  " + line_text, UIKit.SIZE_LABEL, UIKit.GREEN.lightened(0.2), words, 1100))
+		body.add_child(Glossary.label("SET  ·  " + line_text, UIKit.SIZE_LABEL, UIKit.GREEN, words, 1060))
 
 
 ## Who made a part, and how many of that maker's parts the machine carries: three pips that
@@ -641,8 +618,11 @@ func _stat(grid: GridContainer, name: String, value: int, top: int, text: String
 	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.max_value = top
 	bar.value = clampi(value, 0, top)
-	bar.add_theme_stylebox_override("background", UIKit.plain(UIKit.SURFACE_SUNK, 2))
-	bar.add_theme_stylebox_override("fill", UIKit.plain(UIKit.BLUE, 2))
+	var well := UIKit.plain(UIKit.SURFACE_SUNK, 0)
+	well.border_color = UIKit.HAIRLINE
+	well.set_border_width_all(2)
+	bar.add_theme_stylebox_override("background", well)
+	bar.add_theme_stylebox_override("fill", UIKit.plain(Ink.YOURS, 0))
 	row.add_child(bar)
 	row.add_child(_label(text, UIKit.SIZE_BODY, UIKit.TEXT, UIKit.font_numbers()))
 	grid.add_child(row)
@@ -653,24 +633,23 @@ func _stat(grid: GridContainer, name: String, value: int, top: int, text: String
 func _build_hold() -> void:
 	var state: RunState = Run.state
 	var news: bool = not _held.is_empty() or not _message.is_empty()
-	_status = _label(_message if _held.is_empty() and not _message.is_empty() else _status_text(),
-		UIKit.SIZE_BODY, UIKit.AMBER if news else UIKit.TEXT_DIM, UIKit.font_strong())
+	_status = _page(_message if _held.is_empty() and not _message.is_empty() else _status_text(),
+		UIKit.SIZE_BODY, Ink.ACTION if news else UIKit.PAGE_TEXT, UIKit.font_strong())
 	_message = ""
 	_bottom.add_child(_status)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	_bottom.add_child(head)
 	var over: bool = state.overfull()
-	head.add_child(_label("HOLD  %d / %d%s" % [state.cargo.size(), state.hold_size,
+	head.add_child(_page("HOLD  %d / %d%s" % [state.cargo.size(), state.hold_size,
 		"   OVER: fit or scrap %d before moving on" % (state.cargo.size() - state.hold_size) if over else ""],
-		UIKit.SIZE_HEADING, UIKit.RED if over else UIKit.TEXT, UIKit.font_strong()))
+		24, Ink.DANGER if over else UIKit.PAGE_TEXT, UIKit.font_comic()))
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(30, 0)
 	head.add_child(spacer)
-	head.add_child(_label("SORT", UIKit.SIZE_LABEL, UIKit.TEXT_FAINT, UIKit.font_strong()))
+	head.add_child(_page("SORT", UIKit.SIZE_LABEL, UIKit.PAGE_TEXT, UIKit.font_comic()))
 	for sort: String in SORTS:
-		var b := _button(sort, UIKit.choice() if sort == _sort else UIKit.secondary(),
-			UIKit.AMBER if sort == _sort else UIKit.TEXT_DIM, Vector2(120, 38))
+		var b := _button(sort, UIKit.choice() if sort == _sort else UIKit.secondary(), UIKit.TEXT, Vector2(120, 38))
 		b.add_theme_font_size_override("font_size", UIKit.SIZE_LABEL)
 		b.pressed.connect(func() -> void:
 			_sort = sort
@@ -736,12 +715,12 @@ func _scrap_bin() -> Control:
 	bin.custom_minimum_size = Vector2(240, HOLD_CARD.y + 30)
 	bin.focus_mode = Control.FOCUS_NONE
 	var armed: bool = not _held.is_empty()
-	var style := UIKit.inset(UIKit.RED.darkened(0.7) if armed else UIKit.SURFACE_SUNK, UIKit.RADIUS_CARD, UIKit.SPACE_MD, UIKit.SPACE_SM)
-	style.border_color = UIKit.RED if armed else UIKit.RED.darkened(0.2)
-	style.set_border_width_all(3 if armed else 2)
+	var style := UIKit.inset(Ink.DANGER if armed else UIKit.SURFACE_SUNK, 0, UIKit.SPACE_MD, UIKit.SPACE_SM)
+	style.border_color = UIKit.HAIRLINE if armed else UIKit.RED
+	style.set_border_width_all(4)
 	var hover: StyleBoxFlat = style.duplicate()
-	hover.bg_color = UIKit.RED.darkened(0.55)
-	hover.border_color = UIKit.RED.lightened(0.2)
+	hover.bg_color = Ink.DANGER.lightened(0.15)
+	hover.border_color = UIKit.HAIRLINE
 	for key: String in ["normal", "pressed", "focus", "disabled"]:
 		bin.add_theme_stylebox_override(key, style)
 	bin.add_theme_stylebox_override("hover", hover)
@@ -758,7 +737,7 @@ func _scrap_bin() -> Control:
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bin.add_child(box)
 	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_MD)
-	box.add_child(_label("SCRAP", UIKit.SIZE_DISPLAY, UIKit.RED, UIKit.font_display()))
+	box.add_child(_label("SCRAP", UIKit.SIZE_DISPLAY, UIKit.TEXT if armed else UIKit.RED, UIKit.font_display()))
 	var value: String = "Drop a part here, or pick one and click.\nCommon 3 · Uncommon 6 · Rare 10"
 	if armed:
 		value = "Click to break down %s for +%d scrap" % [PartText.name_of(Run.db.parts, _held_part()), RunSim.scrap_value(Run.setup, _held_part())]
@@ -808,10 +787,10 @@ func _offer_perks() -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	center.add_child(box)
-	box.add_child(_label("%s  ·  LEVEL %d" % [String(member["name"]).to_upper(), int(member.get("level", 0)) + 1],
-		UIKit.SIZE_DISPLAY, UIKit.TEXT, UIKit.font_display()))
-	box.add_child(_label("%s for %d scrap, and it keeps ONE of these for the rest of the run." % [PartText.bonus_text(next), cost],
-		UIKit.SIZE_BODY, UIKit.TEXT_DIM))
+	box.add_child(_page("%s  ·  LEVEL %d" % [String(member["name"]).to_upper(), int(member.get("level", 0)) + 1],
+		UIKit.SIZE_DISPLAY, UIKit.PAGE_TEXT, UIKit.font_display(), 10))
+	box.add_child(_page("%s for %d scrap, and it keeps ONE of these for the rest of the run." % [PartText.bonus_text(next), cost],
+		UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	box.add_child(row)
@@ -842,7 +821,7 @@ func _perk_card(k: int, id: String) -> Button:
 	inner.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	card.add_child(inner)
 	inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_LG)
-	inner.add_child(_label(String(perk.get("name", id)).to_upper(), UIKit.SIZE_TITLE, UIKit.TEXT, UIKit.font_strong()))
+	inner.add_child(_label(String(perk.get("name", id)).to_upper(), 28, UIKit.TEXT, UIKit.font_comic()))
 	var text := _label(String(perk.get("text", "")), UIKit.SIZE_BODY, UIKit.TEXT_DIM)
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.custom_minimum_size = Vector2(390, 0)
@@ -851,7 +830,7 @@ func _perk_card(k: int, id: String) -> Button:
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	inner.add_child(spacer)
-	inner.add_child(_label(PartText.bonus_text(perk.get("grid", {})).to_upper(), UIKit.SIZE_HEADING, UIKit.GREEN, UIKit.font_strong()))
+	inner.add_child(_label(PartText.bonus_text(perk.get("grid", {})).to_upper(), 22, UIKit.GREEN, UIKit.font_comic()))
 	card.pressed.connect(_level_up.bind(k))
 	return card
 
@@ -977,10 +956,10 @@ func _banner(level: int, gains: Dictionary, perk: String = "") -> void:
 	var banner := VBoxContainer.new()
 	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	banner.alignment = BoxContainer.ALIGNMENT_CENTER
-	var title := _label("LEVEL %d" % level, 96, UIKit.TEXT, UIKit.font_display())
+	var title := _label("LEVEL %d!" % level, 110, Ink.ACTION, UIKit.font_letters())
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
-	title.add_theme_constant_override("outline_size", 12)
+	title.add_theme_color_override("font_outline_color", UIKit.HAIRLINE)
+	title.add_theme_constant_override("outline_size", 24)
 	banner.add_child(title)
 	var bits: PackedStringArray = []
 	if int(gains.get("hp", 0)) > 0:
@@ -990,10 +969,10 @@ func _banner(level: int, gains: Dictionary, perk: String = "") -> void:
 	if not perk.is_empty():
 		bits.append(perk.to_upper())
 	bits.append("NEW ARMOUR")
-	var line := _label("  ·  ".join(bits), UIKit.SIZE_TITLE, UIKit.GREEN.lightened(0.15), UIKit.font_strong())
+	var line := _label("  ·  ".join(bits), 30, Ink.GAIN, UIKit.font_comic())
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	line.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
-	line.add_theme_constant_override("outline_size", 8)
+	line.add_theme_color_override("font_outline_color", UIKit.HAIRLINE)
+	line.add_theme_constant_override("outline_size", 12)
 	banner.add_child(line)
 	add_child(banner)
 	banner.size = Vector2(VIEW_SIZE.x, 200)
@@ -1133,13 +1112,14 @@ func _restyle_sockets() -> void:
 
 func _socket_style(i: int, s: int, hover: bool = false) -> StyleBoxFlat:
 	var fits: bool = not _held.is_empty() and _fits(_held, i, s)
-	var style := UIKit.inset(UIKit.SURFACE_HIGH if fits or hover else UIKit.SURFACE, UIKit.RADIUS_CONTROL, UIKit.SPACE_MD, UIKit.SPACE_SM)
+	var style := UIKit.inset(UIKit.SURFACE_HIGH if fits or hover else UIKit.SURFACE, 0, UIKit.SPACE_MD, UIKit.SPACE_SM)
+	style.set_border_width_all(3)
 	if fits or hover:
-		style.border_color = UIKit.AMBER
-		style.set_border_width_all(2)
+		style.border_color = UIKit.AMBER_DEEP
+		style.set_border_width_all(5)
 	elif _held == {"from": "socket", "crew": i, "socket": s}:
 		style.border_color = UIKit.BLUE
-		style.set_border_width_all(2)
+		style.set_border_width_all(5)
 	return style
 
 
@@ -1192,15 +1172,23 @@ func _label(text: String, font_size: int, colour: Color, face: Font = null) -> L
 	return label
 
 
+## A label lettered on the dark page or over the bay: paper (or a signal) on an ink edge.
+func _page(text: String, font_size: int, colour: Color, face: Font = null, outline: int = 6) -> Label:
+	var label := UIKit.on_page(_label(text, font_size, colour, face), outline)
+	label.add_theme_color_override("font_color", colour)
+	return label
+
+
 func _button(text: String, style: StyleBoxFlat, ink: Color, min_size: Vector2) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = min_size
 	button.focus_mode = Control.FOCUS_NONE
-	button.add_theme_font_override("font", UIKit.font_strong())
-	button.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
+	button.add_theme_font_override("font", UIKit.font_comic())
+	button.add_theme_font_size_override("font_size", 22)
 	for key: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		button.add_theme_color_override(key, ink)
-	for key: String in ["normal", "hover", "pressed", "focus"]:
+	for key: String in ["normal", "hover", "focus"]:
 		button.add_theme_stylebox_override(key, style)
+	button.add_theme_stylebox_override("pressed", UIKit.pressed(style))
 	return button

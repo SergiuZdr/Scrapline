@@ -35,11 +35,11 @@ func _ready() -> void:
 		_defaults.append((member["parts"] as Array).duplicate())
 
 	var story: Dictionary = Run.db.story.get("briefing", {})
-	var title := _label(String(story.get("bay", "THE ASSEMBLY BAY")), UIKit.SIZE_DISPLAY, UIKit.TEXT, UIKit.font_display())
+	var title := UIKit.on_page(_label(String(story.get("bay", "THE ASSEMBLY BAY")), UIKit.SIZE_DISPLAY, UIKit.PAGE_TEXT, UIKit.font_display()), 10)
 	title.position = Vector2(40, 20)
 	add_child(title)
-	var line := _label(String(story.get("bay_text", "")) + "  Basic parts as many as you like; one each of the Rend Saw, the Rail Lance and the Strider frame.",
-		UIKit.SIZE_BODY, UIKit.TEXT_DIM)
+	var line := UIKit.on_page(_label(String(story.get("bay_text", "")) + "  Basic parts as many as you like; one each of the Rend Saw, the Rail Lance and the Strider frame.",
+		UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()), 5)
 	line.position = Vector2(42, 84)
 	add_child(line)
 
@@ -48,7 +48,7 @@ func _ready() -> void:
 	_columns.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	add_child(_columns)
 	for i: int in _draft.size():
-		_portraits.append(MachinePortrait.new(Vector2i(int(COLUMN_WIDTH), 380), "full"))
+		_portraits.append(MachinePortrait.new(Vector2i(int(COLUMN_WIDTH), 380), "full", true))
 
 	var bar := HBoxContainer.new()
 	bar.position = Vector2(40, 1080 - 92)
@@ -103,7 +103,7 @@ func _column(i: int) -> Control:
 	box.add_child(margin)
 	var member := {"name": "", "parts": _draft[i], "alive": true, "hp": 0, "level": 0}
 	var unit: GridUnit = RunSim.preview_machine(Run.setup, member)
-	inner.add_child(_label("%s  ·  %d HP  ·  MOVE %d" % [_name_of(i), unit.max_hp, unit.move], UIKit.SIZE_HEADING, UIKit.TEXT, UIKit.font_strong()))
+	inner.add_child(_label("%s  ·  %d HP  ·  MOVE %d" % [_name_of(i), unit.max_hp, unit.move], 22, UIKit.TEXT, UIKit.font_comic()))
 	# Sets are a build decision from the first minute (011): two parts from one maker add up.
 	var sets: PackedStringArray = PartText.set_lines(Run.db.parts, Run.db.makers, _draft[i])
 	for line: String in sets:
@@ -127,7 +127,7 @@ func _socket_row(i: int, s: int) -> Control:
 	text.add_theme_constant_override("separation", 0)
 	row.add_child(text)
 	text.add_child(_label("%s  ·  %s" % [SOCKET_NAMES[s], PartText.name_of(Run.db.parts, part)], UIKit.SIZE_BODY,
-		PartText.rarity_colour(Run.db.parts, part).lightened(0.3), UIKit.font_strong()))
+		PartText.rarity_colour(Run.db.parts, part), UIKit.font_comic()))
 	var summary := _label("%s  ·  %s" % [PartText.maker_short(Run.db.makers, Run.db.parts, part),
 		PartText.summary(Run.db.parts, part, Run.db.combat_abilities)], UIKit.SIZE_LABEL, UIKit.TEXT_DIM)
 	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -235,10 +235,11 @@ func _button(text: String, style: StyleBoxFlat, ink: Color, min_size: Vector2) -
 	button.text = text
 	button.custom_minimum_size = min_size
 	button.focus_mode = Control.FOCUS_NONE
-	button.add_theme_font_override("font", UIKit.font_strong())
-	button.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
+	button.add_theme_font_override("font", UIKit.font_comic())
+	button.add_theme_font_size_override("font_size", 22)
 	for key: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		button.add_theme_color_override(key, ink)
-	for key: String in ["normal", "hover", "pressed", "focus"]:
+	for key: String in ["normal", "hover", "focus"]:
 		button.add_theme_stylebox_override(key, style)
+	button.add_theme_stylebox_override("pressed", UIKit.pressed(style))
 	return button

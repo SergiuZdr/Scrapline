@@ -7,6 +7,9 @@ extends RefCounted
 ## describes it through here, so a part cannot read as two different things on two screens.
 
 const THUMBS: String = "res://art/thumbs/%s.png"
+## Ink & Rust (016): thumbnails rendered by the game in the game's own look
+## (`tools/make_ink_thumbs.gd`); the Blender renders above are the fallback.
+const INK_THUMBS: String = "res://art/thumbs_ink/%s.png"
 static var _thumbs: Dictionary = {}
 
 
@@ -96,7 +99,9 @@ static func thumb(id: String) -> Texture2D:
 	if id.is_empty():
 		return null
 	if not _thumbs.has(id):
-		var path: String = THUMBS % id
+		var path: String = INK_THUMBS % id
+		if not ResourceLoader.exists(path):
+			path = THUMBS % id
 		_thumbs[id] = load(path) if ResourceLoader.exists(path) else null
 	return _thumbs[id]
 
