@@ -41,14 +41,22 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var content: ContentDB = ContentDB.load_all()
+	# `-- --dir res://art/parts_new` checks another set (017): every chassis that set HAS.
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	var dir: String = args[args.find("--dir") + 1] if args.has("--dir") else "res://art/parts"
+	var partial: bool = dir != "res://art/parts"
 	var chassis_ids: Array[String] = []
 	for part_id: String in content.parts:
 		if String((content.parts[part_id] as Dictionary).get("slot", "")) == "chassis" and not PartTuning.is_tuned(part_id):
-			chassis_ids.append(part_id)
+			if not partial or ResourceLoader.exists("%s/%s.glb" % [dir, part_id]):
+				chassis_ids.append(part_id)
 	chassis_ids.sort()
+	if partial:
+		print("  set %s: %s" % [dir, ", ".join(chassis_ids)])
+		_check("the set has a chassis", not chassis_ids.is_empty())
 
 	for chassis_id: String in chassis_ids:
-		var path: String = "res://art/parts/%s.glb" % chassis_id
+		var path: String = "%s/%s.glb" % [dir, chassis_id]
 		if not ResourceLoader.exists(path):
 			_check("%s has an exported mesh" % chassis_id, false)
 			continue
@@ -64,6 +72,14 @@ func _run() -> void:
 		# bug was mount sockets at y=0, which the socket check below catches directly.
 		_check("%s has a plausible standing height (%.2f m)" % [chassis_id, bounds.size.y],
 			bounds.size.y > 0.45)
+
+		# The rig walks by turning `limb_leg_l/r` about their origins: on the hips, off the floor.
+		for limb_name: String in ["limb_leg_l", "limb_leg_r"]:
+			var limb: Node3D = _find(model, limb_name)
+			_check("%s has %s" % [chassis_id, limb_name], limb != null)
+			if limb != null:
+				_check("%s %s pivots at a hip (y=%.2f)" % [chassis_id, limb_name, limb.global_transform.origin.y],
+					limb.global_transform.origin.y > MIN_MOUNT_HEIGHT)
 
 		for socket_name: String in ["socket_core", "socket_arm_l", "socket_arm_r",
 				"socket_module"]:

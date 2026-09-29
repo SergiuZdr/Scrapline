@@ -6,7 +6,9 @@ extends SceneTree
 ## prefers these, so a card pictures a part as the board draws it (CLAUDE.md: "a thumbnail must
 ## wear the same livery the game draws" -- rendering it in the game is the one way to be sure).
 ##
-##   godot --path . --script res://tools/make_ink_thumbs.gd [-- --only ar_saw]
+##   godot --path . --script res://tools/make_ink_thumbs.gd [-- --only ar_saw,ar_hammer]
+##   godot --path . --script res://tools/make_ink_thumbs.gd -- --models new --out res://art/thumbs_new \
+##       --only ch_brute,co_slug,ar_saw,ar_hammer        # the new set's pictures (017)
 ##
 ## Not headless: it has to render.
 
@@ -23,8 +25,9 @@ func _initialize() -> void:
 func _run() -> void:
 	var db: ContentDB = ContentDB.load_all()
 	var args: PackedStringArray = OS.get_cmdline_user_args()
-	var only: String = args[args.find("--only") + 1] if args.has("--only") else ""
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
+	var only: PackedStringArray = args[args.find("--only") + 1].split(",") if args.has("--only") else PackedStringArray()
+	var out: String = args[args.find("--out") + 1] if args.has("--out") else OUT
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out))
 	var viewport := SubViewport.new()
 	viewport.size = Vector2i(SIZE, SIZE)
 	viewport.own_world_3d = true
@@ -48,7 +51,7 @@ func _run() -> void:
 	var made: int = 0
 	for id: Variant in ids:
 		var part_id: String = String(id)
-		if PartTuning.is_tuned(part_id) or (not only.is_empty() and part_id != only):
+		if PartTuning.is_tuned(part_id) or (not only.is_empty() and not only.has(part_id)):
 			continue
 		var model: Node3D = ConstructView._instance(part_id)
 		if model == null:
@@ -67,10 +70,10 @@ func _run() -> void:
 		for i: int in 4:
 			await process_frame
 		var image: Image = viewport.get_texture().get_image()
-		image.save_png(ProjectSettings.globalize_path("%s/%s.png" % [OUT, part_id]))
+		image.save_png(ProjectSettings.globalize_path("%s/%s.png" % [out, part_id]))
 		pivot.queue_free()
 		made += 1
-	print("ink thumbs: %d written to %s" % [made, OUT])
+	print("ink thumbs: %d written to %s" % [made, out])
 	quit()
 
 
