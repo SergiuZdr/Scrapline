@@ -29,6 +29,11 @@ const ACT_END: int = 2
 const ACT_VENT: int = 3
 const ACT_ABILITY: int = 4
 
+## What an arc's route search (play-test 5) counts, besides damage x 10: a kill, and a crate
+## (a jump into a crate is better than none, worse than any real damage).
+const ARC_KILL: int = 60
+const ARC_CRATE: int = 2
+
 
 static func start(setup: CombatSetup) -> CombatState:
 	var state := CombatState.new()
@@ -105,6 +110,9 @@ static func reachable(state: CombatState, ref: int) -> Dictionary:
 static func paths_from(state: CombatState, u: GridUnit, budget: int) -> Dictionary:
 	var start := Vector2i(u.x, u.y)
 	var cost: Dictionary = {start: 0}
+	# Hexes walked, to break ties between routes of equal cost: the one with fewer hexes wins
+	# (play-test 5: a machine went round rubble when going through cost the same).
+	var steps: Dictionary = {start: 0}
 	var came_from: Dictionary = {start: start}
 	var open: Array[Vector2i] = [start]
 	var done: Dictionary = {}
@@ -125,9 +133,13 @@ static func paths_from(state: CombatState, u: GridUnit, budget: int) -> Dictiona
 			if occupant != null and occupant != u and occupant.team != u.team:
 				continue
 			var c: int = int(cost[cell]) + state.move_cost(n.x, n.y)
-			if c > budget or (cost.has(n) and int(cost[n]) <= c):
+			var walked: int = int(steps[cell]) + 1
+			if c > budget or done.has(n):
+				continue
+			if cost.has(n) and (int(cost[n]) < c or (int(cost[n]) == c and int(steps[n]) <= walked)):
 				continue
 			cost[n] = c
+			steps[n] = walked
 			came_from[n] = cell
 			open.append(n)
 	var result: Dictionary = {}
@@ -239,8 +251,13 @@ static func strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector2
 				if state.tile_blocks(c.x, c.y):
 					break
 				if state.props.has(c):
+					# Play-test 5: a piercing shot goes through a drum or a crate too (a drum
+					# goes off), and the prop counts against its pierce like a machine.
 					_add_prop(state, props, c, amount)
-					break
+					if pierce_left <= 0:
+						break
+					pierce_left -= 1
+					continue
 				var occupant: GridUnit = state.unit_at(c.x, c.y)
 				if occupant == null or occupant == u:
 					continue
@@ -259,9 +276,12 @@ static func strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector2
 
 
 ## A coil arcs from the first thing it hits -- a machine or a prop -- into a neighbour,
-## a point weaker, and on from there, `jumps` times. Each jump prefers an enemy machine,
-## then a fuel drum (which goes off), then a crate, then anyone. Play-test 3 expected the
-## arc to reach terrain; play-test 4 asked for it to reach two enemies.
+## a point weaker, and on from there, `jumps` times (play-test 3 wanted terrain, play-test 4
+## two enemies). Play-test 5: it takes the ROUTE that does the most. Every route is tried
+## (`_arc_search`): an enemy is worth the damage it takes, a drum the blast on the enemies
+## around it, a crate a little; the arc never jumps into its own side, and stops rather than
+## waste a jump. **Scrap heaps conduct**: an arc runs through a heap (no damage, no jump) to
+## whatever stands beyond it.
 static func _arc(state: CombatState, u: GridUnit, hits: Array[Dictionary], props: Array[Dictionary],
 		tiles: Array[Vector2i], amount: int, jumps: int) -> void:
 	var origin := Vector2i(-1, -1)
@@ -272,29 +292,75 @@ static func _arc(state: CombatState, u: GridUnit, hits: Array[Dictionary], props
 		origin = props[0]["cell"]
 	else:
 		return
-	for jump: int in jumps:
-		var best := Vector2i(-1, -1)
-		var best_rank: int = 99
-		for n: Vector2i in Hex.neighbors(origin):
-			if not state.inside(n) or n == Vector2i(u.x, u.y):
-				continue
-			var rank: int = 99
-			var other: GridUnit = state.unit_at(n.x, n.y)
-			if other != null and not _already_hit(hits, other.ref):
-				rank = 0 if other.team != u.team else 3
-			elif state.props.has(n) and not _prop_struck(props, n):
-				rank = 1 if String(state.props[n]["kind"]) == "barrel" else 2
-			if rank < best_rank:
-				best_rank = rank
-				best = n
-		if best_rank == 99:
-			return
-		tiles.append(best)
-		if best_rank == 1 or best_rank == 2:
-			_add_prop(state, props, best, amount)
+	var taken: Dictionary = {origin: true}
+	for hit: Dictionary in hits:
+		var t: GridUnit = state.unit(int(hit["ref"]))
+		taken[Vector2i(t.x, t.y)] = true
+	for p: Dictionary in props:
+		taken[p["cell"]] = true
+	var best: Dictionary = {"value": 0, "route": []}
+	_arc_search(state, u, origin, jumps, amount, taken, [], 0, best)
+	for cell: Vector2i in (best["route"] as Array):
+		tiles.append(cell)
+		if state.tile_blocks(cell.x, cell.y):
+			continue   # a heap the arc ran through
+		if state.props.has(cell):
+			_add_prop(state, props, cell, amount)
 		else:
-			_add_hit(state, u, hits, best, amount, false, false)
-		origin = best
+			_add_hit(state, u, hits, cell, amount, false, false)
+
+
+## Depth-first over every route the arc could take from `from`, keeping the best in `best`
+## (highest value; on a tie the shorter route, then the one found first -- neighbours are
+## visited in `Hex.neighbors` order, so the choice is always the same).
+static func _arc_search(state: CombatState, u: GridUnit, from: Vector2i, jumps: int, amount: int,
+		taken: Dictionary, route: Array, value: int, best: Dictionary) -> void:
+	if value > int(best["value"]) or (value == int(best["value"]) and value > 0 and route.size() < (best["route"] as Array).size()):
+		best["value"] = value
+		best["route"] = route.duplicate()
+	for n: Vector2i in Hex.neighbors(from):
+		if not state.inside(n) or taken.has(n) or n == Vector2i(u.x, u.y):
+			continue
+		var step: int = 0
+		var relay: bool = false
+		var other: GridUnit = state.unit_at(n.x, n.y)
+		if other != null:
+			if other.team == u.team:
+				continue   # never into its own side
+			if jumps <= 0:
+				continue
+			var dmg: int = mini(damage_to(state, u, other, amount, false), other.hp)
+			step = dmg * 10 + (ARC_KILL if dmg >= other.hp else 0)
+		elif state.props.has(n):
+			if jumps <= 0:
+				continue
+			step = _arc_prop_value(state, u, n) if String(state.props[n]["kind"]) == "barrel" else ARC_CRATE
+		elif state.tile_blocks(n.x, n.y):
+			relay = true
+		else:
+			continue
+		taken[n] = true
+		route.append(n)
+		_arc_search(state, u, n, jumps if relay else jumps - 1, amount, taken, route, value + step, best)
+		route.pop_back()
+		taken.erase(n)
+
+
+## What arcing into a drum is worth: its blast on every machine next to it (enemies for,
+## the arc's own side hard against).
+static func _arc_prop_value(state: CombatState, u: GridUnit, cell: Vector2i) -> int:
+	var blast: int = state.setup.barrel_damage
+	var value: int = 0
+	for n: Vector2i in Hex.neighbors(cell):
+		var other: GridUnit = state.unit_at(n.x, n.y) if state.inside(n) else null
+		if other == null:
+			continue
+		var dmg: int = mini(blast, other.hp)
+		if other.team == u.team:
+			value -= dmg * 20 + (ARC_KILL * 3 if dmg >= other.hp else 0)
+		else:
+			value += dmg * 10 + (ARC_KILL if dmg >= other.hp else 0)
+	return value
 
 
 ## The better of the two leanings of the hex line from `from` toward `to` (see `Hex.line`):
@@ -522,6 +588,11 @@ static func objective_status(state: CombatState) -> Dictionary:
 				state.piles_collected, status["need"]]
 		_:
 			status["text"] = "ROUT  ·  destroy every enemy"
+			# A fight with its own, shorter limit says so (014: the gate closes).
+			if state.setup.max_rounds < 20:
+				var left: int = state.setup.max_rounds - state.round_number + 1
+				status["text"] += "  ·  %d round%s left" % [left, "" if left == 1 else "s"]
+				status["rounds_left"] = left
 	return status
 
 
@@ -592,8 +663,12 @@ static func _execute_attack(state: CombatState, u: GridUnit, w: int, target: Vec
 		if victim.alive and primary and bool(weapon["mark"]):
 			victim.marked = true
 			state.emit(GridEv.MARKED, u.ref, victim.ref, victim.x, victim.y)
-		if victim.alive and primary and int(weapon["shove"]) > 0:
-			shove(state, u.ref, victim, Hex.direction(origin, Vector2i(victim.x, victim.y)))
+		if primary and int(weapon["shove"]) > 0:
+			var dir: int = Hex.direction(origin, Vector2i(victim.x, victim.y))
+			if victim.alive:
+				shove(state, u.ref, victim, dir)
+			else:
+				throw_wreck(state, u.ref, victim, dir)
 	for prop: Dictionary in (plan.get("props", []) as Array):
 		damage_prop(state, u.ref, prop["cell"], int(prop["damage"]))
 	u.boost_damage = 0
@@ -733,6 +808,44 @@ static func shove(state: CombatState, actor: int, target: GridUnit, dir: int) ->
 	target.x = n.x
 	target.y = n.y
 	state.emit(GridEv.SHOVED, actor, target.ref, n.x, n.y, from.x, from.y)
+
+
+## A shove that kills still throws the wreck (play-test 5), one hex along the shove. Into
+## anything solid it stops, and what it hits takes the bump: a machine takes it, a crate
+## cracks, a drum goes off. Into a pit, the wreck and the scrap it carried are gone. Onto open
+## ground it lands there, and its scrap pile goes with it.
+static func throw_wreck(state: CombatState, actor: int, target: GridUnit, dir: int) -> void:
+	if target.unshovable or target.objective:
+		return
+	var from := Vector2i(target.x, target.y)
+	var n: Vector2i = Hex.neighbor(from, dir)
+	var bump: int = state.setup.bump_damage
+	var carried: int = mini(state.setup.pile_value if target.carries_scrap else 0, int(state.piles.get(from, 0)))
+	var occupant: GridUnit = state.unit_at(n.x, n.y) if state.inside(n) else null
+	var packed: int = from.y * 64 + from.x
+	if not state.inside(n) or state.solid(n) or occupant != null:
+		state.emit(GridEv.WRECK_THROWN, actor, target.ref, n.x, n.y, packed, 0)
+		if occupant != null:
+			hurt(state, actor, occupant, bump)
+		else:
+			damage_prop(state, actor, n, bump)
+		return
+	state.emit(GridEv.WRECK_THROWN, actor, target.ref, n.x, n.y, packed, 1)
+	target.x = n.x
+	target.y = n.y
+	if carried > 0:
+		var left: int = int(state.piles[from]) - carried
+		if left > 0:
+			state.piles[from] = left
+		else:
+			state.piles.erase(from)
+		state.emit(GridEv.PILE_LOST, actor, target.ref, from.x, from.y, carried)
+	if state.is_pit(n):
+		state.emit(GridEv.FELL, actor, target.ref, n.x, n.y)
+		return
+	if carried > 0:
+		state.piles[n] = int(state.piles.get(n, 0)) + carried
+		state.emit(GridEv.PILE_DROPPED, actor, target.ref, n.x, n.y, carried)
 
 
 static func _end_turn(state: CombatState) -> void:

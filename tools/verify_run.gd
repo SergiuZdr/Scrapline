@@ -29,6 +29,7 @@ func _initialize() -> void:
 	_test_trader()
 	_test_tower()
 	_test_signals()
+	_test_recap_and_preview()
 	_test_assembly()
 	_test_refit()
 	_test_determinism_and_save()
@@ -538,6 +539,77 @@ func _test_signals() -> void:
 		seen[picked] = true
 		run.seen_events.append(picked)
 	_check("no signal repeats until every one has been met (%d of %d)" % [seen.size(), events.size()], seen.size() == events.size())
+
+
+## 014: the fight recap counts what the events say; the map preview says what a move does.
+func _test_recap_and_preview() -> void:
+	# A fight where the Strider (ranged, carrying Hot Loads) lands hits: the seed is searched,
+	# so the check cannot pass on a machine that never fought.
+	var recap: Dictionary = {}
+	var result: CombatState = null
+	for seed_value: int in range(21, 45):
+		var setup: RunSetup = _setup(seed_value)
+		var state: RunState = RunSim.start(setup)
+		state.crew[2]["perks"] = ["hot_loads"]
+		var site: int = RunSim.destinations(state)[0]
+		state.sites[site]["type"] = "skirmish"
+		RunSim.apply(state, setup, [RunSim.TRAVEL, site])
+		var combat: CombatSetup = RunSim.fight_setup(state, setup)
+		result = CombatSim.replay(combat, RunBot.play_fight(combat))
+		var crew: Array = []
+		for i: Variant in RunSim._fielded_crew(state):
+			crew.append(state.crew[int(i)])
+		recap = FightRecap.build(result, setup, crew)
+		if int(((recap["machines"] as Array)[2] as Dictionary)["dealt"]) > 0:
+			break
+	var dealt: Array = [0, 0, 0]
+	var kills: Array = [0, 0, 0]
+	for e: Array in result.events:
+		var actor: int = int(e[GridEv.F_ACTOR])
+		if actor < 0 or actor > 2:
+			continue
+		if int(e[GridEv.F_KIND]) == GridEv.DAMAGE and int(e[GridEv.F_TARGET]) >= 10:
+			dealt[actor] += int(e[GridEv.F_V1])
+		if int(e[GridEv.F_KIND]) == GridEv.DESTROYED and int(e[GridEv.F_TARGET]) >= 10:
+			kills[actor] += 1
+	var same: bool = (recap["machines"] as Array).size() == 3
+	for i: int in 3:
+		var m: Dictionary = (recap["machines"] as Array)[i]
+		same = same and int(m["dealt"]) == int(dealt[i]) and int(m["kills"]) == int(kills[i])
+	_check("the recap's damage and kills are the fight's own %s / %s" % [dealt, kills], same and int(dealt[2]) > 0)
+	var hot: Array = (recap["builds"] as Array).filter(func(b: Dictionary) -> bool: return String(b["what"]) == "Hot Loads")
+	var numbers: PackedStringArray = []
+	if not hot.is_empty():
+		numbers = String(hot[0]["text"]).replace("added ", "").replace(" damage over ", ",").replace(" hits", "").replace(" hit", "").split(",")
+	_check("Hot Loads (+1 damage) is credited once for every hit the Strider landed %s" % [hot],
+		numbers.size() == 2 and numbers[0] == numbers[1] and int(numbers[0]) > 0)
+
+	# The map's preview against what the move then does, over a bot's route.
+	var run: RunState = RunSim.start(_setup(22))
+	var run_setup: RunSetup = _setup(22)
+	run = RunSim.start(run_setup)
+	var honest: bool = true
+	var detail: String = ""
+	var guard: int = 0
+	while run.outcome == RunState.ONGOING and guard < 60:
+		guard += 1
+		var action: Array = RunBot.next_action(run, run_setup)
+		if int(action[0]) != RunSim.TRAVEL:
+			RunSim.apply(run, run_setup, action)
+			continue
+		var to: int = int(action[1])
+		var move: Dictionary = RunSim.move_preview(run, run_setup, to)
+		RunSim.apply(run, run_setup, action)
+		var ok: bool = run.front_col == int(move["front_after"])
+		for id: Variant in (move["lost"] as Array):
+			ok = ok and run.consumed(int(id)) and not bool(run.site(int(id))["visited"])
+		if String(run.pending.get("kind", "")) == "fight":
+			ok = ok and ((run.pending["fight"] as Dictionary).has("reclaimer") == bool(move["reach"]))
+			ok = ok and ((run.pending["fight"] as Dictionary)["enemy"] as Array).size() == int(move["enemies"])
+		if not ok:
+			honest = false
+			detail = "move %d to %d: %s" % [run.moves, to, move]
+	_check("every map preview told the truth about its move %s" % detail, honest and guard > 5)
 
 
 ## Play-test 4: the crew is built from a bench at the start of a run.

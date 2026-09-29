@@ -362,6 +362,34 @@ static func _start_fight(state: RunState, setup: RunSetup, to: int, kind: String
 	state.pending = {"kind": "fight", "site_type": kind, "fight": fight}
 
 
+## What a move to `to` costs and gives up (014, review point R5-3): whether the Reclaimer
+## advances with it and the column it takes, the unvisited sites it swallows there for good,
+## whether its drones would reach into a fight at `to`, and for a fight how many enemies.
+static func move_preview(state: RunState, setup: RunSetup, to: int) -> Dictionary:
+	var front: Dictionary = setup.rules.get("front", {})
+	var advances: bool = (state.moves + 1) % maxi(1, int(front.get("every", 2))) == 0
+	var front_after: int = state.front_col + (1 if advances else 0)
+	var site: Dictionary = state.site(to)
+	var lost: Array = []
+	if advances:
+		for s: Dictionary in state.sites:
+			if int(s["col"]) == front_after and not bool(s["visited"]) and int(s["id"]) != to:
+				lost.append(int(s["id"]))
+	var kind: String = String(site.get("type", ""))
+	var enemies: int = 0
+	if FIGHT_TYPES.has(kind):
+		var rules: Dictionary = setup.rules.get("enemies", {})
+		var counts: Array = rules.get("count_by_column", [3])
+		enemies = int(counts[mini(int(site["col"]), counts.size() - 1)])
+		if kind == "elite":
+			enemies += int(rules.get("elite_extra", 1))
+		elif kind == "boss":
+			enemies = 1 + int(rules.get("boss_escorts", 3))
+	return {"advances": advances, "front_after": front_after, "lost": lost, "enemies": enemies,
+		"reach": FIGHT_TYPES.has(kind) and int(site.get("col", -9)) == front_after + 1,
+		"leaving_costs": state.consumed(state.current)}
+
+
 ## Whether a fight at `id` would have the Reclaimer's drones: it stands in the column the
 ## Reclaimer takes next.
 static func reclaimer_reaches(state: RunState, id: int) -> bool:
@@ -1002,6 +1030,8 @@ static func _make_gate_fight(state: RunState, setup: RunSetup, site_id: int, tem
 	var enemies_rules: Dictionary = setup.rules.get("enemies", {})
 	var fight: Dictionary = {"id": "run_site_%d" % site_id, "name": String(template.get("name", "")),
 		"rows": (template["rows"] as Array).duplicate(), "objective": {"type": "rout"}}
+	if template.has("max_rounds"):
+		fight["max_rounds"] = int(template["max_rounds"])
 	var player: Array = []
 	var slots: Array = template.get("player", [])
 	var fielded: Array = _fielded_crew(state)

@@ -25,6 +25,9 @@ const SQRT3: float = 1.7320508
 const COL_PLAYER := Color("4fa8d8")
 const COL_ENEMY := Color("d8654f")
 const COL_MOVE := Color(0.38, 0.70, 0.87, 0.42)
+## A hex in range that costs 2 to enter (rubble, a ridge): the same blue, dimmer, so a route
+## that goes round it reads as a choice (play-test 5).
+const COL_MOVE_SLOW := Color(0.30, 0.52, 0.66, 0.26)
 const COL_ATTACK := Color(0.90, 0.70, 0.24, 0.55)
 const COL_TARGET := Color(0.95, 0.78, 0.30, 0.85)
 const COL_ATTACK_FAINT := Color(0.90, 0.70, 0.24, 0.22)
@@ -68,6 +71,8 @@ var _fight_id: String = "proto_yard"
 var _coach: Control
 ## The coach's marker on the board: a ring and a bobbing chevron in the colour of your action.
 var _coach_marker: Node3D
+## The route the picked machine would walk to the hovered hex (dots), rebuilt on hover.
+var _path_root: Node3D
 var _seed: int = 2026
 var _bot: bool = false
 ## The fight belongs to the live run (`Run`): read from it, saved into it, reported to it.
@@ -257,6 +262,32 @@ func _finish_tutorial(to_run: bool) -> void:
 		get_tree().change_scene_to_file("res://scenes/run_map.tscn")
 	else:
 		get_tree().change_scene_to_file("res://scenes/main.tscn")
+
+
+## The fight recap (014, review point R5-1): what each machine did, and what its build added
+## -- counted by `FightRecap` from the fight's own events.
+func _recap_text() -> String:
+	var crew: Array = []
+	for index: Variant in RunSim._fielded_crew(Run.state):
+		crew.append(Run.state.crew[int(index)])
+	var recap: Dictionary = FightRecap.build(_state, Run.setup, crew)
+	var lines: PackedStringArray = []
+	for m: Dictionary in (recap["machines"] as Array):
+		var bits: PackedStringArray = ["%d dealt" % int(m["dealt"]), "%d taken" % int(m["taken"])]
+		if int(m["kills"]) > 0:
+			bits.append("%d kill%s" % [int(m["kills"]), "" if int(m["kills"]) == 1 else "s"])
+		if int(m["torn"]) > 0:
+			bits.append("%d arm%s torn, bolted back on" % [int(m["torn"]), "" if int(m["torn"]) == 1 else "s"])
+		if bool(m["wrecked"]):
+			bits.append("WRECKED")
+		lines.append("%s  ·  %s" % [String(m["name"]).to_upper(), "  ·  ".join(bits)])
+	var builds: Array = recap["builds"]
+	if not builds.is_empty():
+		lines.append("")
+		lines.append("YOUR BUILD AT WORK")
+		for b: Dictionary in builds:
+			lines.append("%s  ·  %s: %s" % [String(b["who"]).to_upper(), String(b["what"]), String(b["text"])])
+	return "\n".join(lines)
 
 
 ## Hands the finished fight's action log to the run, which replays it for itself.
@@ -1053,6 +1084,13 @@ func _animate(e: Array) -> void:
 			await _wait(0.18)
 		GridEv.SHOVED:
 			await _shoved(actor, target, cell)
+		GridEv.WRECK_THROWN:
+			var packed: int = int(e[GridEv.F_V1])
+			await _wreck_flight(Vector2i(packed % 64, packed / 64), cell, int(e[GridEv.F_V2]) == 1)
+		GridEv.PILE_LOST:
+			_remove_pile(cell)
+			if _state.piles.has(cell):
+				_spawn_pile(cell)
 		GridEv.BUMP:
 			_float_text(_unit_pos(target) + Vector3(0, 2.2, 0), "BUMP", UIKit.GOLD)
 			_vfx.shake(0.25)
@@ -1271,6 +1309,36 @@ func _shoved(actor: int, target: int, cell: Vector2i) -> void:
 	await tween.finished
 
 
+## A killing shove's wreck (play-test 5): a chunk of the machine flies one hex along the
+## shove -- and lands, or slams into whatever stands there.
+func _wreck_flight(from: Vector2i, to: Vector2i, landed: bool) -> void:
+	var start: Vector3 = _to_world(from.x, from.y) + Vector3(0, _tile_top(from.x, from.y) + 0.4, 0)
+	var goal: Vector3 = _to_world(to.x, to.y) + Vector3(0, 0.4, 0)
+	if not landed:
+		goal = start.lerp(goal, 0.62)
+	var chunk := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.42, 0.3, 0.36)
+	chunk.mesh = box
+	chunk.material_override = _material(Color("3a3430"), 0.8, 0.4)
+	chunk.position = start
+	_units_root.add_child(chunk)
+	var fly := create_tween().set_parallel(true)
+	fly.tween_method(func(k: float) -> void:
+		chunk.position = start.lerp(goal, k) + Vector3(0, sin(k * PI) * 0.7, 0), 0.0, 1.0, 0.22)
+	fly.tween_property(chunk, "rotation", Vector3(2.4, 1.2, 0.6), 0.22)
+	await fly.finished
+	if not landed:
+		_float_text(goal + Vector3(0, 1.6, 0), "SLAM", UIKit.GOLD)
+		_vfx.sparks(goal, Color("ffb070"), 14, 0.8)
+		_vfx.shake(0.3)
+		Audio.play("hit_heavy", -6.0)
+	var fade := create_tween()
+	fade.tween_interval(0.25)
+	fade.tween_callback(chunk.queue_free)
+	await _wait(0.12)
+
+
 func _torn(ref: int, w: int) -> void:
 	if not _views.has(ref):
 		return
@@ -1407,6 +1475,8 @@ func _after_events() -> void:
 			body += "\n%d of %d caches saved" % [int(status["caches"]), int(status["caches_total"])]
 		if _state.outcome != CombatState.WON and not _state.crew(GridUnit.TEAM_PLAYER).is_empty():
 			body += "\nThe objective failed, but the crew made it out. No salvage from this one."
+		if _run_mode:
+			body += "\n\n" + _recap_text()
 		_hud.show_result(_state.outcome == CombatState.WON, body, _run_mode)
 		return
 	if _selected < 0 or not _unit_has_moves(_selected):
@@ -1423,6 +1493,10 @@ func _after_events() -> void:
 
 func _refresh() -> void:
 	_clear_marks()
+	if _path_root != null:
+		for child: Node in _path_root.get_children():
+			child.queue_free()
+		_path_root.set_meta("route", "")
 	var threats: Dictionary = CombatSim.threats(_state)
 	for ref: Variant in threats:
 		var threat: Dictionary = threats[ref]
@@ -1470,7 +1544,8 @@ func _refresh() -> void:
 					_mark(_hint_quads, aim, COL_TARGET if occupied else COL_ATTACK_FAINT)
 		if not _armed:
 			for cell: Variant in CombatSim.reachable(_state, _selected):
-				_mark(_hint_quads, cell, COL_MOVE)
+				var at: Vector2i = cell
+				_mark(_hint_quads, at, COL_MOVE_SLOW if _state.move_cost(at.x, at.y) > 1 else COL_MOVE)
 	_refresh_hud(threats)
 	if _coach != null:
 		_coach.refresh()
@@ -1660,7 +1735,10 @@ func _weapon_detail(u: GridUnit, w: int) -> String:
 		"lob":
 			bits.append("lob %d-%d" % [int(weapon["range_min"]), CombatSim.weapon_reach(_state, u, w)])
 	bits.append("%d dmg" % dmg)
-	for key: String in ["pierce", "splash", "shove", "chain"]:
+	for key: String in ["pierce", "chain"]:
+		if int(weapon[key]) > 0:
+			bits.append("%s %d" % [key, int(weapon[key])])
+	for key: String in ["splash", "shove"]:
 		if int(weapon[key]) > 0:
 			bits.append(key)
 	if bool(weapon["mark"]):
@@ -1908,6 +1986,9 @@ func _toggle_lines() -> void:
 # --- Input ------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		_hover_path((event as InputEventMouseMotion).position)
+		return
 	if event is InputEventMouseButton and event.pressed:
 		var mouse := event as InputEventMouseButton
 		if mouse.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -1938,6 +2019,41 @@ func _unhandled_input(event: InputEvent) -> void:
 				_rotate(-1)
 			KEY_E:
 				_rotate(1)
+
+
+## Hovering a hex the picked machine can walk to draws the route it will take (play-test 5:
+## "they go around the scrap" -- the route should never be a surprise). Mouse only; on touch
+## the walk itself shows it.
+func _hover_path(screen: Vector2) -> void:
+	var cell: Variant = null
+	if not _busy and not _armed and _selected >= 0 and _state != null and _state.outcome == CombatState.ONGOING:
+		cell = _pick(screen)
+	var route: Array = []
+	if cell != null:
+		route = CombatSim.reachable(_state, _selected).get(cell, [])
+	var key: String = str(route)
+	if _path_root != null and String(_path_root.get_meta("route", "")) == key:
+		return
+	if _path_root == null:
+		_path_root = Node3D.new()
+		add_child(_path_root)
+	for child: Node in _path_root.get_children():
+		child.queue_free()
+	_path_root.set_meta("route", key)
+	for i: int in route.size():
+		var step: Vector2i = route[i]
+		var dot := MeshInstance3D.new()
+		var disc := CylinderMesh.new()
+		disc.top_radius = 0.1 if i < route.size() - 1 else 0.17
+		disc.bottom_radius = disc.top_radius
+		disc.height = 0.02
+		dot.mesh = disc
+		var glow := StandardMaterial3D.new()
+		glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		glow.albedo_color = COL_PLAYER.lightened(0.35)
+		dot.material_override = glow
+		dot.position = _to_world(step.x, step.y) + Vector3(0, _tile_top(step.x, step.y) + 0.06, 0)
+		_path_root.add_child(dot)
 
 
 func _set_zoom(value: float) -> void:
@@ -2197,7 +2313,7 @@ func _act(action: Array) -> void:
 func _undo() -> void:
 	if _busy or _bot or _actions.size() <= _turn_start:
 		return
-	_actions.pop_back()
+	var undone: Array = _actions.pop_back()
 	_record()
 	_state = CombatSim.replay(_setup, _actions)
 	_shown = _state.events.size()
@@ -2205,7 +2321,24 @@ func _undo() -> void:
 	_armed = false
 	_ability = -1
 	_spawn_units()
-	_weapon = _default_weapon(_selected, _weapon)
+	# Play-test 5: UNDO goes back to the machine whose action it took back -- never to the
+	# next one the game picked for you, nor to none. An undone attack is armed again, ready to
+	# aim; an undone targeted ability too.
+	var ref: int = int(undone[1]) if undone.size() > 1 else -1
+	var who: GridUnit = _state.unit(ref) if ref >= 0 else null
+	if who != null and who.alive and who.team == GridUnit.TEAM_PLAYER and not who.objective:
+		_selected = ref
+		match int(undone[0]):
+			CombatSim.ACT_ATTACK:
+				_weapon = int(undone[2])
+				_armed = who.can_fire(_weapon)
+			CombatSim.ACT_ABILITY:
+				var i: int = int(undone[2])
+				if i >= 0 and i < who.abilities.size() and CombatAbilities.needs_target(who.abilities[i]):
+					_ability = i
+					_armed = true
+	if not _armed:
+		_weapon = _default_weapon(_selected, _weapon)
 	Audio.play("ui_deny", -14.0)
 	_refresh()
 
