@@ -1,0 +1,25 @@
+{
+  "id": "decision",
+  "name": "The Decision",
+  "_comment": "015: the style frame's staged moment (docs/plans/art-direction-options.md, 'the one scene to prototype'). NOT content: it lives in tools/ so runs never draw it and the content hash never sees it. Loaded with `combat.tscn -- --fight-file res://tools/frames/decision.json`; tools/shot_frame.sh photographs it. After the enemies' opening moves the Strider shoots the runner on (0,3) (its wreck leaves the pile), then the Brute arms the Breaker Hammer on the Reaper: the kill, the wreck thrown into the drum, the blast that finishes the runner beside it.",
+  "rows": [
+    "......",
+    ".s....",
+    "...b..",
+    "....o.",
+    "...r..",
+    "......"
+  ],
+  "player": [
+    {"name": "Brute", "parts": ["ch_brute", "co_slug", "ar_saw", "ar_hammer", "mo_scavenger"], "x": 2, "y": 4},
+    {"name": "Hauler", "parts": ["ch_hauler", "co_furnace", "ar_pulse", "ar_lance", "mo_ablative"], "x": 4, "y": 5},
+    {"name": "Strider", "parts": ["ch_strider", "co_arc", "ar_scanner", "ar_scatter", "mo_governor"], "x": 0, "y": 5}
+  ],
+  "enemy": [
+    {"name": "Reaper", "parts": ["ch_reaper", "co_bile", "ar_ripper", "ar_saw", "mo_bypass"], "x": 2, "y": 3, "hp": 4, "carries": true},
+    {"name": "Yard Runner", "parts": ["ch_courier", "co_ember", "ar_pulse", "ar_scatter", "mo_servo"], "x": 4, "y": 2, "hp": 2, "carries": true},
+    {"name": "Lancer", "parts": ["ch_lancer", "co_dynamo", "ar_scanner", "ar_lance", "mo_targeting"], "x": 5, "y": 1, "carries": false},
+    {"name": "Yard Runner", "parts": ["ch_courier", "co_ember", "ar_pulse", "ar_scatter", "mo_servo"], "x": 0, "y": 1, "hp": 1, "carries": true}
+  ],
+  "objective": {"type": "rout"}
+}

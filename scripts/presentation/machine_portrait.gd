@@ -15,10 +15,14 @@ var _key: String = ""
 ## "portrait": head and shoulders (the crew dock). "full": the whole machine, feet to
 ## antenna (the assembly bay, where the whole build is the point).
 var framing: String = "portrait"
+## Ink & Rust (015): drawn like the fight -- toon zones, ink lines, one hard key -- for the
+## combat HUD's cards. The map and the bay keep the old look until the frame is approved.
+var ink: bool = false
 
 
-func _init(size: Vector2i = Vector2i(112, 112), frame: String = "portrait") -> void:
+func _init(size: Vector2i = Vector2i(112, 112), frame: String = "portrait", inked: bool = false) -> void:
 	framing = frame
+	ink = inked
 	stretch = true
 	custom_minimum_size = Vector2(size)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -33,21 +37,28 @@ func _init(size: Vector2i = Vector2i(112, 112), frame: String = "portrait") -> v
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_CLEAR_COLOR
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color("3a4258")
-	environment.ambient_light_energy = 0.9
-	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	if ink:
+		# The fight's light: a flat night ambient under one key from the camera's left.
+		environment.ambient_light_color = Color("6b7390")
+		environment.ambient_light_energy = 1.0
+		environment.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	else:
+		environment.ambient_light_color = Color("3a4258")
+		environment.ambient_light_energy = 0.9
+		environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.environment = environment
 	_viewport.add_child(env)
 	var key := DirectionalLight3D.new()
-	key.rotation_degrees = Vector3(-35, 35, 0)
-	key.light_energy = 1.3
-	key.light_color = Color("ffd3a4")
+	key.rotation_degrees = Vector3(-35, 35, 0) if not ink else Vector3(-32, -20, 0)
+	key.light_energy = 1.3 if not ink else 1.0
+	key.light_color = Color("ffd3a4") if not ink else Color("fff0da")
 	_viewport.add_child(key)
-	var rim := DirectionalLight3D.new()
-	rim.rotation_degrees = Vector3(-15, -150, 0)
-	rim.light_energy = 1.1
-	rim.light_color = Color("8aa3de")
-	_viewport.add_child(rim)
+	if not ink:
+		var rim := DirectionalLight3D.new()
+		rim.rotation_degrees = Vector3(-15, -150, 0)
+		rim.light_energy = 1.1
+		rim.light_color = Color("8aa3de")
+		_viewport.add_child(rim)
 	_pivot = Node3D.new()
 	_pivot.rotation.y = 0.55
 	_viewport.add_child(_pivot)
@@ -69,6 +80,8 @@ func show_machine(parts: Array, level: int, alive: bool = true, number: int = -1
 	# display class that names an autoload cannot be compiled by a `--script` tool (012 found
 	# this one through CombatHUD).
 	var model: Node3D = ConstructView.build_parts(PackedStringArray(parts), null, Color("4fa8d8"), level, number)
+	if ink and not parts.is_empty():
+		Ink.dress_machine(model, PackedStringArray(parts), Ink.YOURS)
 	_pivot.add_child(model)
 	var h: float = ConstructView.height_of(model)
 	# Head and shoulders, the way a crew photo is framed: the top two thirds of the machine.

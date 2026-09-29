@@ -15,6 +15,8 @@ extends Node3D
 ##   --seed <n>     tie-break seed
 ##   --bot          the player's turns are played by `CombatBot`, for demos and screenshots
 ##   --reclaimer    the Reclaimer's drones reach into this practice fight (arriving round 2)
+##   --fight-file <res://path.json>   a fight from a file outside the content (a staged
+##                  screenshot like `tools/frames/decision.json`: never in a run or the hash)
 ##
 ## `scenes/shakedown.tscn` is this scene with `tutorial` on (012): the shakedown fight from
 ## `data/tutorial.json`, with the coach (`coach.gd`) over it.
@@ -22,23 +24,46 @@ extends Node3D
 ## Centre-to-corner size of a hex, in metres. Pointy-top: a hex is sqrt(3) * HEX wide.
 const HEX: float = 0.78
 const SQRT3: float = 1.7320508
-const COL_PLAYER := Color("4fa8d8")
-const COL_ENEMY := Color("d8654f")
-const COL_MOVE := Color(0.38, 0.70, 0.87, 0.42)
-## A hex in range that costs 2 to enter (rubble, a ridge): the same blue, dimmer, so a route
-## that goes round it reads as a choice (play-test 5).
-const COL_MOVE_SLOW := Color(0.30, 0.52, 0.66, 0.26)
-const COL_ATTACK := Color(0.90, 0.70, 0.24, 0.55)
-const COL_TARGET := Color(0.95, 0.78, 0.30, 0.85)
-const COL_ATTACK_FAINT := Color(0.90, 0.70, 0.24, 0.22)
-const COL_SPAWN := Color(0.62, 0.36, 0.86, 0.55)
+## Ink & Rust (015): the signals are `Ink`'s. Each mark colour below also names a STYLE of
+## mark (`MARK_STYLES`): the hatching and the border carry the read, so it survives grey.
+const COL_PLAYER := Ink.YOURS
+const COL_ENEMY := Ink.DANGER
+const COL_MOVE := Color("33c8e0")
+## A hex in range that costs 2 to enter (rubble, a ridge): the same blue, fainter hatching and
+## a broken border, so a route that goes round it reads as a choice (play-test 5).
+const COL_MOVE_SLOW := Color("33c8e0c0")
+const COL_ATTACK := Color("ffc43d80")
+const COL_TARGET := Color("ffc43d")
+const COL_ATTACK_FAINT := Color("ffc43d40")
+const COL_SPAWN := Color("a070e0")
 ## A hive pad, and the same pad the turn before it builds (play-test 4: warn a turn ahead).
 const COL_PAD := Color("a070e0")
 const COL_PAD_DANGER := Color("ff3b30")
-const COL_THREAT := Color(0.86, 0.30, 0.20, 0.50)
+const COL_THREAT := Color("ff3b30c0")
 ## A defend cache is YOURS to protect, so it wears your colour (docs/plans/art-and-audio.md:
 ## amber means "your action", and a cache is not one).
-const COL_CACHE := Color("4fa8d8")
+const COL_CACHE := Ink.YOURS
+## What an aimed shot sets off (015): a drum's blast, drawn on every hex it will reach.
+const COL_BLAST := Color("ffc43d30")
+## How each mark is drawn: [hatch alpha, hatch width, wash alpha, border, dashes (0 = solid),
+## hatch direction]. The direction carries the meaning in grey: one diagonal for where you can
+## go, the other for what will be hit, crossed for what you aim at (the grey copy of the first
+## frame could not tell a move hex from a threatened one without its badge).
+const MARK_STYLES: Dictionary = {
+	COL_MOVE: [0.55, 0.30, 0.10, 0.09, 0.0, 1.0],
+	COL_MOVE_SLOW: [0.32, 0.14, 0.04, 0.07, 12.0, 1.0],
+	COL_ATTACK: [0.35, 0.20, 0.06, 0.08, 0.0, 0.0],
+	COL_TARGET: [0.62, 0.24, 0.16, 0.12, 0.0, 0.0],
+	COL_ATTACK_FAINT: [0.0, 0.0, 0.0, 0.06, 12.0, 0.0],
+	COL_SPAWN: [0.50, 0.30, 0.12, 0.09, 0.0, -1.0],
+	COL_THREAT: [0.62, 0.30, 0.16, 0.10, 0.0, -1.0],
+	COL_BLAST: [0.22, 0.12, 0.05, 0.08, 10.0, 0.0],
+}
+## Terrain in ink: flat fields, told apart by value and by what is drawn on them.
+const INK_TERRAIN: Dictionary = {
+	"open": Color("1f2024"), "rubble": Color("403830"), "slag": Color("3d1f17"), "ridge": Color("42454c"),
+	"scrap": Color("1c1917"), "barrel": Color("1f2024"), "crate": Color("1f2024"), "pylon": Color("1f2024"),
+}
 ## Damage-type colours for impacts, indexed like the rules' `damage_types`.
 const DAMAGE_COLOURS: Array[Color] = [Color("ffcf9a"), Color("ff7a3c"), Color("7fd4ff"), Color("b5e05a")]
 
@@ -147,7 +172,8 @@ func _ready() -> void:
 	_hud.retry_pressed.connect(_start_fight)
 	_hud.title_pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/main.tscn"))
 	_hud.continue_pressed.connect(_back_to_run)
-	_run_mode = Run.in_fight() and not OS.get_cmdline_user_args().has("--fight") and not tutorial
+	_run_mode = Run.in_fight() and not OS.get_cmdline_user_args().has("--fight") \
+		and not OS.get_cmdline_user_args().has("--fight-file") and not tutorial
 	if tutorial:
 		_coach = Coach.new()
 		_coach.setup(self, _db.tutorial)
@@ -178,6 +204,9 @@ func _start_fight() -> void:
 		_actions = Run.fight_actions.duplicate(true)
 	else:
 		var fight: Dictionary = (_db.fights.get(_fight_id, {}) as Dictionary).duplicate(true)
+		var file_at: int = OS.get_cmdline_user_args().find("--fight-file")
+		if file_at >= 0 and file_at + 1 < OS.get_cmdline_user_args().size():
+			fight = JSON.parse_string(FileAccess.get_file_as_string(OS.get_cmdline_user_args()[file_at + 1]))
 		if OS.get_cmdline_user_args().has("--reclaimer"):
 			fight["reclaimer"] = {"round": 2, "count": 2}
 		_setup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, _seed)
@@ -304,60 +333,40 @@ func _record() -> void:
 # --- World ------------------------------------------------------------------
 
 func _build_world() -> void:
-	# The same rig as the old battle scene: a warm sodium key and a cold fill from the
-	# opposite side. See CLAUDE.md, "The visual system".
+	# Ink & Rust (015): one hard key over a flat night. The toon ramp and the ink line draw the
+	# look; the light only decides what is lit and what falls in shadow, so there is no fill,
+	# no sky and no fog -- and glow is left to the signals, the only things bright enough.
 	var env := WorldEnvironment.new()
 	var environment := Environment.new()
-	# The night HDRI lights and reflects (the metal finally has something to reflect); the
-	# camera sees the game's own dark sky (art-sourcing.md, mode c).
 	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color("0d0e12")
-	var sky := Sky.new()
-	var sky_material := PanoramaSkyMaterial.new()
-	sky_material.panorama = load("res://art/thirdparty/polyhaven/hdris/dresden_station_night/dresden_station_night_1k.hdr")
-	sky_material.energy_multiplier = 0.5
-	sky.sky_material = sky_material
-	environment.sky = sky
-	environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	environment.ambient_light_sky_contribution = 0.45
-	environment.ambient_light_color = Color("2f3a52")
-	environment.ambient_light_energy = 0.75
-	environment.fog_enabled = true
-	environment.fog_light_color = Color("241f26")
-	environment.fog_light_energy = 0.7
-	environment.fog_density = 0.010
-	environment.fog_sky_affect = 0.35
-	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	environment.tonemap_exposure = 1.05
-	environment.tonemap_white = 3.0
-	environment.adjustment_enabled = true
-	environment.adjustment_contrast = 1.12
+	environment.background_color = Color("11141c")
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.ambient_light_color = Color("6b7390")
+	environment.ambient_light_energy = 1.0
+	environment.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
+	environment.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	environment.glow_enabled = true
-	environment.glow_intensity = 0.36
-	environment.glow_bloom = 0.12
-	environment.glow_hdr_threshold = 1.0
+	environment.glow_intensity = 0.35
+	environment.glow_bloom = 0.0
+	environment.glow_hdr_threshold = 1.05
 	environment.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
 	env.environment = environment
 	add_child(env)
 
+	# From the camera's left and fairly low: the faces the player sees are lit, and the long
+	# hard shadows fall away up the board, where they read as shapes on the ground. (The first
+	# frame lit from behind, and every machine showed the camera its shadow band.)
 	var key := DirectionalLight3D.new()
-	key.rotation_degrees = Vector3(-46, 148, 0)
-	key.light_energy = 1.15
-	key.light_color = Color("ffd3a4")
+	key.rotation_degrees = Vector3(-40, -38, 0)
+	key.light_energy = 1.0
+	key.light_color = Color("fff0da")
 	key.shadow_enabled = true
+	key.shadow_blur = 0.0
 	key.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-	key.directional_shadow_max_distance = 40.0
-	key.shadow_bias = 0.04
-	key.shadow_normal_bias = 1.4
+	key.directional_shadow_max_distance = 32.0
+	key.shadow_bias = 0.03
+	key.shadow_normal_bias = 1.2
 	add_child(key)
-
-	var fill := DirectionalLight3D.new()
-	fill.rotation_degrees = Vector3(-28, -34, 0)
-	fill.light_energy = 1.0
-	fill.light_color = Color("8aa3de")
-	fill.light_specular = 0.35
-	add_child(fill)
 
 	# A fixed tilted camera on a pivot that turns in 90 degree steps. Free orbit hides
 	# tiles on a grid, and hidden tiles are hidden information.
@@ -440,6 +449,7 @@ func _build_board() -> void:
 			# surface per terrain type, at low frequency, tinted to its field colour.
 			slab.material_override = _tile_material(def, (x + y) % 2 == 1)
 			slab.set_meta("tile", Vector2i(x, y))
+			Ink.line(slab, Ink.LINE_WORLD)
 			_board.add_child(slab)
 			if blocks:
 				_board.add_child(_scrap_heap(x, y))
@@ -455,7 +465,8 @@ func _build_board() -> void:
 ## steel curb along every hex side that faces off the board, traced from the real hex
 ## geometry so it follows the board's ragged odd-r outline exactly.
 func _build_edges() -> void:
-	var curb: StandardMaterial3D = Surfaces.pbr("rusty_painted_metal", Color(0.46, 0.43, 0.40), 1.4, 0.55, 0.8)
+	# Ink (015): a heavy dark frame -- the board ends in a line, drawn.
+	var curb: Material = Ink.toon(Color("1d1b1a"), "clean")
 	var box := BoxMesh.new()
 	box.size = Vector3(HEX * 1.1, 0.24, 0.13)
 	for y: int in _setup.height:
@@ -473,33 +484,24 @@ func _build_edges() -> void:
 				# Just outside the slab's edge; the box's long side runs along the hex side.
 				segment.position = a + out * (SQRT3 * HEX * 0.5 + 0.05) + Vector3(0, 0.0, 0)
 				segment.rotation.y = atan2(out.x, out.z)
+				Ink.line(segment, Ink.LINE_WORLD)
 				_board.add_child(segment)
 
 
-## Each terrain type's surface: what it IS reads from the photograph, what it DOES from the
-## field colour it is tinted to (art-and-audio.md, read contracts). Frequency is capped --
-## large texture scale, soft normals -- so the machines stay the busiest thing on screen.
-const TILE_SURFACES: Dictionary = {
-	"open": ["metal_plate_02", 2.3, 0.5, 0.45, 0.55],     # set, tint gain, texture scale, metallic, normal
-	"rubble": ["rocky_gravel", 1.9, 0.7, 0.0, 0.9],
-	"scrap": ["corrugated_iron_02", 1.6, 0.8, 0.4, 0.7],
-	"slag": ["rock_ground", 1.2, 0.6, 0.0, 0.8],
-	"ridge": ["damaged_concrete_floor", 2.0, 0.55, 0.0, 0.8],
-	"pit": ["rusty_painted_metal", 0.8, 0.9, 0.3, 0.6],
-	"barrel": ["metal_plate_02", 2.3, 0.5, 0.45, 0.55],
-	"crate": ["metal_plate_02", 2.3, 0.5, 0.45, 0.55],
-	"pylon": ["metal_plate_02", 2.3, 0.5, 0.45, 0.55],
-}
-
-
-func _tile_material(def: Dictionary, alternate: bool) -> StandardMaterial3D:
+## Each terrain type's field (015): a flat colour, and ink drawn on it where the ground DOES
+## something -- rubble is stippled (rough, costs 2), slag hatched (it burns). Alternate open
+## hexes step a shade, so a count across the board is easy.
+func _tile_material(def: Dictionary, alternate: bool) -> Material:
 	var id: String = String(def.get("id", "open"))
-	var surface: Array = TILE_SURFACES.get(id, TILE_SURFACES["open"])
-	var field: Color = Color(String(def.get("colour", "1a1e26")))
-	if alternate:
-		field = field.lightened(0.04)
-	var tint := Color(minf(1.0, field.r * float(surface[1])), minf(1.0, field.g * float(surface[1])), minf(1.0, field.b * float(surface[1])))
-	return Surfaces.pbr(String(surface[0]), tint, float(surface[2]), float(surface[3]), float(surface[4]))
+	var field: Color = INK_TERRAIN.get(id, Ink.BOARD)
+	if alternate and field == Ink.BOARD:
+		field = Ink.BOARD_ALT
+	match id:
+		"rubble":
+			return Ink.patterned(field, 1, field.lerp(Ink.PAPER, 0.5), 9.0, 0.55)
+		"slag":
+			return Ink.patterned(field, 2, Color("6b2a14"), 6.0, 0.22)
+	return Ink.toon(field)
 
 
 ## What stands on a tile beyond its surface: rubble has chunks you could hide behind, slag a
@@ -509,53 +511,41 @@ func _dress_tile(id: String, x: int, y: int, top: float) -> void:
 	var h: int = IntentAI.mix(x, y, 23, 5)
 	match id:
 		"rubble":
-			var chunk_material: StandardMaterial3D = Surfaces.pbr("damaged_concrete_floor", Color(0.55, 0.53, 0.5), 1.4, 0.0, 0.8)
-			for i: int in 5:
+			# A few outlined stones, not a photograph of gravel: rough ground you can read.
+			var stone: Material = Ink.toon(Color("7a6c59"))
+			for i: int in 4:
 				var chunk := MeshInstance3D.new()
 				var box := BoxMesh.new()
-				var s: float = 0.08 + float((h >> (i * 3)) & 7) * 0.018
-				box.size = Vector3(s * 1.4, s * 0.8, s)
+				var s: float = 0.09 + float((h >> (i * 3)) & 7) * 0.016
+				box.size = Vector3(s * 1.5, s * 0.8, s * 1.1)
 				chunk.mesh = box
-				var angle: float = float(i) / 5.0 * TAU + float(h & 15) * 0.1
-				var reach: float = HEX * (0.25 + float((h >> (i * 2)) & 3) * 0.12)
+				var angle: float = float(i) / 4.0 * TAU + float(h & 15) * 0.1
+				var reach: float = HEX * (0.22 + float((h >> (i * 2)) & 3) * 0.1)
 				chunk.position = at + Vector3(cos(angle) * reach, box.size.y * 0.4, sin(angle) * reach)
-				chunk.rotation = Vector3(float((h >> i) & 3) * 0.25, angle, float((h >> (i + 1)) & 3) * 0.2)
-				chunk.material_override = chunk_material
+				chunk.rotation = Vector3(float((h >> i) & 3) * 0.2, angle, float((h >> (i + 1)) & 3) * 0.2)
+				chunk.material_override = stone
+				Ink.line(chunk, Ink.LINE_WORLD)
 				_board.add_child(chunk)
 		"slag":
-			# A crusted glow, not a lamp: slag is a hazard to notice, but the brightest thing on
-			# the board must stay the machines (art-and-audio.md, value layers).
+			# Molten, and a signal: the one ground that glows.
 			var pool := MeshInstance3D.new()
-			pool.mesh = _hex_mesh(HEX * 0.5, 0.02)
+			pool.mesh = _hex_mesh(HEX * 0.52, 0.02)
 			pool.position = at + Vector3(0, 0.012, 0)
-			var molten := StandardMaterial3D.new()
-			molten.albedo_color = Color("7a2a10")
-			molten.emission_enabled = true
-			molten.emission = Color("d8401a")
-			molten.emission_energy_multiplier = 0.55
-			molten.albedo_texture = load("res://art/thirdparty/polyhaven/textures/rock_ground/rock_ground_diff_1k.jpg")
-			molten.uv1_triplanar = true
-			molten.uv1_world_triplanar = true
-			molten.uv1_scale = Vector3.ONE * 1.2
-			pool.material_override = molten
+			pool.material_override = Ink.glow(Color("ff6a2a"), 1.1)
+			Ink.line(pool, Ink.LINE_WORLD)
 			_board.add_child(pool)
-			var heat := OmniLight3D.new()
-			heat.light_color = Color("ff6a2a")
-			heat.light_energy = 0.5
-			heat.omni_range = 1.6
-			heat.position = at + Vector3(0, 0.35, 0)
-			_board.add_child(heat)
 		"ridge":
 			var lip := MeshInstance3D.new()
 			var torus := TorusMesh.new()
-			torus.inner_radius = HEX * 0.88
-			torus.outer_radius = HEX * 0.96
+			torus.inner_radius = HEX * 0.86
+			torus.outer_radius = HEX * 0.95
 			torus.ring_segments = 6
 			torus.rings = 4
 			lip.mesh = torus
 			lip.scale = Vector3(1, 0.18, 1)
-			lip.position = at + Vector3(0, 0.0, 0)
-			lip.material_override = Surfaces.pbr("damaged_concrete_floor", Color(0.62, 0.64, 0.66), 1.4, 0.0, 0.6)
+			lip.position = at
+			lip.material_override = Ink.toon(Color("7f838c"))
+			Ink.line(lip, Ink.LINE_WORLD)
 			_board.add_child(lip)
 
 
@@ -568,7 +558,8 @@ func _build_surroundings() -> void:
 	plane.size = Vector2(_origin.x * 2.0 + 60.0, _origin.y * 2.0 + 60.0)
 	ground.mesh = plane
 	ground.position = Vector3(0, -0.31, 0)
-	ground.material_override = Surfaces.pbr("asphalt_02", Color(0.30, 0.29, 0.28), 0.3)
+	# The yard beyond the board: night ground with a faint drawn grain.
+	ground.material_override = Ink.patterned(Color("1b1e27"), 2, Color("171a22"), 2.5, 0.18)
 	_board.add_child(ground)
 	var half := Vector2(_origin.x + HEX * 2.0, _origin.y + HEX * 2.0)
 	var seed: int = IntentAI.mix(_setup.rng_seed, _setup.width, _setup.height, 77)
@@ -588,6 +579,7 @@ func _build_surroundings() -> void:
 		prop.position = at
 		prop.rotation.y = -angle + float((h >> 12) % 60 - 30) * 0.02
 		prop.scale = Vector3.ONE * 0.62
+		Ink.dress_scenery(prop, 0.55)
 		_board.add_child(prop)
 	# Floodlights on the diagonals: the diegetic source of the warm key light.
 	for k: int in 4:
@@ -599,40 +591,64 @@ func _build_surroundings() -> void:
 		lamp.position = at
 		lamp.rotation.y = -angle + PI * 0.5
 		lamp.scale = Vector3.ONE * 0.7
+		Ink.dress_scenery(lamp, 0.45)
 		_board.add_child(lamp)
-		var light := OmniLight3D.new()
-		light.light_color = Color("ffc27a")
-		light.light_energy = 1.4
-		light.omni_range = 7.0
-		light.position = at + Vector3(0, 3.0, 0)
-		_board.add_child(light)
 
 
-## A pit: a hex hole with a faint rim, so "you can be shoved in here" reads at a glance.
+## A pit (015): pure black, with a torn pale rim -- a hole in the drawing, so "you can be
+## shoved in here" is the one thing it can mean.
 func _pit(x: int, y: int) -> Node3D:
 	var root := Node3D.new()
 	root.position = _to_world(x, y)
 	var hole := MeshInstance3D.new()
-	hole.mesh = _hex_mesh(HEX * 0.9, 1.2)
+	hole.mesh = _hex_mesh(HEX * 0.92, 1.2)
 	hole.position = Vector3(0, -0.75, 0)
-	hole.material_override = _material(Color("040405"), 1.0)
+	hole.material_override = Ink.flat(Color("000000"))
 	root.add_child(hole)
 	var rim := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = HEX * 0.8
-	torus.outer_radius = HEX * 0.9
-	torus.ring_segments = 6
-	torus.rings = 6
-	rim.mesh = torus
-	rim.scale = Vector3(1, 0.15, 1)
-	var glow := StandardMaterial3D.new()
-	glow.albedo_color = Color("3a2418")
-	glow.emission_enabled = true
-	glow.emission = Color("7a3a1c")
-	glow.emission_energy_multiplier = 0.6
-	rim.material_override = glow
+	rim.mesh = _jagged_rim(HEX * 0.93, HEX * 0.80, HEX * 0.68, 18, IntentAI.mix(x, y, 13, 3))
+	rim.position = Vector3(0, 0.02, 0)
+	rim.material_override = Ink.flat(Ink.PAPER.darkened(0.12))
 	root.add_child(rim)
 	return root
+
+
+## A flat ring: a pointy-top hex outside, a jagged torn edge inside (`points` teeth between
+## `inner_far` and `inner_near`, jittered from `seed`).
+func _jagged_rim(outer: float, inner_far: float, inner_near: float, points: int, seed: int) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.UP)
+	var inner: Array[Vector3] = []
+	for i: int in points:
+		var angle: float = TAU * float(i) / float(points)
+		var jitter: float = float((seed >> (i % 24)) & 3) * 0.015
+		var r: float = (inner_far if i % 2 == 0 else inner_near) - jitter
+		inner.append(Vector3(sin(angle) * r, 0.0, cos(angle) * r))
+	for i: int in points:
+		var a0: float = TAU * float(i) / float(points)
+		var a1: float = TAU * float(i + 1) / float(points)
+		var o0: Vector3 = _hex_edge_point(a0, outer)
+		var o1: Vector3 = _hex_edge_point(a1, outer)
+		var i0: Vector3 = inner[i]
+		var i1: Vector3 = inner[(i + 1) % points]
+		for v: Vector3 in [o0, i1, i0, o0, o1, i1]:
+			st.add_vertex(v)
+	return st.commit()
+
+
+## Where a ray at `angle` (0 = +Z) leaves a pointy-top hex of circumradius `r`.
+func _hex_edge_point(angle: float, r: float) -> Vector3:
+	var dir := Vector3(sin(angle), 0.0, cos(angle))
+	var apothem: float = r * 0.8660254
+	var best: float = 1000.0
+	for k: int in 6:
+		var n_angle: float = TAU * float(k) / 6.0 + PI / 6.0
+		var n := Vector3(sin(n_angle), 0.0, cos(n_angle))
+		var d: float = dir.dot(n)
+		if d > 0.0001:
+			best = minf(best, apothem / d)
+	return dir * best
 
 
 ## A six-sided prism, pointy-top. CylinderMesh already puts a corner at +Z (north), which
@@ -655,16 +671,20 @@ func _scrap_heap(x: int, y: int) -> Node3D:
 	var heap := Node3D.new()
 	heap.position = _to_world(x, y)
 	var h: int = IntentAI.mix(x, y, 91, 7)
+	# Three broken slabs stacked into a mass that fills its hex: big, then smaller, tilting.
 	for i: int in 3:
 		var piece := MeshInstance3D.new()
 		var box := BoxMesh.new()
-		var s: float = 0.32 + float((h >> (i * 5)) & 7) * 0.045
-		box.size = Vector3(HEX * s * 1.5, 0.22 + float((h >> (i * 3)) & 3) * 0.12, HEX * s * 1.2)
+		var s: float = [0.98, 0.74, 0.5][i] + float((h >> (i * 5)) & 3) * 0.03
+		box.size = Vector3(HEX * s * 1.25, 0.26 + float((h >> (i * 3)) & 3) * 0.07, HEX * s * 1.0)
 		piece.mesh = box
-		piece.position = Vector3(float(((h >> (i * 7)) & 7) - 3) * 0.05, box.size.y * 0.5 + i * 0.16, float(((h >> (i * 4)) & 7) - 3) * 0.05)
+		piece.position = Vector3(float(((h >> (i * 7)) & 7) - 3) * 0.03, box.size.y * 0.5 + i * 0.24, float(((h >> (i * 4)) & 7) - 3) * 0.03)
 		piece.rotation.y = float((h >> (i * 6)) & 15) * 0.2
-		piece.material_override = Surfaces.pbr("rusty_painted_metal" if i % 2 == 0 else "corrugated_iron_02",
-			Color(0.7, 0.55, 0.45).lerp(Color(0.45, 0.47, 0.5), float(i) * 0.4), 1.8, 0.4, 0.8)
+		# Ink (015): a solid black mass edged in paper -- a wall, not ground, at any size.
+		piece.rotation.x = float(((h >> (i * 2)) & 3) - 1) * 0.12
+		piece.rotation.z = float(((h >> (i * 3 + 1)) & 3) - 1) * 0.12
+		piece.material_override = Ink.toon(Color("1b1816"), "clean")
+		Ink.line(piece, Ink.LINE_WORLD, Ink.PAPER.darkened(0.3))
 		heap.add_child(piece)
 	return heap
 
@@ -673,10 +693,7 @@ func _quad(x: int, y: int, height: float, size: float) -> MeshInstance3D:
 	var quad := MeshInstance3D.new()
 	quad.mesh = _hex_mesh(size, 0.012)
 	quad.position = _to_world(x, y) + Vector3(0, height, 0)
-	var material := StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	quad.material_override = material
+	quad.material_override = Ink.mark_material(size)
 	quad.visible = false
 	_marks_root.add_child(quad)
 	return quad
@@ -717,41 +734,33 @@ func _clear_board_objects() -> void:
 	_prop_views.clear()
 
 
-## A prop: a fuel drum (red oxide, a bright band so it reads as dangerous) or a crate wall.
+## A prop (015, in ink): a fuel drum -- red, a hazard band of chevrons and a flame glyph, so
+## it reads as "this explodes" in grey as well as in colour -- a gate pylon, or a crate wall.
+## Props are things you act on, so they carry the thickest line.
 func _spawn_prop(cell: Vector2i, kind: String) -> void:
 	if _prop_views.has(cell):
 		return
 	var root := Node3D.new()
 	root.position = _to_world(cell.x, cell.y)
 	if kind == "barrel":
+		var skin: Material = Ink.textured(_drum_texture())
 		for i: int in 2:
 			var drum := MeshInstance3D.new()
 			var cyl := CylinderMesh.new()
-			cyl.top_radius = 0.2
-			cyl.bottom_radius = 0.2
-			cyl.height = 0.55
+			cyl.top_radius = 0.21
+			cyl.bottom_radius = 0.21
+			cyl.height = 0.58
+			cyl.radial_segments = 16
 			drum.mesh = cyl
-			drum.position = Vector3(-0.14 + i * 0.3, 0.28, -0.05 + i * 0.12)
-			# Red-rust: the danger family -- this thing explodes (art-and-audio.md).
-			drum.material_override = Surfaces.pbr("rusty_painted_metal", Color(0.85, 0.42, 0.34), 2.6, 0.35, 0.7)
+			drum.position = Vector3(-0.15 + i * 0.31, 0.29, -0.06 + i * 0.13)
+			# The flame glyph (texture u = 0.25) toward the camera, one drum a little turned.
+			drum.rotation.y = -PI * 0.5 + (0.0 if i == 0 else 0.6)
+			drum.material_override = skin
+			Ink.line(drum, Ink.LINE_ACT)
 			root.add_child(drum)
-			var band := MeshInstance3D.new()
-			var band_mesh := CylinderMesh.new()
-			band_mesh.top_radius = 0.205
-			band_mesh.bottom_radius = 0.205
-			band_mesh.height = 0.07
-			band.mesh = band_mesh
-			band.position = drum.position + Vector3(0, 0.12, 0)
-			var hot := StandardMaterial3D.new()
-			hot.albedo_color = Color("ffb04a")
-			hot.emission_enabled = true
-			hot.emission = Color("ff8a2a")
-			hot.emission_energy_multiplier = 0.9
-			band.material_override = hot
-			root.add_child(band)
 	elif kind == "pylon":
-		# A gate pylon (013): a dark hex column banded in the danger red, lit at the crown.
-		# Its beam to the Sorter is drawn with the intents (`_pylon_beams`).
+		# A gate pylon (013): a black column banded in the danger red. Its beam to the Sorter is
+		# drawn with the intents (`_pylon_beams`).
 		var column := MeshInstance3D.new()
 		var shaft := CylinderMesh.new()
 		shaft.top_radius = 0.22
@@ -760,42 +769,77 @@ func _spawn_prop(cell: Vector2i, kind: String) -> void:
 		shaft.radial_segments = 6
 		column.mesh = shaft
 		column.position.y = 0.75
-		column.material_override = Surfaces.pbr("metal_plate_02", Color(0.3, 0.29, 0.3), 1.2, 0.6, 0.8)
+		column.material_override = Ink.toon(Color("1d1b1f"), "clean")
+		Ink.line(column, Ink.LINE_ACT)
 		root.add_child(column)
 		for i: int in 3:
 			var band := MeshInstance3D.new()
 			var ring := CylinderMesh.new()
 			ring.top_radius = 0.26 - 0.02 * i
 			ring.bottom_radius = ring.top_radius
-			ring.height = 0.06
+			ring.height = 0.07
 			ring.radial_segments = 6
 			band.mesh = ring
 			band.position.y = 0.45 + 0.4 * i
-			var glow := StandardMaterial3D.new()
-			glow.albedo_color = COL_PAD_DANGER
-			glow.emission_enabled = true
-			glow.emission = COL_PAD_DANGER
-			glow.emission_energy_multiplier = 1.6
-			band.material_override = glow
+			band.material_override = Ink.glow(COL_PAD_DANGER, 1.4)
 			root.add_child(band)
-		var crown := OmniLight3D.new()
-		crown.light_color = COL_PAD_DANGER
-		crown.light_energy = 1.4
-		crown.omni_range = 1.8
-		crown.position.y = 1.6
-		root.add_child(crown)
 	else:
+		# A crate wall: steel boxes, strapped, outlined.
+		var steel: Material = Ink.toon(Ink.STEEL)
+		var strap: Material = Ink.toon(Color("2c2a2b"), "clean")
 		for s: Array in [[Vector3(0.7, 0.5, 0.5), Vector3(0, 0.25, 0)], [Vector3(0.5, 0.4, 0.45), Vector3(0.05, 0.7, 0)]]:
 			var crate := MeshInstance3D.new()
 			var box := BoxMesh.new()
 			box.size = s[0]
 			crate.mesh = box
 			crate.position = s[1]
-			# Neutral steel: the container photograph is green paint, and green means a gain.
-			crate.material_override = Surfaces.pbr("corrugated_iron_02", Color(0.5, 0.5, 0.52), 1.6, 0.45, 0.7)
+			crate.material_override = steel
+			Ink.line(crate, Ink.LINE_ACT)
 			root.add_child(crate)
+			var band := MeshInstance3D.new()
+			var band_box := BoxMesh.new()
+			band_box.size = (s[0] as Vector3) * Vector3(1.03, 0.16, 1.03)
+			band.mesh = band_box
+			band.position = s[1]
+			band.material_override = strap
+			root.add_child(band)
 	_units_root.add_child(root)
 	_prop_views[cell] = root
+
+
+## A drum's painted skin: red, an ink hoop top and bottom, a band of hazard chevrons, and a
+## flame glyph above it on two sides. CylinderMesh maps its side to the top half of the
+## texture (u around, v down) and its caps to the bottom half.
+func _drum_texture() -> Texture2D:
+	return Ink.texture("drum", Vector2i(256, 256), func(image: Image) -> void:
+		var red := Color("c7372c")
+		var ink := Ink.INK
+		image.fill(Color("8e2a22"))
+		for y: int in 128:
+			for x: int in 256:
+				var v: float = float(y) / 128.0
+				var c: Color = red
+				if v < 0.07 or v > 0.93 or absf(v - 0.30) < 0.018:
+					c = ink
+				elif v > 0.56 and v < 0.78:
+					# Chevrons: ink wedges on the hazard band.
+					var u: float = fmod(float(x) / 256.0 * 8.0, 1.0)
+					var w: float = (v - 0.56) / 0.22
+					c = ink if absf(u - 0.5) * 2.0 > 1.0 - w * 0.9 and absf(u - 0.5) * 2.0 < 1.35 - w * 0.9 else Ink.ACTION
+				image.set_pixel(x, y, c)
+		# The flame glyph, twice around: a paper teardrop in an ink ring.
+		for centre: float in [64.0, 192.0]:
+			for y: int in range(34, 68):
+				for x: int in range(int(centre) - 16, int(centre) + 17):
+					var dx: float = float(x) - centre
+					var dy: float = float(y) - 51.0
+					var r: float = sqrt(dx * dx + dy * dy)
+					if r < 16.0 and r > 13.0:
+						image.set_pixel(x, y, ink)
+					# A flame: wide at the bottom, a point at the top.
+					var half: float = 7.5 * clampf((float(y) - 38.0) / 18.0, 0.0, 1.0) * clampf((64.0 - float(y)) / 6.0, 0.0, 1.0)
+					if absf(dx) < half:
+						image.set_pixel(x, y, Ink.PAPER))
 
 
 func _build_view(u: GridUnit) -> Dictionary:
@@ -810,6 +854,8 @@ func _build_view(u: GridUnit) -> Dictionary:
 	# seed, the same every replay (presentation only).
 	var number: int = u.slot + 1 if u.team == GridUnit.TEAM_PLAYER else 10 + IntentAI.mix(_setup.rng_seed, u.ref, 7, 29) % 89
 	var model: Node3D = _cache_model() if u.objective else ConstructView.build_parts(u.part_ids, _db, colour, u.level, number)
+	if not u.objective:
+		Ink.dress_machine(model, u.part_ids, colour)
 	# The gate's keeper is bigger than anything else on the board (013).
 	model.scale = Vector3.ONE * (1.0 if u.objective else MODEL_SCALE * (1.4 if u.kind == "sorter" else 1.0))
 	root.add_child(model)
@@ -819,15 +865,17 @@ func _build_view(u: GridUnit) -> Dictionary:
 	var rig := ConstructRig.new()
 	rig.bind(model)
 
+	# Lettered in the comic face, paper on a heavy ink outline: a caption, not a HUD readout.
 	var tag := Label3D.new()
-	tag.font_size = 40
+	tag.font = UIKit.font_comic()
+	tag.font_size = 44
 	tag.pixel_size = 0.0045
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.no_depth_test = true
 	tag.position = Vector3(0, 2.35 if u.kind == "sorter" else 1.75, 0)
-	tag.outline_size = 12
-	tag.outline_modulate = Color(0, 0, 0, 0.9)
-	tag.modulate = (COL_CACHE if u.objective else colour).lightened(0.45)
+	tag.outline_size = 18
+	tag.outline_modulate = Ink.INK
+	tag.modulate = Ink.PAPER
 	root.add_child(tag)
 
 	# Play-test 4: not every enemy drops scrap. The ones that will say so, over their tag,
@@ -839,9 +887,13 @@ func _build_view(u: GridUnit) -> Dictionary:
 		loot.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		loot.no_depth_test = true
 		loot.shaded = false
-		loot.modulate = UIKit.GREEN.lightened(0.2)
-		loot.position = Vector3(0, 2.2, 0)
+		loot.modulate = Ink.GAIN
+		# Left of the tag; a shooter's firing order sits on the right.
+		loot.position = tag.position + Vector3(-0.5, 0.0, 0)
+		loot.render_priority = 2
 		root.add_child(loot)
+		# On an ink disc, so the mark reads over anything behind it.
+		root.add_child(_disc(loot.position, 0.17, Ink.INK, Ink.GAIN, 1))
 
 	var view: Dictionary = {"root": root, "model": model, "rig": rig, "ring": ring, "tag": tag, "dead": false}
 	_set_tag(view, u)
@@ -855,8 +907,8 @@ func _build_view(u: GridUnit) -> Dictionary:
 ## silhouette on purpose -- it must read as cargo to protect, not as a fighter.
 func _cache_model() -> Node3D:
 	var root := Node3D.new()
-	var wood: StandardMaterial3D = _material(Color("6e5a3a"), 0.85, 0.05)
-	var strap: StandardMaterial3D = _material(Color("2a2926"), 0.6, 0.6)
+	var wood: Material = Ink.toon(Color("9a7a4a"))
+	var strap: Material = Ink.toon(Color("2a2926"), "clean")
 	var sizes: Array = [[Vector3(0.62, 0.34, 0.5), Vector3(0, 0.17, 0), 0.0],
 		[Vector3(0.44, 0.28, 0.4), Vector3(0.04, 0.48, 0.02), 0.3],
 		[Vector3(0.3, 0.2, 0.3), Vector3(-0.06, 0.72, -0.02), -0.2]]
@@ -868,6 +920,7 @@ func _cache_model() -> Node3D:
 		crate.position = s[1]
 		crate.rotation.y = float(s[2])
 		crate.material_override = wood
+		Ink.line(crate, Ink.LINE_ACT)
 		root.add_child(crate)
 		var band := MeshInstance3D.new()
 		var band_box := BoxMesh.new()
@@ -880,48 +933,55 @@ func _cache_model() -> Node3D:
 	return root
 
 
-## A scrap pile: what a destroyed machine becomes. Walkable, worth scrap and a patch-up
-## to whoever ends a move on it -- so it gets a glint, because it is a thing to go for.
+## A scrap pile: what a destroyed machine becomes. Walkable, worth scrap and a patch-up to
+## whoever walks over it -- so it is drawn as a GAIN (015): bright green bolts, outlined, with
+## a paper glint over them. The one green thing on the board.
 func _spawn_pile(cell: Vector2i) -> void:
 	if _pile_views.has(cell):
 		return
 	var pile := Node3D.new()
 	pile.position = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
 	var h: int = IntentAI.mix(cell.x, cell.y, 55, 3)
-	for i: int in 6:
+	var bolt: Material = Ink.toon(Ink.GAIN, "clean")
+	for i: int in 5:
 		var bit := MeshInstance3D.new()
 		var box := BoxMesh.new()
-		box.size = Vector3(0.12 + float((h >> i) & 3) * 0.05, 0.06 + float((h >> (i + 2)) & 3) * 0.03, 0.1 + float((h >> (i + 4)) & 3) * 0.04)
+		box.size = Vector3(0.13 + float((h >> i) & 3) * 0.04, 0.07 + float((h >> (i + 2)) & 3) * 0.03, 0.11 + float((h >> (i + 4)) & 3) * 0.03)
 		bit.mesh = box
-		var angle: float = float(i) / 6.0 * TAU + float(h & 7) * 0.2
-		bit.position = Vector3(cos(angle) * 0.2, box.size.y * 0.5 + float(i % 2) * 0.05, sin(angle) * 0.2)
+		var angle: float = float(i) / 5.0 * TAU + float(h & 7) * 0.2
+		bit.position = Vector3(cos(angle) * 0.19, box.size.y * 0.5 + float(i % 2) * 0.05, sin(angle) * 0.19)
 		bit.rotation = Vector3(float((h >> i) & 3) * 0.3, angle, 0.0)
-		bit.material_override = Surfaces.pbr("metal_plate_02", Color(0.75, 0.7, 0.62).lerp(Color(0.9, 0.72, 0.45), float(i % 3) * 0.35), 3.0, 0.8, 0.6)
+		bit.material_override = bolt
+		Ink.line(bit, Ink.LINE_WORLD)
 		pile.add_child(bit)
-	# Scrap you can take is a gain: a faint green ring under it (art-and-audio.md).
-	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = HEX * 0.42
-	torus.outer_radius = HEX * 0.48
-	ring.mesh = torus
-	ring.scale = Vector3(1, 0.2, 1)
-	ring.position.y = 0.02
-	var gain := StandardMaterial3D.new()
-	gain.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	gain.albedo_color = Color(UIKit.GREEN, 0.9)
-	ring.material_override = gain
-	pile.add_child(ring)
-	var glint := OmniLight3D.new()
-	glint.light_color = Color("ffcf7a")
-	glint.light_energy = 0.6
-	glint.omni_range = 1.2
-	glint.position = Vector3(0, 0.5, 0)
+	var glint := Sprite3D.new()
+	glint.texture = _glint_texture()
+	glint.pixel_size = 0.0055
+	glint.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	glint.shaded = false
+	glint.position = Vector3(0.18, 0.5, 0.0)
 	pile.add_child(glint)
 	_units_root.add_child(pile)
 	_pile_views[cell] = pile
 	var tween := create_tween()
 	pile.scale = Vector3.ONE * 0.2
 	tween.tween_property(pile, "scale", Vector3.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## A four-point paper star with an ink edge: the glint a comic puts on something worth taking.
+func _glint_texture() -> Texture2D:
+	return Ink.texture("glint", Vector2i(64, 64), func(image: Image) -> void:
+		image.fill(Color(0, 0, 0, 0))
+		for y: int in 64:
+			for x: int in 64:
+				var dx: float = absf(float(x) - 31.5)
+				var dy: float = absf(float(y) - 31.5)
+				# A concave four-point star: |x|^0.5 + |y|^0.5 < r^0.5.
+				var s: float = sqrt(dx / 30.0) + sqrt(dy / 30.0)
+				if s < 0.78:
+					image.set_pixel(x, y, Ink.PAPER)
+				elif s < 0.98:
+					image.set_pixel(x, y, Ink.INK))
 
 
 func _remove_pile(cell: Vector2i) -> void:
@@ -935,25 +995,82 @@ func _remove_pile(cell: Vector2i) -> void:
 
 
 ## The ground ring is half of the team read: lit eyes are the other half. See CLAUDE.md.
+## In ink (015): a flat signal ellipse with an ink edge -- drawn, not lit.
+## The ENEMY's ring is toothed -- a saw blade -- so whose a machine is survives grey and
+## colour-blindness as a shape, not only as a hue.
 func _team_ring(colour: Color) -> MeshInstance3D:
 	var ring := MeshInstance3D.new()
+	if colour == COL_ENEMY:
+		ring.mesh = _saw_ring(0.43, 0.51, 0.60, 14)
+		ring.material_override = Ink.flat(colour)
+		ring.position = Vector3(0, 0.035, 0)
+		Ink.line(ring, Ink.LINE_WORLD)
+		return ring
 	var torus := TorusMesh.new()
-	torus.inner_radius = 0.42
+	torus.inner_radius = 0.43
 	torus.outer_radius = 0.52
-	torus.rings = 24
+	torus.rings = 32
 	torus.ring_segments = 4
 	ring.mesh = torus
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(colour.r, colour.g, colour.b, 0.85)
-	material.emission_enabled = true
-	material.emission = colour
-	material.emission_energy_multiplier = 1.3
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	ring.material_override = material
+	# Flat, no bloom: the ring is read by its hue and its ink edge, and a glowing ring lit the
+	# ground around every machine brighter than the machine (measure_contrast.gd).
+	ring.material_override = Ink.flat(colour)
 	ring.position = Vector3(0, 0.03, 0)
-	ring.scale = Vector3(1, 0.3, 1)
+	ring.scale = Vector3(1, 0.25, 1)
+	Ink.line(ring, Ink.LINE_WORLD)
 	return ring
+
+
+## A flat ring with `teeth` saw teeth standing out from `outer` to `tip`, with a little
+## thickness so the ink line has an edge to follow.
+func _saw_ring(inner: float, outer: float, tip: float, teeth: int) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var steps: int = teeth * 4
+	var top: float = 0.02
+	for i: int in steps:
+		var a0: float = TAU * float(i) / float(steps)
+		var a1: float = TAU * float(i + 1) / float(steps)
+		# Each tooth: up the leading edge to the tip, back down along the ring (a saw).
+		var r0: float = tip if i % 4 == 1 else outer
+		var r1: float = tip if (i + 1) % 4 == 1 else outer
+		var in0 := Vector3(sin(a0) * inner, top, cos(a0) * inner)
+		var in1 := Vector3(sin(a1) * inner, top, cos(a1) * inner)
+		var out0 := Vector3(sin(a0) * r0, top, cos(a0) * r0)
+		var out1 := Vector3(sin(a1) * r1, top, cos(a1) * r1)
+		st.set_normal(Vector3.UP)
+		for v: Vector3 in [in0, out1, out0, in0, in1, out1]:
+			st.add_vertex(v)
+		# The outer wall, so the ring has a side for the line to trace.
+		var dn := Vector3(0, -top, 0)
+		st.set_normal(Vector3(sin((a0 + a1) * 0.5), 0, cos((a0 + a1) * 0.5)))
+		for v: Vector3 in [out0, out1, out1 + dn, out0, out1 + dn, out0 + dn]:
+			st.add_vertex(v)
+	return st.commit()
+
+
+## A flat disc facing the camera (a badge's back): `fill` inside a `rim` ring -- two tinted
+## sprites of one white disc, the rim drawn first and a little larger.
+func _disc(at: Vector3, radius: float, fill: Color, rim: Color, priority: int = 0) -> Node3D:
+	var root := Node3D.new()
+	root.position = at
+	var texture: Texture2D = Ink.texture("disc", Vector2i(96, 96), func(image: Image) -> void:
+		image.fill(Color(0, 0, 0, 0))
+		for y: int in 96:
+			for x: int in 96:
+				var r: float = Vector2(float(x) - 47.5, float(y) - 47.5).length()
+				image.set_pixel(x, y, Color(1, 1, 1, clampf(46.5 - r, 0.0, 1.0))))
+	for layer: Array in [[rim, 1.0, priority], [fill, 0.8, priority + 1]]:
+		var sprite := Sprite3D.new()
+		sprite.texture = texture
+		sprite.pixel_size = radius * 2.0 / 93.0 * float(layer[1])
+		sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		sprite.no_depth_test = true
+		sprite.shaded = false
+		sprite.modulate = layer[0]
+		sprite.render_priority = int(layer[2])
+		root.add_child(sprite)
+	return root
 
 
 ## HP, then the state a player must read before moving: heat, a mark, a seize.
@@ -1147,7 +1264,9 @@ func _animate(e: Array) -> void:
 			_vfx.fireball(_to_world(cell.x, cell.y), 1.0)
 			_vfx.burst(at, Color("ff8a3c"), 2.2)
 			_vfx.shake(0.55)
-			_float_text(at + Vector3(0, 1.2, 0), "BOOM", Color("ffb04a"))
+			# High and big: a wreck's KRANG! often lands on the same drum a beat earlier, and the
+			# two effects stack like a panel's, never overprint.
+			_letters(at + Vector3(0.25, 2.0, 0), "BOOM!", Ink.ACTION, 130, 0.1)
 			Audio.play("destroy", -2.0)
 			await _wait(0.22)
 		GridEv.FELL:
@@ -1320,7 +1439,8 @@ func _wreck_flight(from: Vector2i, to: Vector2i, landed: bool) -> void:
 	var box := BoxMesh.new()
 	box.size = Vector3(0.42, 0.3, 0.36)
 	chunk.mesh = box
-	chunk.material_override = _material(Color("3a3430"), 0.8, 0.4)
+	chunk.material_override = Ink.toon(Color("4a4440"), "clean")
+	Ink.line(chunk, Ink.LINE_MACHINE)
 	chunk.position = start
 	_units_root.add_child(chunk)
 	var fly := create_tween().set_parallel(true)
@@ -1329,7 +1449,7 @@ func _wreck_flight(from: Vector2i, to: Vector2i, landed: bool) -> void:
 	fly.tween_property(chunk, "rotation", Vector3(2.4, 1.2, 0.6), 0.22)
 	await fly.finished
 	if not landed:
-		_float_text(goal + Vector3(0, 1.6, 0), "SLAM", UIKit.GOLD)
+		_letters(goal + Vector3(-0.3, 0.85, 0), "KRANG!", Ink.ACTION, 84)
 		_vfx.sparks(goal, Color("ffb070"), 14, 0.8)
 		_vfx.shake(0.3)
 		Audio.play("hit_heavy", -6.0)
@@ -1431,12 +1551,13 @@ func _tracer(from: Vector3, to: Vector3, colour: Color) -> void:
 func _float_text(at: Vector3, text: String, colour: Color) -> void:
 	var label := Label3D.new()
 	label.text = text
+	label.font = UIKit.font_comic()
 	label.font_size = 56
 	label.pixel_size = 0.006
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
-	label.outline_size = 14
-	label.outline_modulate = Color(0, 0, 0, 0.9)
+	label.outline_size = 18
+	label.outline_modulate = Ink.INK
 	label.modulate = colour
 	label.position = at
 	_marks_root.add_child(label)
@@ -1444,6 +1565,33 @@ func _float_text(at: Vector3, text: String, colour: Color) -> void:
 	tween.tween_property(label, "position", at + Vector3(0, 0.9, 0), 0.8)
 	tween.tween_property(label, "modulate:a", 0.0, 0.6).set_delay(0.3)
 	tween.chain().tween_callback(label.queue_free)
+
+
+## A lettered sound effect (015): KRANG, BOOM. Hand lettering, tilted, popped in and held a
+## beat -- and only on the impacts that matter, or it stops meaning anything.
+func _letters(at: Vector3, text: String, colour: Color, size: int = 110, tilt: float = -0.14) -> void:
+	var label := Label3D.new()
+	label.text = text
+	label.font = UIKit.font_letters()
+	label.font_size = size
+	label.pixel_size = 0.006
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.outline_size = 30
+	label.outline_modulate = Ink.INK
+	label.modulate = colour
+	label.position = at
+	label.rotation.z = tilt
+	label.render_priority = 3
+	label.outline_render_priority = 2
+	label.scale = Vector3.ONE * 0.3
+	_marks_root.add_child(label)
+	var tween := create_tween()
+	tween.tween_property(label, "scale", Vector3.ONE * 1.1, 0.09).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(label, "scale", Vector3.ONE, 0.06)
+	tween.tween_interval(0.45)
+	tween.tween_property(label, "modulate:a", 0.0, 0.25)
+	tween.tween_callback(label.queue_free)
 
 
 func _wait(seconds: float) -> void:
@@ -1534,6 +1682,7 @@ func _refresh() -> void:
 		elif _armed and not sel.acted and not sel.seized and sel.can_fire(_weapon):
 			if not _pending.is_empty():
 				var plan: Dictionary = CombatSim.strike_plan(_state, sel, _weapon, _pending["cell"])
+				_preview_marks(sel, _weapon, _pending["cell"])
 				for cell: Vector2i in (plan["tiles"] as Array):
 					_mark(_hint_quads, cell, COL_TARGET)
 			else:
@@ -1549,6 +1698,57 @@ func _refresh() -> void:
 	_refresh_hud(threats)
 	if _coach != null:
 		_coach.refresh()
+
+
+## The aim preview drawn on the board (015), from the real rules run on a copy: every drum
+## the shot sets off marks the hexes its blast reaches, and a killing shove's wreck gets an
+## arrow to where it is thrown. The info panel says the same in words.
+func _preview_marks(sel: GridUnit, w: int, cell: Vector2i) -> void:
+	var preview: Dictionary = CombatSim.preview_attack(_state, sel.ref, w, cell)
+	for effect: Dictionary in (preview.get("effects", []) as Array):
+		if not effect.has("prop"):
+			continue
+		var at: Vector2i = effect["prop"]
+		if String((_state.props.get(at, {}) as Dictionary).get("kind", "")) != "barrel":
+			continue
+		for n: Vector2i in [at] + Hex.neighbors(at):
+			if _state.inside(n):
+				_mark(_threat_quads, n, COL_BLAST)
+	if int(sel.weapons[w]["shove"]) <= 0:
+		return
+	for hit: Dictionary in (preview.get("hits", []) as Array):
+		if bool(hit["primary"]) and (preview.get("kills", []) as Array).has(int(hit["ref"])):
+			var victim: GridUnit = _state.unit(int(hit["ref"]))
+			var from := Vector2i(victim.x, victim.y)
+			_throw_arrow(from, Hex.neighbor(from, Hex.direction(Vector2i(sel.x, sel.y), from)))
+
+
+## A flat amber arrow on the ground, inked: this goes there.
+func _throw_arrow(from: Vector2i, to: Vector2i) -> void:
+	var a: Vector3 = _to_world(from.x, from.y)
+	var b: Vector3 = _to_world(to.x, to.y)
+	var length: float = a.distance_to(b)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.UP)
+	# Along +Z from 0 to `length`: a shaft, then a head.
+	var s0: float = length * 0.18
+	var s1: float = length * 0.62
+	var w: float = 0.09
+	var hw: float = 0.24
+	var tip: float = length * 0.86
+	for v: Vector3 in [Vector3(-w, 0, s0), Vector3(w, 0, s0), Vector3(w, 0, s1),
+			Vector3(-w, 0, s0), Vector3(w, 0, s1), Vector3(-w, 0, s1),
+			Vector3(-hw, 0, s1), Vector3(hw, 0, s1), Vector3(0, 0, tip)]:
+		st.add_vertex(v)
+	var arrow := MeshInstance3D.new()
+	arrow.mesh = st.commit()
+	arrow.material_override = Ink.glow(Ink.ACTION, 0.0)
+	arrow.position = a + Vector3(0, 0.34, 0)
+	arrow.rotation.y = atan2(b.x - a.x, b.z - a.z)
+	Ink.line(arrow, Ink.LINE_ACT)
+	arrow.set_meta("intent", true)
+	_marks_root.add_child(arrow)
 
 
 func _refresh_hud(threats: Dictionary) -> void:
@@ -1756,7 +1956,15 @@ func _mark(quads: Dictionary, cell: Vector2i, colour: Color) -> void:
 	if quad == null:
 		return
 	quad.visible = true
-	(quad.material_override as StandardMaterial3D).albedo_color = colour
+	var style: Array = MARK_STYLES.get(colour, MARK_STYLES[COL_THREAT])
+	var material: ShaderMaterial = quad.material_override
+	material.set_shader_parameter("colour", Color(colour.r, colour.g, colour.b, 1.0))
+	material.set_shader_parameter("hatch_alpha", style[0])
+	material.set_shader_parameter("hatch_width", style[1])
+	material.set_shader_parameter("fill_alpha", style[2])
+	material.set_shader_parameter("border", style[3])
+	material.set_shader_parameter("dashes", style[4])
+	material.set_shader_parameter("hatch_dir", style[5])
 
 
 func _clear_marks() -> void:
@@ -1778,15 +1986,16 @@ func _intent_marker(ref: int, threat: Dictionary, full: bool) -> void:
 	var from: Vector3 = _to_world(u.x, u.y) + Vector3(0, 0.35, 0)
 	var end: Vector2i = threat["end"] if legal else threat["aim"]
 	var to: Vector3 = _to_world(end.x, end.y) + Vector3(0, 0.35, 0)
-	var colour: Color = Color("ff5a3c") if legal else Color(0.6, 0.6, 0.6, 0.7)
+	var colour: Color = Ink.DANGER if legal else Color(0.6, 0.6, 0.6, 0.7)
 	var text: String = str(int(threat["order"]))
 	if not legal:
 		text += " MISSES"
 	elif int(threat.get("lock", -1)) >= 0:
 		text += " LOCKED"
-	_marker_label(text, to + Vector3(0, 0.5, 0), Color("ff7a5c") if legal else colour, 56 if legal else 40)
-	# The shooter wears its number too, so a badge on the ground can be traced back.
-	_marker_label(str(int(threat["order"])), from + Vector3(0, 2.0, 0), Color("ff7a5c"), 40)
+	# On the ground at the hex's near edge, where it names the hex and hides no machine.
+	_badge(text, to + Vector3(0, -0.2, HEX * 0.62), Ink.DANGER if legal else colour, 1.0 if legal else 0.8)
+	# The shooter wears its number too, over its tag, so a badge can be traced back.
+	_badge(str(int(threat["order"])), from + Vector3(0, (2.35 if u.kind == "sorter" else 1.75) - 0.35 + 0.5, 0), Ink.DANGER, 0.7)
 	if not full or from.distance_to(to) < 0.01:
 		return
 	var bar := MeshInstance3D.new()
@@ -1806,16 +2015,42 @@ func _intent_marker(ref: int, threat: Dictionary, full: bool) -> void:
 func _marker_label(text: String, at: Vector3, colour: Color, size: int) -> void:
 	var label := Label3D.new()
 	label.text = text
+	label.font = UIKit.font_comic()
 	label.font_size = size
 	label.pixel_size = 0.005
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
-	label.outline_size = 14
-	label.outline_modulate = Color(0, 0, 0, 0.95)
+	label.outline_size = 16
+	label.outline_modulate = Ink.INK
 	label.modulate = colour
 	label.position = at
 	label.set_meta("intent", true)
 	_marks_root.add_child(label)
+
+
+## An intent badge (015): an ink disc ringed in the danger red, the firing order lettered in
+## paper on it -- the sketch the user picked, and it reads in grey (a dark disc, a pale figure).
+## A MISSES or LOCKED suffix hangs under it.
+func _badge(text: String, at: Vector3, colour: Color, scale: float) -> void:
+	var disc: Node3D = _disc(at, 0.21 * scale, Ink.INK, colour, 4)
+	disc.set_meta("intent", true)
+	_marks_root.add_child(disc)
+	var parts: PackedStringArray = text.split(" ", false, 1)
+	var label := Label3D.new()
+	label.text = parts[0]
+	label.font = UIKit.font_comic()
+	label.font_size = int(64 * scale)
+	label.pixel_size = 0.005
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.outline_size = 0
+	label.modulate = Ink.PAPER
+	label.render_priority = 6
+	label.position = at + Vector3(0, 0.005, 0)
+	label.set_meta("intent", true)
+	_marks_root.add_child(label)
+	if parts.size() > 1:
+		_marker_label(parts[1], at + Vector3(0, -0.34 * scale, 0), colour.lightened(0.2), int(30 * scale))
 
 
 ## A hive's fabricator pad (play-test 4). It stays where the hive set it down, so it is a
@@ -2048,10 +2283,7 @@ func _hover_path(screen: Vector2) -> void:
 		disc.bottom_radius = disc.top_radius
 		disc.height = 0.02
 		dot.mesh = disc
-		var glow := StandardMaterial3D.new()
-		glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		glow.albedo_color = COL_PLAYER.lightened(0.35)
-		dot.material_override = glow
+		dot.material_override = Ink.on_top(COL_PLAYER.lightened(0.35))
 		dot.position = _to_world(step.x, step.y) + Vector3(0, _tile_top(step.x, step.y) + 0.06, 0)
 		_path_root.add_child(dot)
 
