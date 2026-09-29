@@ -2,6 +2,24 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [014] Play-test 5 fixes — 2026-09-29 ([detail](iterations/014-playtest-5-fixes.md))
+
+Play-test 5's combat points, and three points from an outside review. The look waits for
+the user to pick one of [three art directions](plans/art-direction-options.md).
+
+### Changed
+- **A shove that kills throws the wreck**: whatever it lands on takes the bump (a drum goes off), a pit swallows it and its scrap, open ground takes it and its pile.
+- **Pierce goes through drums and crates** (a drum goes off), counting them like machines. The arm's text says "pierce 1", "chain 2".
+- **The chain arc takes the route that does the most damage** (a drum by two enemies beats a lone enemy), never into your own machines. **Scrap heaps conduct.**
+- **Straighter paths**: equal-cost routes take fewer hexes (through rubble, not round it); hovering a hex draws the route; cost-2 hexes show dimmer.
+- **UNDO** returns to the machine whose action it took back, weapon armed again.
+- **The gate**: pylons on the back row behind the Sorter, flanked by heaps. Run bot 86.7%.
+
+### Added
+- **Fight recap** on the result screen: each machine's damage dealt and taken, kills, torn arms, and "your build at work" (sets, perks and tunings that added damage or took it off).
+- **Consequence preview on the map**: what a site gives, how many enemies, whether the Reclaimer moves with you and what it swallows, whether its drones reach the fight.
+- A fight map can set its own round limit; `run_bot --set combat.*` / `fight.<id>.*`; `shot_combat --move`, `shot_recap.gd`.
+
 ## [013] Act 1 content — 2026-09-26 ([detail](iterations/013-act1-content.md))
 
 The map has things to find and the act a boss worth reaching (play-test 4, PT4-8).

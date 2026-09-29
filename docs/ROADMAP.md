@@ -26,9 +26,13 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 011 | [Build progression](iterations/011-build-progression.md) | Perks (1 of 3 per level), tuning once per part at workshops, maker sets, salvage from three slots with a scrap option; boss fight 5 enemies (bot 88.0%) | ✅ |
 | 012 | [Onboarding](iterations/012-onboarding.md) | The shakedown (a guided first fight on the real rules), a 56-term glossary with tappable words, first-time hints on eight screens, the profile | ✅ |
 | 013 | [Act 1 content](iterations/013-act1-content.md) | The Sorter at the gate (pylons, summons); the Reclaimer's drones in fights by its line; traders, watchtowers, signals (7 events); three new maps; **user play-test of 009–013** next | ✅ |
-| 014 | Acts 2–3 | The Slag Flats and the Crucible | ⬜ |
-| 015 | Feel pass | Audio, camera, final VFX | ⬜ |
-| 016 | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
+| — | [Play-test 5](playtests/2026-09-29-playtest-5.md) | The look reads as a generic engine demo; placeholders everywhere; flat panels; shove, pierce, chain, paths and undo; an outside review | ✅ |
+| — | [Art direction options](plans/art-direction-options.md) | Three styles to pick from (Ink & Rust recommended), each with palette, shapes, materials, lighting, UI, interactables; one scene to prototype first | ⏭ awaiting the pick |
+| 014 | [Play-test 5 fixes](iterations/014-playtest-5-fixes.md) | Killing shoves throw the wreck; pierce through props; the arc's best route, heaps conduct; straighter paths; UNDO keeps the machine; fight recap; map consequence preview; deep gate pylons (bot 86.7%) | ✅ |
+| 015 | The new look | The picked direction: its style frame first, then board, machines, map and Reclaimer, UI kit (with the HUD hierarchy of R5-2; board labels that never overlap), garage and title | ⬜ |
+| 016 | Acts 2–3 | The Slag Flats and the Crucible | ⬜ |
+| 017 | Feel pass | Audio, camera, final VFX | ⬜ |
+| 018 | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
 
