@@ -264,8 +264,10 @@ static func zone_of(material: Material) -> String:
 		return "glow_visor"
 	# Longest names first: `scrapmetal` must not be matched by the `metal` prefix, which
 	# would render every container and lattice tower as machined construct plate.
+	# `alu` joined in 017: the zone was in the palette since 010 but no model exported it,
+	# so nothing noticed it fell through to `metal` (and took the part's livery in ink).
 	for known: String in ["scrapmetal", "paint", "metal", "rust", "dark", "tread",
-			"hazard", "rock"]:
+			"hazard", "rock", "alu"]:
 		if zone.begins_with(known):
 			return known
 	return "metal"
