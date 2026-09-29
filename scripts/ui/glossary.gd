@@ -17,7 +17,7 @@ static var _forms: Dictionary = {}
 
 ## `text` with every glossary term wrapped in a link. Brackets in the text are escaped, so
 ## what comes back is always valid BBCode.
-static func linkify(text: String, glossary: Dictionary) -> String:
+static func linkify(text: String, glossary: Dictionary, link: Color = UIKit.BLUE) -> String:
 	_build(glossary)
 	var safe: String = text.replace("[", "\u0001").replace("]", "\u0002")
 	var out: String = ""
@@ -26,7 +26,7 @@ static func linkify(text: String, glossary: Dictionary) -> String:
 		for found: RegExMatch in _regex.search_all(safe):
 			var id: String = String(_forms.get(found.get_string().to_lower(), ""))
 			out += safe.substr(last, found.get_start() - last)
-			out += "[url=%s][color=#%s]%s[/color][/url]" % [id, UIKit.BLUE.to_html(false), found.get_string()]
+			out += "[url=%s][color=#%s]%s[/color][/url]" % [id, link.to_html(false), found.get_string()]
 			last = found.get_end()
 	out += safe.substr(last)
 	return out.replace("\u0001", "[lb]").replace("\u0002", "[rb]")
@@ -47,7 +47,7 @@ static func terms_in(text: String, glossary: Dictionary) -> PackedStringArray:
 
 ## A text whose terms can be tapped for their meaning.
 static func label(text: String, font_size: int, colour: Color, glossary: Dictionary, width: float = 0.0,
-		face: Font = null) -> RichTextLabel:
+		face: Font = null, link: Color = UIKit.BLUE) -> RichTextLabel:
 	var rich := RichTextLabel.new()
 	rich.bbcode_enabled = true
 	rich.fit_content = true
@@ -58,7 +58,7 @@ static func label(text: String, font_size: int, colour: Color, glossary: Diction
 	rich.add_theme_font_override("normal_font", face if face != null else UIKit.font())
 	rich.add_theme_font_size_override("normal_font_size", font_size)
 	rich.add_theme_color_override("default_color", colour)
-	rich.text = linkify(text, glossary)
+	rich.text = linkify(text, glossary, link)
 	rich.meta_clicked.connect(func(meta: Variant) -> void: show_card(rich, String(meta), glossary))
 	return rich
 

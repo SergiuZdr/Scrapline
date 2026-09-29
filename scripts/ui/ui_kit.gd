@@ -51,6 +51,22 @@ const RED := Color("cf5638")
 ## (It was "premium" in the old game; there is no premium now.) See art-and-audio.md.
 const GOLD := Color("d68b52")
 
+# --- Ink & Rust (015) ---------------------------------------------------------
+#
+# The comic-panel kit: paper cards with ink borders and hard offset shadows, ink text, a
+# narrator's caption for hints. The combat HUD is built from it; every other screen follows
+# once the style frame is approved (docs/iterations/015-ink-style-frame.md).
+const INK := Color("14110f")
+const PAPER := Color("efe3c8")
+const PAPER_CARD := Color("f7efdc")
+const PAPER_DIM := Color("d9ceb6")   ## A card that cannot be pressed now.
+const INK_DIM := Color("5b5247")     ## Secondary text on paper.
+const INK_FAINT := Color("9a8f7e")
+const CAPTION := Color("f2e2a4")     ## The narrator's box: hints and the coach.
+const INK_LINK := Color("1f6a8f")    ## A glossary link on paper: your blue, dark enough to read.
+const INK_RED := Color("b3261e")     ## Danger and costs, printed on paper.
+const INK_GREEN := Color("4d7f1d")   ## Gains, printed on paper.
+
 # --- Spacing -----------------------------------------------------------------
 #
 # A 4-point scale. Every gap in the game is one of these six numbers; "roughly 15px
@@ -88,6 +104,8 @@ static var _font: Font
 static var _font_strong: Font
 static var _font_display: Font
 static var _font_numbers: Font
+static var _font_comic: Font
+static var _font_letters: Font
 static var _theme: Theme
 
 
@@ -136,6 +154,22 @@ static func font_numbers() -> Font:
 	return _font_numbers
 
 
+## Ink & Rust (015): Anton, the heavy condensed face for headings, names, numbers and the
+## buttons that matter -- comic-book title lettering. SIL OFL 1.1, `art/fonts/OFL-Anton.txt`.
+static func font_comic() -> Font:
+	if _font_comic == null:
+		_font_comic = _load("Anton-Regular.ttf")
+	return _font_comic
+
+
+## Ink & Rust (015): Bangers, hand-lettered sound effects (KRANG, BOOM) and nothing else --
+## the lettering is only worth anything while it is rare. SIL OFL 1.1, `art/fonts/OFL-Bangers.txt`.
+static func font_letters() -> Font:
+	if _font_letters == null:
+		_font_letters = _load("Bangers-Regular.ttf")
+	return _font_letters
+
+
 static func _tag(name: String) -> int:
 	return TextServerManager.get_primary_interface().name_to_tag(name)
 
@@ -147,6 +181,35 @@ static func _load(file: String) -> FontFile:
 	face.hinting = TextServer.HINTING_NONE
 	face.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_ONE_HALF
 	return face
+
+
+## Ink & Rust (015): a comic panel -- `fill` inside a 3 px ink border, on a hard shadow.
+static func ink_card(fill: Color = PAPER_CARD, margin_x: int = SPACE_LG, margin_y: int = SPACE_MD,
+		shadow: int = 5) -> InkBox:
+	var box := InkBox.new(fill, margin_x, margin_y)
+	box.shadow = Vector2(shadow, shadow)
+	return box
+
+
+## A comic button. Pressed, it loses its shadow and drops into the place the shadow was.
+static func ink_button(fill: Color, pressed: bool = false, lean: float = 0.0) -> InkBox:
+	var box := InkBox.new(fill, SPACE_LG, SPACE_SM)
+	box.skew = lean
+	if pressed:
+		box.shadow = Vector2.ZERO
+		box.content_margin_left += 3
+		box.content_margin_top += 3
+	else:
+		box.shadow = Vector2(4, 4)
+	return box
+
+
+## The narrator's caption (hints, the coach): pale yellow, ink-bordered, no shadow.
+static func ink_caption(margin_x: int = SPACE_MD, margin_y: int = SPACE_XS + 2) -> InkBox:
+	var box := InkBox.new(CAPTION, margin_x, margin_y)
+	box.shadow = Vector2(3, 3)
+	box.border_width = 2.0
+	return box
 
 
 ## A plate: the default surface for a group of related things.
