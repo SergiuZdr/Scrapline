@@ -2,10 +2,10 @@
   "id": "sorting_gate",
   "name": "The Sorting Gate",
   "boss": true,
-  "_comment": "013: the act's gate. In a run only the boss site uses it (RunSim skips `boss` maps for other fights): its first enemy (the Sorter) and the pylons (p) are authored, the escorts are rolled by the run at the other enemy positions, and the crew stands on the player positions. As a file it is also a complete fight (default crew, sample escorts) for practice, tests and screenshots.",
+  "_comment": "013: the act's gate. In a run only the boss site uses it (RunSim skips `boss` maps for other fights): its first enemy (the Sorter) and the pylons (p) are authored, the escorts are rolled by the run at the other enemy positions, and the crew stands on the player positions. As a file it is also a complete fight (default crew, sample escorts) for practice, tests and screenshots. 014: the pylons stand deep, on the back row behind the Sorter, each flanked by a scrap heap -- reached by piercing through the keeper, by lobs, or by arcs run through the heaps. Tried side by side with the old layout, summon pace and a shorter round limit: the same win rate, a different fight.",
   "rows": [
-    "..s..s..",
-    ".p....p.",
+    ".sp..ps.",
+    "........",
     "..r..r..",
     "........",
     ".b....c.",

@@ -146,6 +146,20 @@ crew's back row at round 3, on hexes marked red at round 2 (stand on one to bloc
 fight panel says so before the player walks in. Lingering by the line now costs inside a
 fight as well as on the road.
 
+## What a move and a fight tell you (014)
+
+Two screens answer the questions a player was left guessing at (review points R5-3, R5-1).
+
+- **Before a move, the map says what it costs and what it gives up** (`RunSim.move_preview`):
+  what the site gives, how many enemies wait there (with elites and the gate's escorts), whether
+  the Reclaimer moves with you, and which unvisited sites it swallows when it does, by type;
+  and whether its drones reach the fight. `verify_run` checks every preview on a bot's route
+  against what the move then did.
+- **After a fight, the result shows what the build did** (`FightRecap`): each machine's damage
+  dealt and taken, kills and torn arms, and up to four "your build at work" lines naming the
+  set, perk or tuning that added damage or took it off, and by how much. It counts only what
+  the event stream shows. Range, move, vent and cooldown bonuses are real but not claimed.
+
 ## Currency
 
 **Scrap** is the only currency inside a run. It comes from fights, scrapyards and selling
