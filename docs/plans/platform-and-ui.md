@@ -40,6 +40,20 @@
 - The damage preview shows the final number *after* the type wheel, cover and marks, with
   the part that will take damage highlighted.
 
+## Ink & Rust (016)
+
+- **Comic panels everywhere** (`UIKit`, `InkBox`): paper cards, a 3 px ink border, a hard offset
+  shadow; buttons in Anton that drop onto their shadow when pressed; paper lettering with an ink
+  edge for anything on the dark page or the 3D world (`UIKit.on_page`).
+- **The fight asks for less (review point R5-2)**: the picked machine has the only full card; the
+  others are slim rows (name, what they have left, HP). Card lines are short enough to fit.
+- **Ability cards say what the ability does** ("move 2 more · free · cooldown 2", from the
+  ability's `short`); the full text, effect first, is in the panel when it is armed.
+- **Board labels never overlap**: each machine's tag, scrap mark and firing-order badge are one
+  group, laid out in screen space every frame (`_declutter`); badges naming what will be hit
+  are fixed on the ground. Companions are offset in the billboard's plane.
+- **Hints and the coach are the narrator**: a pale caption box.
+
 ## Screens
 
 | Screen | Purpose |
