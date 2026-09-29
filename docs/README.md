@@ -23,6 +23,7 @@ These files describe the game and record how it gets built. They are updated at 
 | [plans/enemies-and-ai.md](plans/enemies-and-ai.md) | Enemy roster, intents, elites, bosses |
 | [plans/platform-and-ui.md](plans/platform-and-ui.md) | PC and mobile together: input, layout, screens |
 | [plans/art-and-audio.md](plans/art-and-audio.md) | Visual direction and what carries over from the existing pipeline |
+| [plans/models.md](plans/models.md) | How the machines, sites and the Reclaimer are made: three routes, the proof (017), how to run each |
 | [plans/tech-architecture.md](plans/tech-architecture.md) | Code structure, determinism, save/load, testing |
 | [plans/salvage-audit.md](plans/salvage-audit.md) | Keep, adapt or cut for every system in the old codebase |
 

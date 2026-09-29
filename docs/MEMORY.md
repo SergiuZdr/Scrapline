@@ -90,6 +90,10 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-29 | **Ink & Rust is the whole game's look** | The user, on the style frame: "apply this look to the entire game" |
 | 2026-09-29 | **A shot along hex edges fires the better of its two sides** (reaches the target, then does more, then fewer obstacles) | Play-test 6: a rail beam ploughed through a crate wall with the other side open |
 | 2026-09-29 | **Selection is an amber border; lettering on paper is ink; text on the dark page is paper with an ink edge** | Amber text does not read on paper |
+| 2026-09-29 | **Models: machines by the generator, led by concept art (route A); sites and the Reclaimer generated or from kits (C or B); proved on two models first** | The user: "go with the recommendation" ([plans/models.md](plans/models.md)). Modularity (tearing, levels, salvage) is the game, and only the generator keeps it for free |
+| 2026-09-29 | **New models live beside the old, behind `--models new`, per part**, until the user picks | A proof has to stand in the real screens without changing the game anyone plays |
+| 2026-09-29 | **Concept art leads the shapes; the game's rules keep the colours** (livery per part, the team in the eye, one light value on the weapon heads) | The concept is all one yellow; the game reads a machine by its parts' colours and its eye |
+| 2026-09-29 | **Route C runs on this Mac (TripoSR, MIT)**; TRELLIS needs a Hugging Face account | Every capable image-to-3D demo is on ZeroGPU and one TRELLIS call asks more than the anonymous quota ever holds |
 
 ## Lessons carried over from the old codebase
 
@@ -168,6 +172,12 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-29 | A billboard's companions (badges, marks) must be offset in the billboard's own plane: a world-height step shows at about half its size under a camera looking down, and a world sideways step turns with the camera |
 | 2026-09-29 | A label's measured size is stale for a frame after its text changes; measure from the text when placing things against it |
 | 2026-09-29 | Before reusing an engine slot for a look (`material_overlay`), find everything else that writes it |
+| 2026-09-29 | **A zone no model exports is a zone nobody tests**: `alu` sat in the palette from 010 and fell through to `metal` in `zone_of` until the first model carried it |
+| 2026-09-29 | Blender does not refresh `matrix_world` when `.location` is written: a matrix composed onto it straight after drops the move (both legs baked at the pelvis). `view_layer.update()` first |
+| 2026-09-29 | A single-image 3D model rebuilds what the image shows: the camera's tilt comes along, the unseen sides are guessed (grey, lumpy) and a lattice becomes a sheet. Level, square and relax before judging it |
+| 2026-09-29 | Python's `set()` of strings iterates in a per-process order: a vote broken by `max(set(...))` made one export differ run to run. Sort before picking |
+| 2026-09-29 | The side of your own machine you see most is its BACK: the board's camera stands behind the crew |
+| 2026-09-29 | A tool nobody runs rots silently: the roster generator had not loaded the parts since `makers.json` (011) |
 
 ## Open questions
 
@@ -186,10 +196,12 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-24 | The four 004 design calls (repair between fights, restored arms, front damage per move, generated squads) | Proposed; awaiting the user's veto | **Superseded by play-test 1**: the Crawler is gone and HP now carries; revisit the rest in 005 |
 | 2026-09-23 | Keep 3D or go 2D? | Keep 3D. The whole art pipeline exists, and a tilted camera suits a grid |agree with the propose |
 | 2026-09-25 | **Difficulty after 008**: the run bot wins 88.7% (76.7% after 007), and it barely uses abilities | Dials, in order: enemy count by column (`run.json` enemies), the speed of the front (`front.every`), level costs. Decide after play-test 4 | |
-| 2026-09-26 | **Which roster is right: pauldrons on every arm (the shipped roster, CLAUDE.md) or per-archetype shoulders (`builders/arm.py` today)?** The generator no longer reproduces the roster, which blocks exporting the aluminium light value | Proposed: keep the shipped look (pauldrons everywhere), make the generator reproduce it, then export the aluminium. The user decides | |
+| 2026-09-26 | **Which roster is right: pauldrons on every arm (the shipped roster, CLAUDE.md) or per-archetype shoulders (`builders/arm.py` today)?** The generator no longer reproduces the roster, which blocks exporting the aluminium light value | Proposed: keep the shipped look (pauldrons everywhere), make the generator reproduce it, then export the aluminium. The user decides | **Superseded by 017**: the roster is rebuilt from concept art (`make_ink_parts.py`), which exports `alu` |
 | 2026-09-26 | **The gate now decides two thirds of the bot's losses** (12 of 18). A climax or a wall? | 013 replaces the gate fight with a real boss; judge it in the play-test. 014: still 12 of 20; escorts and summon pace do not move it, the round limit does | |
 | 2026-09-26 | **Play-test 5 (009-013)**: is the Sorter a climax? Do signals, traders and towers fix "the map feels empty"? Does the shakedown teach enough? | The user plays | |
 | 2026-09-29 | **Which art direction?** A Ink & Rust, B Painted Miniatures, C Schematic Low-Poly ([options](plans/art-direction-options.md)) | A, proved first in the "decision moment" style frame | **A** (the user, 2026-09-29) |
 | 2026-09-29 | **PT5-5: was the "scrap on the ground" rubble?** | Assumed rubble (costs 2); routes now take fewer hexes at equal cost and the route is drawn on hover | **No: the scrap piles** (the user). 015: routes over scrap win ties |
 | 2026-09-29 | **The style frame (015): should the rest of the game look like this?** | Yes, then 016 carries it to the map, the Reclaimer, every panel, the garage and the title | **Yes** (the user); done in 016 |
-| 2026-09-29 | **New models (PT6-5): from scratch, open-licence kits, or generated?** | See the 016 report and 017 | |
+| 2026-09-29 | **New models (PT6-5): from scratch, open-licence kits, or generated?** | See the 016 report and 017 | **A for machines, C or B for sites, proved first** (the user) |
+| 2026-09-29 | **The proof (017): route A for the whole roster? Route C for the sites -- TripoSR as it runs here, TRELLIS with a Hugging Face token, or kits (B)?** | A for the roster; for sites, TRELLIS if a token is available (it rebuilds the unseen sides), else B | |
+| 2026-09-29 | The crew number is stencilled across the core's lens (old and new cores): the stencil is sized to 59% of the plate | Place it from the core's own marked corner in the roster pass | |

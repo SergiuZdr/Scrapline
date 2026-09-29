@@ -2,6 +2,24 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [017] Models: the two routes, proved — 2026-09-29 ([detail](iterations/017-models-proof.md))
+
+Play-test 6 (PT6-5): new models, by the route the user picked -- proved on one machine and one
+landmark before the rest. **Nothing changes by default**: `-- --models new` shows them.
+
+### Added
+- **The Brute rebuilt from concept art** (route A): chassis, Rend Saw, Breaker Hammer, Slug core
+  -- big plates, one eye, square pauldrons, heavy two-tone legs, a pack on its back, white saw
+  and sledge heads; a sixth of the triangles (`tools/blender/make_ink_parts.py`, `art/parts_new/`).
+- **A generated workshop** (route C): the concept turned into a mesh by TripoSR on this Mac and
+  cleaned for ink in Blender (`tools/gen3d/`, `tools/blender/clean_generated.py`, `art/sites/`).
+- `--models new` (`Models`), `tools/shot_models.gd` (old and new side by side), concept art in
+  `art/concepts/`, `verify_assembly -- --dir` and leg-pivot checks, `make_ink_thumbs -- --out`.
+
+### Fixed
+- The light `alu` zone rendered as structure (it was never recognised); the roster generator
+  failed on `makers.json` since 011.
+
 ## [016] Ink & Rust everywhere — 2026-09-29 ([detail](iterations/016-ink-everywhere.md))
 
 The user's verdict on the style frame: "apply this look to the entire game". Play-test 6.
