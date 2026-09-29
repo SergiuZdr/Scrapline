@@ -58,6 +58,7 @@ func _initialize() -> void:
 	_test_dry_run_matches()
 	_test_gate_and_reclaimer()
 	_test_playtest5()
+	_test_scrap_on_the_way()
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown"]:
 		_test_bot_fight(id)
 	print("")
@@ -461,6 +462,40 @@ func _test_playtest5() -> void:
 
 
 ## 013: the Sorter behind its pylons, and the Reclaimer's drones arriving from behind.
+## 015 (play-test 5, PT5-5 as the user meant it): among equally cheap routes a machine takes
+## the one over scrap, never a costlier one.
+func _test_scrap_on_the_way() -> void:
+	# Two hexes away, between two directions: two equally short routes, via n0 or via n1.
+	var n0: Vector2i = Hex.neighbor(C, 0)
+	var n1: Vector2i = Hex.neighbor(C, 1)
+	var dest: Vector2i = Hex.neighbor(n0, 1)
+	_check("(precondition) both routes reach the hex in two steps",
+		Hex.distance(C, dest) == 2 and Hex.distance(n1, dest) == 1)
+	for pile: Vector2i in [n0, n1]:
+		var s: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, Vector2i(0, 0), 30)],
+			{"type": "rout", "piles": [{"x": pile.x, "y": pile.y}]})
+		_place(s, 0, C)
+		var route: Array = CombatSim.reachable(s, 0).get(dest, [])
+		_check("of two equally short routes, the one over the pile at %s is walked" % pile,
+			route.size() == 2 and route[0] == pile)
+		CombatSim.apply(s, [CombatSim.ACT_MOVE, 0, dest.x, dest.y])
+		_check("and the pile is taken on the way", not s.piles.has(pile) and s.scrap_collected > 0 and _at(s, 0) == dest)
+	# Never a detour: straight ahead is one route; the pile beside it would cost a step more.
+	var ahead: Vector2i = Hex.neighbor(n0, 0)
+	var d: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, Vector2i(0, 0), 30)],
+		{"type": "rout", "piles": [{"x": n1.x, "y": n1.y}]})
+	_place(d, 0, C)
+	var straight: Array = CombatSim.reachable(d, 0).get(ahead, [])
+	_check("a pile off the cheapest route is not worth a detour", straight.size() == 2 and not straight.has(n1))
+	# The same rule for the other side: an enemy walks over scrap too.
+	var e: CombatState = _fight(_rows(), [_unit(HAMMER, Vector2i(0, 8))], [_unit(HAMMER, C, 30)],
+		{"type": "rout", "piles": [{"x": n1.x, "y": n1.y}]})
+	_place(e, 10, C)
+	_check("(precondition) the pile is still there for the enemy", e.piles.has(n1))
+	var theirs: Array = CombatSim.paths_from(e, e.unit(10), 3).get(dest, [])
+	_check("an enemy's route takes the scrap on the way as well", theirs.size() == 2 and theirs[0] == n1)
+
+
 func _test_gate_and_reclaimer() -> void:
 	var marks: Dictionary = {Vector2i(1, 1): "p", Vector2i(6, 1): "p"}
 	var sorter: Dictionary = {"name": "The Sorter", "kind": "sorter", "hp": 18,
