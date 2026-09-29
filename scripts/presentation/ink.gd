@@ -311,6 +311,62 @@ static func dress_scenery(node: Node, dim: float = 0.45) -> void:
 		line(mesh, LINE_WORLD * 0.8, INK)
 
 
+## The ink world's environment (016): a flat night ambient (the shadow band is albedo times
+## this), no sky, a linear tonemap so a palette colour lands as itself, glow only on signals.
+## Every 3D screen uses it, so a machine looks the same in the garage, on the map and in a fight.
+static func environment(background: Color = Color("11141c")) -> Environment:
+	var e := Environment.new()
+	e.background_mode = Environment.BG_COLOR
+	e.background_color = background
+	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	e.ambient_light_color = Color("6b7390")
+	e.ambient_light_energy = 1.0
+	e.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
+	e.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	e.glow_enabled = true
+	e.glow_intensity = 0.35
+	e.glow_bloom = 0.0
+	e.glow_hdr_threshold = 1.05
+	e.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	return e
+
+
+## The ink world's one light: a hard key. The toon ramp draws with the DIRECTIONAL light only,
+## so a scene lit by spots or omnis renders its machines as ambient alone.
+static func key_light(rotation: Vector3 = Vector3(-40, -38, 0), shadow_distance: float = 40.0) -> DirectionalLight3D:
+	var key := DirectionalLight3D.new()
+	key.rotation_degrees = rotation
+	key.light_energy = 1.0
+	key.light_color = Color("fff0da")
+	key.shadow_enabled = true
+	key.shadow_blur = 0.0
+	key.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	key.directional_shadow_max_distance = shadow_distance
+	key.shadow_bias = 0.03
+	key.shadow_normal_bias = 1.2
+	return key
+
+
+## A LANDMARK (016): a kit prop that is a place you can go, drawn in its zones' own colours --
+## `livery` on its painted panels -- with a line. Unlike scenery it keeps its hue: a map is
+## read by what stands on the sites.
+static func dress_prop(node: Node, livery: Color, width: float = LINE_WORLD) -> void:
+	for mesh: MeshInstance3D in ConstructView.meshes_of(node):
+		if mesh.mesh == null:
+			continue
+		for s: int in mesh.mesh.get_surface_count():
+			var zone: String = PartMaterials.zone_of(mesh.mesh.surface_get_material(s))
+			var m: Material
+			if zone.begins_with("glow"):
+				m = glow(GLOWS.get(zone, PAPER), 0.9)
+			elif zone == PartMaterials.ZONE_PAINT:
+				m = toon(livery)
+			else:
+				m = toon((ZONES.get(zone, ZONES["metal"])[0] as Color).lightened(0.12))
+			mesh.set_surface_override_material(s, m)
+		line(mesh, width)
+
+
 ## A texture drawn in code, cached by name. `draw` fills a blank Image of `size`.
 static var _textures: Dictionary = {}
 

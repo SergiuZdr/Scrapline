@@ -17,9 +17,10 @@ static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array 
 	var button := Button.new()
 	button.custom_minimum_size = size
 	button.focus_mode = Control.FOCUS_NONE
-	var style := UIKit.inset(UIKit.SURFACE_HIGH, UIKit.RADIUS_CARD, 0, 0)
-	style.border_color = colour.darkened(0.1)
-	style.set_border_width_all(2)
+	var style := UIKit.card(UIKit.SURFACE, 0, 0, 0)
+	style.border_color = UIKit.HAIRLINE
+	style.set_border_width_all(3)
+	style.shadow_offset = Vector2(4, 4)
 	for key: String in ["normal", "hover", "pressed", "disabled", "focus"]:
 		button.add_theme_stylebox_override(key, style)
 	var hover: StyleBoxFlat = style.duplicate()
@@ -40,14 +41,14 @@ static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array 
 	var banner_row := HBoxContainer.new()
 	banner_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	banner.add_child(banner_row)
-	banner_row.add_child(_label(RARITY_NAMES[rarity - 1], UIKit.SIZE_MICRO, colour.lightened(0.45), UIKit.font_strong()))
+	banner_row.add_child(_label(RARITY_NAMES[rarity - 1], UIKit.SIZE_MICRO, UIKit.PAGE_TEXT, UIKit.font_comic()))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	banner_row.add_child(spacer)
 	# Who made it, then what it is: "KESSLER ARM" (011: parts from one maker add up).
 	banner_row.add_child(_label(("%s %s" % [PartText.maker_short(db.makers, parts, id), PartText.slot_label(parts, id)]).strip_edges(),
-		UIKit.SIZE_MICRO, UIKit.TEXT_DIM, UIKit.font_strong()))
+		UIKit.SIZE_MICRO, Color(UIKit.PAGE_TEXT, 0.75), UIKit.font_comic()))
 
 	var inner := VBoxContainer.new()
 	inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -72,7 +73,7 @@ static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array 
 		picture.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		inner.add_child(picture)
-	inner.add_child(_label(PartText.name_of(parts, id), UIKit.SIZE_BODY, colour.lightened(0.3), UIKit.font_strong()))
+	inner.add_child(_label(PartText.name_of(parts, id), 20, colour, UIKit.font_comic()))
 	var text := _label(PartText.summary(parts, id, db.combat_abilities), UIKit.SIZE_MICRO, UIKit.TEXT_DIM)
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.custom_minimum_size = Vector2(size.x - UIKit.SPACE_SM * 2, 0)

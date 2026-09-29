@@ -876,6 +876,7 @@ func _build_view(u: GridUnit) -> Dictionary:
 	tag.outline_size = 18
 	tag.outline_modulate = Ink.INK
 	tag.modulate = Ink.PAPER
+	tag.set_meta("base_pos", tag.position)
 	root.add_child(tag)
 
 	# Play-test 4: not every enemy drops scrap. The ones that will say so, over their tag,
@@ -888,14 +889,22 @@ func _build_view(u: GridUnit) -> Dictionary:
 		loot.no_depth_test = true
 		loot.shaded = false
 		loot.modulate = Ink.GAIN
-		# Left of the tag; a shooter's firing order sits on the right.
-		loot.position = tag.position + Vector3(-0.5, 0.0, 0)
+		# Beside the tag, on the left -- offset in the billboard's own plane, so it stays on the
+		# left whichever way the camera is turned.
+		loot.position = tag.position
+		loot.offset = Vector2(-0.52, 0.0) / loot.pixel_size
 		loot.render_priority = 2
+		loot.set_meta("base_pos", loot.position)
+		loot.set_meta("label_of", u.ref)
 		root.add_child(loot)
 		# On an ink disc, so the mark reads over anything behind it.
-		root.add_child(_disc(loot.position, 0.17, Ink.INK, Ink.GAIN, 1))
+		var back: Node3D = _disc(loot.position, 0.17, Ink.INK, Ink.GAIN, 1, Vector2(-0.52, 0.0))
+		back.set_meta("base_pos", back.position)
+		back.set_meta("label_of", u.ref)
+		root.add_child(back)
 
 	var view: Dictionary = {"root": root, "model": model, "rig": rig, "ring": ring, "tag": tag, "dead": false}
+	view["extras"] = root.get_children().filter(func(n: Node) -> bool: return n.has_meta("label_of"))
 	_set_tag(view, u)
 	for w: int in u.weapons.size():
 		if not u.can_fire(w):
@@ -1051,7 +1060,7 @@ func _saw_ring(inner: float, outer: float, tip: float, teeth: int) -> ArrayMesh:
 
 ## A flat disc facing the camera (a badge's back): `fill` inside a `rim` ring -- two tinted
 ## sprites of one white disc, the rim drawn first and a little larger.
-func _disc(at: Vector3, radius: float, fill: Color, rim: Color, priority: int = 0) -> Node3D:
+func _disc(at: Vector3, radius: float, fill: Color, rim: Color, priority: int = 0, lift: Vector2 = Vector2.ZERO) -> Node3D:
 	var root := Node3D.new()
 	root.position = at
 	var texture: Texture2D = Ink.texture("disc", Vector2i(96, 96), func(image: Image) -> void:
@@ -1069,6 +1078,7 @@ func _disc(at: Vector3, radius: float, fill: Color, rim: Color, priority: int = 
 		sprite.shaded = false
 		sprite.modulate = layer[0]
 		sprite.render_priority = int(layer[2])
+		sprite.offset = lift / sprite.pixel_size
 		root.add_child(sprite)
 	return root
 
@@ -1145,6 +1155,108 @@ func _burst(view: Dictionary, push: Vector3) -> void:
 func _process(delta: float) -> void:
 	for ref: Variant in _views:
 		((_views[ref] as Dictionary)["rig"] as ConstructRig).update(delta)
+	_declutter()
+
+
+## Board labels never overlap (016; play-test 6 caught "TRACKER" under an order badge and a
+## tag under a scrap mark). Each machine's labels -- its tag, its scrap mark, the badge with its
+## firing order -- are one group; the badges naming what will be hit sit fixed on the ground.
+## Every frame, each group is measured in SCREEN space and the groups are taken top to bottom:
+## one that would overlap anything already placed is pushed down just clear of it. The push is
+## in world height, which a billboard keeps vertical on screen, and it is recomputed from the
+## labels' home positions every frame, so nothing drifts and a camera turn just re-lays it.
+func _declutter() -> void:
+	if _camera == null or not _camera.is_inside_tree():
+		return
+	var placed: Array[Rect2] = []
+	for node: Node in _marks_root.get_children():
+		if node.has_meta("ground_badge") and node is Node3D and not (node as Node3D).is_queued_for_deletion():
+			var rect: Rect2 = _screen_box(node as Node3D)
+			if rect.size != Vector2.ZERO:
+				placed.append(rect.grow(2.0))
+	var badges: Dictionary = {}
+	for node: Node in _marks_root.get_children():
+		if node.has_meta("badge_of") and not node.is_queued_for_deletion():
+			var owner: int = int(node.get_meta("badge_of"))
+			if not badges.has(owner):
+				badges[owner] = []
+			(badges[owner] as Array).append(node)
+	var groups: Array = []
+	for ref: Variant in _views:
+		var view: Dictionary = _views[ref]
+		if bool(view["dead"]):
+			continue
+		var nodes: Array = [view["tag"]]
+		nodes.append_array(view.get("extras", []))
+		nodes.append_array(badges.get(int(ref), []))
+		var box := Rect2()
+		var first: bool = true
+		for node: Variant in nodes:
+			var n := node as Node3D
+			if n == null or not is_instance_valid(n) or not n.visible:
+				continue
+			n.position = n.get_meta("base_pos", n.position)
+			var r: Rect2 = _screen_box(n)
+			if r.size == Vector2.ZERO:
+				continue
+			box = r if first else box.merge(r)
+			first = false
+		if not first:
+			groups.append({"nodes": nodes, "box": box, "anchor": (view["tag"] as Node3D).global_position})
+	groups.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var ta: float = (a["box"] as Rect2).position.y
+		var tb: float = (b["box"] as Rect2).position.y
+		return ta < tb or (ta == tb and (a["box"] as Rect2).position.x < (b["box"] as Rect2).position.x))
+	for group: Dictionary in groups:
+		var box: Rect2 = group["box"]
+		var shift: float = 0.0
+		for pass_index: int in 8:
+			var moved: bool = false
+			for other: Rect2 in placed:
+				var here := Rect2(box.position + Vector2(0, shift), box.size)
+				if here.intersects(other):
+					shift = other.end.y - box.position.y + 3.0
+					moved = true
+			if not moved:
+				break
+		if shift > 0.0:
+			# Screen pixels per metre of world height at this group, from the camera itself.
+			var anchor: Vector3 = group["anchor"]
+			var per_m: float = absf(_camera.unproject_position(anchor - Vector3(0, 1, 0)).y - _camera.unproject_position(anchor).y)
+			var down: float = shift / maxf(per_m, 1.0)
+			for node: Variant in group["nodes"]:
+				var n := node as Node3D
+				if n != null and is_instance_valid(n):
+					n.position = (n.get_meta("base_pos", n.position) as Vector3) - Vector3(0, down, 0)
+		placed.append(Rect2(box.position + Vector2(0, shift), box.size))
+
+
+## A billboard label's box on screen: its own quad's size, centred where it projects.
+func _screen_box(node: Node3D) -> Rect2:
+	var quad := AABB()
+	if node is Label3D:
+		quad = (node as Label3D).get_aabb()
+	elif node is Sprite3D:
+		quad = (node as Sprite3D).get_aabb()
+	elif node.get_child_count() > 0 and node.get_child(0) is Sprite3D:
+		quad = (node.get_child(0) as Sprite3D).get_aabb()
+	if quad.size == Vector3.ZERO or _camera.is_position_behind(node.global_position):
+		return Rect2()
+	var centre: Vector2 = _camera.unproject_position(node.global_position)
+	var distance: float = _camera.global_position.distance_to(node.global_position)
+	var per_m: float = get_viewport().get_visible_rect().size.y / (2.0 * distance * tan(deg_to_rad(_camera.fov * 0.5)))
+	var size := Vector2(quad.size.x, quad.size.y) * per_m
+	var offset := Vector2.ZERO
+	if node is Label3D:
+		offset = (node as Label3D).offset * (node as Label3D).pixel_size * per_m * Vector2(1, -1)
+		if (node as Label3D).horizontal_alignment == HORIZONTAL_ALIGNMENT_LEFT:
+			offset.x += size.x * 0.5
+	elif node is Sprite3D:
+		offset = (node as Sprite3D).offset * (node as Sprite3D).pixel_size * per_m * Vector2(1, -1)
+	elif node.get_child_count() > 0 and node.get_child(0) is Sprite3D:
+		var sprite: Sprite3D = node.get_child(0)
+		offset = sprite.offset * sprite.pixel_size * per_m * Vector2(1, -1)
+	return Rect2(centre + offset - size * 0.5, size)
 
 
 # --- Playback ---------------------------------------------------------------
@@ -1757,7 +1869,7 @@ func _refresh_hud(threats: Dictionary) -> void:
 		if u.team != GridUnit.TEAM_PLAYER or u.objective:
 			continue
 		cards.append({
-			"ref": u.ref, "name": u.name, "detail": _unit_line(u), "arms": _arms_line(u),
+			"ref": u.ref, "name": u.name, "detail": _card_line(u), "arms": _arms_line(u),
 			"hp": u.hp, "max_hp": u.max_hp, "alive": u.alive, "heat": u.heat, "heat_cap": u.heat_cap,
 			"can_move": not CombatSim.reachable(_state, u.ref).is_empty(),
 			"can_act": not u.acted and not u.seized and u.has_weapon(),
@@ -1841,8 +1953,11 @@ func _refresh_weapon_bar(sel: GridUnit) -> void:
 			reason = "NOT NOW"
 		if _armed and _ability == i:
 			selected = list.size()
-		var cost: String = "FREE" if bool(ability["free"]) else "USES ACTION"
-		list.append({"name": String(ability["name"]), "detail": "%s · COOLDOWN %d" % [cost, int(ability["cooldown"])],
+		# What it does first, then what it costs (016, play-test 6: the card said only the cost).
+		var cost: String = "free" if bool(ability["free"]) else "uses the action"
+		var short: String = String(ability.get("short", ""))
+		list.append({"name": String(ability["name"]), "detail": "%s%s  ·  cooldown %d" % [
+			(short + "  ·  ") if not short.is_empty() else "", cost, int(ability["cooldown"])],
 			"available": reason.is_empty(), "reason": reason, "ability": true})
 		_bar_items.append(["ability", i])
 	var vent: String = ""
@@ -1906,6 +2021,13 @@ func _threat_summary(threats: Dictionary) -> String:
 		lines.append("%d. %s (%s) → %s" % [int(threat["order"]), shooter.name,
 			String(shooter.weapons[int(threat["w"])]["name"]), outcome])
 	return "Enemy fire, in order:\n" + "\n".join(lines)
+
+
+## A card's line: short enough never to be cut off (play-test 6: "Brawler · move 3 · plate
+## armour · th..."). The damage type and the rest are in the info panel.
+func _card_line(u: GridUnit) -> String:
+	return "%s  ·  move %d  ·  %s" % [u.role.capitalize(), u.move,
+		String((_db.combat_rules.get("armor_types", []) as Array)[u.armor_type])]
 
 
 func _unit_line(u: GridUnit) -> String:
@@ -1994,8 +2116,19 @@ func _intent_marker(ref: int, threat: Dictionary, full: bool) -> void:
 		text += " LOCKED"
 	# On the ground at the hex's near edge, where it names the hex and hides no machine.
 	_badge(text, to + Vector3(0, -0.2, HEX * 0.62), Ink.DANGER if legal else colour, 1.0 if legal else 0.8)
-	# The shooter wears its number too, over its tag, so a badge can be traced back.
-	_badge(str(int(threat["order"])), from + Vector3(0, (2.35 if u.kind == "sorter" else 1.75) - 0.35 + 0.5, 0), Ink.DANGER, 0.7)
+	# The shooter wears its number too, just over its tag's top line, so a badge can be traced
+	# back. Lifted in the billboard's plane, not in world height: the camera looks down, so a
+	# world-height step shows at about half its size and the badge sat on the tag's first line.
+	var tag_y: float = 2.35 if u.kind == "sorter" else 1.75
+	var half: float = 0.14
+	if _views.has(ref):
+		# From the text, not `get_aabb()`: a label's mesh is rebuilt a frame after its text
+		# changes, so right after `_set_tag` its box still measures the old text.
+		var tag: Label3D = (_views[ref] as Dictionary)["tag"]
+		tag_y = (tag.get_meta("base_pos", tag.position) as Vector3).y
+		half = float(tag.text.count("\n") + 1) * float(tag.font_size) * tag.pixel_size * 0.6
+	_badge(str(int(threat["order"])), _to_world(u.x, u.y) + Vector3(0, tag_y, 0), Ink.DANGER, 0.7, ref,
+		Vector2(0.0, half + 0.21 * 0.7 + 0.04))
 	if not full or from.distance_to(to) < 0.01:
 		return
 	var bar := MeshInstance3D.new()
@@ -2031,10 +2164,10 @@ func _marker_label(text: String, at: Vector3, colour: Color, size: int) -> void:
 ## An intent badge (015): an ink disc ringed in the danger red, the firing order lettered in
 ## paper on it -- the sketch the user picked, and it reads in grey (a dark disc, a pale figure).
 ## A MISSES or LOCKED suffix hangs under it.
-func _badge(text: String, at: Vector3, colour: Color, scale: float) -> void:
-	var disc: Node3D = _disc(at, 0.21 * scale, Ink.INK, colour, 4)
-	disc.set_meta("intent", true)
-	_marks_root.add_child(disc)
+func _badge(text: String, at: Vector3, colour: Color, scale: float, owner_ref: int = -1, lift: Vector2 = Vector2.ZERO) -> void:
+	var nodes: Array[Node3D] = []
+	var disc: Node3D = _disc(at, 0.21 * scale, Ink.INK, colour, 4, lift)
+	nodes.append(disc)
 	var parts: PackedStringArray = text.split(" ", false, 1)
 	var label := Label3D.new()
 	label.text = parts[0]
@@ -2046,11 +2179,35 @@ func _badge(text: String, at: Vector3, colour: Color, scale: float) -> void:
 	label.outline_size = 0
 	label.modulate = Ink.PAPER
 	label.render_priority = 6
-	label.position = at + Vector3(0, 0.005, 0)
-	label.set_meta("intent", true)
-	_marks_root.add_child(label)
+	label.position = at
+	label.offset = lift / label.pixel_size
+	nodes.append(label)
 	if parts.size() > 1:
-		_marker_label(parts[1], at + Vector3(0, -0.34 * scale, 0), colour.lightened(0.2), int(30 * scale))
+		# MISSES / LOCKED reads BESIDE the disc (play-test 6: under it, the word hid behind it).
+		var word := Label3D.new()
+		word.text = parts[1]
+		word.font = UIKit.font_comic()
+		word.font_size = int(34 * scale)
+		word.pixel_size = 0.005
+		word.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		word.no_depth_test = true
+		word.outline_size = 14
+		word.outline_modulate = Ink.INK
+		word.modulate = colour.lightened(0.3)
+		word.render_priority = 6
+		word.outline_render_priority = 5
+		word.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		word.offset = (lift + Vector2(0.21 * scale + 0.05, 0.0)) / 0.005
+		word.position = at
+		nodes.append(word)
+	for node: Node3D in nodes:
+		node.set_meta("intent", true)
+		node.set_meta("base_pos", node.position)
+		if owner_ref >= 0:
+			node.set_meta("badge_of", owner_ref)
+		else:
+			node.set_meta("ground_badge", true)
+		_marks_root.add_child(node)
 
 
 ## A hive's fabricator pad (play-test 4). It stays where the hive set it down, so it is a

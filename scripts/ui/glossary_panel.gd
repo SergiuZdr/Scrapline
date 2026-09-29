@@ -22,10 +22,10 @@ func _ready() -> void:
 	var backdrop: Control = UIKit.backdrop()
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(backdrop)
-	var title := _label("GLOSSARY", UIKit.SIZE_DISPLAY, UIKit.TEXT, UIKit.font_display())
+	var title := UIKit.on_page(_label("GLOSSARY", UIKit.SIZE_DISPLAY, UIKit.PAGE_TEXT, UIKit.font_display()), 10)
 	title.position = Vector2(120, 60)
 	add_child(title)
-	var line := _label("Every word the game uses. In running text they are links: tap one for its card.", UIKit.SIZE_BODY, UIKit.TEXT_DIM)
+	var line := UIKit.on_page(_label("Every word the game uses. In running text they are links: tap one for its card.", UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()), 5)
 	line.position = Vector2(122, 124)
 	add_child(line)
 	_tabs = VBoxContainer.new()
@@ -77,12 +77,14 @@ func _rebuild() -> void:
 		tab.text = String(group)
 		tab.focus_mode = Control.FOCUS_NONE
 		tab.custom_minimum_size = Vector2(300, 56)
-		tab.add_theme_font_override("font", UIKit.font_strong())
-		tab.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
-		for key: String in ["normal", "hover", "pressed", "focus"]:
-			tab.add_theme_stylebox_override(key, UIKit.choice() if chosen else UIKit.secondary())
+		tab.add_theme_font_override("font", UIKit.font_comic())
+		tab.add_theme_font_size_override("font_size", 22)
+		var style: StyleBoxFlat = UIKit.choice() if chosen else UIKit.secondary()
+		for key: String in ["normal", "hover", "focus"]:
+			tab.add_theme_stylebox_override(key, style)
+		tab.add_theme_stylebox_override("pressed", UIKit.pressed(style))
 		for key: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-			tab.add_theme_color_override(key, UIKit.AMBER if chosen else UIKit.TEXT)
+			tab.add_theme_color_override(key, UIKit.TEXT)
 		tab.pressed.connect(func() -> void:
 			_group = String(group)
 			_rebuild())
@@ -95,14 +97,18 @@ func _rebuild() -> void:
 		var term: Dictionary = terms[id]
 		if String(term.get("group", "")) != _group:
 			continue
+		# Each word on its own paper card (016): ink text needs paper under it.
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", UIKit.card(UIKit.SURFACE, 0, UIKit.SPACE_LG, UIKit.SPACE_SM))
 		var entry := VBoxContainer.new()
 		entry.add_theme_constant_override("separation", 2)
-		entry.add_child(_label(String(term.get("name", id)).to_upper(), UIKit.SIZE_TITLE, UIKit.TEXT, UIKit.font_strong()))
+		card.add_child(entry)
+		entry.add_child(_label(String(term.get("name", id)).to_upper(), 26, UIKit.TEXT, UIKit.font_comic()))
 		var text := _label(String(term.get("text", "")), UIKit.SIZE_BODY, UIKit.TEXT_DIM)
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		text.custom_minimum_size = Vector2(1240, 0)
+		text.custom_minimum_size = Vector2(1220, 0)
 		entry.add_child(text)
-		_list.add_child(entry)
+		_list.add_child(card)
 
 
 func _label(text: String, font_size: int, colour: Color, face: Font = null) -> Label:

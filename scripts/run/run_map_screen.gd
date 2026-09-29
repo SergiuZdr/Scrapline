@@ -67,8 +67,8 @@ func _ready() -> void:
 	add_child(_labels)
 	_build_top_bar()
 	_build_crew_dock()
-	var hint := _label("Click a site to go  ·  drag to look around  ·  wheel to zoom  ·  C to come back",
-		UIKit.SIZE_LABEL, UIKit.TEXT_FAINT)
+	var hint := UIKit.on_page(_label("Click a site to go  ·  drag to look around  ·  wheel to zoom  ·  C to come back",
+		UIKit.SIZE_LABEL, UIKit.PAGE_TEXT, UIKit.font_strong()), 5)
 	hint.position = Vector2(760, 1080 - 44)
 	add_child(hint)
 	_preview = PanelContainer.new()
@@ -177,26 +177,33 @@ func _process(_delta: float) -> void:
 
 func _build_top_bar() -> void:
 	var shade := ColorRect.new()
-	shade.color = Color(0.03, 0.03, 0.035, 0.9)
+	shade.color = Color(UIKit.BG, 0.92)
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	shade.position = Vector2.ZERO
 	shade.size = Vector2(1920, 118)
 	add_child(shade)
+	var rule := ColorRect.new()
+	rule.color = UIKit.HAIRLINE
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rule.position = Vector2(0, 118)
+	rule.size = Vector2(1920, 4)
+	add_child(rule)
 	var act: Dictionary = _act()
-	var title := _label("ACT 1  ·  %s" % String(act.get("name", "THE CRANE YARDS")), 44, UIKit.TEXT, UIKit.font_display())
-	title.position = Vector2(40, 16)
+	# Ink & Rust (016): the act's name lettered on the page, paper on an ink edge.
+	var title := UIKit.on_page(_label("ACT 1  ·  %s" % String(act.get("name", "THE CRANE YARDS")), 44, UIKit.PAGE_TEXT, UIKit.font_display()), 10)
+	title.position = Vector2(40, 12)
 	add_child(title)
-	var mission := _label(String(act.get("mission", "")), UIKit.SIZE_BODY, UIKit.TEXT_DIM)
-	mission.position = Vector2(42, 74)
+	var mission := UIKit.on_page(_label(String(act.get("mission", "")), UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()), 5)
+	mission.position = Vector2(42, 76)
 	add_child(mission)
 
 	# The Reclaimer as a gauge (play-test 4: "should not come from text"): its name, and one
 	# pip per move of its step. Pips fill as you move; the last pulses when your next move
 	# brings it forward -- and on the map its ghost pulses on the line it will take.
 	var gauge := PanelContainer.new()
-	var style := UIKit.card(Color("2a1210"))
-	style.border_color = RECLAIMER_RED.darkened(0.3)
-	style.set_border_width_all(2)
+	var style := UIKit.card(UIKit.SURFACE, 0, UIKit.SPACE_LG, UIKit.SPACE_SM)
+	style.border_color = Ink.DANGER
+	style.set_border_width_all(4)
 	gauge.add_theme_stylebox_override("panel", style)
 	gauge.position = Vector2(760, 20)
 	gauge.tooltip_text = "The Reclaimer takes one zone every %d moves. Each lit pip is one of your moves; when the last lights, it advances to its red ghost line." \
@@ -206,26 +213,26 @@ func _build_top_bar() -> void:
 	row.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	gauge.add_child(row)
-	row.add_child(_label(String((Run.db.story.get("reclaimer", {}) as Dictionary).get("name", "THE RECLAIMER")), UIKit.SIZE_TITLE,
-		RECLAIMER_RED, UIKit.font_display()))
+	row.add_child(_label(String((Run.db.story.get("reclaimer", {}) as Dictionary).get("name", "THE RECLAIMER")), 28,
+		UIKit.RED, UIKit.font_display()))
 	_gauge_pips = HBoxContainer.new()
 	_gauge_pips.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	_gauge_pips.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_gauge_pips.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(_gauge_pips)
 	_ground_chip = PanelContainer.new()
-	_ground_chip.add_theme_stylebox_override("panel", UIKit.card(RECLAIMER_RED.darkened(0.6)))
+	_ground_chip.add_theme_stylebox_override("panel", UIKit.card(Ink.DANGER, 0, UIKit.SPACE_MD, UIKit.SPACE_XS))
 	_ground_chip.position = Vector2(760, 92)
 	_ground_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ground_chip.add_child(_label("IN RECLAIMED GROUND  ·  -%d HP EACH PER MOVE" % int((Run.setup.rules["front"] as Dictionary)["damage"]),
-		UIKit.SIZE_LABEL, UIKit.TEXT, UIKit.font_strong()))
+		UIKit.SIZE_LABEL, UIKit.TEXT, UIKit.font_comic()))
 	add_child(_ground_chip)
 
 	var right := HBoxContainer.new()
 	right.position = Vector2(1246, 28)
 	right.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	add_child(right)
-	_scrap_label = _label("", UIKit.SIZE_TITLE, UIKit.TEXT, UIKit.font_numbers())
+	_scrap_label = UIKit.on_page(_label("", 30, UIKit.PAGE_TEXT, UIKit.font_comic()), 8)
 	_scrap_label.custom_minimum_size = Vector2(170, 0)
 	right.add_child(_scrap_label)
 	_garage_button = _button("GARAGE", UIKit.secondary(), UIKit.TEXT, Vector2(200, 56))
@@ -242,7 +249,7 @@ func _build_top_bar() -> void:
 	right.add_child(quit)
 
 	_warning = PanelContainer.new()
-	_warning.add_theme_stylebox_override("panel", UIKit.card(UIKit.RED.darkened(0.55)))
+	_warning.add_theme_stylebox_override("panel", UIKit.card(Ink.DANGER, 0, UIKit.SPACE_LG, UIKit.SPACE_SM))
 	_warning.position = Vector2(760, 140)
 	_warning.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_warning)
@@ -264,9 +271,9 @@ func _refresh_gauge() -> void:
 		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var lit: bool = i < done
 		var next: bool = i == done and done == every - 1
-		var style := UIKit.plain(RECLAIMER_RED if lit else Color("1a0c0a"), 4)
-		style.border_color = RECLAIMER_RED if (lit or next) else RECLAIMER_RED.darkened(0.5)
-		style.set_border_width_all(2)
+		var style := UIKit.plain(Ink.DANGER if lit else UIKit.SURFACE, 0)
+		style.border_color = UIKit.RED if next else UIKit.HAIRLINE
+		style.set_border_width_all(4 if next else 3)
 		pip.add_theme_stylebox_override("panel", style)
 		_gauge_pips.add_child(pip)
 		if next:
@@ -307,12 +314,13 @@ func _crew_card(i: int) -> Control:
 	var card := Button.new()
 	card.custom_minimum_size = Vector2(340, 124)
 	card.focus_mode = Control.FOCUS_NONE
-	var style := UIKit.card(Color(UIKit.SURFACE, 0.92))
-	for key: String in ["normal", "pressed", "focus"]:
+	var style := UIKit.card(UIKit.SURFACE, 0, UIKit.SPACE_SM, UIKit.SPACE_SM)
+	for key: String in ["normal", "focus"]:
 		card.add_theme_stylebox_override(key, style)
+	card.add_theme_stylebox_override("pressed", UIKit.pressed(style))
 	var hover: StyleBoxFlat = style.duplicate()
-	hover.border_color = UIKit.AMBER
-	hover.set_border_width_all(2)
+	hover.border_color = UIKit.AMBER_DEEP
+	hover.set_border_width_all(4)
 	card.add_theme_stylebox_override("hover", hover)
 	card.tooltip_text = "Open %s in the garage" % String(member["name"])
 	card.pressed.connect(_open_garage.bind(i))
@@ -322,7 +330,7 @@ func _crew_card(i: int) -> Control:
 	card.add_child(row)
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_XS)
 	while _portraits.size() <= i:
-		_portraits.append(MachinePortrait.new(Vector2i(112, 112)))
+		_portraits.append(MachinePortrait.new(Vector2i(112, 112), "portrait", true))
 	var portrait: MachinePortrait = _portraits[i]
 	if portrait.get_parent() != null:
 		portrait.get_parent().remove_child(portrait)
@@ -333,7 +341,7 @@ func _crew_card(i: int) -> Control:
 	text.add_theme_constant_override("separation", 2)
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(text)
-	text.add_child(_label(String(member["name"]).to_upper(), UIKit.SIZE_HEADING, UIKit.TEXT if alive else UIKit.RED, UIKit.font_strong()))
+	text.add_child(_label(String(member["name"]).to_upper(), 22, UIKit.TEXT if alive else UIKit.RED, UIKit.font_comic()))
 	text.add_child(_level_marks(int(member.get("level", 0))))
 	if alive:
 		var full: int = RunSim.max_hp(Run.setup, member)
@@ -350,13 +358,18 @@ func _level_marks(level: int) -> Control:
 	row.add_theme_constant_override("separation", 3)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var steps: int = maxi(3, ((Run.setup.rules.get("levels", {}) as Dictionary).get("costs", []) as Array).size())
+	# Ink (016): a level is a filled ink chevron-box; one still to earn is an empty ink outline.
 	for n: int in steps:
 		var mark := Panel.new()
-		mark.custom_minimum_size = Vector2(22, 7)
+		mark.custom_minimum_size = Vector2(16, 10)
 		mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		mark.add_theme_stylebox_override("panel", UIKit.plain(UIKit.TEXT if n < level else UIKit.SURFACE_SUNK, 1))
+		var box := UIKit.plain(Ink.ACTION if n < level else UIKit.SURFACE, 0)
+		box.border_color = UIKit.HAIRLINE
+		box.set_border_width_all(2)
+		box.skew = Vector2(0.4, 0.0)
+		mark.add_theme_stylebox_override("panel", box)
 		row.add_child(mark)
-	var caption := _label("LV %d" % level if level > 0 else "", UIKit.SIZE_MICRO, UIKit.TEXT_DIM, UIKit.font_strong())
+	var caption := _label("LEVEL %d" % level if level > 0 else "LEVEL 0", UIKit.SIZE_MICRO, UIKit.TEXT_DIM, UIKit.font_comic())
 	row.add_child(caption)
 	return row
 
@@ -372,8 +385,12 @@ func _hp_pips(hp: int, full: int) -> Control:
 		var pip := Panel.new()
 		pip.custom_minimum_size = Vector2(width, 12)
 		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var colour: Color = (UIKit.RED if low else UIKit.GREEN) if n < hp else UIKit.SURFACE_SUNK
-		pip.add_theme_stylebox_override("panel", UIKit.plain(colour, 1))
+		# The fight's pips: your blue in an ink box, red when low.
+		var colour: Color = (Ink.DANGER if low else Ink.YOURS) if n < hp else UIKit.SURFACE
+		var box := UIKit.plain(colour, 0)
+		box.border_color = UIKit.HAIRLINE
+		box.set_border_width_all(1)
+		pip.add_theme_stylebox_override("panel", box)
 		row.add_child(pip)
 	return row
 
@@ -386,8 +403,10 @@ func _refresh() -> void:
 	_scrap_label.text = "SCRAP %d" % state.scrap
 	var over: bool = state.overfull()
 	_garage_button.text = "GARAGE  %d/%d" % [state.cargo.size(), state.hold_size]
-	for key: String in ["normal", "hover", "pressed", "focus"]:
-		_garage_button.add_theme_stylebox_override(key, UIKit.primary() if over else UIKit.secondary())
+	var garage_style: StyleBoxFlat = UIKit.primary() if over else UIKit.secondary()
+	for key: String in ["normal", "hover", "focus"]:
+		_garage_button.add_theme_stylebox_override(key, garage_style)
+	_garage_button.add_theme_stylebox_override("pressed", UIKit.pressed(garage_style))
 	for key: String in ["font_color", "font_hover_color", "font_pressed_color"]:
 		_garage_button.add_theme_color_override(key, UIKit.BG if over else UIKit.TEXT)
 	for child: Node in _warning.get_children():
@@ -426,23 +445,24 @@ func _build_site_labels() -> void:
 		if bool(site["visited"]) and id != state.current and String(site["type"]) != "start":
 			name += " · DONE"
 		var reachable: bool = targets.has(id)
-		box.add_child(_centred(name, UIKit.SIZE_LABEL, UIKit.TEXT if reachable or id == state.current else UIKit.TEXT_FAINT))
+		box.add_child(_centred(name, 20, UIKit.PAGE_TEXT if reachable or id == state.current else Color("9a9384")))
 		if id == state.current:
-			box.add_child(_centred("YOU ARE HERE", UIKit.SIZE_MICRO, UIKit.AMBER))
+			box.add_child(_centred("YOU ARE HERE", UIKit.SIZE_LABEL, Ink.ACTION))
 		elif reachable:
-			box.add_child(_centred(_direction(id), UIKit.SIZE_MICRO, UIKit.BLUE.lightened(0.35)))
+			box.add_child(_centred(_direction(id), UIKit.SIZE_LABEL, Ink.YOURS))
 			var cost: String = _cost_tag()
 			if not cost.is_empty():
-				box.add_child(_centred(cost, UIKit.SIZE_MICRO, RECLAIMER_RED))
+				box.add_child(_centred(cost, UIKit.SIZE_LABEL, Ink.DANGER))
 		_labels.add_child(box)
 		_site_labels[id] = box
 
 
 func _centred(text: String, font_size: int, colour: Color) -> Label:
-	var label := _label(text, font_size, colour, UIKit.font_strong())
+	# Lettered on the yard (016): comic face, a heavy ink edge, the colour its meaning's.
+	var label := _label(text, font_size, colour, UIKit.font_comic())
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	label.add_theme_constant_override("outline_size", 6)
+	label.add_theme_color_override("font_outline_color", UIKit.HAIRLINE)
+	label.add_theme_constant_override("outline_size", 9)
 	return label
 
 
@@ -475,10 +495,17 @@ func _show_preview() -> void:
 	box.add_theme_constant_override("separation", UIKit.SPACE_XS)
 	_preview.add_child(box)
 	var reachable: bool = RunSim.destinations(state).has(_hover)
+	# A site you can go to carries your action's amber, as a band down the card: amber TEXT
+	# does not read on paper.
+	var card := InkBox.new(UIKit.SURFACE, UIKit.SPACE_LG + (10 if reachable else 0), UIKit.SPACE_MD)
+	if reachable:
+		card.band_width = 10.0
+		card.band = Ink.ACTION
+	_preview.add_theme_stylebox_override("panel", card)
 	var head: String = String(SITE_NAMES.get(String(site["type"]), "?")) if known else "NOT SCOUTED"
 	if reachable:
 		head = "%s  ·  %s" % [_direction(_hover), head]
-	box.add_child(_label(head, UIKit.SIZE_HEADING, UIKit.AMBER if reachable else UIKit.TEXT, UIKit.font_strong()))
+	box.add_child(_label(head, 24, UIKit.TEXT, UIKit.font_comic()))
 	var text: String = String((Run.db.story.get("sites", {}) as Dictionary).get(String(site["type"]), "")) if known \
 		else "Nobody has looked yet. You find out when you get there."
 	if bool(site["visited"]) and _hover != state.current:
@@ -488,12 +515,12 @@ func _show_preview() -> void:
 		# 014 (review point R5-3): what the move gives, what it risks, and what it gives up.
 		var move: Dictionary = RunSim.move_preview(state, Run.setup, _hover)
 		if known and not bool(site["visited"]):
-			box.add_child(_wrap(_gives(String(site["type"])), UIKit.SIZE_LABEL, UIKit.GREEN.lightened(0.15), 340))
+			box.add_child(_wrap(_gives(String(site["type"])), UIKit.SIZE_LABEL, UIKit.GREEN, 340))
 			if int(move["enemies"]) > 0:
 				box.add_child(_wrap("%d enemies%s" % [int(move["enemies"]), ", the Reclaimer's drones join at round 3" if bool(move["reach"]) else ""],
-					UIKit.SIZE_LABEL, UIKit.RED.lightened(0.2), 340))
+					UIKit.SIZE_LABEL, UIKit.RED, 340))
 		for line: String in _move_costs(_hover):
-			box.add_child(_wrap(line, UIKit.SIZE_LABEL, RECLAIMER_RED, 340))
+			box.add_child(_wrap(line, UIKit.SIZE_LABEL, UIKit.RED, 340))
 		if bool(move["advances"]):
 			var lost: Array = move["lost"]
 			var names: PackedStringArray = []
@@ -501,10 +528,10 @@ func _show_preview() -> void:
 				names.append(String(SITE_NAMES.get(String(state.site(int(id))["type"]), "?")) if RunSim.revealed(state, int(id)) else "UNSCOUTED")
 			box.add_child(_wrap("The Reclaimer moves as you go and takes zone %d%s." % [int(move["front_after"]) + 1,
 				(": %d unvisited site%s lost there (%s)" % [lost.size(), "" if lost.size() == 1 else "s", ", ".join(names)]) if not lost.is_empty() else ""],
-				UIKit.SIZE_LABEL, RECLAIMER_RED, 340))
-		box.add_child(_label("CLICK TO GO", UIKit.SIZE_LABEL, UIKit.BLUE.lightened(0.35), UIKit.font_strong()))
+				UIKit.SIZE_LABEL, UIKit.RED, 340))
+		box.add_child(_label("CLICK TO GO", UIKit.SIZE_HEADING, UIKit.BLUE, UIKit.font_comic()))
 	elif _hover == state.current:
-		box.add_child(_label("YOU ARE HERE", UIKit.SIZE_LABEL, UIKit.AMBER, UIKit.font_strong()))
+		box.add_child(_label("YOU ARE HERE", UIKit.SIZE_HEADING, UIKit.TEXT, UIKit.font_comic()))
 	else:
 		box.add_child(_label("No road from here.", UIKit.SIZE_LABEL, UIKit.TEXT_FAINT))
 
@@ -585,7 +612,7 @@ func _modal(title: String, subtitle: String, width: float = 1100.0) -> VBoxConta
 	add_child(_overlay)
 	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var shade := ColorRect.new()
-	shade.color = Color(0, 0, 0, 0.62)
+	shade.color = Color(UIKit.BG, 0.7)
 	_overlay.add_child(shade)
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var center := CenterContainer.new()
@@ -658,7 +685,7 @@ func _fight_panel() -> void:
 	if (fight as Dictionary).has("reclaimer"):
 		# 013: fighting by the line -- say so before the player walks in.
 		box.add_child(_label("THE RECLAIMER IS CLOSE: its drones come in behind you at round %d." % int((fight["reclaimer"] as Dictionary).get("round", 3)),
-			UIKit.SIZE_HEADING, RECLAIMER_RED, UIKit.font_strong()))
+			UIKit.SIZE_HEADING, UIKit.RED, UIKit.font_comic()))
 	if Run.fight_actions.size() > 0:
 		box.add_child(_label("This fight is in progress. It resumes where you left it.", UIKit.SIZE_BODY, UIKit.GOLD))
 	var go := _button("ENTER FIGHT" if Run.fight_actions.is_empty() else "RESUME FIGHT", UIKit.primary(), UIKit.BG, Vector2(300, 64))
@@ -768,7 +795,7 @@ func _trader_panel() -> void:
 		elif state.scrap >= price:
 			card.name = "stock_%d" % i
 			card.pressed.connect(func() -> void: _apply([RunSim.BUY, i]))
-			column.add_child(_label("BUY  ·  %d SCRAP" % price, UIKit.SIZE_HEADING, UIKit.AMBER, UIKit.font_strong()))
+			column.add_child(_label("BUY  ·  %d SCRAP" % price, 22, UIKit.TEXT, UIKit.font_comic()))
 		else:
 			column.add_child(_label("%d SCRAP  (you have %d)" % [price, state.scrap], UIKit.SIZE_HEADING, UIKit.TEXT_FAINT, UIKit.font_strong()))
 	if not state.cargo.is_empty():
@@ -907,10 +934,11 @@ func _button(text: String, style: StyleBoxFlat, ink: Color, min_size: Vector2) -
 	button.text = text
 	button.custom_minimum_size = min_size
 	button.focus_mode = Control.FOCUS_NONE
-	button.add_theme_font_override("font", UIKit.font_strong())
-	button.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
+	button.add_theme_font_override("font", UIKit.font_comic())
+	button.add_theme_font_size_override("font_size", 22)
 	for key: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		button.add_theme_color_override(key, ink)
-	for key: String in ["normal", "hover", "pressed", "focus"]:
+	for key: String in ["normal", "hover", "focus"]:
 		button.add_theme_stylebox_override(key, style)
+	button.add_theme_stylebox_override("pressed", UIKit.pressed(style))
 	return button
