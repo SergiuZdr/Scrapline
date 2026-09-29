@@ -10,6 +10,46 @@ The frame is the `art-direction-and-readability` skill's law: **readability firs
 personality second, fidelity never.** A thing on screen earns its place by answering a
 question the player is asking.
 
+## Ink & Rust (015): the look of the fight
+
+The user picked [option A](art-direction-options.md). In the combat scene it **replaces** the
+photographed surfaces, the HDRI and the sodium/blue rig below (those sections stay as the
+record of 010 until the other screens follow). The read contracts and the one-meaning
+colour registry carry over unchanged in meaning; only the hues moved to the ink palette.
+
+- **One place**: `scripts/presentation/ink.gd` (palette, materials, dressing),
+  `ink_toon.gdshader` (three bands: lit is the palette colour exactly, mid, ink shadow; halftone
+  dots between mid and shadow; one hard stripe on metal), `ink_outline.gdshader` (the ink line:
+  an inverted hull at a constant screen width over smoothed normals packed in UV2),
+  `ink_mark.gdshader` (board marks). Machines are built as before and DRESSED by zone
+  (`Ink.dress_machine`), so `ConstructView` and `PartMaterials` did not change.
+- **Three line weights, and only three** (px at 1080 lines): world 1.6, machines 2.2, things
+  you act on 3.0. Scenery gets a thinner line and no hue at all (monochrome, pushed into the
+  night): a red container read as danger in the first frame.
+- **Light**: one hard key from the camera's left, a flat night ambient, no fill, no sky, no
+  fog; glow only on signals. Lit from behind, every machine showed the camera its shadow band.
+- **Structure wears its part's livery**, a shade darker. Grey limbs under a painted chest made
+  every machine the same grey figure.
+- **A mark's meaning is in its hatching, not only its hue**: one diagonal for where you can go
+  (fainter, with a broken border, on slow ground), the other for what will be hit, crossed for
+  what you aim at, dashed borders for a drum's blast. The grey copy of the first frame could
+  not tell a move hex from a threatened one without its badge.
+- **Whose a machine is has a SHAPE too**: yours stand on a smooth ring, the enemy's on a saw
+  blade. Eyes and ring hue stay the primary read.
+- **Intent badges** are ink discs ringed in red with the firing order in paper, on the ground
+  at the near edge of the hex (never over the machine standing there); the shooter wears its
+  number over its tag, a carrier's scrap mark sits left of it.
+- **Lettering** (Bangers) only on the impacts that matter: KRANG! (a thrown wreck slams into
+  something), BOOM! (a drum) -- stacked like a panel's, never overprinted.
+- **HUD**: comic panels (`InkBox`: flat fill, 3 px ink border, a hard offset shadow),
+  Anton for names, numbers and buttons, Barlow for body text in ink on paper, glossary links
+  in a dark blue; the hint and the coach are the narrator's pale caption box. Amber still means
+  your action (the armed weapon, END TURN, the band on the selected card); an armed weapon also
+  carries a heavier line.
+- **Contrast** (`measure_contrast.gd`) now hides labels in both renders -- the new tags are big
+  paper lettering, and counting them as surroundings measured the lettering, not the ground.
+  Both looks measured with that ruler: the machines stand out more in ink on every fight.
+
 ## The named target
 
 "Stylised" is not a target. These are:

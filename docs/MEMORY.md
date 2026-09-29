@@ -83,6 +83,10 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-29 | **A killing shove throws the wreck; pierce passes props; the arc searches for its best route; heaps conduct** | Play-test 5, the user's calls |
 | 2026-09-29 | **The fight recap claims only what the event stream backs** | A recap that guessed at contributions would be a second, wrong model of the rules |
 | 2026-09-29 | **The gate: deep pylons, 20 rounds, 3 escorts** | Side-by-side runs: only the round limit moves difficulty, and the gate already decides most losses |
+| 2026-09-29 | **Art direction A, Ink & Rust: the fight is drawn in it** (flat colour, ink lines, one hard key, comic panels); the rest of the game follows the user's verdict on the style frame | The user's pick from three options (play-test 5) |
+| 2026-09-29 | **Of equally cheap routes, the one over the most scrap wins** (both teams, never a detour) | PT5-5 as the user meant it: machines walked round piles as often as over them |
+| 2026-09-29 | **The look is applied by dressing after the build** (`Ink.dress_machine` by zone); `ConstructView`/`PartMaterials` unchanged | The other screens keep working in the old look until they follow |
+| 2026-09-29 | **Three line weights; a mark's meaning is in its hatching; the enemy's ring is a saw blade** | Readability that survives grey and colour-blindness: the frame's grey copy failed three colour-only reads |
 
 ## Lessons carried over from the old codebase
 
@@ -155,6 +159,9 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-26 | A balance tool that samples every map samples the tutorial too. Measure on what the run actually uses |
 | 2026-09-29 | Measured contrast passed and the look still failed: a metric can guard readability, it cannot choose a style. The style has to be picked by the person who will judge it, from concrete options |
 | 2026-09-29 | A test that passes on a machine that never acted proves nothing: search for a case where the thing under test happens |
+| 2026-09-29 | A grey copy of a frame finds what a colour screenshot hides: three of the style frame's reads were colour alone |
+| 2026-09-29 | Changing a measuring tool and comparing against numbers the old tool produced compares two tools. Re-measure the baseline with the new ruler first |
+| 2026-09-29 | Lit from behind, a toon ramp shows the camera every machine's shadow band: in a flat-colour style the key's direction decides whether anything reads at all |
 
 ## Open questions
 
@@ -176,5 +183,6 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-26 | **Which roster is right: pauldrons on every arm (the shipped roster, CLAUDE.md) or per-archetype shoulders (`builders/arm.py` today)?** The generator no longer reproduces the roster, which blocks exporting the aluminium light value | Proposed: keep the shipped look (pauldrons everywhere), make the generator reproduce it, then export the aluminium. The user decides | |
 | 2026-09-26 | **The gate now decides two thirds of the bot's losses** (12 of 18). A climax or a wall? | 013 replaces the gate fight with a real boss; judge it in the play-test. 014: still 12 of 20; escorts and summon pace do not move it, the round limit does | |
 | 2026-09-26 | **Play-test 5 (009-013)**: is the Sorter a climax? Do signals, traders and towers fix "the map feels empty"? Does the shakedown teach enough? | The user plays | |
-| 2026-09-29 | **Which art direction?** A Ink & Rust, B Painted Miniatures, C Schematic Low-Poly ([options](plans/art-direction-options.md)) | A, proved first in the "decision moment" style frame | |
-| 2026-09-29 | **PT5-5: was the "scrap on the ground" rubble?** | Assumed rubble (costs 2); routes now take fewer hexes at equal cost and the route is drawn on hover | |
+| 2026-09-29 | **Which art direction?** A Ink & Rust, B Painted Miniatures, C Schematic Low-Poly ([options](plans/art-direction-options.md)) | A, proved first in the "decision moment" style frame | **A** (the user, 2026-09-29) |
+| 2026-09-29 | **PT5-5: was the "scrap on the ground" rubble?** | Assumed rubble (costs 2); routes now take fewer hexes at equal cost and the route is drawn on hover | **No: the scrap piles** (the user). 015: routes over scrap win ties |
+| 2026-09-29 | **The style frame (015): should the rest of the game look like this?** | Yes, then 016 carries it to the map, the Reclaimer, every panel, the garage and the title | |

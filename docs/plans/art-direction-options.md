@@ -1,6 +1,8 @@
 # Plan — Art direction: three options to pick from
 
-**Status:** proposal, 2026-09-29, for the user to choose (play-test 5, PT5-1 to PT5-3). Nothing
+**Status:** **A, Ink & Rust, picked by the user on 2026-09-29.** Its style frame was built in
+[015](../iterations/015-ink-style-frame.md), in the real combat scene; the rest of the game
+follows once the user approves the frame. The options below are kept as proposed. Nothing
 here changes a rule. Whichever is picked replaces the look of [art-and-audio](art-and-audio.md)
 (010) but keeps its **read contracts** and a **one-meaning-per-colour registry**.
 
