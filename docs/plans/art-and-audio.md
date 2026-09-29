@@ -57,6 +57,10 @@ colour registry carry over unchanged in meaning; only the hues moved to the ink 
 - **Contrast** (`measure_contrast.gd`) now hides labels in both renders -- the new tags are big
   paper lettering, and counting them as surroundings measured the lettering, not the ground.
   Both looks measured with that ruler: the machines stand out more in ink on every fight.
+- **Models for ink (017)**: see [models.md](models.md). Big plates with one chamfer (a chamfer
+  is a clean band; many small facets are noise), nothing smaller than a line can surround, the
+  one light value (`alu`) on the weapon heads so the weapon reads first at board distance, and
+  a back worth seeing -- the board's camera stands behind the crew.
 
 ## The named target
 

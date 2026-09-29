@@ -1,6 +1,8 @@
 # Plan — Models: three routes to pick from (play-test 6, PT6-5)
 
-**Status:** proposal, 2026-09-29, for the user to choose. The user: "the game still needs all
+**Status:** the user chose the recommendation (A for machines, C or B for sites, proved first);
+**proved in [017](../iterations/017-models-proof.md)** -- see "The proof" at the end. Awaiting the
+pick for the roster pass. The user: "the game still needs all
 its models for the entire map and robots, done from the beginning, or found on the internet,
 or generated (e.g. with ChatGPT) and then turned into Blender models."
 
@@ -65,3 +67,42 @@ cleaned in Blender: decimated, cut into parts, socketed, zoned.
 - **Prove it first**, as the style frame did: one machine (the Brute: a chassis, both arms, a
   core) through route A, and one landmark (the workshop) through route C, side by side in the
   game, before the rest of the roster.
+
+## The proof (017)
+
+Run `$GODOT --path . -- --models new` to see both in every screen; without the flag the game is
+the shipped one. `tools/shot_models.gd` puts old and new side by side.
+
+### Route A: the Brute
+- **How:** a concept sheet (`art/concepts/brute.png`), then `tools/blender/make_ink_parts.py`,
+  which builds the parts from the generator's primitives and exports them through the bridge's
+  own contract (`make_scrap_parts`: frame, scale, role proportion, sockets, hip-jointed legs,
+  zones) into `art/parts_new/`; `verify_assembly.gd -- --dir res://art/parts_new`;
+  `make_ink_thumbs.gd -- --models new --out res://art/thumbs_new --only <ids>`.
+- **What came out:** the concept's silhouette at a sixth of the triangles (the frame 1,716 against
+  9,768), every old part still fitting it and it every old part. Big plates and chamfers read
+  as clean bands in ink; the weapon heads carry the one light value.
+- **What it takes per machine:** a concept, then one builder function per part shape (roughly an
+  hour each here). Shapes are shared across the roster -- a pauldron, a leg, a hammer head -- so
+  the roster pass is a library of such functions driven by role and weapon class, as the old
+  generator was, but authored against concept sheets.
+
+### Route C: the workshop
+- **How:** a concept image (`art/concepts/workshop.png`) -> `tools/gen3d/triposr_run.py` (TripoSR,
+  MIT, on this Mac's CPU: ~30 s once its 1.7 GB of weights are cached) -> a dense vertex-coloured
+  mesh -> `tools/blender/clean_generated.py` (level, square, voxel-remesh, relax, flatten, zone
+  by colour, smooth-shade with sharp corners, seat) -> `art/sites/<kind>.glb`, which the map
+  uses for that site kind with `--models new`.
+- **What came out:** a building that reads as a place from the map's height -- a yellow container
+  on a slab -- where the kit's gantry was lost in its ring. It also reads as generated: TripoSR
+  guesses the sides the image does not show (lumpy) and turned the crane's lattice into a fin.
+- **TRELLIS** (MIT) rebuilds the unseen sides and would be the better source; its demos run on
+  Hugging Face ZeroGPU, and one call asks 120 s of GPU, more than the anonymous quota holds. The
+  quota message asks for a Hugging Face account's token; `tools/gen3d/gradio_queue.py` drives the
+  demo from here and sends one as `HF_TOKEN` (untested: there is no token on this machine), or
+  the demo page can be used by hand. Its GLB goes through the same clean-up.
+- **Route B** stays open for sites: a kit piece (CC0) needs only the zoning step.
+
+### Licences
+FLUX.1-schnell (the concepts): Apache 2.0, outputs free to use. TripoSR: MIT (code and weights).
+TRELLIS: MIT. Hunyuan3D is excluded (its licence does not cover the EU, UK or South Korea).

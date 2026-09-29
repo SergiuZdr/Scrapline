@@ -32,10 +32,12 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 015 | [Ink & Rust: the style frame](iterations/015-ink-style-frame.md) | The fight drawn in ink: toon bands, ink lines, marks hatched by meaning, saw-blade enemy rings, the aim preview on the board, KRANG!/BOOM!, comic-panel HUD; scrap on the way (routes over piles win ties) | ✅ approved |
 | — | [Play-test 6](playtests/2026-09-29-playtest-6.md) | The look approved for the whole game; a beam through a crate wall; every panel in the new design; ability text; new models | ✅ |
 | 016 | [Ink & Rust everywhere](iterations/016-ink-everywhere.md) | Every screen in ink (the kit, the map with fog as unfinished drawing, the bays, portraits and part pictures); shots take the better side of a line; a quieter HUD (slim rows, ability cards that say what they do); labels that never overlap (bot 88.7%) | ✅ |
-| 017 | Models | Machines, map sites and the Reclaimer rebuilt for the ink style (PT6-5), by the route the user picks | ⬜ |
-| 018 | Acts 2–3 | The Slag Flats and the Crucible | ⬜ |
-| 019 | Feel pass | Audio, camera, final VFX (hit effects in ink) | ⬜ |
-| 020 | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
+| — | [Models: three routes](plans/models.md) | From scratch (the generator), open-licence kits, or generated; the user: machines by the generator led by concept art, sites generated or from kits, proved on two models first | ✅ |
+| 017 | [Models: the two routes, proved](iterations/017-models-proof.md) | The Brute rebuilt from concept art (route A, a sixth of the triangles); the workshop generated from its concept on this Mac (route C, TripoSR: TRELLIS's free demo is out of reach without an account) and cleaned for ink; both behind `--models new` | ✅ awaiting the pick |
+| 018 | Models: the roster and the map | Every machine by route A; the sites and the Reclaimer by the route the user picks | ⬜ |
+| 019 | Acts 2–3 | The Slag Flats and the Crucible | ⬜ |
+| 020 | Feel pass | Audio, camera, final VFX (hit effects in ink) | ⬜ |
+| 021 | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
 
