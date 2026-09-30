@@ -89,3 +89,14 @@ primary action per screen) stay. The hub, its tabs and every F2P screen are cut.
   snaps in 90° steps. Free orbit is cut: on a grid game it only hides tiles.
 - Keyboard: 1–3 select a construct, Q/E pick an action, Z undo, Space end turn.
 - Controller support is optional and post-launch.
+
+## Play-test 7 (024)
+
+- **The machine under your hand**: an amber ring on the ground and an amber arrow over its tag,
+  following it as it walks (amber is the player's action).
+- **The opening card**: the board's name and objective, over the board while it is drawn; the
+  objective plate is filled before the first event plays. Every effect is drawn once behind it,
+  so no effect compiles its shader mid-fight.
+- **Totals, not firing order**, on the board: red for what the enemy will do, amber for the aimed
+  attack. The preview's list reads from the shooter outwards, the other side first.
+- **Names**: crew machines have their crew's names; the frame is said beside them ("Brute frame").

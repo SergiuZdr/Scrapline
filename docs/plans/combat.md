@@ -190,3 +190,14 @@ in 003 shows players ignoring part damage or finding it confusing, cut it back t
 - 002: grid, movement, one generic attack per unit, intents, resolve order, win/lose,
   undo. Headless test: a scripted fight produces the same event hash every run.
 - 003: part-driven actions, heat, damage wheel, terrain, part damage.
+
+## Play-test 7 (024): what the board promises
+
+- **One total per hex.** `CombatSim.incoming` runs the enemy's volley and the next round's
+  start (slag, floods, flues, the Core's pulse) on a copy; the board shows what each hex takes,
+  whoever stands in a line's way included. Firing order lives in the info panel only.
+- **A shove off the six axes** is exactly between two directions; the one better for the shover
+  is taken (a pit, a bump into the other side or a drum, open ground last).
+- **A piercing shot is aimed as far as its beam flies** (reach + `pierce_overshoot`): the line
+  through the hex aimed at is the beam's whole path, so "the drum behind" is aimable.
+
