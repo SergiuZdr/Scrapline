@@ -51,7 +51,7 @@
     {
       "id": "focus",
       "title": "ABILITIES",
-      "text": "Click the STRIDER, then FOCUS in the ABILITIES row. It is free: +2 damage on the Strider's next shot.",
+      "text": "Click STILTS, then FOCUS in the ABILITIES row. It is free: +2 damage on Stilts' next shot.",
       "until": "ability",
       "point": {
         "unit": 2,
@@ -61,7 +61,7 @@
     {
       "id": "drum",
       "title": "USE THE YARD",
-      "text": "Fuel drums explode when hit: 3 damage to everything next to them. Arm the Strider's gun and shoot the drum in the amber ring.",
+      "text": "Fuel drums explode when hit: 3 damage to everything next to them. Arm Stilts' gun and shoot the drum in the amber ring.",
       "until": "prop",
       "point": {
         "prop": "barrel"

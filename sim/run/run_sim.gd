@@ -804,16 +804,14 @@ static func _assemble(state: RunState, setup: RunSetup, loadouts: Array) -> bool
 			used[part] = int(used.get(part, 0)) + 1
 			if limit == 0 or (limit > 0 and int(used[part]) > limit):
 				return false
-	var names: Dictionary = {}
+	# Each machine keeps its crew's name whatever frame it is built on (play-test 7: a machine
+	# named after its default frame read as the frame, not as a member of the crew).
 	for i: int in state.crew.size():
 		var parts: Array = []
 		for id: Variant in (loadouts[i] as Array):
 			parts.append(String(id))
 		var member: Dictionary = state.crew[i]
 		member["parts"] = parts
-		var base: String = String((setup.parts[parts[0]] as Dictionary).get("name", "Machine")).replace(" Frame", "")
-		names[base] = int(names.get(base, 0)) + 1
-		member["name"] = base if int(names[base]) == 1 else "%s %s" % [base, ["", "", "II", "III"][mini(int(names[base]), 3)]]
 		member["hp"] = max_hp(setup, member)
 	state.assembled = true
 	state.log.append("The crew is built from the bench.")

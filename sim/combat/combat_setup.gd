@@ -12,6 +12,8 @@ extends RefCounted
 ## Pure: it takes dictionaries that `ContentDB` loaded outside `sim/`, and reads no files.
 
 var fight_id: String = ""
+## The board's name, for the opening card.
+var fight_name: String = ""
 var rng_seed: int = 0
 var width: int = 0
 var height: int = 0
@@ -69,6 +71,7 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 		wheel: Array, seed_value: int) -> CombatSetup:
 	var setup := CombatSetup.new()
 	setup.fight_id = String(fight.get("id", ""))
+	setup.fight_name = String(fight.get("name", ""))
 	setup.rng_seed = seed_value
 	# A fight may set its own limit (014: the gate closes sooner than an ordinary fight ends).
 	setup.max_rounds = int(fight.get("max_rounds", rules.get("max_rounds", 20)))
