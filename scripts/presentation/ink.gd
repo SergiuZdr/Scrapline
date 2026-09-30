@@ -367,6 +367,24 @@ static func dress_prop(node: Node, livery: Color, width: float = LINE_WORLD) -> 
 		line(mesh, width)
 
 
+## A generated set piece (017/018, `Models.site`): a surface that brought its own texture keeps
+## it under the toon ramp (`textured`); one that was zoned is dressed like the kit. One line.
+static func dress_set_piece(node: Node, livery: Color, width: float = LINE_WORLD) -> void:
+	var textured_any: bool = false
+	for mesh: MeshInstance3D in ConstructView.meshes_of(node):
+		if mesh.mesh == null:
+			continue
+		for s: int in mesh.mesh.get_surface_count():
+			var source: BaseMaterial3D = mesh.mesh.surface_get_material(s) as BaseMaterial3D
+			if source != null and source.albedo_texture != null:
+				mesh.set_surface_override_material(s, textured(source.albedo_texture))
+				textured_any = true
+		if textured_any:
+			line(mesh, width)
+	if not textured_any:
+		dress_prop(node, livery, width)
+
+
 ## A texture drawn in code, cached by name. `draw` fills a blank Image of `size`.
 static var _textures: Dictionary = {}
 
