@@ -1758,6 +1758,7 @@ func _after_events() -> void:
 			body += "\nThe objective failed, but the crew made it out. No salvage from this one."
 		if _run_mode:
 			body += "\n\n" + _recap_text()
+		Audio.play("win" if _state.outcome == CombatState.WON else "lose", -6.0, 0.0)
 		_hud.show_result(_state.outcome == CombatState.WON, body, _run_mode)
 		return
 	if _selected < 0 or not _unit_has_moves(_selected):
