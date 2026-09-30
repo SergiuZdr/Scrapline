@@ -96,6 +96,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-29 | **Route C runs on this Mac (TripoSR, MIT)**; TRELLIS needs a Hugging Face account | Every capable image-to-3D demo is on ZeroGPU and one TRELLIS call asks more than the anonymous quota ever holds |
 | 2026-09-30 | **Machines are rounded and multi-coloured (`steel`, `trim` zones); a good generated model keeps its texture; livery by maker is proposed** (all behind `--models new`) | The user on 017: "Lego/Roblox ... I want each part to have more than one colour"; "a yellow brick with no details" |
 | 2026-09-30 | **The rebuilt roster (rounded, patched from scrap) and livery by maker are the game's look**; the old roster stays behind `--models old` until the user has played | The user: "yes to all 3, do the rest of the roster ... made from actual scrap" |
+| 2026-09-30 | **An act is a rules overlay in data** (`run.json` `acts`), a run is two acts until Act 3 exists, and Act 2's enemies hit 1 harder | 021: side-by-side bot runs -- bigger squads and +3 HP left the win rate at 95%, +1 damage took it to 85% |
 
 ## Lessons carried over from the old codebase
 
@@ -183,6 +184,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-30 | Browser automation cannot put a file into a cross-origin frame (drop, paste and clipboard all failed): ask the user for the one drag at once |
 | 2026-09-30 | Cleaning a model is not one recipe: flatten-and-zone suits a guessed mesh and destroys a good one |
 | 2026-09-30 | One builder with a spec row per frame gives a roster: the differences that read (head, legs, back, girth) are data |
+| 2026-09-30 | Against a levelled crew, enemy HP is not difficulty; enemy damage is |
 
 ## Open questions
 
@@ -212,3 +214,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-29 | The crew number is stencilled across the core's lens (old and new cores): the stencil is sized to 59% of the plate | Place it from the core's own marked corner in the roster pass | |
 | 2026-09-30 | **018: is this Brute the look? Livery by maker for the whole game? Sites by TRELLIS (needs the user's browser or a token each time)?** | Yes to all three | |
 | 2026-09-30 | **019: does the roster play well? Remove the shipped roster?** | Remove once played | |
+| 2026-09-30 | **021: is The Pour a good fight, and is 85% over two acts right?** | The user plays | |

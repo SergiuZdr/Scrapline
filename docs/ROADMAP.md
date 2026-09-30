@@ -36,7 +36,8 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 017 | [Models: the two routes, proved](iterations/017-models-proof.md) | The Brute rebuilt from concept art (route A, a sixth of the triangles); the workshop generated from its concept on this Mac (route C, TripoSR: TRELLIS's free demo is out of reach without an account) and cleaned for ink; both behind `--models new` | ✅ awaiting the pick |
 | 018 | [Models, second pass](iterations/018-models-second-pass.md) | The user's notes on the proof: a rounded, detailed, multi-colour Brute; the workshop from TRELLIS with its detail kept; livery by maker proposed | ✅ awaiting the verdict |
 | 019 | [The whole roster, made of scrap](iterations/019-the-roster.md) | All 40 parts rebuilt (rounded, patched from mismatched plate), livery by maker, the default models | ✅ awaiting the play-test |
-| — | Models: the sites and the Reclaimer | Every machine by route A; the sites and the Reclaimer by the route the user picks | ⬜ |
+| 020 | [Sites and the Reclaimer](iterations/020-sites.md) | TRELLIS models from concepts, one or two a day on the free allowance (`tools/gen3d/next_site.sh`) | 🔨 |
+| 021 | [Act 2: the Slag Flats](iterations/021-act-2.md) | Acts in the run; three boards, sentinels, The Pour and its flooding; bot 85.0% over two acts | ✅ awaiting the play-test |
 | 019 | Acts 2–3 | The Slag Flats and the Crucible | ⬜ |
 | 020 | Feel pass | Audio, camera, final VFX (hit effects in ink) | ⬜ |
 | 021 | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |

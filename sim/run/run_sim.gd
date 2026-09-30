@@ -1069,6 +1069,9 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 		var chances: Array = kind_rules.get("chance_by_column", [0])
 		if rng.chance_percent(int(chances[mini(col, chances.size() - 1)])):
 			spec["kind"] = _weighted(rng, (kind_rules.get("weights", {}) as Dictionary).keys(), kind_rules.get("weights", {}), true)
+		# An act may arm every rolled enemy (021: `enemies.bonus`, the block levels use).
+		if enemies_rules.has("bonus"):
+			spec["bonus"] = (enemies_rules["bonus"] as Dictionary).duplicate()
 		# An act may toughen every rolled enemy (021: `enemies.hp_all`).
 		var hp_all: int = int(enemies_rules.get("hp_all", 0))
 		if hp_all > 0:
@@ -1107,8 +1110,11 @@ static func _make_gate_fight(state: RunState, setup: RunSetup, site_id: int, tem
 	for i: int in range(1, mini(escorts + 1, positions.size())):
 		var parts: Array = [_roll_slot(setup, rng, "chassis", 3), _roll_slot(setup, rng, "core", 3),
 			_roll_slot(setup, rng, "arm", 3), _roll_slot(setup, rng, "arm", 3), _roll_slot(setup, rng, "module", 3)]
-		enemy.append({"name": String((setup.parts[parts[0]] as Dictionary).get("name", "")).replace(" Frame", ""),
-			"parts": parts, "x": int(positions[i]["x"]), "y": int(positions[i]["y"])})
+		var escort: Dictionary = {"name": String((setup.parts[parts[0]] as Dictionary).get("name", "")).replace(" Frame", ""),
+			"parts": parts, "x": int(positions[i]["x"]), "y": int(positions[i]["y"])}
+		if enemies_rules.has("bonus"):
+			escort["bonus"] = (enemies_rules["bonus"] as Dictionary).duplicate()
+		enemy.append(escort)
 	fight["enemy"] = enemy
 	return fight
 
