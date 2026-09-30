@@ -16,9 +16,9 @@ const PATH: String = "user://run.json"
 const TEMP_PATH: String = "user://run.tmp.json"
 
 
-static func encode(seed_value: int, content_version: String, actions: Array, fight: Array) -> String:
+static func encode(seed_value: int, content_version: String, actions: Array, fight: Array, options: Dictionary = {}) -> String:
 	return JSON.stringify({"version": VERSION, "seed": seed_value, "content": content_version,
-		"actions": actions, "fight": fight})
+		"actions": actions, "fight": fight, "options": options})
 
 
 ## Parses a save. Returns `{}` if it is unreadable or from a newer version.
@@ -32,14 +32,14 @@ static func decode(text: String) -> Dictionary:
 	if int(data.get("version", 0)) > VERSION:
 		return {}
 	return {"seed": int(data.get("seed", 0)), "content": String(data.get("content", "")),
-		"actions": data.get("actions", []), "fight": data.get("fight", [])}
+		"actions": data.get("actions", []), "fight": data.get("fight", []), "options": data.get("options", {})}
 
 
-static func save(seed_value: int, content_version: String, actions: Array, fight: Array) -> bool:
+static func save(seed_value: int, content_version: String, actions: Array, fight: Array, options: Dictionary = {}) -> bool:
 	var file: FileAccess = FileAccess.open(TEMP_PATH, FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(encode(seed_value, content_version, actions, fight))
+	file.store_string(encode(seed_value, content_version, actions, fight, options))
 	file.close()
 	return DirAccess.rename_absolute(ProjectSettings.globalize_path(TEMP_PATH),
 		ProjectSettings.globalize_path(PATH)) == OK

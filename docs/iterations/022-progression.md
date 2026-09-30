@@ -1,7 +1,7 @@
 # Iteration 022 — Between-run progression
 
-**Status:** in progress
-**Started:** 2026-09-30 · **Finished:** —
+**Status:** done -- waiting for the user to play it
+**Started:** 2026-09-30 · **Finished:** 2026-09-30
 **Answers:** the user: "continue with the feel pass and between run progression".
 Plan: `plans/meta-progression.md` (unlocks only: nothing carried between runs makes a machine's
 numbers bigger).
@@ -39,6 +39,33 @@ choice of crew and tier.
 
 ## Result
 
+- **`data/meta.json`**: 12 locked parts (every rare and four uncommons; none in the default crew
+  or on the bench), 3 crews (the Salvagers; the Wall and the Runners to unlock), 3 tiers (Yard
+  Hand; Foreman and Reclaimed to unlock), 16 unlocks keyed to lifetime runs, fights won, the
+  furthest act and wins.
+- **`Meta`** (`sim/run/meta.gd`, pure): `stats_after`, `earned`, `next_unlock`, `opened`,
+  `options`. **`RunSetup.create(..., options)`** lays the tier's overlay on the rules
+  (`RunSetup.overlay`, which acts now share), swaps the starting crew and keeps locked parts out
+  of the pools. The save carries the options (`RunStore`), so a run replays the same later.
+- **Profile**: `stats`, `unlocked`, `bank_run(key, state, rules)` (once per run), `run_choice`,
+  `choose_run`. `Run.bank()` and `Run.new_run_from_profile()`.
+- **Screens**: NEW RUN goes straight in on a profile with nothing to choose, through THE NEXT RUN
+  (crew, tier, START) once something is unlocked (`shots/022/choose.png`); the run's end lists what
+  it unlocked and what comes next; the title shows "UNLOCKED n / 16".
+- `verify_meta.gd`: 57 passed (ten runs of five fights with one win: every one of the ten unlocks
+  something). SUITES.
+
+Found on the way: 021 shipped two enemy kinds with no glossary card (the onboarding suite was
+not run before its merge). Both have one now.
+
+Not done: the chooser and the unlock lines were checked in screenshots and tests, not played
+through a real run's end.
+
 ## Decisions, lessons, open questions
+- **Unlocks widen options, never numbers**; a fresh profile has 28 of 40 parts, one crew, one tier.
+- **A run saves the options it started with**, so nothing unlocked later changes a run in progress.
+- Lesson: run EVERY suite before a merge, not the ones that seem related.
+- Open: is one unlock per early run the right pace? Are two harder tiers enough for now?
 
 ## Next
+The feel pass (023); Act 3.

@@ -1,6 +1,6 @@
 # Plan — Meta-progression (unlocks only)
 
-**Status:** draft (Iteration 000). Implementation in 006.
+**Status:** built in 022 (parts, crews, two tiers; `data/meta.json`, `sim/run/meta.gd`). The codex and blueprints-as-drops are not built.
 
 ## The rule
 
