@@ -39,6 +39,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 020 | [Sites and the Reclaimer](iterations/020-sites.md) | TRELLIS models from concepts, one or two a day on the free allowance (`tools/gen3d/next_site.sh`) | 🔨 |
 | 021 | [Act 2: the Slag Flats](iterations/021-act-2.md) | Acts in the run; three boards, sentinels, The Pour and its flooding; bot 85.0% over two acts | ✅ awaiting the play-test |
 | 022 | [Between-run progression](iterations/022-progression.md) | Unlocks only: 12 parts, two crews, two tiers by lifetime milestones; the crew and tier choice; a run saves its options | ✅ awaiting the play-test |
+| 023 | [The feel pass](iterations/023-feel.md) | 16 new synthesised sounds and a yard ambience, hits drawn as ink stars, a kill's camera punch, a sound switch | ✅ awaiting the user's ears |
 | 019 | Acts 2–3 | The Slag Flats and the Crucible | ⬜ |
 | 020 | Feel pass | Audio, camera, final VFX (hit effects in ink) | ⬜ |
 | 021 | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |

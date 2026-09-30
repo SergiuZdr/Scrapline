@@ -21,6 +21,8 @@ var _bank: Dictionary = {}
 var _players: Array[AudioStreamPlayer] = []
 var _next_voice: int = 0
 var _enabled: bool = true
+var _ambience_stream: AudioStreamWAV
+var _ambience_player: AudioStreamPlayer
 
 
 func _ready() -> void:
@@ -34,6 +36,8 @@ func _ready() -> void:
 
 func set_enabled(value: bool) -> void:
 	_enabled = value
+	if not value and _ambience_player != null:
+		_ambience_player.stop()
 
 
 ## Plays a named sound. Unknown names are ignored rather than erroring: a missing sound
@@ -71,6 +75,107 @@ func _build_bank() -> void:
 	# A machine levelling up (play-test 4): a wrench ratchets three times, then a major
 	# chord climbs an octave. The one sound in the garage that should feel like a reward.
 	_bank["level_up"] = _level_up()
+	# 023, the feel pass: a voice for each kind of action, still all synthesised.
+	_bank["step"] = _noise_burst(0.07, 0.35, 260.0, 0.5)
+	_bank["shot"] = _noise_burst(0.16, 0.8, 3200.0, 0.25)
+	_bank["lob"] = _sweep(0.30, 320.0, 90.0, 0.7)
+	_bank["thump"] = _noise_burst(0.34, 1.0, 300.0, 0.5)
+	_bank["zap"] = _buzz(0.22, 900.0, 140.0, 61.0, 0.55)
+	_bank["saw"] = _buzz(0.32, 150.0, 210.0, 38.0, 0.6)
+	_bank["clang"] = _noise_burst(0.20, 0.85, 1500.0, 0.95)
+	_bank["pickup"] = _notes([660.0, 990.0], 0.07, 0.4)
+	_bank["warn"] = _notes([880.0, 0.0, 880.0], 0.08, 0.35)
+	_bank["shield"] = _sweep(0.26, 300.0, 620.0, 0.4)
+	_bank["spawn"] = _sweep(0.30, 180.0, 520.0, 0.5)
+	_bank["flood"] = _noise_burst(0.70, 0.9, 220.0, 0.2)
+	_bank["travel"] = _buzz(0.45, 110.0, 170.0, 23.0, 0.4)
+	_bank["reward"] = _notes([523.0, 659.0, 784.0], 0.09, 0.4)
+	_bank["win"] = _notes([392.0, 523.0, 659.0, 784.0, 1047.0], 0.13, 0.45)
+	_bank["lose"] = _sweep(0.9, 300.0, 70.0, 0.55)
+	_ambience_stream = _ambience()
+
+
+## A buzz: a tone swept from one pitch to another and chopped at `rate` Hz. A saw's teeth, a
+## coil's arc, a servo: anything that is a motor rather than a blow.
+func _buzz(seconds: float, from_hz: float, to_hz: float, rate: float, amplitude: float) -> AudioStreamWAV:
+	var count: int = int(SAMPLE_RATE * seconds)
+	var data := PackedByteArray()
+	data.resize(count * 2)
+	var phase: float = 0.0
+	for i: int in count:
+		var t: float = float(i) / float(count)
+		phase += TAU * lerpf(from_hz, to_hz, t) / float(SAMPLE_RATE)
+		var saw: float = fposmod(phase / TAU, 1.0) * 2.0 - 1.0
+		var chop: float = 0.55 + 0.45 * signf(sin(TAU * rate * t * seconds))
+		var envelope: float = minf(t / 0.05, 1.0) * pow(1.0 - t, 1.2)
+		_write_sample(data, i, saw * chop * envelope * amplitude)
+	return _wav(data)
+
+
+## Short notes one after another (0 Hz is a rest): pickups, warnings, the stings.
+func _notes(hz: Array, each: float, amplitude: float) -> AudioStreamWAV:
+	var per: int = int(SAMPLE_RATE * each)
+	var tail: int = int(SAMPLE_RATE * 0.18)
+	var mix := PackedFloat32Array()
+	mix.resize(per * hz.size() + tail)
+	for n: int in hz.size():
+		if float(hz[n]) <= 0.0:
+			continue
+		var phase: float = 0.0
+		for i: int in per + tail:
+			var t: float = float(i) / float(per + tail)
+			phase += TAU * float(hz[n]) / float(SAMPLE_RATE)
+			mix[n * per + i] += (sin(phase) * 0.8 + sin(phase * 2.0) * 0.2) * minf(t / 0.04, 1.0) * pow(1.0 - t, 2.2) * amplitude
+	var data := PackedByteArray()
+	data.resize(mix.size() * 2)
+	for i: int in mix.size():
+		_write_sample(data, i, mix[i])
+	return _wav(data)
+
+
+## The yard at night: a low hum under slow filtered wind, four seconds that loop.
+func _ambience() -> AudioStreamWAV:
+	var seconds: float = 4.0
+	var count: int = int(SAMPLE_RATE * seconds)
+	var data := PackedByteArray()
+	data.resize(count * 2)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 90210
+	var previous: float = 0.0
+	for i: int in count:
+		var t: float = float(i) / float(count)
+		previous = previous + 0.02 * (rng.randf_range(-1.0, 1.0) - previous)
+		# Whole numbers of cycles in the loop, so the seam is silent.
+		var gust: float = 0.6 + 0.4 * sin(TAU * t)
+		var hum: float = sin(TAU * 55.0 * t * seconds) * 0.10 + sin(TAU * 82.0 * t * seconds) * 0.05
+		_write_sample(data, i, (previous * 2.2 * gust + hum) * 0.5)
+	var stream: AudioStreamWAV = _wav(data)
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_end = count
+	return stream
+
+
+## Starts or stops the yard's bed of noise (the map and the fight ask for it).
+func ambience(on: bool) -> void:
+	if _ambience_player == null:
+		_ambience_player = AudioStreamPlayer.new()
+		_ambience_player.stream = _ambience_stream
+		_ambience_player.volume_db = -22.0
+		add_child(_ambience_player)
+	if on and _enabled:
+		if not _ambience_player.playing:
+			_ambience_player.play()
+	else:
+		_ambience_player.stop()
+
+
+## Every name the bank holds (a test checks each `Audio.play` call against it).
+func names() -> Array:
+	return _bank.keys()
+
+
+func enabled() -> bool:
+	return _enabled
 
 
 func _level_up() -> AudioStreamWAV:

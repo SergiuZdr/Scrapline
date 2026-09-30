@@ -151,6 +151,7 @@ var _hud: CombatHUD
 
 
 func _ready() -> void:
+	Audio.ambience(true)
 	_read_args()
 	_db = ContentDB.load_all()
 	if tutorial:
@@ -1356,7 +1357,7 @@ func _animate(e: Array) -> void:
 				gain += "  +%d HP" % int(e[GridEv.F_V2])
 			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.9, 0), gain, UIKit.GREEN if actor < 10 else UIKit.RED)
 			_refresh_tag(actor)
-			Audio.play("ui_confirm", -8.0)
+			Audio.play("pickup" if actor < 10 else "ui_deny", -8.0)
 			await _wait(0.12)
 		GridEv.PROP_PLACED:
 			_spawn_prop(cell, GridEv.PROP_KINDS[clampi(int(e[GridEv.F_V1]), 0, GridEv.PROP_KINDS.size() - 1)])
@@ -1406,6 +1407,19 @@ func _animate(e: Array) -> void:
 				await pull.finished
 		GridEv.SPAWN_MARKED:
 			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.0, 0), "HIVE PAD SET", Color("b58cf0"))
+			Audio.play("warn", -12.0)
+		GridEv.ARRIVAL_MARKED:
+			Audio.play("warn", -8.0)
+		GridEv.POUR_MARKED:
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.4, 0), "THE POUR MARKS IT", COL_PAD_DANGER)
+			Audio.play("warn", -8.0)
+			await _wait(0.12)
+		GridEv.FLOODED:
+			_flood_marker(cell)
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.2, 0), "FLOODED", COL_PAD_DANGER)
+			_vfx.shake(0.2)
+			Audio.play("flood", -5.0)
+			await _wait(0.15)
 		GridEv.SPAWNED:
 			var by_reclaimer: bool = int(e[GridEv.F_ACTOR]) < 0
 			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.8, 0), "THE RECLAIMER ARRIVES" if by_reclaimer else "BUILT BY ITS PAD",
@@ -1418,12 +1432,14 @@ func _animate(e: Array) -> void:
 				root.scale = Vector3.ONE * 0.1
 				var grow := create_tween()
 				grow.tween_property(root, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_BACK)
+				Audio.play("spawn", -7.0)
 				await _wait(0.2)
 		GridEv.SPAWN_BLOCKED:
 			var shut: bool = int(e[GridEv.F_V1]) == 1
 			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.0, 0), "PAD SHUT DOWN" if shut else "BUILD BLOCKED", UIKit.GREEN)
 		GridEv.SHIELDED:
 			_refresh_tag(target)
+			Audio.play("shield", -9.0)
 		GridEv.FIGHT_END:
 			pass
 
@@ -1442,6 +1458,7 @@ func _walk(ref: int, path: Array[Vector2i]) -> void:
 	var tween := create_tween()
 	var from: Vector3 = root.position
 	for cell: Vector2i in path:
+		tween.tween_callback(func() -> void: Audio.play("step", -14.0, 0.25))
 		var destination: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
 		var heading: Vector3 = destination - from
 		if heading.length_squared() > 0.0004:
@@ -1469,13 +1486,16 @@ func _attack(ref: int, aim: Vector2i, w: int, end: Vector2i) -> void:
 			var hit_point: Vector3 = _to_world(end.x, end.y) + Vector3(0, 0.6, 0)
 			_vfx.muzzle_flash(muzzle, hit_point, colour.lightened(0.5))
 			_tracer(muzzle, hit_point, colour)
-			Audio.play("detonate", -12.0)
+			Audio.play("zap" if int(weapon["chain"]) > 0 else "shot", -7.0)
 		"lob":
 			var landing: Vector3 = _to_world(aim.x, aim.y) + Vector3(0, 0.4, 0)
 			_vfx.muzzle_flash(muzzle, landing, colour.lightened(0.5))
+			Audio.play("lob", -8.0)
 			await _lob(muzzle, landing, colour)
 			_vfx.burst(landing, colour, 1.2)
-			Audio.play("hit_heavy", -8.0)
+			Audio.play("thump", -5.0)
+		_:
+			Audio.play("saw" if String(weapon["class"]) == "saw" or String(weapon["class"]) == "ripper" else "clang", -8.0)
 	await _wait(T_ATTACK)
 
 
@@ -1592,6 +1612,7 @@ func _destroyed(killer: int, victim: int) -> void:
 	_burst(view, _local_push(killer, victim) if killer >= 0 and _views.has(killer) else Vector3(0, 0, 1))
 	_views.erase(victim)
 	Audio.play("destroy", -4.0)
+	_punch()
 	await _wait(T_DESTROY)
 
 
@@ -2465,6 +2486,19 @@ func _hover_path(screen: Vector2) -> void:
 		dot.material_override = Ink.on_top(COL_PLAYER.lightened(0.35))
 		dot.position = _to_world(step.x, step.y) + Vector3(0, _tile_top(step.x, step.y) + 0.06, 0)
 		_path_root.add_child(dot)
+
+
+## A kill punches the camera in and eases it back (023). The only thing that moves it: the
+## camera is fixed so that no hex is ever hidden.
+func _punch() -> void:
+	var rest: float = _zoom
+	var punch := create_tween()
+	punch.tween_method(func(z: float) -> void:
+		_zoom = z
+		_place_camera(), rest, rest * 0.93, 0.07)
+	punch.tween_method(func(z: float) -> void:
+		_zoom = z
+		_place_camera(), rest * 0.93, rest, 0.30).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 func _set_zoom(value: float) -> void:

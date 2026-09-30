@@ -51,6 +51,7 @@ var _busy: bool = false
 
 
 func _ready() -> void:
+	Audio.ambience(true)
 	UIKit.apply(self)
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	if not Run.active and not Run.continue_run():
@@ -150,6 +151,7 @@ func _choose(id: int) -> void:
 	_preview.visible = false
 	for child: Node in _labels.get_children():
 		(child as CanvasItem).visible = false
+	Audio.play("travel", -10.0)
 	await _yard.travel(from, id)
 	_busy = false
 	_refresh()
@@ -862,6 +864,7 @@ func _run_over() -> void:
 	var endings: Dictionary = Run.db.story.get("endings", {})
 	var ending: String = String(endings.get("won", "")) if won else (String(endings.get("gate_held", ""))
 		if state.end_reason.begins_with("The gate held") else String(endings.get("wrecked", "")))
+	Audio.play("win" if won else "lose", -6.0, 0.0)
 	# 022: what the run leaves behind. Banked once, however often this screen opens.
 	var banked: Dictionary = Run.bank()
 	var gains: String = ""
@@ -902,6 +905,7 @@ func _unlock_name(entry: Dictionary) -> String:
 # --- Actions ------------------------------------------------------------------
 
 func _pick(index: int) -> void:
+	Audio.play("reward", -8.0)
 	_apply([RunSim.PICK, index])
 
 

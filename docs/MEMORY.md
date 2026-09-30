@@ -218,3 +218,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-30 | **019: does the roster play well? Remove the shipped roster?** | Remove once played | |
 | 2026-09-30 | **021: is The Pour a good fight, and is 85% over two acts right?** | The user plays | |
 | 2026-09-30 | **022: is an unlock after nearly every early run the right pace?** | The user plays | |
+| 2026-09-30 | **023: how does the game sound?** Every sound was written as a waveform and never heard | The user listens; then a tuning pass | |
