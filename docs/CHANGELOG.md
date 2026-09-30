@@ -2,6 +2,16 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [022] Between-run progression — 2026-09-30 ([detail](iterations/022-progression.md))
+
+### Added
+- **Runs leave something behind**: 12 parts, two starting crews (the Wall, the Runners) and two
+  harder tiers (Foreman, Reclaimed) unlock as runs are played -- by runs, fights won, reaching
+  the Slag Flats, and wins. A new profile starts with 28 of the 40 parts.
+- **THE NEXT RUN**: once there is a choice, NEW RUN asks for the crew and the tier.
+- The run's end lists what it unlocked and what comes next; the title shows progress.
+- Glossary cards for the Sentinel and The Pour (missing from 021).
+
 ## [021] Act 2: the Slag Flats — 2026-09-30 ([detail](iterations/021-act-2.md))
 
 ### Added

@@ -862,9 +862,17 @@ func _run_over() -> void:
 	var endings: Dictionary = Run.db.story.get("endings", {})
 	var ending: String = String(endings.get("won", "")) if won else (String(endings.get("gate_held", ""))
 		if state.end_reason.begins_with("The gate held") else String(endings.get("wrecked", "")))
+	# 022: what the run leaves behind. Banked once, however often this screen opens.
+	var banked: Dictionary = Run.bank()
+	var gains: String = ""
+	for entry: Dictionary in (banked.get("new", []) as Array):
+		gains += "\nUNLOCKED  ·  %s" % _unlock_name(entry)
+	var next: Dictionary = banked.get("next", {})
+	if not next.is_empty():
+		gains += "\nNext: %s  (%s)" % [_unlock_name(next), String(next.get("text", "")).to_lower()]
 	var box := _modal("THE RUN IS WON" if won else "RUN OVER",
-		"%s\n\n%d fights won  ·  %d moves  ·  %d scrap" % [ending if not ending.is_empty() else state.end_reason,
-			state.fights_won, state.moves, state.scrap], 900)
+		"%s\n\n%d fights won  ·  act %d  ·  %d scrap\n%s" % [ending if not ending.is_empty() else state.end_reason,
+			state.fights_won, state.act, state.scrap, gains], 900)
 	var row := _row(box)
 	var title := _button("TITLE", UIKit.secondary(), UIKit.TEXT, Vector2(200, 64))
 	title.pressed.connect(func() -> void:
@@ -874,9 +882,21 @@ func _run_over() -> void:
 	var again := _button("NEW RUN", UIKit.primary(), UIKit.BG, Vector2(260, 64))
 	again.pressed.connect(func() -> void:
 		Run.end_run()
-		Run.new_run()
+		Run.new_run_from_profile()
 		get_tree().reload_current_scene())
 	row.add_child(again)
+
+
+## What an unlock gives, in words: a part's name, a crew's, a tier's.
+func _unlock_name(entry: Dictionary) -> String:
+	var meta: Dictionary = Run.db.meta
+	match String(entry.get("kind", "")):
+		"part":
+			return "%s (part)" % String((Run.db.parts.get(entry["what"], {}) as Dictionary).get("name", entry["what"]))
+		"crew":
+			return "%s (starting crew)" % String(((meta.get("crews", {}) as Dictionary).get(entry["what"], {}) as Dictionary).get("name", ""))
+		_:
+			return "%s (harder tier)" % String(((meta.get("tiers", []) as Array)[int(entry["what"])] as Dictionary).get("name", ""))
 
 
 # --- Actions ------------------------------------------------------------------

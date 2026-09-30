@@ -31,6 +31,8 @@ var run_rules: Dictionary = {}
 ## The world's words (`data/run/story.json`): briefing, acts, site text, endings. Text only,
 ## so it is NOT in the content hash -- rewording a line must not refuse to resume a run.
 var story: Dictionary = {}
+## Between-run progression (`data/meta.json`, 022). Not hashed: a run saves its own options.
+var meta: Dictionary = {}
 ## `data/combat/abilities.json` and `data/combat/enemy_kinds.json`.
 var combat_abilities: Dictionary = {}
 var enemy_kinds: Dictionary = {}
@@ -86,6 +88,9 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	var event_data: Variant = db._read_json("%s/run/events.json" % root)
 	if event_data is Dictionary:
 		db.run_rules["events"] = _without_comments(event_data as Dictionary)
+	var meta_data: Variant = db._read_json("%s/meta.json" % root)
+	if meta_data is Dictionary:
+		db.meta = meta_data as Dictionary
 	var story_data: Variant = db._read_json("%s/run/story.json" % root)
 	if story_data is Dictionary:
 		db.story = story_data as Dictionary

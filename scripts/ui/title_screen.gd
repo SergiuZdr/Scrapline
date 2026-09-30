@@ -67,6 +67,17 @@ func _ready() -> void:
 	column.add_child(_menu_button("PRACTICE FIGHT", false, func() -> void:
 		get_tree().change_scene_to_file("res://scenes/combat.tscn")))
 
+	# 022: what the runs so far have opened.
+	var total: int = (Run.db.meta.get("unlocks", []) as Array).size()
+	if total > 0 and int(Profile.stats().get("runs", 0)) > 0:
+		var progress := Label.new()
+		progress.text = "UNLOCKED %d / %d  ·  %d runs, %d won" % [Profile.unlocked().size(), total,
+			int(Profile.stats().get("runs", 0)), int(Profile.stats().get("wins", 0))]
+		progress.add_theme_font_override("font", UIKit.font_strong())
+		progress.add_theme_font_size_override("font_size", UIKit.SIZE_BODY)
+		UIKit.on_page(progress, 5)
+		column.add_child(progress)
+
 	_problem = Label.new()
 	_problem.add_theme_font_size_override("font_size", UIKit.SIZE_BODY)
 	UIKit.on_page(_problem, 6)
@@ -93,8 +104,7 @@ func _ready() -> void:
 ## the title as TUTORIAL.
 func _new_run() -> void:
 	if Profile.tutorial_done():
-		Run.new_run()
-		get_tree().change_scene_to_file("res://scenes/run_map.tscn")
+		_begin()
 		return
 	for child: Node in _column.get_children():
 		child.queue_free()
@@ -115,8 +125,81 @@ func _new_run() -> void:
 	_column.add_child(_menu_button("PLAY THE SHAKEDOWN", true, _play_shakedown))
 	_column.add_child(_menu_button("SKIP TO THE RUN", false, func() -> void:
 		Profile.finish_tutorial()
-		Run.new_run()
-		get_tree().change_scene_to_file("res://scenes/run_map.tscn")))
+		_begin()))
+
+
+## Starts a run -- straight away on a profile with nothing to choose between, through the
+## crew and tier choice once something is unlocked (022).
+func _begin() -> void:
+	var meta: Dictionary = Run.db.meta
+	var held: Array = Profile.unlocked()
+	if Meta.opened(held, meta, "crew").is_empty() and Meta.opened(held, meta, "tier").is_empty():
+		_go()
+		return
+	_choose_run()
+
+
+func _go() -> void:
+	Run.new_run_from_profile()
+	get_tree().change_scene_to_file("res://scenes/run_map.tscn")
+
+
+func _choose_run() -> void:
+	for child: Node in _column.get_children():
+		child.queue_free()
+	var meta: Dictionary = Run.db.meta
+	var held: Array = Profile.unlocked()
+	var choice: Dictionary = Profile.run_choice()
+	var head := Label.new()
+	head.text = "THE NEXT RUN"
+	head.add_theme_font_override("font", UIKit.font_display())
+	head.add_theme_font_size_override("font_size", 64)
+	UIKit.on_page(head, 12)
+	_column.add_child(head)
+	var crews: Array = ["salvagers"] + Meta.opened(held, meta, "crew")
+	_column.add_child(_choice_caption("CREW"))
+	for id: Variant in crews:
+		var crew: Dictionary = (meta["crews"] as Dictionary)[id]
+		_column.add_child(_choice_button("%s  ·  %s" % [crew["name"], crew["text"]], String(id) == String(choice["crew"]),
+			func() -> void:
+				Profile.choose_run(String(id), int(Profile.run_choice()["tier"]))
+				_choose_run()))
+	var tiers: Array = [0] + Meta.opened(held, meta, "tier").map(func(t: Variant) -> int: return int(t))
+	if tiers.size() > 1:
+		_column.add_child(_choice_caption("TIER"))
+		for t: Variant in tiers:
+			var tier: Dictionary = (meta["tiers"] as Array)[int(t)]
+			_column.add_child(_choice_button("%s  ·  %s" % [tier["name"], tier["text"]], int(t) == int(choice["tier"]),
+				func() -> void:
+					Profile.choose_run(String(Profile.run_choice()["crew"]), int(t))
+					_choose_run()))
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 12)
+	_column.add_child(gap)
+	_column.add_child(_menu_button("START", true, _go))
+
+
+func _choice_caption(text: String) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_override("font", UIKit.font_comic())
+	label.add_theme_font_size_override("font_size", 26)
+	UIKit.on_page(label, 6)
+	return label
+
+
+## One option of several equals: an ordinary button, the chosen one ringed in amber.
+func _choice_button(text: String, chosen: bool, on_press: Callable) -> Button:
+	var button: Button = _menu_button(text, false, on_press)
+	button.custom_minimum_size = Vector2(820, 56)
+	button.add_theme_font_override("font", UIKit.font_strong())
+	button.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	if chosen:
+		var ring: StyleBoxFlat = UIKit.choice()
+		for state: String in ["normal", "hover", "focus", "pressed"]:
+			button.add_theme_stylebox_override(state, ring)
+	return button
 
 
 func _play_shakedown() -> void:

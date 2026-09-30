@@ -1,0 +1,70 @@
+class_name Meta
+extends RefCounted
+
+## Between-run progression (022), as pure rules over `data/meta.json`. Unlocks only: nothing
+## here makes a machine's numbers bigger. The profile holds the stats and what is unlocked; a
+## run is started from `options`, resolved once and saved with it, so it replays the same
+## whatever unlocks later.
+
+## Lifetime stats after a finished run: `{ runs, fights, act, wins }`.
+static func stats_after(stats: Dictionary, state: RunState) -> Dictionary:
+	return {
+		"runs": int(stats.get("runs", 0)) + 1,
+		"fights": int(stats.get("fights", 0)) + state.fights_won,
+		"act": maxi(int(stats.get("act", 1)), state.act),
+		"wins": int(stats.get("wins", 0)) + (1 if state.outcome == RunState.WON else 0),
+	}
+
+
+## The ids of every unlock these stats have earned, in table order.
+static func earned(stats: Dictionary, rules: Dictionary) -> Array:
+	var out: Array = []
+	for entry: Dictionary in (rules.get("unlocks", []) as Array):
+		var met: bool = true
+		var when: Dictionary = entry.get("when", {})
+		for key: Variant in when:
+			met = met and int(stats.get(key, 0)) >= int(when[key])
+		if met:
+			out.append(String(entry["id"]))
+	return out
+
+
+## The next unlock not yet held, or `{}`: what the run-over screen points at.
+static func next_unlock(unlocked: Array, rules: Dictionary) -> Dictionary:
+	for entry: Dictionary in (rules.get("unlocks", []) as Array):
+		if not unlocked.has(String(entry["id"])):
+			return entry
+	return {}
+
+
+## What `kind` of thing these unlock ids have opened: part ids, crew ids or tier numbers.
+static func opened(unlocked: Array, rules: Dictionary, kind: String) -> Array:
+	var out: Array = []
+	for entry: Dictionary in (rules.get("unlocks", []) as Array):
+		if String(entry.get("kind", "")) == kind and unlocked.has(String(entry["id"])):
+			out.append(entry["what"])
+	return out
+
+
+## The options a run starts with: the crew's specs (or none for the default), the tier's rules
+## overlay, and the part ids still locked. Everything resolved, so the save needs no meta file.
+static func options(rules: Dictionary, unlocked: Array, crew_id: String, tier: int) -> Dictionary:
+	var out: Dictionary = {"crew_id": crew_id, "tier": tier}
+	var crews: Dictionary = rules.get("crews", {})
+	var crew: Dictionary = crews.get(crew_id, {})
+	if crew.has("crew") and (crew_id == "salvagers" or opened(unlocked, rules, "crew").has(crew_id)):
+		out["crew"] = (crew["crew"] as Array).duplicate(true)
+	var tiers: Array = rules.get("tiers", [])
+	var open_tiers: Array = opened(unlocked, rules, "tier").map(func(t: Variant) -> int: return int(t))
+	if tier > 0 and tier < tiers.size() and open_tiers.has(tier):
+		out["rules"] = ((tiers[tier] as Dictionary).get("rules", {}) as Dictionary).duplicate(true)
+	else:
+		out["tier"] = 0
+	var open: Array = opened(unlocked, rules, "part")
+	var locked: Array = []
+	for id: Variant in (rules.get("locked", []) as Array):
+		if not open.has(id):
+			locked.append(String(id))
+	locked.sort()
+	out["locked"] = locked
+	return out
