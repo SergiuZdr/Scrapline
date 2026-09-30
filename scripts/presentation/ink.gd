@@ -244,6 +244,15 @@ const MAKER_LIVERY: Dictionary = {
 }
 
 
+## The colour of a scavenged plate on a part of this livery: another maker's paint, faded.
+static func patch_of(livery: Color) -> Color:
+	var makers: Array = MAKER_LIVERY.values()
+	for i: int in makers.size():
+		if (makers[i][0] as Color).is_equal_approx(livery):
+			return (makers[(i + 2) % makers.size()][0] as Color).lerp(Color("8a8f8c"), 0.25)
+	return Color("6e7443")
+
+
 ## The accent a livery's `trim` zone wears: its maker's, or a fixed partner for the old liveries.
 static func accent_of(livery: Color) -> Color:
 	for pair: Array in MAKER_LIVERY.values():
@@ -276,6 +285,9 @@ static func zone_material(zone: String, livery: Color, team: Color) -> Material:
 		return toon(Color("7d848c"), "metal", 0.22)
 	if zone == "trim":
 		return toon(accent_of(livery), "clean")
+	if zone == "patch":
+		# A plate scavenged from another machine (019): never the part's own livery.
+		return toon(patch_of(livery), "clean")
 	if zone == "metal":
 		return toon(livery.darkened(0.12).lerp(Color("6a6f76"), 0.18), "metal", 0.16)
 	if PartMaterials.TEAM_ZONES.has(zone):
