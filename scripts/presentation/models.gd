@@ -52,6 +52,23 @@ static func thumb_path(part_id: String) -> String:
 	return ""
 
 
+## A part's maker, only when the new models are on (018: livery by maker is part of the
+## proposal); "" otherwise. Read once from the part lists -- display code has no ContentDB here.
+static var _makers: Dictionary = {}
+
+
+static func maker_of(part_id: String) -> String:
+	if not new_models():
+		return ""
+	if _makers.is_empty():
+		for file: String in ["chassis", "cores", "arms", "modules"]:
+			var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/parts/%s.json" % file))
+			if parsed is Array:
+				for entry: Variant in parsed:
+					_makers[String((entry as Dictionary).get("id", ""))] = String((entry as Dictionary).get("maker", ""))
+	return String(_makers.get(PartTuning.base_of(part_id), ""))
+
+
 ## A generated landmark for a site type, or null to build the kit landmark.
 static func site(kind: String) -> PackedScene:
 	if not new_models():

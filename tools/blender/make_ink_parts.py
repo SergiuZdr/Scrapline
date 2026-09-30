@@ -57,9 +57,15 @@ RUST = "RustyMetal"    # rust: ground contact
 ALU = "Aluminium"      # alu: the one light value
 EYE = "Glass"          # glow_visor: the eye, lit in the team's colour
 
-## One chamfer everywhere a box has an edge, as a fraction of its smallest side. A fixed
-## width made small pieces all chamfer and no face, and big ones read as sharp.
-CHAMFER = 0.16
+# Two zones the shipped roster never had (018): the user wanted several colours in every part.
+STEEL = "zone:steel"   # neutral grey structure: joints, frames, hafts (NOT tinted by the livery)
+TRIM = "zone:trim"     # the livery's accent colour: bands, toe caps, caps
+ZONE_HEX = {"steel": "7d848c", "trim": "c8602a"}
+
+## How round a box's edges are, as a fraction of its smallest side (018). The user on 017: "the
+## concept has a lot of rounded sides, the game's looked like a Lego character with very blocky
+## parts". Three segments, shaded smooth, with the flat faces kept flat by weighted normals.
+ROUND = 0.30
 
 
 # --- Pieces ------------------------------------------------------------------
@@ -77,6 +83,16 @@ def bake(obj):
     return obj
 
 
+def colour(obj, material):
+    if material.startswith("zone:"):
+        zone = material[5:]
+        obj.data.materials.clear()
+        obj.data.materials.append(msp.zone_material(zone, ZONE_HEX[zone]))
+    else:
+        materials.apply(obj, material)
+    return obj
+
+
 def soften(obj, angle=40.0):
     """Round things shade smooth, their caps stay sharp: the toon ramp bands a smooth drum
     the way an inker shades a cylinder, and a 16-facet drum would band as stripes."""
@@ -85,15 +101,26 @@ def soften(obj, angle=40.0):
     return obj
 
 
-def block(name, size, at, material, rot=(0.0, 0.0, 0.0), taper=None, chamfer=CHAMFER):
-    width = min(size) * chamfer
+def block(name, size, at, material, rot=(0.0, 0.0, 0.0), taper=None, chamfer=ROUND):
+    """A ROUNDED box: the workhorse. `chamfer` is the corner radius over the smallest side."""
     if taper is None:
-        obj = prim.box(name, size, location=at, rotation=rot, material=material,
-                       bevel_width=width, segments=1)
+        obj = prim.box(name, size, location=at, rotation=rot, material="OldSteel", bevel_width=0.0)
     else:
         obj = prim.taper_box(name, size, top_scale=taper, location=at, rotation=rot,
-                             material=material, bevel_width=width, segments=1)
-    return bake(obj)
+                             material="OldSteel", bevel_width=0.0)
+    bake(obj)
+    bevel = obj.modifiers.new("round", "BEVEL")
+    bevel.width = min(size) * chamfer
+    bevel.segments = 3
+    bevel.limit_method = "ANGLE"
+    bevel.angle_limit = math.radians(40.0)
+    bpy.ops.object.modifier_apply(modifier=bevel.name)
+    obj.data.shade_smooth()
+    weighted = obj.modifiers.new("flat_faces", "WEIGHTED_NORMAL")
+    weighted.keep_sharp = False
+    weighted.weight = 100
+    bpy.ops.object.modifier_apply(modifier=weighted.name)
+    return colour(obj, material)
 
 
 AXIS = {"x": (0.0, math.pi / 2, 0.0), "y": (math.pi / 2, 0.0, 0.0), "z": (0.0, 0.0, 0.0)}
@@ -101,8 +128,23 @@ AXIS = {"x": (0.0, math.pi / 2, 0.0), "y": (math.pi / 2, 0.0, 0.0), "z": (0.0, 0
 
 def drum(name, radius, depth, at, material, axis="z", sides=16):
     obj = prim.cylinder(name, radius, depth, location=at, rotation=AXIS[axis],
-                        vertices=sides, material=material)
-    return soften(bake(obj))
+                        vertices=sides, material="OldSteel")
+    return colour(soften(bake(obj)), material)
+
+
+def ball(name, radius, at, material, squash=1.0):
+    """A sphere (a dome when half of it is sunk in something): heads, bolts, antenna tips."""
+    obj = prim.sphere(name, radius, location=at, segments=12, rings=6, material="OldSteel")
+    obj.scale = (1.0, 1.0, squash)
+    bake(obj)
+    obj.data.shade_smooth()
+    return colour(obj, material)
+
+
+def bolts(name, points, material=STEEL, radius=0.026):
+    """Round bolt heads, half sunk: the concept is studded with them, and at 2.6 cm (1.1 cm in
+    the game) each is big enough to take a line in the garage."""
+    return [ball("%s_%d" % (name, i), radius, p, material, 0.7) for i, p in enumerate(points)]
 
 
 def plate_x(name, outline, depth, x, material):
@@ -135,8 +177,7 @@ def plate_x(name, outline, depth, x, material):
     bm.free()
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
-    materials.apply(obj, material)
-    return obj
+    return colour(obj, material)
 
 
 def along(a, b):
@@ -149,79 +190,83 @@ def along(a, b):
 
 # --- The Brute ---------------------------------------------------------------
 #
-# Read off the concept sheet: a wide box of a chest, flat-topped, with one bolted plate on
-# its front (the core) and a small domed head with one big lens sunk into the top; square
-# pauldrons as big as the chest's upper corners; short thick legs on wide flat feet;
-# a saw and a sledge carried low. Generator units throughout (the robot stands ~1.7 tall,
-# pelvis at z=0, facing +Y); `msp.game_matrix` takes it to the game.
+# Read off the concept sheet (art/concepts/brute.png), second pass (018): ROUNDED plates, a
+# domed head with a hooded lens, ears and antennae; a bolted chest plate (the core); huge
+# rounded pauldrons with a trim band; thick arms; heavy two-tone legs with knee pads, shin
+# plates and big boots; and several colours in every part -- livery plates, steel structure,
+# trim accents, dark recesses, one light value. Generator units throughout.
 
 def brute_body(part_id):
+    n = part_id
+    sz = config.TORSO_SHOULDER_Z
     pieces = [
-        # The chest: wider at the shoulders than at the waist.
-        block(part_id + "_chest", (0.60, 0.46, 0.58), (0.0, 0.0, 0.47), PAINT,
-              taper=(1.06, 1.0), chamfer=0.14),
-        # The core's frame: the one big feature on the chest (CLAUDE.md), dark and recessed
-        # so the plate the core bolts in reads as a separate object.
-        block(part_id + "_bezel", (0.42, 0.05, 0.36), (0.0, 0.225, 0.47), DARK),
-        # Shoulder bosses, so an arm without a pauldron still has something to sit against.
-        drum(part_id + "_boss_l", 0.075, 0.06, (0.325, 0.0, config.TORSO_SHOULDER_Z), DARK, "x"),
-        drum(part_id + "_boss_r", 0.075, 0.06, (-0.325, 0.0, config.TORSO_SHOULDER_Z), DARK, "x"),
-        # Side panels, one line each at the flank.
-        block(part_id + "_flank_l", (0.03, 0.28, 0.22), (0.30, 0.0, 0.36), METAL),
-        block(part_id + "_flank_r", (0.03, 0.28, 0.22), (-0.30, 0.0, 0.36), METAL),
-        # Waist: a narrower block in ground-contact rust, as the concept's orange hips.
-        block(part_id + "_pelvis", (0.34, 0.28, 0.24), (0.0, 0.0, 0.07), RUST,
-              taper=(1.15, 1.05)),
-        # The head sits ON the chest, not above the shoulders on a neck.
-        drum(part_id + "_collar", 0.17, 0.05, (0.0, 0.01, 0.765), DARK),
-        drum(part_id + "_head", 0.135, 0.15, (0.0, 0.01, 0.84), PAINT),
-        drum(part_id + "_crown", 0.10, 0.04, (0.0, 0.01, 0.93), METAL),
-        # One big eye: the team's colour, the strongest read at distance.
-        drum(part_id + "_eye_rim", 0.085, 0.05, (0.0, 0.13, 0.845), DARK, "y"),
-        drum(part_id + "_eye", 0.062, 0.05, (0.0, 0.15, 0.845), EYE, "y"),
-        # The BACK is the side the player sees most: the board's camera stands behind the
-        # crew. A pack with two stacks rising past the shoulders gives it a silhouette of its
-        # own, and the module hangs on the pack (`BACK_SOCKET`).
-        block(part_id + "_pack", (0.42, 0.14, 0.40), (0.0, -0.28, 0.50), METAL),
-        drum(part_id + "_stack_l", 0.055, 0.30, (0.14, -0.30, 0.78), DARK, sides=12),
-        drum(part_id + "_stack_r", 0.055, 0.30, (-0.14, -0.30, 0.78), DARK, sides=12),
-        drum(part_id + "_cap_l", 0.068, 0.045, (0.14, -0.30, 0.94), RUST, sides=12),
-        drum(part_id + "_cap_r", 0.068, 0.045, (-0.14, -0.30, 0.94), RUST, sides=12),
+        block(n + "_chest", (0.66, 0.50, 0.58), (0.0, 0.0, 0.48), PAINT, taper=(1.08, 1.0), chamfer=0.22),
+        block(n + "_bezel", (0.46, 0.06, 0.40), (0.0, 0.245, 0.47), STEEL),
+        block(n + "_belt", (0.56, 0.46, 0.08), (0.0, 0.0, 0.20), STEEL),
+        block(n + "_brow", (0.50, 0.10, 0.07), (0.0, 0.22, 0.735), TRIM),
+        drum(n + "_boss_l", 0.085, 0.07, (0.345, 0.0, sz), STEEL, "x"),
+        drum(n + "_boss_r", 0.085, 0.07, (-0.345, 0.0, sz), STEEL, "x"),
+        block(n + "_pelvis", (0.36, 0.30, 0.22), (0.0, 0.0, 0.07), TRIM, taper=(1.15, 1.05)),
+        block(n + "_codpiece", (0.16, 0.08, 0.16), (0.0, 0.16, 0.05), STEEL),
+        # The head: a dome on a drum, sunk into the chest, one hooded eye, ears, antennae.
+        drum(n + "_collar", 0.19, 0.06, (0.0, 0.02, 0.775), STEEL),
+        drum(n + "_head", 0.15, 0.12, (0.0, 0.02, 0.85), PAINT),
+        ball(n + "_dome", 0.15, (0.0, 0.02, 0.905), PAINT, 0.62),
+        drum(n + "_hood", 0.098, 0.11, (0.0, 0.155, 0.865), STEEL, "y"),
+        drum(n + "_eye", 0.072, 0.03, (0.0, 0.205, 0.865), EYE, "y"),
+        drum(n + "_ear_l", 0.055, 0.07, (0.165, 0.02, 0.865), STEEL, "x", sides=12),
+        drum(n + "_ear_r", 0.055, 0.07, (-0.165, 0.02, 0.865), STEEL, "x", sides=12),
+        drum(n + "_aerial_l", 0.013, 0.22, (0.10, -0.06, 1.05), STEEL, sides=6),
+        drum(n + "_aerial_r", 0.013, 0.15, (-0.10, -0.06, 1.015), STEEL, sides=6),
+        ball(n + "_tip_l", 0.03, (0.10, -0.06, 1.165), TRIM),
+        ball(n + "_tip_r", 0.03, (-0.10, -0.06, 1.095), TRIM),
+        # The BACK is the side the player sees most: a pack, a tank, two capped stacks.
+        block(n + "_pack", (0.46, 0.16, 0.42), (0.0, -0.30, 0.50), STEEL),
+        drum(n + "_tank", 0.085, 0.36, (0.0, -0.39, 0.62), ALU, "x"),
+        drum(n + "_stack_l", 0.06, 0.32, (0.16, -0.31, 0.80), DARK, sides=12),
+        drum(n + "_stack_r", 0.06, 0.32, (-0.16, -0.31, 0.80), DARK, sides=12),
+        drum(n + "_cap_l", 0.075, 0.05, (0.16, -0.31, 0.97), TRIM, sides=12),
+        drum(n + "_cap_r", 0.075, 0.05, (-0.16, -0.31, 0.97), TRIM, sides=12),
     ]
+    for side in (1.0, -1.0):
+        tag = "l" if side > 0 else "r"
+        pieces.append(block("%s_flank_%s" % (n, tag), (0.04, 0.30, 0.30), (side * 0.325, 0.0, 0.40), STEEL))
+        for i in range(3):
+            pieces.append(block("%s_vent_%s%d" % (n, tag, i), (0.03, 0.20, 0.035),
+                                (side * 0.345, 0.0, 0.32 + i * 0.075), DARK))
+    pieces += bolts(n + "_stud", [(x, 0.255, z) for x in (-0.27, 0.27) for z in (0.28, 0.68)])
+    pieces += bolts(n + "_top", [(x, y, 0.775) for x in (-0.24, 0.24) for y in (-0.14, 0.12)])
     return prim.join(pieces, part_id)
 
 
 ## Where the module hangs: on the back of the pack. The bridge's formula puts it at the
 ## torso's back face, which this chest is deeper than -- a module there was buried in it.
 ## Every module is modelled reaching FORWARD from its socket, so the socket sits proud.
-BACK_SOCKET = (0.0, -0.40, 0.45)
+BACK_SOCKET = (0.0, -0.44, 0.40)
 
 
 def brute_leg(name):
     """One leg, hip at the origin, foot planted outboard (+X) and knee loaded forward."""
-    knee = (0.08, config.KNEE_FORWARD, config.LEG_KNEE_Z + 0.02)
-    foot_x = 0.105
+    knee = (0.085, config.KNEE_FORWARD, config.LEG_KNEE_Z + 0.02)
+    fx = 0.11
     sole = -config.LEG_LENGTH
     pieces = [
-        drum(name + "_hip", 0.10, 0.13, (0.05, 0.0, 0.0), DARK, "x"),
-        block(name + "_thigh", (0.25, 0.27, 0.32), (0.075, 0.0, -0.20), PAINT,
-              taper=(1.06, 1.04)),
-        drum(name + "_knee", 0.085, 0.21, knee, DARK, "x"),
-        block(name + "_kneepad", (0.19, 0.08, 0.18), (knee[0], knee[1] + 0.10, knee[2]),
-              METAL, rot=(-0.15, 0.0, 0.0), taper=(0.8, 1.0)),
-        # Two-tone below the knee, as the concept's: a painted shin into a heavier metal
-        # boot. A leg of one colour top to bottom read as a stack of boxes.
-        block(name + "_shin", (0.26, 0.28, 0.22), (0.09, 0.03, -0.53), PAINT,
-              taper=(0.9, 0.88)),
-        block(name + "_boot", (0.30, 0.33, 0.17), (foot_x, 0.04, -0.705), METAL,
-              taper=(0.9, 0.9)),
-        # A wide flat foot: the overhang past the boot is what plants a heavy frame.
-        block(name + "_foot", (0.31, 0.47, 0.07), (foot_x, 0.07, sole + 0.045), PAINT,
-              taper=(0.86, 0.8)),
-        block(name + "_toe", (0.31, 0.12, 0.06), (foot_x, 0.28, sole + 0.03), RUST,
-              taper=(0.9, 0.5)),
-        block(name + "_sole", (0.32, 0.48, 0.02), (foot_x, 0.07, sole + 0.01), RUST),
+        drum(name + "_hip", 0.105, 0.14, (0.05, 0.0, 0.0), STEEL, "x"),
+        block(name + "_thigh", (0.27, 0.29, 0.32), (0.08, 0.0, -0.20), PAINT, taper=(1.06, 1.04)),
+        block(name + "_thigh_plate", (0.05, 0.20, 0.20), (0.225, 0.0, -0.19), TRIM),
+        drum(name + "_knee", 0.09, 0.23, knee, STEEL, "x"),
+        ball(name + "_kneepad", 0.12, (knee[0], knee[1] + 0.07, knee[2]), PAINT, 0.9),
+        block(name + "_shin", (0.28, 0.30, 0.22), (0.095, 0.03, -0.53), PAINT, taper=(0.9, 0.88)),
+        block(name + "_shin_plate", (0.17, 0.05, 0.17), (0.095, 0.175, -0.54), ALU),
+        block(name + "_boot", (0.32, 0.35, 0.17), (fx, 0.04, -0.705), STEEL, taper=(0.9, 0.9)),
+        block(name + "_foot", (0.33, 0.50, 0.08), (fx, 0.07, sole + 0.05), PAINT, taper=(0.88, 0.82)),
+        block(name + "_toe", (0.33, 0.14, 0.09), (fx, 0.29, sole + 0.045), TRIM, taper=(0.9, 0.6)),
+        block(name + "_heel", (0.22, 0.10, 0.10), (fx, -0.17, sole + 0.05), STEEL),
+        block(name + "_sole", (0.34, 0.50, 0.025), (fx, 0.07, sole + 0.0125), DARK, chamfer=0.2),
     ]
+    pieces += bolts(name + "_stud", [(0.095 + x, 0.205, -0.54 + z) for x in (-0.055, 0.055) for z in (-0.055, 0.055)],
+                    DARK, 0.018)
+    pieces += bolts(name + "_side", [(0.255, y, -0.19) for y in (-0.06, 0.06)], STEEL, 0.022)
     return prim.join(pieces, name)
 
 
@@ -247,7 +292,7 @@ def build_brute(part_id, part):
     # where it would on any other frame; the module hangs on the pack.
     half_width = 0.22
     msp.add_socket(body, "socket_core", msp.to_game_point(
-        (0.0, half_width * msp.CORE_FRONT * 3.0, config.TORSO_HEIGHT * msp.CORE_HEIGHT), lift, bulk))
+        (0.0, half_width * msp.CORE_FRONT * 3.0 + 0.02, config.TORSO_HEIGHT * msp.CORE_HEIGHT), lift, bulk))
     msp.add_socket(body, "socket_module", msp.to_game_point(BACK_SOCKET, lift, bulk))
     for side, name in ((1.0, "socket_arm_l"), (-1.0, "socket_arm_r")):
         msp.add_socket(body, name, msp.to_game_point(
@@ -265,56 +310,81 @@ ELBOW = (0.0, -0.12, config.ARM_ELBOW_Z)
 
 
 def heavy_arm(part_id):
-    """Pauldron, a short upper arm, a gauntlet of a forearm. The pauldron is as big as the
-    chest's corner (the concept), seated OVER the joint and in the part's livery."""
+    """A huge rounded pauldron with a trim band and studs, a steel upper arm, a gauntlet of a
+    forearm with a light plate and a trim cuff."""
+    n = part_id
     upper, upper_len, upper_rot = along((0.0, 0.0, -0.02), ELBOW)
     fore, fore_len, fore_rot = along(ELBOW, WRIST)
     pieces = [
-        drum(part_id + "_joint", 0.085, 0.14, (-0.02, 0.0, 0.0), DARK, "x"),
-        block(part_id + "_pauldron", (0.30, 0.36, 0.25), (-0.07, 0.0, 0.07), PAINT,
-              taper=(0.88, 0.9), chamfer=0.18),
-        block(part_id + "_pauldron_rim", (0.32, 0.38, 0.05), (-0.07, 0.0, -0.065), METAL),
-        block(part_id + "_upper", (0.13, 0.14, upper_len), upper, METAL, rot=(upper_rot, 0, 0)),
-        drum(part_id + "_elbow", 0.075, 0.16, ELBOW, DARK, "x"),
-        block(part_id + "_forearm", (0.20, 0.22, fore_len), fore, PAINT,
-              rot=(fore_rot, 0.0, 0.0), taper=(0.82, 0.82)),
+        drum(n + "_joint", 0.095, 0.16, (-0.02, 0.0, 0.0), STEEL, "x"),
+        block(n + "_pauldron", (0.36, 0.42, 0.30), (-0.09, 0.0, 0.08), PAINT, taper=(0.86, 0.88), chamfer=0.34),
+        block(n + "_pauldron_rim", (0.385, 0.445, 0.07), (-0.09, 0.0, -0.075), TRIM, chamfer=0.4),
+        drum(n + "_upper", 0.075, upper_len, upper, STEEL, "z"),
+        drum(n + "_elbow", 0.09, 0.19, ELBOW, STEEL, "x"),
+        drum(n + "_elbow_cap", 0.06, 0.21, ELBOW, TRIM, "x", sides=12),
+        block(n + "_forearm", (0.25, 0.27, fore_len), fore, PAINT, rot=(fore_rot, 0.0, 0.0),
+              taper=(0.8, 0.8), chamfer=0.3),
+        block(n + "_cuff", (0.27, 0.29, 0.07), (WRIST[0], WRIST[1] - 0.035, WRIST[2] + 0.055), TRIM,
+              rot=(fore_rot, 0.0, 0.0), chamfer=0.4),
+        block(n + "_arm_plate", (0.04, 0.16, 0.20), (-0.125, fore[1], fore[2]), ALU, rot=(fore_rot, 0.0, 0.0)),
     ]
+    # The upper arm is a drum along Z: lay it along shoulder -> elbow.
+    up = pieces[3]
+    up.rotation_euler = (upper_rot, 0.0, 0.0)
+    pivot = Vector(upper)
+    up.location = pivot - (up.rotation_euler.to_matrix() @ pivot)
+    bake(up)
+    pieces += bolts(n + "_stud", [(-0.09 + x, y, 0.235) for x in (-0.07, 0.07) for y in (-0.11, 0.11)])
     return prim.join(pieces, part_id + "_arm")
 
 
+def fist(n, y):
+    """A closed hand round a haft that runs along +Y: the concept's machines have hands."""
+    out = [block(n + "_palm", (0.15, 0.13, 0.13), (0.0, y, 0.0), STEEL, chamfer=0.35)]
+    for i in range(4):
+        out.append(block("%s_finger_%d" % (n, i), (0.05, 0.035, 0.11), (0.0, y - 0.045 + i * 0.03, 0.075),
+                         DARK, chamfer=0.4))
+    out.append(block(n + "_thumb", (0.05, 0.06, 0.05), (0.075, y + 0.03, 0.03), DARK, chamfer=0.4))
+    return out
+
+
 def hammer(part_id):
-    """A sledge: a haft and a banded block. Weapon space: mount at the origin, +Y forward."""
-    pieces = [
-        block(part_id + "_grip", (0.11, 0.11, 0.11), (0.0, 0.02, 0.0), DARK),
-        drum(part_id + "_haft", 0.035, 0.34, (0.0, 0.19, 0.0), METAL, "y", sides=10),
-        block(part_id + "_head", (0.20, 0.20, 0.36), (0.0, 0.40, 0.0), ALU, chamfer=0.18),
-        block(part_id + "_band_a", (0.215, 0.215, 0.045), (0.0, 0.40, 0.10), DARK),
-        block(part_id + "_band_b", (0.215, 0.215, 0.045), (0.0, 0.40, -0.10), DARK),
+    """A sledge in a fist: a haft, a banded block with a trim stripe."""
+    n = part_id
+    pieces = fist(n, 0.06) + [
+        drum(n + "_haft", 0.038, 0.40, (0.0, 0.20, 0.0), STEEL, "y", sides=10),
+        block(n + "_head", (0.24, 0.22, 0.40), (0.0, 0.44, 0.0), ALU, chamfer=0.25),
+        block(n + "_band_a", (0.255, 0.235, 0.05), (0.0, 0.44, 0.115), DARK, chamfer=0.4),
+        block(n + "_band_b", (0.255, 0.235, 0.05), (0.0, 0.44, -0.115), DARK, chamfer=0.4),
+        block(n + "_stripe", (0.25, 0.23, 0.06), (0.0, 0.44, 0.0), TRIM, chamfer=0.4),
     ]
     return prim.join(pieces, part_id + "_weapon")
 
 
 def saw(part_id):
-    """A toothed disc on a bracket, its upper half under a guard."""
-    centre_y, radius, teeth = 0.27, 0.215, 12
+    """A toothed disc on a motor, its upper half under a guard."""
+    n = part_id
+    centre_y, radius, teeth = 0.30, 0.225, 12
     outline = []
     for i in range(teeth * 2):
         # A raked tooth: the tip leads, the gullet trails.
         a = 2.0 * math.pi * (i + (0.25 if i % 2 == 0 else 0.0)) / (teeth * 2)
-        r = radius + (0.045 if i % 2 == 0 else 0.0)
+        r = radius + (0.05 if i % 2 == 0 else 0.0)
         outline.append((centre_y + r * math.cos(a), r * math.sin(a)))
-    blade = plate_x(part_id + "_blade", outline, 0.025, 0.0, ALU)
+    blade = plate_x(n + "_blade", outline, 0.028, 0.0, ALU)
     guard_outline = [(centre_y, 0.0)]
-    for i in range(9):
-        a = math.radians(40.0 + i * 15.0)
-        guard_outline.append((centre_y + 0.275 * math.cos(a), 0.275 * math.sin(a)))
-    guard = plate_x(part_id + "_guard", guard_outline, 0.03, -0.035, PAINT)
+    for i in range(11):
+        a = math.radians(30.0 + i * 14.0)
+        guard_outline.append((centre_y + 0.295 * math.cos(a), 0.295 * math.sin(a)))
+    guard = plate_x(n + "_guard", guard_outline, 0.035, -0.04, TRIM)
     pieces = [
-        block(part_id + "_motor", (0.15, 0.16, 0.16), (0.0, 0.02, 0.0), PAINT),
-        block(part_id + "_bracket", (0.07, 0.26, 0.08), (0.0, 0.15, 0.0), DARK),
+        block(n + "_motor", (0.19, 0.20, 0.19), (0.0, 0.03, 0.0), PAINT),
+        drum(n + "_exhaust", 0.035, 0.12, (-0.05, -0.02, 0.13), DARK, sides=10),
+        block(n + "_bracket", (0.07, 0.30, 0.09), (0.0, 0.17, 0.0), STEEL),
         blade,
         guard,
-        drum(part_id + "_hub", 0.065, 0.07, (0.0, centre_y, 0.0), DARK, "x"),
+        drum(n + "_hub", 0.075, 0.08, (0.0, centre_y, 0.0), STEEL, "x"),
+        ball(n + "_nut", 0.035, (0.045, centre_y, 0.0), DARK, 0.8),
     ]
     return prim.join(pieces, part_id + "_weapon")
 
@@ -338,23 +408,21 @@ def build_arm(part_id, part):
 # --- Core --------------------------------------------------------------------
 
 def build_core(part_id, part):
-    """The concept's bolted chest plate, with the damage-type lens in the middle of it.
-
-    A housing reaches back into the chest, so the plate sits flush on any frame's socket."""
+    """The concept's bolted chest plate, with the damage-type lens low in it (the crew number
+    is stencilled top-left). A housing reaches back into the chest, so it sits on any frame."""
+    n = part_id
     damage = str(part.get("damage_type", "kinetic"))
-    lens = drum(part_id + "_lens", 0.058, 0.035, (0.0, 0.115, 0.0), EYE, "y")
+    lens = drum(n + "_lens", 0.055, 0.035, (0.05, 0.12, -0.045), EYE, "y")
     lens.data.materials.clear()
     lens.data.materials.append(msp.glow_material(damage))
     pieces = [
-        block(part_id + "_housing", (0.30, 0.14, 0.25), (0.0, -0.02, 0.0), DARK),
-        block(part_id + "_plate", (0.34, 0.06, 0.28), (0.0, 0.06, 0.0), ALU, chamfer=0.3),
-        drum(part_id + "_rim", 0.085, 0.03, (0.0, 0.10, 0.0), DARK, "y"),
+        block(n + "_housing", (0.30, 0.14, 0.25), (0.0, -0.02, 0.0), DARK),
+        block(n + "_plate", (0.36, 0.07, 0.30), (0.0, 0.06, 0.0), ALU, chamfer=0.35),
+        drum(n + "_rim", 0.082, 0.04, (0.05, 0.10, -0.045), STEEL, "y"),
         lens,
+        block(n + "_tab", (0.10, 0.03, 0.04), (-0.10, 0.10, -0.10), TRIM, chamfer=0.4),
     ]
-    for x in (-0.125, 0.125):
-        for z in (-0.095, 0.095):
-            pieces.append(drum("%s_bolt_%d_%d" % (part_id, x > 0, z > 0), 0.03, 0.03,
-                               (x, 0.095, z), DARK, "y", sides=8))
+    pieces += bolts(n + "_bolt", [(x, 0.095, z) for x in (-0.14, 0.14) for z in (-0.11, 0.11)], STEEL, 0.03)
     fused = prim.join(pieces, part_id)
     msp.apply_matrix([fused], msp.game_matrix(0.0))
     return fused
