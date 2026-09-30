@@ -242,7 +242,7 @@ static func strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector2
 		return plan
 	var base: int = int(weapon["damage"])
 	if base > 0:
-		base += u.damage_bonus + (u.melee_bonus if shape == "melee" else 0) + u.boost_damage
+		base += u.damage_bonus + (u.melee_bonus if shape == "melee" else 0) + u.boost_damage + conduit_boost(state, u)
 	var tiles: Array[Vector2i] = []
 	var hits: Array[Dictionary] = []
 	# Props struck, `{ "cell", "damage" }`: a prop takes the raw number, no armour wheel.
@@ -542,6 +542,18 @@ static func damage_to(state: CombatState, u: GridUnit, target: GridUnit, amount:
 	return maxi(state.setup.min_damage, dmg)
 
 
+## A conduit (025, the Foundry Mind's) lends every ally next to it `boost` damage on each
+## attack -- not itself. Through `strike_plan`, so the telegraphed number already has it.
+static func conduit_boost(state: CombatState, u: GridUnit) -> int:
+	for n: Vector2i in Hex.neighbors(Vector2i(u.x, u.y)):
+		if not state.inside(n):
+			continue
+		var other: GridUnit = state.unit_at(n.x, n.y)
+		if other != null and other != u and other.team == u.team and other.kind == "conduit":
+			return int((state.setup.kinds.get("conduit", {}) as Dictionary).get("boost", 1))
+	return 0
+
+
 ## The Sorter (013) takes `pylon_armor` off every hit while any gate pylon stands.
 static func _pylon_cover(state: CombatState, target: GridUnit) -> int:
 	if target.kind != "sorter" or not has_pylon(state):
@@ -661,6 +673,11 @@ static func threats(state: CombatState) -> Dictionary:
 static func incoming(state: CombatState) -> Dictionary:
 	var copy: CombatState = state.clone()
 	_fire_intents(copy)
+	# 025: and what the next round's start does before anyone moves -- slag, floods, flues, the
+	# Core's pulse -- so the number on a hex is what END TURN will do to it.
+	if copy.outcome == CombatState.ONGOING:
+		copy.round_number += 1
+		_round_hazards(copy)
 	var units: Array = []
 	for u: GridUnit in state.units:
 		if not u.alive:
@@ -1072,11 +1089,7 @@ static func _begin_round(state: CombatState) -> void:
 			u.heat = maxi(0, u.heat - u.vent)
 			state.emit(GridEv.HEAT, u.ref, -1, u.x, u.y, u.heat, u.heat_cap)
 
-	_pours(state)
-	# Terrain bites before anyone moves, so standing on slag is a decision made last turn.
-	for u: GridUnit in state.units:
-		if u.alive and state.hazard(u.x, u.y) > 0:
-			hurt(state, -1, u, state.hazard(u.x, u.y))
+	_round_hazards(state)
 	if _check_outcome(state):
 		return
 
@@ -1110,6 +1123,70 @@ static func _begin_round(state: CombatState) -> void:
 				intent["lock"] = locked.ref
 			state.intents.append(intent)
 			state.emit(GridEv.INTENT_SET, u.ref, int(intent.get("lock", -1)), target.x, target.y, w, order)
+
+
+## What the start of a round does to the board before anyone moves: The Pour's floods, slag
+## and flooded hexes biting, the furnace flues, the Core's pulse. Terrain bites first, so
+## standing on it is a decision made last turn. `incoming` runs this on a copy too.
+static func _round_hazards(state: CombatState) -> void:
+	_pours(state)
+	for u: GridUnit in state.units:
+		if u.alive and state.hazard(u.x, u.y) > 0:
+			hurt(state, -1, u, state.hazard(u.x, u.y))
+	_flues(state)
+	_pulses(state)
+
+
+## Whether the furnace flues blow at the start of round `round` (025): every `flue_every`th.
+## The board asks it about the next round to warn a round ahead.
+static func flues_blow(state: CombatState, round: int) -> bool:
+	return round > 0 and round % state.setup.flue_every == 0
+
+
+## The flues blow (025): `flue` damage to whatever stands on each, in row order.
+static func _flues(state: CombatState) -> void:
+	if not flues_blow(state, state.round_number):
+		return
+	for y: int in state.height:
+		for x: int in state.width:
+			var dmg: int = state.flue(x, y)
+			if dmg <= 0:
+				continue
+			state.emit(GridEv.FLUE_BLEW, -1, -1, x, y, dmg)
+			var u: GridUnit = state.unit_at(x, y)
+			if u != null:
+				hurt(state, -1, u, dmg)
+
+
+## The Core (025). A kind that pulses: the ring it marked last round pulses now -- `pulse_damage`
+## to each of the other side standing in it, raw -- unless it died first; then, every
+## `pulse_every` rounds, it marks every hex within `pulse_radius` of itself, a round ahead.
+static func _pulses(state: CombatState) -> void:
+	if not state.pulse_marks.is_empty():
+		var keeper: GridUnit = state.unit(state.pulse_by)
+		if keeper != null and keeper.alive:
+			var dmg: int = int((state.setup.kinds.get(keeper.kind, {}) as Dictionary).get("pulse_damage", 4))
+			state.emit(GridEv.PULSED, keeper.ref, -1, keeper.x, keeper.y, dmg)
+			for cell: Vector2i in state.pulse_marks:
+				var t: GridUnit = state.unit_at(cell.x, cell.y)
+				if t != null and t.team != keeper.team:
+					hurt(state, keeper.ref, t, dmg)
+		state.pulse_marks.clear()
+		state.pulse_by = -1
+	for u: GridUnit in state.units:
+		if not u.alive or u.kind.is_empty():
+			continue
+		var rules: Dictionary = state.setup.kinds.get(u.kind, {})
+		var every: int = int(rules.get("pulse_every", 0))
+		if every <= 0 or state.round_number % every != every - 1:
+			continue
+		var radius: int = int(rules.get("pulse_radius", 2))
+		for cell: Vector2i in Hex.within(Vector2i(u.x, u.y), radius):
+			if state.inside(cell):
+				state.pulse_marks.append(cell)
+		state.pulse_by = u.ref
+		state.emit(GridEv.PULSE_MARKED, u.ref, -1, u.x, u.y, radius)
+		return
 
 
 ## Hives build on their marked hex, then mark the next one. A marked hex that anything

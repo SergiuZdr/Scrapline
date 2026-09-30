@@ -1,0 +1,135 @@
+{
+  "id": "furnace_mouths",
+  "name": "The Furnace Mouths",
+  "acts": [
+    3
+  ],
+  "_comment": "025, Act 3: two furnace mouths (ridges) over slag, a drum stack in the middle, flues all round the edge.",
+  "rows": [
+    ".f....f.",
+    "....s...",
+    "lf.^^.fl",
+    "........",
+    ".r.ff.r.",
+    "...bb...",
+    "f......f",
+    "........"
+  ],
+  "player": [
+    {
+      "name": "Knuckles",
+      "parts": [
+        "ch_brute",
+        "co_slug",
+        "ar_saw",
+        "ar_hammer",
+        "mo_scavenger"
+      ],
+      "x": 2,
+      "y": 7
+    },
+    {
+      "name": "Mule",
+      "parts": [
+        "ch_hauler",
+        "co_furnace",
+        "ar_pulse",
+        "ar_lance",
+        "mo_ablative"
+      ],
+      "x": 4,
+      "y": 7
+    },
+    {
+      "name": "Stilts",
+      "parts": [
+        "ch_strider",
+        "co_arc",
+        "ar_scanner",
+        "ar_scatter",
+        "mo_governor"
+      ],
+      "x": 5,
+      "y": 7
+    }
+  ],
+  "enemy": [
+    {
+      "name": "Citadel",
+      "parts": [
+        "ch_citadel",
+        "co_mag",
+        "ar_maul",
+        "ar_scatter",
+        "mo_reactive"
+      ],
+      "x": 0,
+      "y": 0,
+      "kind": "sentinel"
+    },
+    {
+      "name": "Dredge",
+      "parts": [
+        "ch_dredge",
+        "co_furnace",
+        "ar_mortar",
+        "ar_hammer",
+        "mo_reactive"
+      ],
+      "x": 3,
+      "y": 0,
+      "kind": "conduit"
+    },
+    {
+      "name": "Reaper",
+      "parts": [
+        "ch_reaper",
+        "co_ember",
+        "ar_ripper",
+        "ar_saw",
+        "mo_bypass"
+      ],
+      "x": 5,
+      "y": 0
+    },
+    {
+      "name": "Lancer",
+      "parts": [
+        "ch_lancer",
+        "co_dynamo",
+        "ar_railgun",
+        "ar_scanner",
+        "mo_targeting"
+      ],
+      "x": 7,
+      "y": 0
+    },
+    {
+      "name": "Bulwark",
+      "parts": [
+        "ch_bulwark",
+        "co_tesla",
+        "ar_pulse",
+        "ar_hammer",
+        "mo_coolant"
+      ],
+      "x": 1,
+      "y": 1
+    },
+    {
+      "name": "Skirmisher",
+      "parts": [
+        "ch_skirmisher",
+        "co_arc",
+        "ar_scatter",
+        "ar_pulse",
+        "mo_capacitor"
+      ],
+      "x": 6,
+      "y": 1
+    }
+  ],
+  "objective": {
+    "type": "rout"
+  }
+}

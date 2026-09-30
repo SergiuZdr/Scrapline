@@ -257,6 +257,13 @@ func _build_top_bar() -> void:
 	add_child(_warning)
 
 
+## A site's line in the world's voice. The gate is each act's own (025: the story's `acts[i].boss`).
+func _site_text(kind: String) -> String:
+	if kind == "boss" and _act().has("boss"):
+		return String(_act()["boss"])
+	return String((Run.db.story.get("sites", {}) as Dictionary).get(kind, ""))
+
+
 func _act() -> Dictionary:
 	var acts: Array = Run.db.story.get("acts", [])
 	return acts[clampi(Run.state.act - 1, 0, acts.size() - 1)] if not acts.is_empty() else {}
@@ -508,7 +515,7 @@ func _show_preview() -> void:
 	if reachable:
 		head = "%s  ·  %s" % [_direction(_hover), head]
 	box.add_child(_label(head, 24, UIKit.TEXT, UIKit.font_comic()))
-	var text: String = String((Run.db.story.get("sites", {}) as Dictionary).get(String(site["type"]), "")) if known \
+	var text: String = _site_text(String(site["type"])) if known \
 		else "Nobody has looked yet. You find out when you get there."
 	if bool(site["visited"]) and _hover != state.current:
 		text = "Already cleared. Nothing happens there now."
@@ -680,7 +687,7 @@ func _fight_panel() -> void:
 		"defend": "DEFEND: keep the salvage caches standing for %d rounds (or destroy every enemy). Each cache you save pays out scrap." % int(objective.get("rounds", 0)),
 		"salvage": "SALVAGE: collect %d scrap piles before the enemy carries them off (or destroy every enemy)." % int(objective.get("need", 0)),
 	}
-	var flavour: String = String((Run.db.story.get("sites", {}) as Dictionary).get(kind, ""))
+	var flavour: String = _site_text(kind)
 	var box := _modal(String(titles.get(kind, "FIGHT")),
 		"%s\n\n%s\n\n%d enemies: %s.\nDamage your machines take here stays with them after the fight." % [
 			flavour, String(goals.get(String(objective.get("type", "rout")), "")), enemies.size(), ", ".join(enemies)], 960)

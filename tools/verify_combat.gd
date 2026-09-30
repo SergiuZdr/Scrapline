@@ -62,8 +62,9 @@ func _initialize() -> void:
 	_test_shot_leanings()
 	_test_act2_kinds()
 	_test_playtest7()
+	_test_act3()
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
-			"slag_lake", "pipe_forest", "cooling_flats", "the_pour"]:
+			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core"]:
 		_test_bot_fight(id)
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
@@ -187,6 +188,74 @@ func _test_playtest7() -> void:
 	var plain: CombatState = _fight(_rows(), [_unit(COIL, C)], [_unit(HAMMER, target, 20)])
 	_check("a weapon that does not pierce aims no further than its reach",
 		CombatSim.aim_reach(plain, plain.unit(0), 1) == CombatSim.weapon_reach(plain, plain.unit(0), 1))
+
+
+## 025, Act 3: furnace flues, conduits, the Core.
+func _test_act3() -> void:
+	var far := Vector2i(0, 0)
+	var s: CombatState = _fight(_rows({C: "f"}), [_unit(HAMMER, C, 30)], [_unit(HAMMER, far, 30)])
+	_place(s, 0, C)
+	_check("flues blow on even rounds only", CombatSim.flues_blow(s, 2) and not CombatSim.flues_blow(s, 3))
+	var hp: int = s.unit(0).hp
+	var volley: Dictionary = CombatSim.incoming(s)
+	var told: int = 0
+	for hit: Dictionary in (volley["units"] as Array):
+		if int(hit["ref"]) == 0:
+			told = int(hit["hp_lost"])
+	_check("incoming counts the flue about to blow (%d)" % told, told == 3)
+	CombatSim.apply(s, [CombatSim.ACT_END, 0, 0, 0])
+	_check("a flue blows at the start of round 2 for 3 (%d -> %d)" % [hp, s.unit(0).hp], s.unit(0).hp == hp - 3)
+	var after: int = s.unit(0).hp
+	s.intents.clear()
+	CombatSim.apply(s, [CombatSim.ACT_END, 0, 0, 0])
+	_check("and not at the start of round 3", s.unit(0).hp == after)
+
+	# A conduit's neighbour hits 1 harder; its own blow does not.
+	var n: Vector2i = Hex.neighbor(C, 0)
+	var link: Vector2i = Hex.neighbor(n, 0)
+	var relay: Dictionary = _unit(HAMMER, link, 20)
+	relay["kind"] = "conduit"
+	var boosted: CombatState = _fight(_rows(), [_unit(HAMMER, C, 30)], [_unit(HAMMER, n, 20), relay])
+	var plain: CombatState = _fight(_rows(), [_unit(HAMMER, C, 30)], [_unit(HAMMER, n, 20), _unit(HAMMER, link, 20)])
+	for st: CombatState in [boosted, plain]:
+		_place(st, 0, C)
+		_place(st, 10, n)
+		_place(st, 11, link)
+	var with_link: int = int((CombatSim.strike_plan(boosted, boosted.unit(10), 1, C)["hits"] as Array)[0]["damage"])
+	var without: int = int((CombatSim.strike_plan(plain, plain.unit(10), 1, C)["hits"] as Array)[0]["damage"])
+	_check("a conduit's neighbour hits 1 harder (%d vs %d)" % [with_link, without], with_link == without + 1)
+	boosted.unit(11).alive = false
+	_check("and not once the conduit is gone", int((CombatSim.strike_plan(boosted, boosted.unit(10), 1, C)["hits"] as Array)[0]["damage"]) == without)
+
+	# The Core: bolted down, marks its ring a round ahead, pulses for 4.
+	var core_at := Vector2i(4, 1)
+	var near: Vector2i = _off(core_at, 0, -2, 2)
+	var core: Dictionary = _unit(HAMMER, core_at, 40)
+	core["kind"] = "heart"
+	var c: CombatState = _fight(_rows(), [_unit(HAMMER, near, 30)], [core])
+	_check("(precondition) the crew stands 2 from the Core", Hex.distance(near, core_at) == 2)
+	var moved: bool = false
+	var marked: bool = false
+	var leak: bool = false
+	var pulse_hp: int = -1
+	for turn: int in 3:
+		_place(c, 0, near)
+		c.unit(0).moved = false
+		var before: int = c.unit(0).hp
+		CombatSim.apply(c, [CombatSim.ACT_END, 0, 0, 0])
+		moved = moved or _at(c, 10) != core_at
+		if c.pulse_marks.has(near) and not marked:
+			marked = true
+			var copy: CombatState = c.clone()
+			CombatSim.apply(copy, [CombatSim.ACT_END, 0, 0, 0])
+			leak = not c.pulse_marks.has(near) or copy.pulse_marks.has(near)
+		elif marked and pulse_hp < 0:
+			pulse_hp = before - c.unit(0).hp
+	_check("the Core never leaves its hex", not moved)
+	_check("it marks the ring around it a round ahead (round 2)", marked)
+	_check("a dry run of the pulse does not leak into the fight", not leak)
+	_check("and a round later pulses for 4 (%d)" % pulse_hp, pulse_hp == 4)
+	_check("it cannot be shoved", c.unit(10).unshovable)
 
 
 # --- Fixtures ---------------------------------------------------------------
