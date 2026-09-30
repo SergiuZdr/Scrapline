@@ -2,6 +2,19 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [018] Models, second pass — 2026-09-30 ([detail](iterations/018-models-second-pass.md))
+
+The user on 017: the Brute was "Lego", the workshop "a yellow brick". Still behind `--models new`.
+
+### Changed
+- **The Brute**: rounded plates, a domed head with antennae, bolts, a fist on the hammer, heavier
+  limbs, several colours in every part (new `steel` and `trim` zones).
+- **The workshop** is TRELLIS's model (run on the user's account) with its detail and texture kept.
+- Proposal: **livery by maker** (Kessler yellow, Cinder red, Vektor olive, Arclight grey).
+
+### Added
+- `clean_generated.py --keep-texture --posterize`, `Ink.dress_set_piece`.
+
 ## [017] Models: the two routes, proved — 2026-09-29 ([detail](iterations/017-models-proof.md))
 
 Play-test 6 (PT6-5): new models, by the route the user picked -- proved on one machine and one

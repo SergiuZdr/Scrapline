@@ -1,7 +1,7 @@
 # Iteration 018 — Models, second pass: the user's notes on the proof
 
-**Status:** in progress
-**Started:** 2026-09-29 · **Finished:** —
+**Status:** done -- waiting for the user's verdict
+**Started:** 2026-09-29 · **Finished:** 2026-09-30
 **Answers:** the user on 017's proof: "the new Brute look is better but still not quite what I
 wanted" -- **the concept has a lot of rounded sides, the game's version looked like a Lego/Roblox
 character with very blocky parts; the parts don't have to be different colours, I want each part
@@ -58,6 +58,34 @@ still behind `--models new`, for the user to judge again.
 
 ## Result
 
+**See it:** `$GODOT --path . -- --models new`. Sheet: `shots/018_models.png`.
+
+- **The workshop is TRELLIS's.** Run in the user's Chrome on their Hugging Face account (about
+  a minute; the upload box sits in a cross-origin frame no tool could reach, so the user dragged
+  the concept in, and clicks landed late -- the export sliders could not be moved, defaults used).
+  63,518 triangles with a 1024 px texture; `clean_generated.py --keep-texture` stood it, seated it
+  at 2.6 m, collapsed it to 12,000 triangles and posterized the texture to 16 colours;
+  `Ink.dress_set_piece` draws it with the textured toon ramp and line. Door, bench, sign, drums,
+  mat, the crane's lattice: all there, facing the camera on the map.
+- **The Brute, rebuilt** (`make_ink_parts.py`): every box rounded (three-segment bevel, weighted
+  normals), a domed head with a hooded eye, ears and antennae, a bolted chest plate, vents, a
+  belt, a pack with a tank and capped stacks; rounded pauldrons with a trim band and studs;
+  gauntlet forearms; a fist on the hammer; knee domes, shin plates, boots, toe caps. Frame
+  10,168 triangles, saw 2,380, hammer 3,560, core 1,164 -- the old roster's weight.
+- **Several colours per part**: new zones `steel` (neutral) and `trim` (the livery's accent).
+- **Livery by maker** under `--models new` (a proposal): Kessler yellow/orange, Cinder red/yellow,
+  Vektor olive, Arclight grey. The Brute is the concept's yellow; its Cinder saw arm is red.
+- `verify_assembly -- --dir res://art/parts_new` 15 passed; `verify_animation -- --models new` 34
+  passed; every suite passes (combat 189, input 22, run 127, run UI 48, onboarding 39, save 15, assembly 140, animation 34); run bot 88.7%, 0 illegal actions (unchanged).
+
+Not done: the lens still sits under part of the stencilled crew number (moved low-right, not clear).
+
 ## Decisions, lessons, open questions
+- **A generated model that is good keeps its texture**; zoning is for guesses (TripoSR).
+- **Rounded, not chamfered**: one chamfer read as Lego to the user.
+- Lesson: a browser tool cannot upload into a cross-origin frame; ask for the one drag early.
+- Open: livery by maker for the whole game? The roster by this recipe? More sites by TRELLIS
+  (each needs the user's browser or a token)?
 
 ## Next
+The user's verdict; then the roster and the sites.
