@@ -193,3 +193,10 @@ parts, and it is spent at workshops and traders. It resets every run.
 
 The run is saved after **every site and every combat turn**. Quitting on a phone
 mid-fight loses nothing.
+
+## Play-test 8 (026): the later acts
+
+Salvage, scrapyards and traders roll with the act's own `rewards`: Act 2 35/45/20, Act 3
+10/45/45 by rarity, and an Act 3 elite always offers a rare. Acts 2 and 3 enemies carry +5 HP and
+Act 3's hit 2 harder; each keeper gets its act's arming. Defend caches roll 3+ hexes apart.
+Run bot: 56.6% over three acts, the losses in Acts 2 and 3.

@@ -1,7 +1,7 @@
 # Iteration 026 — Play-test 8 fixes
 
-**Status:** in progress
-**Started:** 2026-10-01 · **Finished:** —
+**Status:** done -- waiting for the user to play it
+**Started:** 2026-10-01 · **Finished:** 2026-10-01
 **Answers:** [play-test 8](../playtests/2026-10-01-playtest-8.md), every item.
 
 ## Goal
@@ -32,14 +32,50 @@ arrows (straight or arched) that say what they do.
 3. Balance data and cache spacing; run bot; suites; docs.
 
 ## Acceptance criteria
-- [ ] Screenshots: a crowded board with every tag at its machine and over the hatching; a lob's
-  arched arrow; the garage with a full hold, no text past its card; the fight's cards.
-- [ ] verify_run: caches are at least 3 hexes apart; Acts 2-3 salvage offers rares.
-- [ ] Run bot 150 three-act runs, 0 illegal; the result recorded; every suite passes.
+- [x] Screenshots (`shots/026/fight.png`, `garage.png`): tags at their machines and over the
+  hatching; straight arrows and a lob's arch; a full hold with every line inside its card.
+- [x] verify_run: caches at least 3 hexes apart (22 defend fights rolled); Act 3 salvage 25 of 63
+  rare, an Act 3 elite always offers one.
+- [x] Run bot 152 three-act runs, 0 illegal; every suite passes.
 
 ## Result
 
+- **Labels**: tags drawn at `render_priority` 10, above the hatching that hid HP (PT8-4); a group
+  never moves more than its own height (PT8-3: a tag had climbed to the banner). The scrap mark is
+  gone (PT8-2): a carrier has a small green bundle of bolts at its ring, and its info says whether
+  it drops a pile.
+- **The opening card** stays 5 s (`OPENING_SECONDS`).
+- **PT8-1** is answered in the play-test notes; the board now labels the hex where a beam ENDS and
+  the preview says "the beam goes N hexes, then stops; past R it does half damage".
+- **Attack lines**: a ribbon with an arrow head, over the machines; a lob's rises in an arch.
+- **Cards**: `UIKit.fit` (wrap, then step the font down until it fits) on every line of a part
+  card, the garage's socket rows and lettering, the scrap bin, and the fight's weapon and ability
+  cards (ability cards 6 px taller). Verdicts shortened ("BEATS MULE'S PULSE EMITTER", "NOT RARER
+  THAN YOURS"). The garage opens behind a cover until its machine is drawn; the lettering over the
+  bay sits on a dark wash.
+- **Balance** (PT8-7/8): Acts 2 and 3 roll salvage, scrapyards and traders with their own rewards
+  (35/45/20 and 10/45/45 by rarity; an Act 3 elite always offers a rare); The Pour 22 -> 30 HP, the
+  Core 28 -> 36, and each act's arming reaches its keeper; caches roll 3+ hexes apart.
+
+| Run bot, 152 three-act runs | Won | Lost in Act 1 / 2 / 3 (of those reaching it) |
+|---|---|---|
+| 025 | 66.0% (150 runs) | 8.0% / 15.2% / 15.4% |
+| rares, keepers, caches | 71.7% | 5.9% / 14.7% / 10.7% |
+| + Acts 2-3 enemies +2 HP, Act 3 hits 2 harder (**kept**) | **56.6%** | 5.9% / 23.1% / 21.8% |
+
+  With rare parts the crew outgrew the later acts; now Acts 2 and 3 are where runs are lost,
+  as the user asked (Act 1 unchanged).
+- Suites: combat 243, input 22, run 147 (+3), run UI 48, onboarding 39, save 15, meta 59,
+  animation 34.
+
+Not done: the garage's layout itself is unchanged (cards, cover and lettering only).
+
 ## Decisions, lessons, open questions
+- **Later acts pay in rares and hit harder**; the keepers carry their act's arming.
+- **Text is fitted, not trusted**: `UIKit.fit` on every card line.
+- Lesson: letting labels move both ways without a limit traded one bug (a tag on its machine's
+  body) for a worse one (a tag at the banner). Bound every automatic layout move.
+- Open: is 56.6% right? Does the garage need a new layout, not just fitted cards?
 
 ## Next
-The user plays.
+The user plays; the crew names are still waiting for a pick.

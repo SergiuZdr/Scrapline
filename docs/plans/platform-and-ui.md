@@ -100,3 +100,11 @@ primary action per screen) stay. The hub, its tabs and every F2P screen are cut.
 - **Totals, not firing order**, on the board: red for what the enemy will do, amber for the aimed
   attack. The preview's list reads from the shooter outwards, the other side first.
 - **Names**: crew machines have their crew's names; the frame is said beside them ("Brute frame").
+
+## Play-test 8 (026)
+
+- **Labels**: tags draw over every mark (priority 10) and move at most their own height.
+  A scrap carrier carries a green bundle at its ring instead of a mark by its tag.
+- **Attack lines** are arrows; a lob's arches over what it flies over. A beam's end is labelled.
+- **The opening card** stays 5 s. **The garage** opens behind a cover until the machine is drawn.
+- **Every card line is fitted** to its box (`UIKit.fit`: wrap, then a smaller font, then "...").
