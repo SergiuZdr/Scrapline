@@ -94,6 +94,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-29 | **New models live beside the old, behind `--models new`, per part**, until the user picks | A proof has to stand in the real screens without changing the game anyone plays |
 | 2026-09-29 | **Concept art leads the shapes; the game's rules keep the colours** (livery per part, the team in the eye, one light value on the weapon heads) | The concept is all one yellow; the game reads a machine by its parts' colours and its eye |
 | 2026-09-29 | **Route C runs on this Mac (TripoSR, MIT)**; TRELLIS needs a Hugging Face account | Every capable image-to-3D demo is on ZeroGPU and one TRELLIS call asks more than the anonymous quota ever holds |
+| 2026-09-30 | **Machines are rounded and multi-coloured (`steel`, `trim` zones); a good generated model keeps its texture; livery by maker is proposed** (all behind `--models new`) | The user on 017: "Lego/Roblox ... I want each part to have more than one colour"; "a yellow brick with no details" |
 
 ## Lessons carried over from the old codebase
 
@@ -178,6 +179,8 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-29 | Python's `set()` of strings iterates in a per-process order: a vote broken by `max(set(...))` made one export differ run to run. Sort before picking |
 | 2026-09-29 | The side of your own machine you see most is its BACK: the board's camera stands behind the crew |
 | 2026-09-29 | A tool nobody runs rots silently: the roster generator had not loaded the parts since `makers.json` (011) |
+| 2026-09-30 | Browser automation cannot put a file into a cross-origin frame (drop, paste and clipboard all failed): ask the user for the one drag at once |
+| 2026-09-30 | Cleaning a model is not one recipe: flatten-and-zone suits a guessed mesh and destroys a good one |
 
 ## Open questions
 
@@ -205,3 +208,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-29 | **New models (PT6-5): from scratch, open-licence kits, or generated?** | See the 016 report and 017 | **A for machines, C or B for sites, proved first** (the user) |
 | 2026-09-29 | **The proof (017): route A for the whole roster? Route C for the sites -- TripoSR as it runs here, TRELLIS with a Hugging Face token, or kits (B)?** | A for the roster; for sites, TRELLIS if a token is available (it rebuilds the unseen sides), else B | |
 | 2026-09-29 | The crew number is stencilled across the core's lens (old and new cores): the stencil is sized to 59% of the plate | Place it from the core's own marked corner in the roster pass | |
+| 2026-09-30 | **018: is this Brute the look? Livery by maker for the whole game? Sites by TRELLIS (needs the user's browser or a token each time)?** | Yes to all three | |
