@@ -525,6 +525,11 @@ const _ICONS: Dictionary = {"start": "yard", "skirmish": "fight", "elite": "colo
 func _landmark(type: String, id: int) -> Node3D:
 	var root := Node3D.new()
 	_livery = SITE_LIVERY.get(type, Ink.STEEL)
+	# 020: any kind with a generated model (`art/sites/<kind>.glb`) stands as that; the kit
+	# builds the rest. The workshop keeps its lamp (below).
+	if type != "workshop" and _generated(root, type, 215.0):
+		_livery = Color(0, 0, 0, 0)
+		return root
 	match type:
 		"start":
 			_prop(root, "container_0", Vector3(-0.3, 0, -0.9), 12.0)
