@@ -201,3 +201,11 @@ in 003 shows players ignoring part damage or finding it confusing, cut it back t
 - **A piercing shot is aimed as far as its beam flies** (reach + `pierce_overshoot`): the line
   through the hex aimed at is the beam's whole path, so "the drum behind" is aimable.
 
+
+## Act 3 (025): the Crucible
+
+- **Furnace flues** (`f`): blow every `flue_every` (2) rounds for 3; hatched red the round before.
+- **Conduits**: allies next to one hit 1 harder, shown as red links; the telegraphed totals
+  include it, so killing or shoving the conduit visibly lowers them.
+- **The Core** (gate): never moves; marks every hex within 2 a round ahead every third round and
+  pulses 4 into the crew standing there; its pad builds a drone every 4 rounds.

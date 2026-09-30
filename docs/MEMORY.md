@@ -101,6 +101,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-30 | **The board shows totals, not firing order** (`CombatSim.incoming`: the volley plus the next round's start, on a copy); the aim's totals in amber | PT7-3: "several enemies on one spot: one number, the total", and anything in the way shows its damage |
 | 2026-09-30 | **A tied shove takes the better hex for the shover; a piercing shot aims as far as its beam flies** | PT7-6/7: a shove "always took the free hex"; a drum "right behind" was off the aimed line and out of aim |
 | 2026-09-30 | **Crew machines are named by their crew, not their frame**; no numbers painted on them | PT7-10/11 (the names are proposals until the user picks) |
+| 2026-09-30 | **A run is three acts; breaking the Core wins it.** Act 3 (the Crucible) is `run.json` `acts[2]`: flues, conduits, +4 HP and +1 damage, rarity 3 | PT7-1 "do act 3"; bot 66.0% over three acts |
 
 ## Lessons carried over from the old codebase
 
@@ -226,4 +227,5 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-30 | **022: is an unlock after nearly every early run the right pace?** | The user plays | |
 | 2026-09-30 | **023: how does the game sound?** Every sound was written as a waveform and never heard | The user listens; then a tuning pass | |
 | 2026-09-30 | **024: do the totals, the ring and the opening card read? Which crew names?** (proposed: Knuckles/Mule/Stilts, Slab/Winch/Needle, Dash/Magpie/Wick) | The user plays and picks | |
+| 2026-09-30 | **025: is 66% over three acts right? Should Act 3 bite harder than Act 2** (it loses 15.4% of the runs that reach it, Act 2 15.2%)? Is the Core a good last fight? | The user plays; a second point of Act 3 damage is the dial | |
 | 2026-09-30 | The END TURN press plans the enemy's next round inside the action (0.1-0.2 s on a full board); the banner answers first so it reads as the enemy getting ready | Speed up `IntentAI.plan` if Act 3's bigger squads make it felt | |

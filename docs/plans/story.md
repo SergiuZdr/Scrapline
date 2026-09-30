@@ -35,8 +35,8 @@ through three yards to the Crucible before it catches you.
 | Act | Yard | Gate | Status |
 |---|---|---|---|
 | 1 | **The Crane Yards** — container stacks, gantry cranes, rail spurs | The Sorting Gate | built |
-| 2 | **The Slag Flats** — cooling lakes of slag, pipe forests | The Pour | 011 |
-| 3 | **The Crucible** — the furnace-city itself | The Core | 011 |
+| 2 | **The Slag Flats** — cooling lakes of slag, pipe forests | The Pour | built (021) |
+| 3 | **The Crucible** — the furnace-city itself: casting floors, ladle lines, furnace flues | The Core | built (025) |
 
 ## Voice
 
@@ -50,3 +50,9 @@ A wall across the whole width of the map: dark crane booms and harvester rigs, e
 a red beacon, under a dust cloud lit red from below. Behind it the ground is bare red
 earth with nothing standing. It moves when the front moves, so the player SEES it take a
 zone. Its colour is **Reclaimer red** — never used on the map for anything else.
+
+## The ending (025)
+
+Breaking the Core wins the run: "The key turns in the Core. Behind the crew the Reclaimer's
+booms sag and go still, one district at a time, and the valley is quiet for the first time in
+forty years." Each act's gate has its own line on the map (`story.json` `acts[i].boss`).
