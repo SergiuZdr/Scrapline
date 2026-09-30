@@ -95,6 +95,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-29 | **Concept art leads the shapes; the game's rules keep the colours** (livery per part, the team in the eye, one light value on the weapon heads) | The concept is all one yellow; the game reads a machine by its parts' colours and its eye |
 | 2026-09-29 | **Route C runs on this Mac (TripoSR, MIT)**; TRELLIS needs a Hugging Face account | Every capable image-to-3D demo is on ZeroGPU and one TRELLIS call asks more than the anonymous quota ever holds |
 | 2026-09-30 | **Machines are rounded and multi-coloured (`steel`, `trim` zones); a good generated model keeps its texture; livery by maker is proposed** (all behind `--models new`) | The user on 017: "Lego/Roblox ... I want each part to have more than one colour"; "a yellow brick with no details" |
+| 2026-09-30 | **The rebuilt roster (rounded, patched from scrap) and livery by maker are the game's look**; the old roster stays behind `--models old` until the user has played | The user: "yes to all 3, do the rest of the roster ... made from actual scrap" |
 
 ## Lessons carried over from the old codebase
 
@@ -181,6 +182,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-29 | A tool nobody runs rots silently: the roster generator had not loaded the parts since `makers.json` (011) |
 | 2026-09-30 | Browser automation cannot put a file into a cross-origin frame (drop, paste and clipboard all failed): ask the user for the one drag at once |
 | 2026-09-30 | Cleaning a model is not one recipe: flatten-and-zone suits a guessed mesh and destroys a good one |
+| 2026-09-30 | One builder with a spec row per frame gives a roster: the differences that read (head, legs, back, girth) are data |
 
 ## Open questions
 
@@ -209,3 +211,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-29 | **The proof (017): route A for the whole roster? Route C for the sites -- TripoSR as it runs here, TRELLIS with a Hugging Face token, or kits (B)?** | A for the roster; for sites, TRELLIS if a token is available (it rebuilds the unseen sides), else B | |
 | 2026-09-29 | The crew number is stencilled across the core's lens (old and new cores): the stencil is sized to 59% of the plate | Place it from the core's own marked corner in the roster pass | |
 | 2026-09-30 | **018: is this Brute the look? Livery by maker for the whole game? Sites by TRELLIS (needs the user's browser or a token each time)?** | Yes to all three | |
+| 2026-09-30 | **019: does the roster play well? Remove the shipped roster?** | Remove once played | |
