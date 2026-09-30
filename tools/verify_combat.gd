@@ -61,6 +61,7 @@ func _initialize() -> void:
 	_test_scrap_on_the_way()
 	_test_shot_leanings()
 	_test_act2_kinds()
+	_test_playtest7()
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
 			"slag_lake", "pipe_forest", "cooling_flats", "the_pour"]:
 		_test_bot_fight(id)
@@ -104,6 +105,88 @@ func _test_act2_kinds() -> void:
 	var plated: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [guard])
 	_check("a sentinel takes 1 less from every hit", plated.unit(10).armor == plain.unit(10).armor + 1)
 	_check("and cannot be shoved", plated.unit(10).unshovable)
+
+
+## Play-test 7: the enemy's volley as totals (`incoming`), a tied shove taking the better hex,
+## and a piercing weapon aimed as far as its beam flies.
+func _test_playtest7() -> void:
+	# Two shots into one machine, and a third that a machine of their own stands in the way of.
+	var east: Vector2i = Hex.neighbor(C, 0)
+	var a: Vector2i = Hex.neighbor(Hex.neighbor(C, 1), 1)
+	var b: Vector2i = Hex.neighbor(Hex.neighbor(C, 5), 5)
+	var blocker: Vector2i = Hex.neighbor(east, 0)
+	var shooter: Vector2i = Hex.neighbor(blocker, 0)
+	var s: CombatState = _fight(_rows(), [_unit(HAMMER, C, 30)],
+		[_unit(COIL, a, 20), _unit(COIL, b, 20), _unit(COIL, shooter, 20), _unit(HAMMER, blocker, 20)])
+	for ref: int in [10, 11, 12, 13]:
+		_place(s, ref, [a, b, shooter, blocker][ref - 10])
+	s.intents = [{"ref": 10, "w": 0, "x": C.x, "y": C.y, "order": 1}, {"ref": 11, "w": 0, "x": C.x, "y": C.y, "order": 2},
+		{"ref": 12, "w": 0, "x": C.x, "y": C.y, "order": 3}]
+	var volley: Dictionary = CombatSim.incoming(s)
+	var mine: int = 0
+	var theirs: int = 0
+	for hit: Dictionary in (volley["units"] as Array):
+		if int(hit["ref"]) == 0:
+			mine = int(hit["hp_lost"])
+		if int(hit["ref"]) == 13:
+			theirs = int(hit["hp_lost"])
+	var expected: int = 0
+	for ref: int in [10, 11]:
+		expected += CombatSim.damage_to(s, s.unit(ref), s.unit(0), int(s.unit(ref).weapons[0]["damage"]) + s.unit(ref).damage_bonus, true)
+	_check("incoming: two shots into one machine are one total (%d, expected %d)" % [mine, expected], mine == expected and mine > 0)
+	_check("incoming: a machine standing in a shot's way shows what it takes (%d)" % theirs, theirs > 0)
+	var hp: int = s.unit(0).hp
+	var before: int = s.events.size()
+	var dry: CombatState = s.clone()
+	CombatSim._fire_intents(dry)
+	_check("incoming leaves the fight alone", s.events.size() == before and s.unit(0).hp == hp)
+	_check("and matches the volley itself", dry.unit(0).hp == hp - mine)
+
+	# A shove from off the six axes: two hexes are equally "away". A pit on either one is taken.
+	var target: Vector2i = _off(C, 2, -1, -1)
+	var dirs: Array[int] = Hex.directions(C, target)
+	_check("an off-axis hex sits between two directions", dirs.size() == 2)
+	for pick: int in 2:
+		var pit: Vector2i = Hex.neighbor(target, dirs[pick])
+		var p: CombatState = _fight(_rows({pit: "o"}), [_unit(COIL, C)], [_unit(HAMMER, target, 20)])
+		_place(p, 0, C)
+		_place(p, 10, target)
+		_attack(p, 0, 1, target)
+		_check("a tied shove takes the pit on side %d" % pick, not p.unit(10).alive and _at(p, 10) == pit)
+	var open: CombatState = _fight(_rows(), [_unit(COIL, C)], [_unit(HAMMER, target, 20)])
+	_place(open, 0, C)
+	_place(open, 10, target)
+	_attack(open, 0, 1, target)
+	_check("over open ground a tied shove keeps the first direction", _at(open, 10) == Hex.neighbor(target, dirs[0]))
+
+	# Pierce: aimed into the overshoot, the beam's line goes where it was aimed.
+	var line: Array[Vector2i] = []
+	var step: Vector2i = Vector2i(0, 4)
+	for i: int in 7:
+		step = Hex.neighbor(step, 0)
+		line.append(step)
+	var lance: CombatState = _fight(_rows({line[4]: "b"}), [_unit(LANCE, Vector2i(0, 4))],
+		[_unit(HAMMER, line[1], 20), _unit(HAMMER, line[2], 20)])
+	_place(lance, 0, Vector2i(0, 4))
+	_place(lance, 10, line[1])
+	_place(lance, 11, line[2])
+	var reach: int = CombatSim.weapon_reach(lance, lance.unit(0), 1)
+	_check("a piercing weapon may aim into its overshoot (%d of reach %d)" % [reach + 2, reach],
+		CombatSim.can_attack(lance, 0, 1, line[reach + 1]))
+	_check("but not past it", not CombatSim.can_attack(lance, 0, 1, line[reach + 2]))
+	var tuned: Array = LANCE.duplicate()
+	tuned[3] = "ar_lance:b"
+	var twice: CombatState = _fight(_rows({line[3]: "b"}), [_unit(tuned, Vector2i(0, 4))],
+		[_unit(HAMMER, line[1], 20), _unit(HAMMER, line[2], 20)])
+	_place(twice, 0, Vector2i(0, 4))
+	_place(twice, 10, line[1])
+	_place(twice, 11, line[2])
+	var plan: Dictionary = CombatSim.strike_plan(twice, twice.unit(0), 1, line[3])
+	_check("pierce 2 goes through two machines into the drum behind them",
+		(plan["hits"] as Array).size() == 2 and (plan["props"] as Array).size() == 1)
+	var plain: CombatState = _fight(_rows(), [_unit(COIL, C)], [_unit(HAMMER, target, 20)])
+	_check("a weapon that does not pierce aims no further than its reach",
+		CombatSim.aim_reach(plain, plain.unit(0), 1) == CombatSim.weapon_reach(plain, plain.unit(0), 1))
 
 
 # --- Fixtures ---------------------------------------------------------------
@@ -262,7 +345,9 @@ func _test_free_aim() -> void:
 	_place(coil, 11, second)
 	var hits: Array = CombatSim.strike_plan(coil, coil.unit(0), 1, second)["hits"]
 	_check("a shot stops at the first unit on its line", hits.size() == 1 and int(hits[0]["ref"]) == 10)
-	_check("out of reach is not a legal aim", not CombatSim.can_attack(state, 0, 1, _off(C, 4, -2, -2)))
+	var fresh: CombatState = _fight(_rows(), [_unit(COIL, C)], [_unit(HAMMER, off_axis, 20)])
+	_place(fresh, 0, C)
+	_check("out of reach is not a legal aim", not CombatSim.can_attack(fresh, 0, 1, _off(C, 4, -2, -2)))
 
 
 func _test_melee_all_neighbours() -> void:

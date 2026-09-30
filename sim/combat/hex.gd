@@ -106,6 +106,23 @@ static func direction(a: Vector2i, b: Vector2i) -> int:
 	return best
 
 
+## The directions -- one, or two on a tie -- that best match going from `a` toward `b`. Off the
+## six axes a hex sits exactly between two of them, and `direction` keeps the first.
+static func directions(a: Vector2i, b: Vector2i) -> Array[int]:
+	var d: Vector3i = to_cube(b) - to_cube(a)
+	var best_dot: int = -1000000
+	var out: Array[int] = []
+	for dir: int in 6:
+		var v: Vector3i = CUBE_DIRS[dir]
+		var dot: int = d.x * v.x + d.y * v.y + d.z * v.z
+		if dot > best_dot:
+			best_dot = dot
+			out = [dir]
+		elif dot == best_dot:
+			out.append(dir)
+	return out
+
+
 ## Every hex within `radius` of `c` (excluding `c`), in a fixed order.
 static func within(c: Vector2i, radius: int) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
