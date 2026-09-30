@@ -34,6 +34,9 @@ var arrivals: Array = []
 ## already flooded (`Vector2i -> hazard`). Both copied by `clone()`.
 var pour_marks: Array = []
 var flooded: Dictionary = {}
+## The Core (025): the ring it pulses at the start of the next round, and which unit marked it.
+var pulse_marks: Array = []
+var pulse_by: int = -1
 ## What the player has collected this fight.
 var piles_collected: int = 0
 var scrap_collected: int = 0
@@ -79,6 +82,11 @@ func hazard(x: int, y: int) -> int:
 	var base: int = setup.hazard[y * width + x]
 	# A hex The Pour flooded (021) is slag for the rest of the fight.
 	return maxi(base, int(flooded.get(Vector2i(x, y), 0)))
+
+
+## A furnace flue's blast on (x, y), or 0 (025).
+func flue(x: int, y: int) -> int:
+	return setup.flue[y * width + x] if not setup.flue.is_empty() else 0
 
 
 func is_pit(c: Vector2i) -> bool:
@@ -170,6 +178,8 @@ func clone() -> CombatState:
 	c.arrivals = arrivals.duplicate()
 	c.pour_marks = pour_marks.duplicate()
 	c.flooded = flooded.duplicate()
+	c.pulse_marks = pulse_marks.duplicate()
+	c.pulse_by = pulse_by
 	c.piles_collected = piles_collected
 	c.scrap_collected = scrap_collected
 	return c

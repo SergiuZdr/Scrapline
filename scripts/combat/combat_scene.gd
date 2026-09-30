@@ -63,7 +63,10 @@ const MARK_STYLES: Dictionary = {
 const INK_TERRAIN: Dictionary = {
 	"open": Color("1f2024"), "rubble": Color("403830"), "slag": Color("3d1f17"), "ridge": Color("42454c"),
 	"scrap": Color("1c1917"), "barrel": Color("1f2024"), "crate": Color("1f2024"), "pylon": Color("1f2024"),
+	"flue": Color("241a17"),
 }
+## The gate keepers drawn bigger than anything else on the board (013, 025).
+const BIG_KINDS: Array[String] = ["sorter", "heart"]
 ## Damage-type colours for impacts, indexed like the rules' `damage_types`.
 const DAMAGE_COLOURS: Array[Color] = [Color("ffcf9a"), Color("ff7a3c"), Color("7fd4ff"), Color("b5e05a")]
 
@@ -90,7 +93,7 @@ const T_BANNER: float = 0.30
 const T_TOGETHER: float = 0.05
 const CONCURRENT: Array[int] = [GridEv.DAMAGE, GridEv.DESTROYED, GridEv.PROP_HIT, GridEv.PROP_BROKEN,
 	GridEv.EXPLOSION, GridEv.PILE_DROPPED, GridEv.BUMP, GridEv.MARKED, GridEv.PART_TORN, GridEv.HEAT,
-	GridEv.PILE_LOST]
+	GridEv.PILE_LOST, GridEv.FLUE_BLEW]
 
 ## The shakedown (012): set in `scenes/shakedown.tscn`.
 @export var tutorial: bool = false
@@ -614,6 +617,24 @@ func _dress_tile(id: String, x: int, y: int, top: float) -> void:
 			pool.material_override = Ink.glow(Color("ff6a2a"), 1.1)
 			Ink.line(pool, Ink.LINE_WORLD)
 			_board.add_child(pool)
+		"flue":
+			# A furnace flue (025): an ember glow under an iron grate. The glow is the flue's own
+			# signal; the red hatching the round before it blows is drawn by `_refresh`.
+			var ember := MeshInstance3D.new()
+			ember.mesh = _hex_mesh(HEX * 0.6, 0.02)
+			ember.position = at + Vector3(0, 0.01, 0)
+			ember.material_override = Ink.glow(Color("ff5a1f"), 0.7)
+			_board.add_child(ember)
+			var iron: Material = Ink.toon(Color("2b2725"), "clean")
+			for i: int in 4:
+				var bar := MeshInstance3D.new()
+				var box := BoxMesh.new()
+				box.size = Vector3(HEX * 1.05, 0.05, 0.07)
+				bar.mesh = box
+				bar.position = at + Vector3(0, 0.05, (float(i) - 1.5) * HEX * 0.24)
+				bar.material_override = iron
+				Ink.line(bar, Ink.LINE_WORLD)
+				_board.add_child(bar)
 		"ridge":
 			var lip := MeshInstance3D.new()
 			var torus := TorusMesh.new()
@@ -934,7 +955,7 @@ func _build_view(u: GridUnit) -> Dictionary:
 	if not u.objective:
 		Ink.dress_machine(model, u.part_ids, colour)
 	# The gate's keeper is bigger than anything else on the board (013).
-	model.scale = Vector3.ONE * (1.0 if u.objective else MODEL_SCALE * (1.4 if u.kind == "sorter" else 1.0))
+	model.scale = Vector3.ONE * (1.0 if u.objective else MODEL_SCALE * (1.4 if BIG_KINDS.has(u.kind) else 1.0))
 	root.add_child(model)
 	var ring: MeshInstance3D = _team_ring(COL_CACHE if u.objective else colour)
 	root.add_child(ring)
@@ -949,7 +970,7 @@ func _build_view(u: GridUnit) -> Dictionary:
 	tag.pixel_size = 0.0045
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.no_depth_test = true
-	tag.position = Vector3(0, 2.35 if u.kind == "sorter" else 1.75, 0)
+	tag.position = Vector3(0, 2.35 if BIG_KINDS.has(u.kind) else 1.75, 0)
 	tag.outline_size = 18
 	tag.outline_modulate = Ink.INK
 	tag.modulate = Ink.PAPER
@@ -1604,6 +1625,23 @@ func _animate(e: Array) -> void:
 			_vfx.shake(0.2)
 			Audio.play("flood", -5.0)
 			await _wait(0.15)
+		GridEv.FLUE_BLEW:
+			var at: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y) + 0.2, 0)
+			_vfx.burst(at, Color("ff7a3c"), 1.3)
+			_vfx.sparks(at, Color("ffb060"), 12, 1.4)
+			Audio.play("thump", -10.0)
+			await _wait(0.06)
+		GridEv.PULSE_MARKED:
+			_float_text(_unit_pos(actor) + Vector3(0, 2.9, 0), "THE CORE CHARGES", COL_PAD_DANGER)
+			Audio.play("warn", -6.0)
+			await _wait(0.2)
+		GridEv.PULSED:
+			var at: Vector3 = _unit_pos(actor) + Vector3(0, 0.3, 0)
+			_vfx.burst(at, COL_PAD_DANGER, 5.0)
+			_vfx.shake(0.6)
+			_letters(at + Vector3(0.2, 2.6, 0), "WHUMM!", Ink.ACTION, 120, 0.08)
+			Audio.play("detonate", -4.0)
+			await _wait(0.25)
 		GridEv.SPAWNED:
 			var by_reclaimer: bool = int(e[GridEv.F_ACTOR]) < 0
 			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.8, 0), "THE RECLAIMER ARRIVES" if by_reclaimer else "BUILT BY ITS PAD",
@@ -1714,7 +1752,8 @@ func _hit(attacker: int, victim: int, amount: int) -> void:
 	if attacker >= 0 and _views.has(attacker):
 		(view["rig"] as ConstructRig).stagger(_local_push(attacker, victim), severity)
 	# Terrain damage is labelled as terrain, so slag reads as a cause and not as a bug.
-	_float_text(root.position + Vector3(0, 1.8, 0), ("-%d" % amount) if attacker >= 0 else ("SLAG -%d" % amount),
+	var ground: String = "FLUE" if u.x >= 0 and _state.flue(u.x, u.y) > 0 else "SLAG"
+	_float_text(root.position + Vector3(0, 1.8, 0), ("-%d" % amount) if attacker >= 0 else ("%s -%d" % [ground, amount]),
 		UIKit.RED.lightened(0.25))
 	_refresh_tag_from_event(view, victim)
 	Audio.play("hit_heavy" if severity > 0.6 else "hit_light", -6.0)
@@ -1998,6 +2037,20 @@ func _refresh() -> void:
 		var top: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
 		_marker_label("FLOODS NEXT TURN · move off", top + Vector3(0, 0.08, HEX * 0.72), COL_PAD_DANGER.lightened(0.35), 24)
 	_pylon_beams()
+	_conduit_links()
+	# Act 3 (025): flues that blow at the start of next round, and the Core's marked ring.
+	if CombatSim.flues_blow(_state, _state.round_number + 1):
+		for y: int in _state.height:
+			for x: int in _state.width:
+				if _state.flue(x, y) > 0:
+					_mark(_threat_quads, Vector2i(x, y), COL_THREAT)
+	if not _state.pulse_marks.is_empty():
+		for cell: Vector2i in _state.pulse_marks:
+			_mark(_threat_quads, cell, COL_THREAT)
+		var keeper: GridUnit = _state.unit(_state.pulse_by)
+		if keeper != null and keeper.alive:
+			var top: Vector3 = _to_world(keeper.x, keeper.y) + Vector3(0, _tile_top(keeper.x, keeper.y), 0)
+			_marker_label("PULSES NEXT ROUND · get out of the ring", top + Vector3(0, 0.08, HEX * 2.4), Ink.PAPER, 34)
 
 	var sel: GridUnit = _state.unit(_selected) if _selected >= 0 else null
 	if sel != null and sel.alive:
@@ -2260,9 +2313,22 @@ func _nearest_first(effects: Array) -> Array:
 	return out
 
 
+## What the next round's start does besides the enemy's fire (025): flues, the Core's pulse.
+func _round_start_note() -> String:
+	var notes: PackedStringArray = []
+	if CombatSim.flues_blow(_state, _state.round_number + 1):
+		for y: int in _state.height:
+			for x: int in _state.width:
+				if _state.flue(x, y) > 0 and notes.is_empty():
+					notes.append("The furnace flues blow at the start of next round: %d to whatever stands on one." % _state.flue(x, y))
+	if not _state.pulse_marks.is_empty():
+		notes.append("The Core pulses its red ring at the start of next round.")
+	return "" if notes.is_empty() else "\n\n" + "\n".join(notes)
+
+
 func _threat_summary(threats: Dictionary) -> String:
 	if threats.is_empty():
-		return "No enemy is aiming at anything this round."
+		return "No enemy is aiming at anything this round." + _round_start_note()
 	var lines: PackedStringArray = []
 	var refs: Array = threats.keys()
 	refs.sort_custom(func(a: int, b: int) -> bool: return int(threats[a]["order"]) < int(threats[b]["order"]))
@@ -2279,7 +2345,8 @@ func _threat_summary(threats: Dictionary) -> String:
 			outcome = "out of reach now: it will miss"
 		lines.append("%d. %s (%s) → %s" % [int(threat["order"]), shooter.name,
 			String(shooter.weapons[int(threat["w"])]["name"]), outcome])
-	return "Enemy fire, in order:\n" + "\n".join(lines)
+	var text: String = "Enemy fire, in order:\n" + "\n".join(lines)
+	return text + _round_start_note()
 
 
 ## A card's line: short enough never to be cut off (play-test 6: "Brawler · move 3 · plate
@@ -2654,6 +2721,34 @@ func _pylon_beams() -> void:
 		hum.tween_property(material, "albedo_color:a", 0.8, 0.5).set_trans(Tween.TRANS_SINE)
 
 
+## A red link from every conduit to each ally next to it (025): who hits 1 harder, on the board.
+func _conduit_links() -> void:
+	for relay: GridUnit in _state.units:
+		if not relay.alive or relay.kind != "conduit":
+			continue
+		var from: Vector3 = _to_world(relay.x, relay.y) + Vector3(0, 1.5, 0)
+		for n: Vector2i in Hex.neighbors(Vector2i(relay.x, relay.y)):
+			var ally: GridUnit = _state.unit_at(n.x, n.y) if _state.inside(n) else null
+			if ally == null or ally.team != relay.team:
+				continue
+			var to: Vector3 = _to_world(n.x, n.y) + Vector3(0, 1.5, 0)
+			var beam := MeshInstance3D.new()
+			var box := BoxMesh.new()
+			box.size = Vector3(0.09, 0.09, from.distance_to(to))
+			beam.mesh = box
+			var material := StandardMaterial3D.new()
+			material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			material.albedo_color = Color(COL_PAD_DANGER, 0.75)
+			beam.material_override = Ink.hold(material)
+			beam.set_meta("intent", true)
+			_marks_root.add_child(beam)
+			beam.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
+			var hum := beam.create_tween().set_loops()
+			hum.tween_property(material, "albedo_color:a", 0.5, 0.45).set_trans(Tween.TRANS_SINE)
+			hum.tween_property(material, "albedo_color:a", 1.0, 0.45).set_trans(Tween.TRANS_SINE)
+
+
 func _hits_selected(threat: Dictionary) -> bool:
 	for hit: Dictionary in (threat["hits"] as Array):
 		if int(hit["ref"]) == _selected:
@@ -2934,6 +3029,9 @@ func _terrain_info(cell: Vector2i) -> void:
 		if _state.spawn_marks[ref] == cell:
 			_hud.set_info("DRONE BUILD SITE", "A pad will build a drone here. Stand on it to stop the build.")
 			return
+	if _state.pulse_marks.has(cell):
+		_hud.set_info("THE CORE'S RING", "The Core pulses here at the start of next round: 4 to any of your machines standing in it. Get out of the ring.")
+		return
 	if _state.arrivals.has(cell):
 		_hud.set_info("RECLAIMER ARRIVAL", "You are fighting near the Reclaimer's line: one of its drones comes in here next round. Stand on the hex to block it.")
 		return

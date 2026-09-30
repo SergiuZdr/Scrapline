@@ -45,7 +45,8 @@ const REFINE: int = 6
 static func plan(state: CombatState, u: GridUnit, ctx: Dictionary) -> Dictionary:
 	var here := Vector2i(u.x, u.y)
 	var options: Dictionary = {}
-	if not u.moved:
+	# A kind that is `still` (025: the Core) never leaves its hex.
+	if not u.moved and not bool((state.setup.kinds.get(u.kind, {}) as Dictionary).get("still", false)):
 		options = CombatSim.paths_from(state, u, u.move)
 	options[here] = [] as Array[Vector2i]
 	var danger: Dictionary = ctx.get("danger", {})
@@ -232,6 +233,9 @@ static func _dry_value(state: CombatState, u: GridUnit, cell: Vector2i, w: int, 
 static func _tile_value(state: CombatState, cell: Vector2i, steps: int, danger: Dictionary, shield: Dictionary) -> int:
 	var value: int = -steps + SCORE_HAZARD * state.hazard(cell.x, cell.y) \
 		+ SCORE_DANGER * int(danger.get(cell, 0)) + int(shield.get(cell, 0))
+	# A flue that blows at the start of the next round (025), for either side.
+	if state.flue(cell.x, cell.y) > 0 and CombatSim.flues_blow(state, state.round_number + 1):
+		value += SCORE_HAZARD * state.flue(cell.x, cell.y)
 	if state.piles.has(cell):
 		value += SCORE_PILE_SALVAGE if String(state.objective().get("type", "")) == "salvage" else SCORE_PILE
 	# Never park on a hive's pad: it would block the enemy's own drone.

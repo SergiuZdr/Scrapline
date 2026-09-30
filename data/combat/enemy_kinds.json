@@ -65,5 +65,21 @@
     "floods": 3,
     "every": 2,
     "hazard": 2
+  },
+  "conduit": {
+    "name": "Conduit",
+    "text": "The Foundry Mind's relay (the Crucible). Every machine of its side standing next to it hits 1 harder -- the red links show which. Kill it, shove it off, or split them up.",
+    "boost": 1
+  },
+  "heart": {
+    "name": "The Core",
+    "text": "The Crucible's heart, bolted to the floor: it never moves and cannot be shoved. Every third round it marks every hex within 2 of it, and a round later it pulses: 4 damage to each of your machines still in the ring. Its pad builds a drone every 4 rounds. Break it and the Reclaimer stops.",
+    "pulse_every": 3,
+    "pulse_radius": 2,
+    "pulse_damage": 4,
+    "still": true,
+    "anchored": true,
+    "builds": true,
+    "every": 4
   }
 }

@@ -1,0 +1,126 @@
+{
+  "id": "the_core",
+  "name": "The Core",
+  "acts": [
+    3
+  ],
+  "_comment": "025: Act 3's gate and the run's last fight. The Core is bolted to its hex and pulses the ring around it every third round; flues ring the chamber. The escorts are rolled by the run at the other enemy positions; as a file it is a complete fight for practice and tests.",
+  "rows": [
+    "f..f...f",
+    "..r..r..",
+    ".f....f.",
+    "...ff...",
+    "........",
+    ".f....f.",
+    "...^^...",
+    "........"
+  ],
+  "player": [
+    {
+      "name": "Knuckles",
+      "parts": [
+        "ch_brute",
+        "co_slug",
+        "ar_saw",
+        "ar_hammer",
+        "mo_scavenger"
+      ],
+      "x": 2,
+      "y": 7
+    },
+    {
+      "name": "Mule",
+      "parts": [
+        "ch_hauler",
+        "co_furnace",
+        "ar_pulse",
+        "ar_lance",
+        "mo_ablative"
+      ],
+      "x": 4,
+      "y": 7
+    },
+    {
+      "name": "Stilts",
+      "parts": [
+        "ch_strider",
+        "co_arc",
+        "ar_scanner",
+        "ar_scatter",
+        "mo_governor"
+      ],
+      "x": 6,
+      "y": 7
+    }
+  ],
+  "enemy": [
+    {
+      "name": "The Core",
+      "parts": [
+        "ch_citadel",
+        "co_furnace",
+        "ar_mortar",
+        "ar_pulse",
+        "mo_reactive"
+      ],
+      "x": 4,
+      "y": 1,
+      "kind": "heart",
+      "hp": 28
+    },
+    {
+      "name": "Conduit",
+      "parts": [
+        "ch_bulwark",
+        "co_tesla",
+        "ar_pulse",
+        "ar_hammer",
+        "mo_coolant"
+      ],
+      "x": 3,
+      "y": 1,
+      "kind": "conduit"
+    },
+    {
+      "name": "Reaper",
+      "parts": [
+        "ch_reaper",
+        "co_ember",
+        "ar_ripper",
+        "ar_saw",
+        "mo_bypass"
+      ],
+      "x": 1,
+      "y": 0
+    },
+    {
+      "name": "Lancer",
+      "parts": [
+        "ch_lancer",
+        "co_dynamo",
+        "ar_railgun",
+        "ar_scanner",
+        "mo_targeting"
+      ],
+      "x": 6,
+      "y": 0
+    },
+    {
+      "name": "Skirmisher",
+      "parts": [
+        "ch_skirmisher",
+        "co_arc",
+        "ar_scatter",
+        "ar_pulse",
+        "mo_capacitor"
+      ],
+      "x": 2,
+      "y": 2
+    }
+  ],
+  "objective": {
+    "type": "rout"
+  },
+  "boss": true,
+  "max_rounds": 20
+}

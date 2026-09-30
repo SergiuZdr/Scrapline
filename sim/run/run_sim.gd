@@ -1114,7 +1114,11 @@ static func _scatter_terrain(terrain: Dictionary, rng: SimRNG, template: Diction
 	var taken: Array = []
 	for spec: Dictionary in (template.get("player", []) as Array) + (template.get("enemy", []) as Array):
 		taken.append(Vector2i(int(spec["x"]), int(spec["y"])))
-	for pair: Array in [["barrels", "b"], ["crates", "c"], ["pits", "o"], ["slag", "l"]]:
+	for pair: Array in [["barrels", "b"], ["crates", "c"], ["pits", "o"], ["slag", "l"], ["flues", "f"]]:
+		# A kind of terrain an act does not name draws nothing from the dice (025: Acts 1 and 2
+		# roll exactly as they did before flues existed).
+		if pair[0] == "flues" and not terrain.has("flues"):
+			continue
 		var span: Array = terrain.get(pair[0], [0, 0])
 		var count: int = rng.range_int(int(span[0]), int(span[1]))
 		for cell: Vector2i in _free_cells(rng, rows, taken, terrain.get("rows", [2, 3, 4, 5]), count):
