@@ -25,6 +25,21 @@ So, in order:
 4. **Seat and size**: footprint to `--size` metres, the lowest point on z=0, centred.
 
 No UVs are written, as for every part (CLAUDE.md: the exporter writes no texcoords).
+
+## `--keep-texture` (018): for a model worth keeping
+
+The steps above suit a single-image mesh (TripoSR), whose surface is a guess -- and they
+flattened the 017 workshop into "a yellow brick with no details" (the user). TRELLIS builds a
+real model with a UV texture: the crane's lattice, the door, the sign, the drums. So this mode
+keeps the geometry and the texture, and only does what a set piece must:
+
+    blender --background --python tools/blender/clean_generated.py -- --keep-texture \
+        --in trellis.glb --out art/sites/workshop.glb --size 2.6 --budget 12000 --posterize 16
+
+stand it up, square it, seat it, collapse it to `--budget` triangles (UVs survive a collapse),
+and posterize the texture to `--posterize` flat colours (k-means, a fixed seed) so it reads as
+drawn rather than photographed. The game draws it with `Ink.textured` under the same key and
+line as everything else (`Ink.dress_set_piece`).
 """
 
 import argparse
@@ -55,6 +70,9 @@ def args():
                    "everything below BELOW m is ZONE")
     p.add_argument("--zones", default="paint=e0a030,rust=b53a2a,alu=c4bca8,rock=8c8b86,dark=34302e")
     p.add_argument("--preview", default="")
+    p.add_argument("--keep-texture", action="store_true",
+                   help="keep the model's geometry and UV texture (a TRELLIS model): no remesh, no zones")
+    p.add_argument("--posterize", type=int, default=0, help="with --keep-texture: flat colours in the texture")
     return p.parse_args(argv)
 
 
@@ -281,11 +299,63 @@ def zone_faces(obj, source_points, source_colours, zones, ground, k=10, passes=3
     return counts
 
 
+def collapse(obj, budget, sharp):
+    """Down to `budget` triangles by edge collapse, which carries the UVs along."""
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    tris = sum(len(p.vertices) - 2 for p in obj.data.polygons)
+    if tris > budget:
+        mod = obj.modifiers.new("collapse", "DECIMATE")
+        mod.decimate_type = "COLLAPSE"
+        mod.ratio = budget / float(tris)
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+    obj.data.shade_smooth()
+    obj.data.set_sharp_from_angle(angle=math.radians(sharp))
+
+
+def posterize(obj, colours):
+    """The model's base-colour texture reduced to `colours` flat colours (k-means on the pixels,
+    seeded, so a rerun gives the same file). Gradients -- TRELLIS bakes soft shading in -- would
+    fight the toon ramp's own bands; flat patches read as paint an inker would lay down."""
+    import numpy as np
+    image = None
+    for slot in obj.material_slots:
+        material = slot.material
+        if material is None or not material.use_nodes:
+            continue
+        for node in material.node_tree.nodes:
+            if node.type == "TEX_IMAGE" and node.image is not None:
+                image = node.image
+        material.name = "mat_texture"
+    if image is None or colours <= 0:
+        return 0
+    px = np.array(image.pixels[:], dtype=np.float32).reshape(-1, 4)
+    rgb = px[:, :3]
+    rng = np.random.default_rng(7)
+    sample = rgb[rng.choice(len(rgb), size=min(40000, len(rgb)), replace=False)]
+    centres = sample[rng.choice(len(sample), size=colours, replace=False)].copy()
+    for _ in range(12):
+        near = ((sample[:, None, :] - centres[None, :, :]) ** 2).sum(-1).argmin(1)
+        for k in range(colours):
+            members = sample[near == k]
+            if len(members):
+                centres[k] = members.mean(0)
+    out = np.empty_like(rgb)
+    for start in range(0, len(rgb), 200000):
+        chunk = rgb[start:start + 200000]
+        out[start:start + 200000] = centres[((chunk[:, None, :] - centres[None, :, :]) ** 2).sum(-1).argmin(1)]
+    px[:, :3] = out
+    image.pixels[:] = px.reshape(-1)
+    image.update()
+    image.pack()
+    return image.size[0]
+
+
 def preview(obj, prefix):
     scene = bpy.context.scene
     scene.render.engine = "BLENDER_WORKBENCH"
     scene.display.shading.light = "STUDIO"
-    scene.display.shading.color_type = "MATERIAL"
+    scene.display.shading.color_type = "TEXTURE" if obj.data.uv_layers else "MATERIAL"
     scene.display.shading.show_object_outline = True
     scene.render.resolution_x = scene.render.resolution_y = 520
     bpy.ops.object.camera_add()
@@ -304,8 +374,36 @@ def preview(obj, prefix):
         bpy.ops.render.render(write_still=True)
 
 
+def keep_texture(a):
+    obj = load(a.source, a.up)
+    tilt = level(obj)
+    turned = square_up(obj, a.yaw)
+    scale = seat(obj, a.size)
+    before = sum(len(p.vertices) - 2 for p in obj.data.polygons)
+    collapse(obj, a.budget, a.sharp)
+    texture = posterize(obj, a.posterize)
+    after = sum(len(p.vertices) - 2 for p in obj.data.polygons)
+    obj.name = os.path.splitext(os.path.basename(a.out))[0]
+    obj.data.name = obj.name
+    co = [v.co for v in obj.data.vertices]
+    print("kept: levelled %.0f deg, turned %.0f deg, scale %.3f, %d -> %d triangles, %.2f x %.2f x %.2f m, texture %s"
+          % (tilt, turned, scale, before, after, max(p.x for p in co) - min(p.x for p in co),
+             max(p.y for p in co) - min(p.y for p in co), max(p.z for p in co),
+             "%d px, %d colours" % (texture, a.posterize) if texture else "as generated"))
+    os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.ops.export_scene.gltf(filepath=a.out, export_format="GLB", use_selection=True,
+                              export_yup=True, export_texcoords=True, export_normals=True)
+    if a.preview:
+        preview(obj, a.preview)
+
+
 def main():
     a = args()
+    if a.keep_texture:
+        keep_texture(a)
+        return
     zones = [tuple(item.split("=")) for item in a.zones.split(",")]
     obj = load(a.source, a.up)
     source_colours = colours_of(obj)
