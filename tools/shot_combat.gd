@@ -7,8 +7,8 @@ extends SceneTree
 ##       --fight slag_pit --select 1 --weapon 1 --aim 5 3 --out shots/lob.png   (aim = a hex x y)
 ##       --select 0 --ability 0 --aim 2 3     arms an ability instead of a weapon
 ##       --select 0 --move 3 4 --weapon 1 --aim 2 3   walks first, then aims
-##       --steps "select=2 weapon=0 tap=0,3 tap=0,3 select=0 hover=0,3"   any sequence, in
-##           order, before the flags above (tap settles the playback; hover draws a route)
+##       --steps "select=2 weapon=0 tap=0,3 tap=0,3 select=0 hover=0,3 end"   any sequence, in
+##           order, before the flags above (tap and end settle the playback; hover draws a route)
 ##
 ## Not headless: it has to render. Everything is driven through the scene's own methods,
 ## the same ones a tap reaches.
@@ -39,6 +39,11 @@ func _run() -> void:
 					scene.call("_choose_ability", kv[1].to_int())
 				"tap":
 					scene.call("_tap", cell)
+					await _settle(scene)
+				"end":
+					scene.call("_end_turn")
+					for i: int in 5:
+						await process_frame
 					await _settle(scene)
 				"hover":
 					var camera: Camera3D = scene.get("_camera")

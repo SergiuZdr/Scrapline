@@ -45,5 +45,7 @@
   "barrel_damage": 3,
   "crate_hp": 3,
   "_pylon": "013: the Sorting Gate's pylons (props). While one stands, the Sorter takes `enemy_kinds.sorter.pylon_armor` less from every hit.",
-  "pylon_hp": 6
+  "pylon_hp": 6,
+  "_flue": "025: a furnace flue (tile `f`, its blast in the tile's grid block) blows at the start of every `flue_every`-th round.",
+  "flue_every": 2
 }

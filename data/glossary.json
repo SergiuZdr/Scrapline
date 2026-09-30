@@ -582,6 +582,33 @@
       "forms": [
         "signal"
       ]
+    },
+    "conduit": {
+      "group": "ENEMIES",
+      "name": "Conduit",
+      "text": "The Foundry Mind's relay, in the Crucible: every machine of its side next to it hits 1 harder (the red links). Kill it, shove it off, or split them up.",
+      "forms": [
+        "conduit"
+      ]
+    },
+    "core": {
+      "group": "ENEMIES",
+      "name": "The Core",
+      "text": "The Crucible's heart and the run's last fight. It never moves. Every third round it marks every hex within 2 of it, and a round later pulses: 4 damage to each of your machines still in the ring. Hit it, then get out before it pulses.",
+      "forms": [
+        "the core",
+        "heart"
+      ]
+    },
+    "flue": {
+      "group": "TERRAIN",
+      "name": "Furnace flue",
+      "text": "An iron grate over the Crucible's furnaces. Every other round it blows: 3 damage to whatever stands on it. The round before, it is marked red.",
+      "forms": [
+        "furnace flue",
+        "flue",
+        "flues"
+      ]
     }
   }
 }

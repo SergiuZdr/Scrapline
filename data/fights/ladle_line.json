@@ -1,0 +1,134 @@
+{
+  "id": "ladle_line",
+  "name": "The Ladle Line",
+  "acts": [
+    3
+  ],
+  "_comment": "025, Act 3: a row of ladle drops (pits) down the middle, crate walls to hide behind, and flues where the cover is.",
+  "rows": [
+    "...s....",
+    ".o....o.",
+    "..f..f..",
+    "..c..c..",
+    ".f....f.",
+    "...oo...",
+    "..f..f..",
+    "........"
+  ],
+  "player": [
+    {
+      "name": "Knuckles",
+      "parts": [
+        "ch_brute",
+        "co_slug",
+        "ar_saw",
+        "ar_hammer",
+        "mo_scavenger"
+      ],
+      "x": 1,
+      "y": 7
+    },
+    {
+      "name": "Mule",
+      "parts": [
+        "ch_hauler",
+        "co_furnace",
+        "ar_pulse",
+        "ar_lance",
+        "mo_ablative"
+      ],
+      "x": 4,
+      "y": 7
+    },
+    {
+      "name": "Stilts",
+      "parts": [
+        "ch_strider",
+        "co_arc",
+        "ar_scanner",
+        "ar_scatter",
+        "mo_governor"
+      ],
+      "x": 6,
+      "y": 7
+    }
+  ],
+  "enemy": [
+    {
+      "name": "Dredge",
+      "parts": [
+        "ch_dredge",
+        "co_furnace",
+        "ar_mortar",
+        "ar_hammer",
+        "mo_reactive"
+      ],
+      "x": 1,
+      "y": 0
+    },
+    {
+      "name": "Reaper",
+      "parts": [
+        "ch_reaper",
+        "co_ember",
+        "ar_ripper",
+        "ar_saw",
+        "mo_bypass"
+      ],
+      "x": 5,
+      "y": 0,
+      "kind": "conduit"
+    },
+    {
+      "name": "Lancer",
+      "parts": [
+        "ch_lancer",
+        "co_dynamo",
+        "ar_railgun",
+        "ar_scanner",
+        "mo_targeting"
+      ],
+      "x": 7,
+      "y": 0
+    },
+    {
+      "name": "Bulwark",
+      "parts": [
+        "ch_bulwark",
+        "co_tesla",
+        "ar_pulse",
+        "ar_hammer",
+        "mo_coolant"
+      ],
+      "x": 0,
+      "y": 1
+    },
+    {
+      "name": "Skirmisher",
+      "parts": [
+        "ch_skirmisher",
+        "co_arc",
+        "ar_scatter",
+        "ar_pulse",
+        "mo_capacitor"
+      ],
+      "x": 3,
+      "y": 1
+    },
+    {
+      "name": "Courier",
+      "parts": [
+        "ch_courier",
+        "co_solvent",
+        "ar_lance",
+        "ar_scatter",
+        "mo_servo"
+      ],
+      "x": 5,
+      "y": 1
+    }
+  ],
+  "objective": {
+    "type": "rout"
+  }
+}

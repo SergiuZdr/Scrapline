@@ -133,5 +133,18 @@
       "move_cost": 1,
       "prop": "pylon"
     }
+  },
+  {
+    "id": "flue",
+    "name": "Furnace Flue",
+    "glyph": "f",
+    "colour": "2a1712",
+    "height": 0.0,
+    "blocks": false,
+    "text": "An iron grate over the Crucible's furnaces. Every other round it blows: 3 damage to whatever stands on it. The round before, it is marked red.",
+    "grid": {
+      "move_cost": 1,
+      "flue": 3
+    }
   }
 ]

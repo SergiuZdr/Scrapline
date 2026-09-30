@@ -246,7 +246,7 @@ func _test_boss_held() -> void:
 ## 021: breaking a gate that is not the last act's starts the next act with the same crew.
 func _test_acts() -> void:
 	var setup: RunSetup = _setup(33)
-	_check("the run has two acts", RunSim.act_count(setup) == 2)
+	_check("the run has three acts", RunSim.act_count(setup) == 3)
 	var state: RunState = RunSim.start(setup)
 	var first: String = state.fingerprint()
 	var plain: RunSetup = _setup(33)
@@ -277,8 +277,42 @@ func _test_acts() -> void:
 		not names.has("The Container Row") and (names.has("The Slag Lake") or names.has("The Pipe Forest") or names.has("The Cooling Flats")))
 	var gate: Dictionary = RunSim._make_fight(state, setup, state.sites.size() - 1, "boss")
 	_check("and its gate is The Pour's", String((gate["enemy"] as Array)[0].get("kind", "")) == "pour")
-	state.act = RunSim.act_count(setup)
-	_check("the last act's gate is the end of the run", state.act >= RunSim.act_count(setup))
+	# 025: Act 2 is generated exactly as it was when it was the last act.
+	var two: RunSetup = _setup(33)
+	two.rules = two.rules.duplicate()
+	two.rules["acts"] = (two.rules["acts"] as Array).slice(0, 2)
+	var twin: RunState = RunSim.start(two)
+	RunSim._next_act(twin, two)
+	var same: bool = str(twin.sites) == str(state.sites)
+	for id: int in state.sites.size() - 1:
+		same = same and str(RunSim._make_fight(state, setup, id, "skirmish")["rows"]) == str(RunSim._make_fight(twin, two, id, "skirmish")["rows"]) \
+			and str(RunSim._make_fight(state, setup, id, "skirmish")["enemy"]) == str(RunSim._make_fight(twin, two, id, "skirmish")["enemy"])
+	_check("Act 2 is generated exactly as it was before Act 3 existed", same)
+
+	var hp_before: int = int(state.crew[1]["hp"])
+	var scrap_before: int = state.scrap
+	RunSim._next_act(state, setup)
+	_check("through The Pour: Act 3, the Crucible", state.act == 3 and String(RunSim.rules_of(state, setup)["name"]) == "THE CRUCIBLE")
+	_check("arriving repairs 6 and pays 20", int(state.crew[1]["hp"]) == mini(RunSim.max_hp(setup, state.crew[1]), hp_before + 6)
+		and state.scrap == scrap_before + 20)
+	var boards: Dictionary = {}
+	var flues: int = 0
+	var conduits: int = 0
+	for id: int in state.sites.size() - 1:
+		var f: Dictionary = RunSim._make_fight(state, setup, id, "skirmish")
+		boards[String(f["name"])] = true
+		for row: Variant in (f["rows"] as Array):
+			flues += String(row).count("f")
+		for e: Dictionary in (f["enemy"] as Array):
+			if String(e.get("kind", "")) == "conduit":
+				conduits += 1
+	_check("its fights are on the Crucible's boards %s" % [boards.keys()],
+		not boards.has("The Slag Lake") and (boards.has("The Casting Floor") or boards.has("The Ladle Line") or boards.has("The Furnace Mouths")))
+	_check("with furnace flues on the floor (%d) and conduits in the squads (%d)" % [flues, conduits], flues > 0 and conduits > 0)
+	var core: Dictionary = RunSim._make_fight(state, setup, state.sites.size() - 1, "boss")
+	_check("and its gate is the Core's, with four escorts", String((core["enemy"] as Array)[0].get("kind", "")) == "heart"
+		and (core["enemy"] as Array).size() == 5)
+	_check("the last act's gate is the end of the run", state.act == RunSim.act_count(setup))
 
 
 ## Play-test 3: scrap buys machine levels; 011: every level also keeps one perk of three.

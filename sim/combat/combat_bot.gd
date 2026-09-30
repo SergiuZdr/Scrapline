@@ -91,4 +91,10 @@ static func context(state: CombatState) -> Dictionary:
 				if cell == Vector2i(victim.x, victim.y):
 					break
 				shield[cell] = int(shield.get(cell, 0)) + int(hit["damage"]) * SHIELD_PER_DAMAGE
+	# The Core's marked ring (025) pulses before the next turn: as good as a shot there.
+	var keeper: GridUnit = state.unit(state.pulse_by)
+	if keeper != null and keeper.alive:
+		var pulse: int = int((state.setup.kinds.get(keeper.kind, {}) as Dictionary).get("pulse_damage", 4))
+		for cell: Vector2i in state.pulse_marks:
+			danger[cell] = int(danger.get(cell, 0)) + pulse
 	return {"danger": danger, "shield": shield}

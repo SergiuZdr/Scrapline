@@ -16,12 +16,20 @@
     {
       "name": "THE CRANE YARDS",
       "mission": "Reach the Sorting Gate. The Reclaimer follows the key.",
-      "gate": "THE SORTING GATE"
+      "gate": "THE SORTING GATE",
+      "boss": "The Sorting Gate, and the Sorter that keeps it, shielded by the gate's pylons. Through it is the next yard."
     },
     {
       "name": "THE SLAG FLATS",
       "mission": "Cross the flats to The Pour. The slag is still warm.",
-      "gate": "THE POUR"
+      "gate": "THE POUR",
+      "boss": "The Pour: the Slag Flats' keeper, flooding the floor under the crew. Through it is the Crucible."
+    },
+    {
+      "name": "THE CRUCIBLE",
+      "mission": "Into the furnace-city. The key goes into the Core.",
+      "gate": "THE CORE",
+      "boss": "The Core: the Crucible's heart, bolted to the floor and pulsing. Turn the key in it and the Reclaimer stops."
     }
   ],
   "reclaimer": {
@@ -40,7 +48,7 @@
     "signal": "Something out here is sending. Worth a look, maybe."
   },
   "endings": {
-    "won": "The Sorting Gate grinds open. Beyond it: the Slag Flats, and the Crucible's glow on the clouds. (Act 2 is not built yet. This is where the run ends for now.)",
+    "won": "The key turns in the Core. Behind the crew the Reclaimer's booms sag and go still, one district at a time, and the valley is quiet for the first time in forty years.",
     "gate_held": "The gate held. The crew had nothing left to break it with, and the Reclaimer closed in behind.",
     "wrecked": "The Reclaimer took the crew. Somewhere in the Crucible, the key melts with them."
   }

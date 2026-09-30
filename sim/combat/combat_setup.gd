@@ -27,6 +27,10 @@ var range_bonus: PackedByteArray = []
 var hazard: PackedByteArray = []
 ## 1 on a pit: nothing walks in, shots pass over, anything shoved in is destroyed.
 var pit: PackedByteArray = []
+## A furnace flue's blast (025): what it does to whatever stands on it when it blows, every
+## `flue_every` rounds. 0 off the flues.
+var flue: PackedByteArray = []
+var flue_every: int = 2
 ## Objects on the board at the start: `[{ "x", "y", "kind": "barrel"|"crate", "hp" }]`.
 var start_props: Array = []
 var barrel_damage: int = 3
@@ -87,6 +91,7 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 	setup.wheel = wheel
 	setup.barrel_damage = int(rules.get("barrel_damage", 3))
 	setup.crate_hp = int(rules.get("crate_hp", 3))
+	setup.flue_every = maxi(1, int(rules.get("flue_every", 2)))
 	setup.kinds = rules.get("enemy_kinds", {})
 	var objective: Dictionary = fight.get("objective", {"type": "rout"})
 	setup.objective = {"type": String(objective.get("type", "rout")),
@@ -109,6 +114,7 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 	setup.range_bonus.resize(cells)
 	setup.hazard.resize(cells)
 	setup.pit.resize(cells)
+	setup.flue.resize(cells)
 	setup.tiles.resize(cells)
 	for y: int in setup.height:
 		var row: String = String(rows[y])
@@ -130,6 +136,7 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 			setup.range_bonus[i] = int(grid.get("range", 0))
 			setup.hazard[i] = int(grid.get("hazard", 0))
 			setup.pit[i] = int(grid.get("pit", 0))
+			setup.flue[i] = int(grid.get("flue", 0))
 			var prop: String = String(grid.get("prop", ""))
 			if not prop.is_empty():
 				var prop_hp: int = int(rules.get("%s_hp" % prop, 1))
