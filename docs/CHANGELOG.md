@@ -2,6 +2,18 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [026] Play-test 8 fixes — 2026-10-01 ([detail](iterations/026-playtest-8-fixes.md))
+
+### Changed
+- **HP stays with its machine and on top** of the red hatching; a scrap carrier now carries a
+  little green bundle at its feet instead of a mark by its HP.
+- **Enemy attacks are arrows**; a lob's arrow arches. A piercing beam shows where it ends.
+- **The opening card stays 5 seconds.** The garage opens once its machine is on the lift.
+- **No text runs past its card** in the garage or on the fight's weapon and ability cards.
+- **Acts 2 and 3 find rare parts** (and elites in Act 3 always offer one), and fight back harder;
+  The Pour and the Core are tougher; defend caches no longer stand side by side.
+  Run bot over three acts: 56.6%.
+
 ## [025] Act 3: the Crucible — 2026-09-30 ([detail](iterations/025-act-3.md))
 
 ### Added

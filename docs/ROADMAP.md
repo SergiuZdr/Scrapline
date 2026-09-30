@@ -43,6 +43,8 @@ Iterations further ahead are sketches and get refined as we get closer.
 | — | [Play-test 7](playtests/2026-09-30-playtest-7.md) | Totals per hex, a lag, the objective from the start, shove and pierce, surf in the ambience, which robot is mine, stencils, names; Act 3 | ✅ |
 | 024 | [Play-test 7 fixes](iterations/024-playtest-7-fixes.md) | One total per hex (the volley run on a copy), the aim's totals, the machine under your hand ringed, the opening card; the lag was shader compiles (measured, fixed); tied shoves, pierce aim, names, a hum not surf | ✅ awaiting the play-test |
 | 025 | [Act 3: the Crucible](iterations/025-act-3.md) | Furnace flues, conduits, the Core that pulses its ring; three boards; the run ends at the Core (bot 66.0% over three acts) | ✅ awaiting the play-test |
+| — | [Play-test 8](playtests/2026-10-01-playtest-8.md) | Pierce reach, the scrap mark and wandering HP, a readable loading card, overflowing cards, no rares late, easy late bosses, caches side by side, attack arrows | ✅ |
+| 026 | [Play-test 8 fixes](iterations/026-playtest-8-fixes.md) | Tags at their machines and on top, a scrap bundle, arrowed/arched attacks, a 5 s card, fitted card text, a garage cover; rares and tougher Acts 2-3 (bot 56.6%) | ✅ awaiting the play-test |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
