@@ -34,11 +34,31 @@ func has_saved() -> bool:
 	return RunStore.exists()
 
 
-func new_run(seed_value: int = -1) -> void:
+## What this run gave the profile (022): `{ "new": [unlock entries], "next": entry or {} }`.
+## Banked once, whatever screen asks and however often.
+func bank() -> Dictionary:
+	if not active or state.outcome == RunState.ONGOING:
+		return {}
+	var key: String = "%d:%d" % [setup.rng_seed, actions.size()]
+	var fresh: Array = Profile.bank_run(key, state, db.meta)
+	var entries: Array = []
+	for entry: Dictionary in (db.meta.get("unlocks", []) as Array):
+		if fresh.has(String(entry["id"])):
+			entries.append(entry)
+	return {"new": entries, "next": Meta.next_unlock(Profile.unlocked(), db.meta)}
+
+
+## A new run as the profile has it (022): the crew and tier last chosen, the parts unlocked.
+func new_run_from_profile() -> void:
+	var choice: Dictionary = Profile.run_choice()
+	new_run(-1, Meta.options(db.meta, Profile.unlocked(), String(choice["crew"]), int(choice["tier"])))
+
+
+func new_run(seed_value: int = -1, options: Dictionary = {}) -> void:
 	# The only place a run reads the clock: choosing a seed. Everything after is seeded.
 	if seed_value < 0:
 		seed_value = int(Time.get_unix_time_from_system() * 1000.0) & 0x7FFFFFFF
-	setup = _make_setup(seed_value)
+	setup = _make_setup(seed_value, options)
 	state = RunSim.start(setup)
 	actions = []
 	fight_actions = []
@@ -60,7 +80,7 @@ func continue_run() -> bool:
 	if String(data["content"]) != db.content_version():
 		problem = "This run was saved with an older version of the game's rules and cannot be resumed."
 		return false
-	setup = _make_setup(int(data["seed"]))
+	setup = _make_setup(int(data["seed"]), data.get("options", {}))
 	state = RunSim.replay(setup, data["actions"])
 	actions = (data["actions"] as Array).duplicate(true)
 	fight_actions = (data["fight"] as Array).duplicate(true)
@@ -101,11 +121,11 @@ func end_run() -> void:
 	RunStore.clear()
 
 
-func _make_setup(seed_value: int) -> RunSetup:
+func _make_setup(seed_value: int, options: Dictionary = {}) -> RunSetup:
 	return RunSetup.create(db.parts, db.tiles, db.fights, db.run_rules, db.combat_rules,
-		db.balance.effectiveness, seed_value)
+		db.balance.effectiveness, seed_value, options)
 
 
 func _save() -> void:
 	if active:
-		RunStore.save(setup.rng_seed, db.content_version(), actions, fight_actions)
+		RunStore.save(setup.rng_seed, db.content_version(), actions, fight_actions, setup.options)

@@ -858,17 +858,7 @@ static func rules_of(state: RunState, setup: RunSetup) -> Dictionary:
 	if state.act < 1 or state.act > acts.size():
 		return setup.rules
 	var over: Dictionary = acts[state.act - 1]
-	if over.size() <= 1:
-		return setup.rules
-	var out: Dictionary = setup.rules.duplicate()
-	for key: Variant in over:
-		if over[key] is Dictionary and out.get(key) is Dictionary:
-			var merged: Dictionary = (out[key] as Dictionary).duplicate()
-			merged.merge(over[key], true)
-			out[key] = merged
-		else:
-			out[key] = over[key]
-	return out
+	return setup.rules if over.size() <= 1 else RunSetup.overlay(setup.rules, over)
 
 
 ## The gate is broken and there is another act: a new region, the same crew. What arriving

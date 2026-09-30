@@ -312,6 +312,23 @@
         "warden"
       ]
     },
+    "sentinel": {
+      "group": "ENEMIES",
+      "name": "Sentinel",
+      "text": "An old yard guard, plated and bolted down: it takes 1 less from every hit and cannot be shoved. Found on the Slag Flats. Bring damage, not a push.",
+      "forms": [
+        "sentinel"
+      ]
+    },
+    "pour": {
+      "group": "ENEMIES",
+      "name": "The Pour",
+      "text": "The Slag Flats' keeper. Every other round it marks the hexes your machines stand on; a round later those hexes are slag for the rest of the fight (2 damage a round to anything on them). Keep moving, and break it before the floor runs out.",
+      "forms": [
+        "the pour",
+        "pour"
+      ]
+    },
     "hive": {
       "group": "ENEMIES",
       "name": "Hive",

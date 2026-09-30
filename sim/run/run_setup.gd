@@ -21,11 +21,39 @@ var wheel: Array = []
 var pools: Dictionary = {}
 
 
+## What the run was started with (022, `Meta.options`): `crew` (starting crew specs), `rules`
+## (a tier's overlay) and `locked` (part ids out of the pools). Empty = the default crew, the
+## first tier, everything unlocked -- what the tests and the run bot play.
+var options: Dictionary = {}
+
+
+## `over` laid on `base` one level deep: a key holding a dictionary is merged, anything else
+## replaces. How acts (021) and tiers (022) change the rules without code.
+static func overlay(base: Dictionary, over: Dictionary) -> Dictionary:
+	var out: Dictionary = base.duplicate()
+	for key: Variant in over:
+		if over[key] is Dictionary and out.get(key) is Dictionary:
+			var merged: Dictionary = (out[key] as Dictionary).duplicate()
+			merged.merge(over[key], true)
+			out[key] = merged
+		else:
+			out[key] = over[key]
+	return out
+
+
 static func create(content_parts: Dictionary, content_tiles: Array, content_fights: Dictionary,
-		run_rules: Dictionary, combat_rules_in: Dictionary, wheel_in: Array, seed_value: int) -> RunSetup:
+		run_rules: Dictionary, combat_rules_in: Dictionary, wheel_in: Array, seed_value: int,
+		options_in: Dictionary = {}) -> RunSetup:
 	var setup := RunSetup.new()
 	setup.rng_seed = seed_value
+	setup.options = options_in
 	setup.rules = run_rules
+	if options_in.has("rules"):
+		setup.rules = overlay(setup.rules, options_in["rules"])
+	if options_in.has("crew"):
+		setup.rules = setup.rules.duplicate()
+		setup.rules["starting_crew"] = options_in["crew"]
+	var locked: Array = options_in.get("locked", [])
 	setup.combat_rules = combat_rules_in
 	setup.parts = content_parts
 	setup.tiles = content_tiles
@@ -37,7 +65,7 @@ static func create(content_parts: Dictionary, content_tiles: Array, content_figh
 		setup.pools[slot] = []
 	for id: Variant in ids:
 		# Tuned parts are made at a workshop, never found: they stay out of every pool.
-		if (content_parts[id] as Dictionary).has("base"):
+		if (content_parts[id] as Dictionary).has("base") or locked.has(String(id)):
 			continue
 		var slot: String = String((content_parts[id] as Dictionary).get("slot", ""))
 		if setup.pools.has(slot):
