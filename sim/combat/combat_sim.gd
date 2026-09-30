@@ -198,6 +198,17 @@ static func weapon_reach(state: CombatState, u: GridUnit, w: int) -> int:
 	return int(weapon["range"]) + u.range_bonus + state.range_bonus(u.x, u.y)
 
 
+## How far weapon `w` of `u` may be AIMED: its reach, or for a piercing shot as far as its beam
+## flies (play-test 7: the line through the hex aimed at is the beam's whole path, so a drum
+## behind the last target must be something the player can aim the line through).
+static func aim_reach(state: CombatState, u: GridUnit, w: int) -> int:
+	var weapon: Dictionary = u.weapons[w]
+	var reach: int = weapon_reach(state, u, w)
+	if String(weapon["shape"]) == "shot" and int(weapon["pierce"]) > 0:
+		reach += state.setup.pierce_overshoot
+	return reach
+
+
 ## Every hex weapon `w` of `u` could be aimed at from where it stands.
 static func aim_options(state: CombatState, u: GridUnit, w: int) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
@@ -205,7 +216,7 @@ static func aim_options(state: CombatState, u: GridUnit, w: int) -> Array[Vector
 		return out
 	var here := Vector2i(u.x, u.y)
 	var weapon: Dictionary = u.weapons[w]
-	var reach: int = weapon_reach(state, u, w)
+	var reach: int = aim_reach(state, u, w)
 	var minimum: int = int(weapon["range_min"]) if String(weapon["shape"]) == "lob" else 1
 	for cell: Vector2i in Hex.within(here, reach):
 		if state.inside(cell) and Hex.distance(here, cell) >= minimum:
@@ -227,7 +238,7 @@ static func strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector2
 	var reach: int = weapon_reach(state, u, w)
 	var dist: int = Hex.distance(here, target)
 	var minimum: int = int(weapon["range_min"]) if shape == "lob" else 1
-	if dist > reach or dist < minimum:
+	if dist > aim_reach(state, u, w) or dist < minimum:
 		return plan
 	var base: int = int(weapon["damage"])
 	if base > 0:
@@ -643,6 +654,32 @@ static func threats(state: CombatState) -> Dictionary:
 	return out
 
 
+## What the enemy's volley would do if the turn ended now: every intent fired, in order, on a
+## COPY of the fight (play-test 7: several shots into one hex show one total, and whatever
+## stands in a line's way shows what it takes). Hurt units by the hex they stand on now:
+## `{ "units": [{ "ref", "cell", "hp_lost", "killed" }], "props": [{ "cell", "hp_lost", "broken" }] }`.
+static func incoming(state: CombatState) -> Dictionary:
+	var copy: CombatState = state.clone()
+	_fire_intents(copy)
+	var units: Array = []
+	for u: GridUnit in state.units:
+		if not u.alive:
+			continue
+		var after: GridUnit = copy.unit(u.ref)
+		var lost: int = u.hp - (after.hp if after.alive else 0)
+		if lost > 0:
+			units.append({"ref": u.ref, "cell": Vector2i(u.x, u.y), "hp_lost": lost, "killed": not after.alive})
+	var props: Array = []
+	var cells: Array = state.props.keys()
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
+	for cell: Variant in cells:
+		var hp: int = int((state.props[cell] as Dictionary)["hp"])
+		var left: int = int((copy.props.get(cell, {"hp": 0}) as Dictionary)["hp"])
+		if left < hp:
+			props.append({"cell": cell, "hp_lost": hp - maxi(0, left), "broken": not copy.props.has(cell)})
+	return {"units": units, "props": props}
+
+
 ## Where an intent fires: its hex, or -- for a tracker -- wherever its locked machine
 ## stands now. A tracker's lock is broken only by that machine dying.
 static func intent_target(state: CombatState, intent: Dictionary) -> Vector2i:
@@ -751,7 +788,7 @@ static func _execute_attack(state: CombatState, u: GridUnit, w: int, target: Vec
 			victim.marked = true
 			state.emit(GridEv.MARKED, u.ref, victim.ref, victim.x, victim.y)
 		if primary and int(weapon["shove"]) > 0:
-			var dir: int = Hex.direction(origin, Vector2i(victim.x, victim.y))
+			var dir: int = shove_dir(state, u, origin, victim)
 			if victim.alive:
 				shove(state, u.ref, victim, dir)
 			else:
@@ -867,6 +904,48 @@ static func _tear(state: CombatState, actor: int, target: GridUnit) -> void:
 			return
 
 
+## Which way a hit from `origin` shoves `victim`: straight away from the attacker. Off the six
+## hex axes two directions are equally "away", and play-test 7 watched a shove always take the
+## first -- onto open ground beside a pit. Of the two, the one better for the side shoving is
+## taken (`_shove_value`: a pit, then a bump into the other side or a drum, open ground last);
+## a tie keeps the first, so it never varies.
+static func shove_dir(state: CombatState, u: GridUnit, origin: Vector2i, victim: GridUnit) -> int:
+	var dirs: Array[int] = Hex.directions(origin, Vector2i(victim.x, victim.y))
+	if dirs.size() > 1 and _shove_value(state, u, victim, dirs[1]) > _shove_value(state, u, victim, dirs[0]):
+		return dirs[1]
+	return dirs[0]
+
+
+## What shoving `victim` one hex along `dir` is worth to `u`'s side: damage and kills to the
+## other side count for it, to its own side twice over against it.
+static func _shove_value(state: CombatState, u: GridUnit, victim: GridUnit, dir: int) -> int:
+	if victim.unshovable or victim.objective:
+		return 0
+	var n: Vector2i = Hex.neighbor(Vector2i(victim.x, victim.y), dir)
+	var wreck: bool = not victim.alive
+	var occupant: GridUnit = state.unit_at(n.x, n.y) if state.inside(n) else null
+	if state.inside(n) and state.is_pit(n) and occupant == null:
+		return 0 if wreck else _worth(u, victim, victim.hp)
+	var value: int = 0
+	if not state.inside(n) or state.solid(n) or occupant != null:
+		var bump: int = state.setup.bump_damage
+		if not wreck:
+			value += _worth(u, victim, bump)
+		if occupant != null:
+			value += _worth(u, occupant, bump)
+		elif String((state.props.get(n, {}) as Dictionary).get("kind", "")) == "barrel":
+			value += _arc_prop_value(state, u, n)
+	return value
+
+
+## A hit's worth to `u`'s side, on the arc's scale: damage x 10 and a kill bonus; against its
+## own side, twice over.
+static func _worth(u: GridUnit, t: GridUnit, dmg: int) -> int:
+	var dealt: int = mini(dmg, t.hp)
+	var worth: int = dealt * 10 + (ARC_KILL if dmg >= t.hp else 0)
+	return worth if t.team != u.team else -2 * worth
+
+
 ## One hex away from the attacker. Into anything solid -- the edge, scrap, a unit -- it
 ## does not move, and both it and whatever it hit take bump damage instead.
 static func shove(state: CombatState, actor: int, target: GridUnit, dir: int) -> void:
@@ -937,8 +1016,23 @@ static func throw_wreck(state: CombatState, actor: int, target: GridUnit, dir: i
 
 static func _end_turn(state: CombatState) -> void:
 	state.emit(GridEv.TURN_END)
-	# Intents fire in their displayed order, from wherever each attacker stands now, at
-	# the hex it chose. One that can no longer reach its hex (it was shoved) misses.
+	if _fire_intents(state):
+		return
+	state.intents.clear()
+	var o: Dictionary = state.objective()
+	if String(o.get("type", "")) == "defend" and state.round_number >= int(o.get("rounds", 0)):
+		_finish(state, CombatState.WON)
+		return
+	if state.round_number >= state.setup.max_rounds:
+		_finish(state, CombatState.LOST)
+		return
+	_begin_round(state)
+
+
+## Intents fire in their displayed order, from wherever each attacker stands now, at the hex
+## it chose. One that can no longer reach its hex (it was shoved) misses. True if the fight
+## ended on the way.
+static func _fire_intents(state: CombatState) -> bool:
 	for intent: Dictionary in state.intents:
 		var u: GridUnit = state.unit(int(intent["ref"]))
 		if u == null or not u.alive or not u.can_fire(int(intent["w"])):
@@ -949,16 +1043,8 @@ static func _end_turn(state: CombatState) -> void:
 			continue
 		_execute_attack(state, u, int(intent["w"]), target)
 		if _check_outcome(state):
-			return
-	state.intents.clear()
-	var o: Dictionary = state.objective()
-	if String(o.get("type", "")) == "defend" and state.round_number >= int(o.get("rounds", 0)):
-		_finish(state, CombatState.WON)
-		return
-	if state.round_number >= state.setup.max_rounds:
-		_finish(state, CombatState.LOST)
-		return
-	_begin_round(state)
+			return true
+	return false
 
 
 static func _begin_round(state: CombatState) -> void:
