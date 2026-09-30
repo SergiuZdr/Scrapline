@@ -234,8 +234,30 @@ static func _oct(n: Vector3) -> Vector2:
 	return p * 0.5 + Vector2(0.5, 0.5)
 
 
+## 018 (proposal, `--models new` only): livery by maker, [livery, accent]. Kessler Mining is the
+## concept Brute's yellow with orange trim; a maker SET (011) shows at a glance.
+const MAKER_LIVERY: Dictionary = {
+	"kessler": [Color("d9a441"), Color("c8602a")],
+	"cinder": [Color("9c3b2e"), Color("d9a441")],
+	"vektor": [Color("6e7443"), Color("c9b27a")],
+	"arclight": [Color("8a8f8c"), Color("b4532a")],
+}
+
+
+## The accent a livery's `trim` zone wears: its maker's, or a fixed partner for the old liveries.
+static func accent_of(livery: Color) -> Color:
+	for pair: Array in MAKER_LIVERY.values():
+		if (pair[0] as Color).is_equal_approx(livery):
+			return pair[1]
+	return Color("c8602a") if livery.is_equal_approx(LIVERY[0]) else Color("d9a441")
+
+
 ## The ink livery of a part: the same index `PartMaterials.livery_of` picks.
 static func livery_of(part_id: String) -> Color:
+	# 018, only with `--models new`: a part wears its MAKER's colour (a proposal to judge).
+	var maker: String = Models.maker_of(part_id)
+	if MAKER_LIVERY.has(maker):
+		return MAKER_LIVERY[maker][0]
 	var old: Color = PartMaterials.livery_of(part_id)
 	for i: int in PartMaterials.LIVERY.size():
 		if Color(PartMaterials.LIVERY[i]).is_equal_approx(old):
@@ -249,6 +271,11 @@ static func livery_of(part_id: String) -> Color:
 static func zone_material(zone: String, livery: Color, team: Color) -> Material:
 	if zone == PartMaterials.ZONE_PAINT:
 		return toon(livery, "clean")
+	if zone == "steel":
+		# Neutral structure (018): NOT tinted by the livery, so a part shows a second colour.
+		return toon(Color("7d848c"), "metal", 0.22)
+	if zone == "trim":
+		return toon(accent_of(livery), "clean")
 	if zone == "metal":
 		return toon(livery.darkened(0.12).lerp(Color("6a6f76"), 0.18), "metal", 0.16)
 	if PartMaterials.TEAM_ZONES.has(zone):
