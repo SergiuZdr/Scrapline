@@ -110,6 +110,27 @@ func _run() -> void:
 	_check("the chosen crew and tier are remembered", (profile.call("run_choice") as Dictionary) == {"crew": "wall", "tier": 1})
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
+	# 023: every sound a script asks for is in the bank, and the switch is kept.
+	var audio: Node = root.get_node("Audio")
+	var bank: Array = audio.call("names")
+	var asked: Dictionary = {}
+	var pattern := RegEx.new()
+	pattern.compile("Audio\\.play\\(\"([a-z_]+)\"")
+	for dir: String in ["res://scripts/combat", "res://scripts/run", "res://scripts/ui", "res://scripts/autoload"]:
+		for file: String in DirAccess.get_files_at(dir):
+			if file.ends_with(".gd"):
+				for found: RegExMatch in pattern.search_all(FileAccess.get_file_as_string(dir.path_join(file))):
+					asked[found.get_string(1)] = true
+	var unknown: Array = asked.keys().filter(func(n: String) -> bool: return not bank.has(n))
+	_check("every sound a screen plays is in the bank (%d asked, %d in the bank) %s" % [asked.size(), bank.size(), unknown],
+		unknown.is_empty() and asked.size() >= 20)
+	profile.call("use_path", "user://verify_meta_sound.json")
+	profile.call("set_sound", false)
+	profile.call("use_path", "user://verify_meta_sound.json")
+	_check("SOUND OFF is kept and silences the bank", not bool(profile.call("sound_on")) and not bool(audio.call("enabled")))
+	profile.call("set_sound", true)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://verify_meta_sound.json"))
+
 	print("\n  %d passed, %d failed\n" % [_passed, _failed])
 	quit(1 if _failed > 0 else 0)
 

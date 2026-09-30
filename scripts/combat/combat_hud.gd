@@ -327,6 +327,7 @@ func set_controls(can_undo: bool, can_end: bool) -> void:
 ## a practice fight offers FIGHT AGAIN and TITLE instead.
 func show_result(won: bool, body: String, in_run: bool = false) -> void:
 	_result_title.text = "YARD CLEARED" if won else ("CREW LOST" if not in_run else "RUN OVER")
+	Audio.play("win" if won else "lose", -6.0, 0.0)
 	_result_title.add_theme_color_override("font_color", UIKit.INK_GREEN if won else UIKit.INK_RED)
 	_result_body.text = body
 	_retry.visible = not in_run
