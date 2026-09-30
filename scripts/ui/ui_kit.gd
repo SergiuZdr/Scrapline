@@ -292,6 +292,45 @@ static func pressed(style: StyleBoxFlat) -> StyleBoxFlat:
 
 
 ## A label that sits on the dark page or over the 3D world: paper lettering with an ink edge.
+## Makes `label` fit a box `width` px wide and at most `max_lines` lines tall (play-test 8: card
+## text ran past its card). Wraps if it may take more than one line, then steps the font down
+## until the text fits, never below `min_size`; whatever still does not fit ends in "...".
+## Call after the label's text, font and size are set.
+static func fit(label: Label, width: float, max_lines: int = 1, min_size: int = 11) -> Label:
+	var face: Font = label.get_theme_font("font")
+	var size: int = label.get_theme_font_size("font_size")
+	label.custom_minimum_size.x = width
+	label.size.x = width
+	label.clip_text = max_lines == 1
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if max_lines > 1 else TextServer.AUTOWRAP_OFF
+	label.max_lines_visible = max_lines
+	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	while size > min_size and lines_of(face, label.text, width, size) > max_lines:
+		size -= 1
+	label.add_theme_font_size_override("font_size", size)
+	return label
+
+
+## How many lines `text` takes at `size` in a box `width` px wide (words kept whole).
+static func lines_of(face: Font, text: String, width: float, size: int) -> int:
+	var total: int = 0
+	for paragraph: String in text.split("\n"):
+		var line: String = ""
+		var count: int = 1
+		for word: String in paragraph.split(" ", false):
+			var trial: String = word if line.is_empty() else line + " " + word
+			if face.get_string_size(trial, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x > width and not line.is_empty():
+				count += 1
+				line = word
+			else:
+				line = trial
+		# A single word wider than the box is a line that does not fit at all.
+		if face.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x > width:
+			count += 99
+		total += count
+	return total
+
+
 static func on_page(label: Label, outline: int = 8) -> Label:
 	label.add_theme_color_override("font_color", PAGE_TEXT)
 	label.add_theme_color_override("font_outline_color", HAIRLINE)

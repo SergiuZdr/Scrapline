@@ -106,7 +106,8 @@
     "defend_rounds": 4,
     "defend_caches": 2,
     "salvage_piles": 4,
-    "salvage_need": 3
+    "salvage_need": 3,
+    "cache_spacing": 3
   },
   "terrain": {
     "_comment": "Props and pits scattered on generated fights, in the middle rows, per fight: a random count in [min, max].",
@@ -176,7 +177,8 @@
       "arrive": {"repair": 6, "scrap": 15},
       "enemies": {"count_by_column": [4, 4, 4, 4, 4, 5, 5, 5, 5], "rarity_cap_by_column": [2, 2, 2, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 4, "hp_all": 3, "boss_escorts": 4, "bonus": {"damage": 1}},
       "kinds": {"chance_by_column": [40, 50, 50, 60, 60, 70, 70, 80, 80], "weights": {"tracker": 20, "bomber": 20, "warden": 15, "hive": 15, "sentinel": 30}},
-      "terrain": {"slag": [1, 3]}
+      "terrain": {"slag": [1, 3]},
+      "rewards": {"rarity_weights": [35, 45, 20], "elite_min_rarity": 2, "choices": 3, "salvage_scrap": 10, "skirmish_scrap": 12, "elite_scrap": 24, "boss_scrap": 0, "scrapyard_scrap": 18, "cache_scrap": 6}
     },
     {
       "name": "THE CRUCIBLE",
@@ -184,7 +186,8 @@
       "arrive": {"repair": 6, "scrap": 20},
       "enemies": {"count_by_column": [4, 4, 5, 5, 5, 5, 6, 6, 6], "rarity_cap_by_column": [3, 3, 3, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 5, "hp_all": 4, "boss_escorts": 4, "bonus": {"damage": 1}},
       "kinds": {"chance_by_column": [50, 50, 60, 60, 70, 70, 80, 80, 90], "weights": {"tracker": 15, "bomber": 15, "warden": 10, "hive": 10, "sentinel": 20, "conduit": 30}},
-      "terrain": {"flues": [2, 4], "slag": [0, 2]}
+      "terrain": {"flues": [2, 4], "slag": [0, 2]},
+      "rewards": {"rarity_weights": [10, 45, 45], "elite_min_rarity": 3, "choices": 3, "salvage_scrap": 12, "skirmish_scrap": 14, "elite_scrap": 28, "boss_scrap": 0, "scrapyard_scrap": 20, "cache_scrap": 6}
     }
   ]
 }

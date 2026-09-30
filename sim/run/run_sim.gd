@@ -324,15 +324,17 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 		_start_fight(state, setup, to, kind)
 		state.log.append("%s at site %d." % ["The act boss" if kind == "boss" else kind.capitalize(), to])
 	elif kind == "scrapyard":
-		var rewards: Dictionary = setup.rules.get("rewards", {})
-		state.pending = {"kind": "scrapyard", "options": _roll_parts(setup, _rng(setup, to, 3, state.act), 1, crew_makers(state, setup)),
+		var rewards: Dictionary = rules_of(state, setup).get("rewards", {})
+		state.pending = {"kind": "scrapyard", "options": _roll_parts(setup, _rng(setup, to, 3, state.act), 1, crew_makers(state, setup),
+			rules_of(state, setup).get("rewards", {})),
 			"scrap": int(rewards.get("scrapyard_scrap", 15))}
 		state.log.append("A scrapyard. Something in here still works.")
 	elif kind == "workshop":
 		state.pending = {"kind": "workshop"}
 		state.log.append("A workshop with the lights still on.")
 	elif kind == "trader":
-		var stock: Array = _roll_parts(setup, _rng(setup, to, 8, state.act), 1, crew_makers(state, setup))
+		var stock: Array = _roll_parts(setup, _rng(setup, to, 8, state.act), 1, crew_makers(state, setup),
+			rules_of(state, setup).get("rewards", {}))
 		# The rarest in the stock comes tuned: a trader is where tuned parts can be bought.
 		var best: int = 0
 		for i: int in stock.size():
@@ -565,7 +567,7 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 			return true
 		_end(state, RunState.WON, "The last gate is broken: the run is won.")
 		return true
-	var rewards: Dictionary = setup.rules.get("rewards", {})
+	var rewards: Dictionary = rules_of(state, setup).get("rewards", {})
 	var gained: int = int(rewards.get("elite_scrap" if kind == "elite" else "skirmish_scrap", 10))
 	gained += result.caches().size() * int(rewards.get("cache_scrap", 6))
 	state.scrap += gained
@@ -578,10 +580,11 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 ## What a won fight at the current site offers: three parts or `salvage_scrap` scrap. An
 ## elite's guaranteed part comes off the wreck already tuned.
 static func salvage(state: RunState, setup: RunSetup, kind: String) -> Dictionary:
-	var rewards: Dictionary = setup.rules.get("rewards", {})
+	# Play-test 8: the act's own rewards -- later acts lean rare, or a built crew finds nothing.
+	var rewards: Dictionary = rules_of(state, setup).get("rewards", {})
 	var min_rarity: int = int(rewards.get("elite_min_rarity", 2)) if kind == "elite" else 1
 	var rng: SimRNG = _rng(setup, state.current, 5, state.act)
-	var options: Array = _roll_parts(setup, rng, min_rarity, crew_makers(state, setup))
+	var options: Array = _roll_parts(setup, rng, min_rarity, crew_makers(state, setup), rewards)
 	if kind == "elite" and not options.is_empty() and PartTuning.can_tune(setup.parts, String(options[0])):
 		options[0] = PartTuning.variant(String(options[0]), rng.range_int(0, 1))
 	return {"kind": "reward", "options": options, "scrap": int(rewards.get("salvage_scrap", 8))}
@@ -1094,6 +1097,9 @@ static func _make_gate_fight(state: RunState, setup: RunSetup, site_id: int, tem
 	fight["player"] = player
 	var positions: Array = template.get("enemy", [])
 	var enemy: Array = [(positions[0] as Dictionary).duplicate(true)]
+	# Play-test 8: the later keepers were easier than the Sorter; the act's arming reaches them too.
+	if enemies_rules.has("bonus"):
+		(enemy[0] as Dictionary)["bonus"] = (enemies_rules["bonus"] as Dictionary).duplicate()
 	var escorts: int = int(enemies_rules.get("boss_escorts", 3))
 	for i: int in range(1, mini(escorts + 1, positions.size())):
 		var parts: Array = [_roll_slot(setup, rng, "chassis", 3), _roll_slot(setup, rng, "core", 3),
@@ -1154,7 +1160,10 @@ static func _roll_objective(setup: RunSetup, rng: SimRNG, template: Dictionary, 
 	match chosen:
 		"defend":
 			var caches: Array = []
-			for cell: Vector2i in _free_cells(rng, rows, taken, [rows.size() - 1, rows.size() - 2], int(o.get("defend_caches", 2))):
+			# Play-test 8: two caches side by side went to one lob and its splash. They stand at
+			# least `cache_spacing` apart when the rows allow it.
+			for cell: Vector2i in _free_cells(rng, rows, taken, [rows.size() - 1, rows.size() - 2], int(o.get("defend_caches", 2)),
+					int(o.get("cache_spacing", 3))):
 				caches.append({"x": cell.x, "y": cell.y})
 				taken.append(cell)
 			return {"type": "defend", "rounds": int(o.get("defend_rounds", 4)), "caches": caches}
@@ -1168,7 +1177,7 @@ static func _roll_objective(setup: RunSetup, rng: SimRNG, template: Dictionary, 
 
 
 ## `count` open cells from the given rows, chosen by the RNG from a sorted candidate list.
-static func _free_cells(rng: SimRNG, rows: Array, taken: Array, row_ids: Array, count: int) -> Array:
+static func _free_cells(rng: SimRNG, rows: Array, taken: Array, row_ids: Array, count: int, spacing: int = 0) -> Array:
 	var candidates: Array = []
 	for y: Variant in row_ids:
 		var row: String = String(rows[int(y)])
@@ -1178,7 +1187,15 @@ static func _free_cells(rng: SimRNG, rows: Array, taken: Array, row_ids: Array, 
 				candidates.append(cell)
 	var out: Array = []
 	while out.size() < count and not candidates.is_empty():
-		out.append(candidates.pop_at(rng.range_int(0, candidates.size() - 1)))
+		var pool: Array = candidates
+		if spacing > 0 and not out.is_empty():
+			pool = candidates.filter(func(c: Vector2i) -> bool:
+				return out.all(func(o: Vector2i) -> bool: return Hex.distance(c, o) >= spacing))
+			if pool.is_empty():
+				pool = candidates
+		var pick: Vector2i = pool[rng.range_int(0, pool.size() - 1)]
+		candidates.erase(pick)
+		out.append(pick)
 	return out
 
 
@@ -1211,8 +1228,8 @@ static func _roll_slot(setup: RunSetup, rng: SimRNG, slot: String, cap: int) -> 
 ## directions (011: "rewards that are always a real choice"). Each is weighted by rarity; the
 ## first is at `min_rarity` or above; the second comes from a maker in `favour` when one
 ## fits, so a set can be finished on purpose rather than by luck.
-static func _roll_parts(setup: RunSetup, rng: SimRNG, min_rarity: int, favour: Array = []) -> Array:
-	var rewards: Dictionary = setup.rules.get("rewards", {})
+static func _roll_parts(setup: RunSetup, rng: SimRNG, min_rarity: int, favour: Array = [], act_rewards: Dictionary = {}) -> Array:
+	var rewards: Dictionary = act_rewards if not act_rewards.is_empty() else setup.rules.get("rewards", {})
 	var weights: Array = rewards.get("rarity_weights", [60, 30, 10])
 	var choices: int = int(rewards.get("choices", 3))
 	var slots: Array = []
