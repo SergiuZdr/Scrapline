@@ -42,6 +42,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 023 | [The feel pass](iterations/023-feel.md) | 16 new synthesised sounds and a yard ambience, hits drawn as ink stars, a kill's camera punch, a sound switch | ✅ awaiting the user's ears |
 | — | [Play-test 7](playtests/2026-09-30-playtest-7.md) | Totals per hex, a lag, the objective from the start, shove and pierce, surf in the ambience, which robot is mine, stencils, names; Act 3 | ✅ |
 | 024 | [Play-test 7 fixes](iterations/024-playtest-7-fixes.md) | One total per hex (the volley run on a copy), the aim's totals, the machine under your hand ringed, the opening card; the lag was shader compiles (measured, fixed); tied shoves, pierce aim, names, a hum not surf | ✅ awaiting the play-test |
+| 025 | [Act 3: the Crucible](iterations/025-act-3.md) | Furnace flues, conduits, the Core that pulses its ring; three boards; the run ends at the Core (bot 66.0% over three acts) | ✅ awaiting the play-test |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

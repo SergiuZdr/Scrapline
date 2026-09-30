@@ -2,6 +2,18 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [025] Act 3: the Crucible — 2026-09-30 ([detail](iterations/025-act-3.md))
+
+### Added
+- **The run goes on past The Pour** into the Crucible, the furnace-city: three new boards,
+  bigger squads of rare parts, and the run's real ending.
+- **Furnace flues**: grates that blow every other round for 3, marked red the round before.
+- **Conduits**: every enemy next to one hits 1 harder (red links show who).
+- **The Core**, the last gate: it never moves, and every third round it pulses the ring around
+  it for 4 -- hit it, then get out. Breaking it wins the run. Run bot over three acts: 66.0%.
+
+A run saved before 025 will not resume.
+
 ## [024] Play-test 7 fixes — 2026-09-30 ([detail](iterations/024-playtest-7-fixes.md))
 
 ### Changed

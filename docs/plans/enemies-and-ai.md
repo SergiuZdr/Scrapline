@@ -71,3 +71,15 @@ lobs, or by arcs run through the heaps. Same difficulty, a different fight.
 ## Roster target
 
 About 20 enemy archetypes plus 3 bosses at launch. Each act has 6–8, with some overlap.
+
+## Act 3 (025): the Foundry Mind
+
+- **Conduit** (a kind): every ally next to it hits 1 harder, drawn as red links. The combo the
+  plan asked for, readable in one glance: the telegraphed totals already include it, so killing
+  or shoving the conduit visibly lowers every number around it.
+- **The Core** (kind `heart`, the gate): never moves (`still`), anchored, builds drones every 4
+  rounds, and every third round marks every hex within 2 of it -- a round later it pulses 4 into
+  each of the crew still in the ring. The fight is a rhythm: hit it, then be out of the ring when
+  the red goes up. Its own side is not hurt by the pulse.
+- The terrain that changes the fight: **furnace flues** blow every other round (both sides; the
+  enemy AI stays off a flue about to blow, the player's bot too).
