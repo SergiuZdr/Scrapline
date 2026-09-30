@@ -2,6 +2,18 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [021] Act 2: the Slag Flats — 2026-09-30 ([detail](iterations/021-act-2.md))
+
+### Added
+- **The run goes on past the Sorting Gate**: Act 2, the Slag Flats -- a new region with the same
+  crew, three new boards, slag on the ground, bigger and harder-hitting squads.
+- **Sentinels**: plated (1 less from every hit) and bolted down (cannot be shoved).
+- **The Pour**, Act 2's gate: it marks the hexes your machines stand on and floods them with
+  slag a round later, for the rest of the fight.
+- Winning Act 2's gate wins the run. Run bot over both acts: 85.0%.
+
+A run saved before 021 will not resume.
+
 ## [019] The whole roster, made of scrap — 2026-09-30 ([detail](iterations/019-the-roster.md))
 
 The user: yes to the new Brute, to livery by maker and to TRELLIS sites; "do the rest of the roster".

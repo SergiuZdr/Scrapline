@@ -174,7 +174,7 @@
       "name": "THE SLAG FLATS",
       "_comment": "021. Laid over the run's rules one level deep while the crew is in Act 2. `arrive` is what breaking the gate before it gives.",
       "arrive": {"repair": 6, "scrap": 15},
-      "enemies": {"count_by_column": [4, 4, 4, 4, 4, 5, 5, 5, 5], "rarity_cap_by_column": [2, 2, 2, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 4, "hp_all": 3, "boss_escorts": 4},
+      "enemies": {"count_by_column": [4, 4, 4, 4, 4, 5, 5, 5, 5], "rarity_cap_by_column": [2, 2, 2, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 4, "hp_all": 3, "boss_escorts": 4, "bonus": {"damage": 1}},
       "kinds": {"chance_by_column": [40, 50, 50, 60, 60, 70, 70, 80, 80], "weights": {"tracker": 20, "bomber": 20, "warden": 15, "hive": 15, "sentinel": 30}},
       "terrain": {"slag": [1, 3]}
     }
