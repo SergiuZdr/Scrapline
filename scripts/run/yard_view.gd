@@ -151,7 +151,7 @@ func set_crew(crew: Array) -> void:
 		var root := Node3D.new()
 		add_child(root)
 		var model: Node3D = ConstructView.build_parts(PackedStringArray(member["parts"]), _db,
-			Color("4fa8d8"), int(member.get("level", 0)), alive[slot] + 1)
+			Color("4fa8d8"), int(member.get("level", 0)))
 		Ink.dress_machine(model, PackedStringArray(member["parts"]), Ink.YOURS)
 		model.scale = Vector3.ONE * CREW_SCALE
 		root.add_child(model)

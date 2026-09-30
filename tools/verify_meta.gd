@@ -72,7 +72,8 @@ func _run() -> void:
 	# Unlocked things reach the run.
 	var opts: Dictionary = Meta.options(meta, seen, "wall", 1)
 	var tough: RunSetup = _setup(db, opts)
-	_check("an unlocked crew starts the run", String(RunSim.start(tough).crew[0]["name"]) == "Bulwark")
+	_check("an unlocked crew starts the run", Array(RunSim.start(tough).crew[0]["parts"])[0] == "ch_bulwark"
+		and String(RunSim.start(tough).crew[0]["name"]) == String((((meta["crews"] as Dictionary)["wall"] as Dictionary)["crew"] as Array)[0]["name"]))
 	_check("an unlocked tier's overlay is in the rules", int(tough.rules["enemies"]["hp_all"]) == 2
 		and int(db.run_rules["enemies"].get("hp_all", 0)) == 0)
 	_check("unlocked parts are back in the pools", (tough.pools["arm"] as Array).has("ar_maul") and (opts["locked"] as Array).is_empty()

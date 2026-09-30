@@ -85,6 +85,12 @@ const T_ATTACK: float = 0.14
 const T_HIT: float = 0.16
 const T_DESTROY: float = 0.30
 const T_BANNER: float = 0.30
+## The beat between consequences of one cause that are played together (play-test 7), and the
+## events that are.
+const T_TOGETHER: float = 0.05
+const CONCURRENT: Array[int] = [GridEv.DAMAGE, GridEv.DESTROYED, GridEv.PROP_HIT, GridEv.PROP_BROKEN,
+	GridEv.EXPLOSION, GridEv.PILE_DROPPED, GridEv.BUMP, GridEv.MARKED, GridEv.PART_TORN, GridEv.HEAT,
+	GridEv.PILE_LOST]
 
 ## The shakedown (012): set in `scenes/shakedown.tscn`.
 @export var tutorial: bool = false
@@ -98,6 +104,8 @@ var _coach: Control
 var _coach_marker: Node3D
 ## The route the picked machine would walk to the hovered hex (dots), rebuilt on hover.
 var _path_root: Node3D
+## The amber ring and chevron on the machine under the player's hand (play-test 7).
+var _sel_marker: Node3D
 var _seed: int = 2026
 var _bot: bool = false
 ## The fight belongs to the live run (`Run`): read from it, saved into it, reported to it.
@@ -223,17 +231,88 @@ func _start_fight() -> void:
 	_state = CombatSim.replay(_setup, _actions)
 	_build_board()
 	_frame_camera()
+	# The objective is up before anything moves (play-test 7), on the opening card and in its plate.
+	var status: Dictionary = CombatSim.objective_status(_state)
+	_hud.set_objective(String(status["text"]), false)
+	_busy = true
 	if _actions.is_empty():
 		# A fresh fight plays from the very start, so the models start where the SETUP
 		# puts them and the enemies' opening moves and grabs play out on screen.
 		_spawn_initial()
-		_shown = 0
-		await _play_new_events()
 	else:
 		# A resumed fight does not replay its history on screen: it opens on the turn.
 		_spawn_units()
+	await _opening(String(status["text"]))
+	if _actions.is_empty():
+		_shown = 0
+		await _play_new_events()
+	else:
 		_shown = _state.events.size()
 	_after_events()
+
+
+## The opening card over the board while one of every effect is drawn behind it (play-test 7).
+## On this Mac's GL driver the first draw of each kind of material compiled its shader on the
+## spot -- 300 ms a time, mid-fight, which read as the game hanging whenever a lot happened at
+## once. Here they compile under the card instead. The card stays long enough to be read.
+func _opening(objective: String) -> void:
+	var headless: bool = DisplayServer.get_name() == "headless"
+	var shown_at: int = Time.get_ticks_msec()
+	_hud.show_opening(_setup_name(), objective)
+	var cell := Vector2i(_setup.width / 2, _setup.height / 2)
+	var at: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
+	var hot := Color("ff7a3c")
+	var before: Array = _marks_root.get_children()
+	_vfx.impact(at, hot, 1.0)
+	_vfx.muzzle_flash(at, at + Vector3(1, 0, 0), hot)
+	_vfx.burst(at, hot, 1.2)
+	_vfx.fireball(at, 0.6)
+	_vfx.destruction(at, hot)
+	_tracer(at + Vector3(0, 0.7, 0), at + Vector3(1.5, 0.6, 0), hot)
+	_float_text(at, "-1", UIKit.RED)
+	_letters(at, "BOOM!", Ink.ACTION)
+	_badge("-3 KO", at, Ink.DANGER, 1.0)
+	_marker_label("warm", at, Ink.PAPER, 24)
+	_spawn_marker(-1, cell)
+	_arrival_marker(cell)
+	_flood_marker(cell)
+	_throw_arrow(cell, Hex.neighbor(cell, 0))
+	_intent_marker_bar(at, at + Vector3(1.5, 0, 0))
+	# Every style of hex mark, and the HUD as it will first be drawn.
+	var ring: Array[Vector2i] = Hex.neighbors(cell)
+	var styles: Array = MARK_STYLES.keys()
+	for i: int in styles.size():
+		var quads: Dictionary = _threat_quads if i % 2 == 0 else _hint_quads
+		_mark(quads, ring[i % ring.size()] if _state.inside(ring[i % ring.size()]) else cell, styles[i])
+	_refresh_hud(CombatSim.threats(_state))
+	var pile: bool = not _pile_views.has(cell)
+	if pile:
+		_spawn_pile(cell)
+	var marker: Node3D = _build_selection_marker() if _sel_marker == null else _sel_marker
+	_sel_marker = marker
+	marker.visible = true
+	marker.position = at
+	for i: int in 4:
+		await get_tree().process_frame
+	# Marks go now. The tracer, the float and the lettering are hidden and left to finish their
+	# own tweens (freeing them under a running tween would call into a freed node).
+	_clear_marks()
+	for child: Node in _marks_root.get_children():
+		if not before.has(child) and child is Node3D:
+			(child as Node3D).visible = false
+	_vfx.settle()
+	_hud.set_info("", "")
+	_hud.set_hint("")
+	if pile:
+		_remove_pile(cell)
+	var left: float = 0.0 if headless or _bot else 1.4 - float(Time.get_ticks_msec() - shown_at) / 1000.0
+	if left > 0.0:
+		await _wait(left)
+	_hud.hide_opening(0.0 if headless else 0.3)
+
+
+func _setup_name() -> String:
+	return _setup.fight_name if not _setup.fight_name.is_empty() else "The Fight"
 
 
 ## The coach's marker: stands on `cell`, or hides for null.
@@ -851,10 +930,7 @@ func _build_view(u: GridUnit) -> Dictionary:
 	_units_root.add_child(root)
 
 	var colour: Color = COL_PLAYER if u.team == GridUnit.TEAM_PLAYER else COL_ENEMY
-	# Crew machines carry their crew number; an enemy a two-digit number from the fight's
-	# seed, the same every replay (presentation only).
-	var number: int = u.slot + 1 if u.team == GridUnit.TEAM_PLAYER else 10 + IntentAI.mix(_setup.rng_seed, u.ref, 7, 29) % 89
-	var model: Node3D = _cache_model() if u.objective else ConstructView.build_parts(u.part_ids, _db, colour, u.level, number)
+	var model: Node3D = _cache_model() if u.objective else ConstructView.build_parts(u.part_ids, _db, colour, u.level)
 	if not u.objective:
 		Ink.dress_machine(model, u.part_ids, colour)
 	# The gate's keeper is bigger than anything else on the board (013).
@@ -906,6 +982,8 @@ func _build_view(u: GridUnit) -> Dictionary:
 
 	var view: Dictionary = {"root": root, "model": model, "rig": rig, "ring": ring, "tag": tag, "dead": false}
 	view["extras"] = root.get_children().filter(func(n: Node) -> bool: return n.has_meta("label_of"))
+	if not (view["extras"] as Array).is_empty():
+		view["loot"] = view["extras"]
 	_set_tag(view, u)
 	for w: int in u.weapons.size():
 		if not u.can_fire(w):
@@ -1107,6 +1185,28 @@ func _set_tag(view: Dictionary, u: GridUnit) -> void:
 	if not status.is_empty():
 		lines.append(" · ".join(status))
 	(view["tag"] as Label3D).text = "\n".join(lines)
+	_place_loot(view)
+
+
+## The scrap mark sits right beside the HP figures, on the tag's first line (play-test 7: at a
+## fixed spot left of the tag's centre it overlapped a long status line and floated beside a
+## tag it no longer lined up with). Offset in the billboard's plane, so it holds on any turn.
+func _place_loot(view: Dictionary) -> void:
+	if not view.has("loot"):
+		return
+	var tag: Label3D = view["tag"]
+	var lines: PackedStringArray = tag.text.split("\n")
+	var font: Font = tag.font
+	var width: float = font.get_string_size(lines[0], HORIZONTAL_ALIGNMENT_LEFT, -1, tag.font_size).x * tag.pixel_size
+	var line_h: float = font.get_height(tag.font_size) * tag.pixel_size
+	var lift := Vector2(-(width * 0.5 + 0.24), float(lines.size() - 1) * 0.5 * line_h)
+	for node: Variant in (view["loot"] as Array):
+		if node is Sprite3D:
+			(node as Sprite3D).offset = lift / (node as Sprite3D).pixel_size
+		elif node is Node3D:
+			for child: Node in (node as Node3D).get_children():
+				if child is Sprite3D:
+					(child as Sprite3D).offset = lift / (child as Sprite3D).pixel_size
 
 
 func _refresh_tag(ref: int) -> void:
@@ -1157,6 +1257,71 @@ func _process(delta: float) -> void:
 	for ref: Variant in _views:
 		((_views[ref] as Dictionary)["rig"] as ConstructRig).update(delta)
 	_declutter()
+	_follow_selection()
+
+
+## Play-test 7: "make it easier to see which robot I am controlling". The machine under your
+## hand stands in a wide amber ring (amber is the player's action) with an amber chevron bobbing
+## over its tag. Both follow it as it walks and sit above wherever its labels were laid out.
+func _follow_selection() -> void:
+	var view: Dictionary = _views.get(_selected, {})
+	if view.is_empty() or bool(view.get("dead", false)) or _state == null or _state.outcome != CombatState.ONGOING:
+		if _sel_marker != null:
+			_sel_marker.visible = false
+		return
+	if _sel_marker == null:
+		_sel_marker = _build_selection_marker()
+	var root: Node3D = view["root"]
+	_sel_marker.visible = true
+	_sel_marker.position = root.position
+	var tag: Label3D = view["tag"]
+	var lines: int = tag.text.count("\n") + 1
+	(_sel_marker.get_node("chevron") as Node3D).position.y = tag.position.y + 0.7 + float(lines - 1) * 0.12
+
+
+func _build_selection_marker() -> Node3D:
+	var marker := Node3D.new()
+	add_child(marker)
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.6
+	torus.outer_radius = 0.74
+	torus.rings = 32
+	torus.ring_segments = 4
+	ring.mesh = torus
+	ring.scale = Vector3(1, 0.3, 1)
+	ring.position.y = 0.05
+	ring.material_override = Ink.glow(Ink.ACTION, 0.6)
+	Ink.line(ring, Ink.LINE_ACT)
+	marker.add_child(ring)
+	var pulse := ring.create_tween().set_loops()
+	pulse.tween_property(ring, "scale", Vector3(1.1, 0.3, 1.1), 0.5).set_trans(Tween.TRANS_SINE)
+	pulse.tween_property(ring, "scale", Vector3(1.0, 0.3, 1.0), 0.5).set_trans(Tween.TRANS_SINE)
+	var holder := Node3D.new()
+	holder.name = "chevron"
+	marker.add_child(holder)
+	# A drawn arrow, not a cone: from the board camera's pitch a cone reads as a diamond.
+	var arrow := Sprite3D.new()
+	arrow.texture = Ink.texture("select_arrow", Vector2i(96, 96), func(image: Image) -> void:
+		image.fill(Color(0, 0, 0, 0))
+		for y: int in 96:
+			for x: int in 96:
+				# A downward triangle, amber in an ink edge.
+				var half: float = (86.0 - float(y)) * 0.52
+				var dx: float = absf(float(x) - 47.5)
+				if y < 8 or y > 86 or dx > half:
+					continue
+				image.set_pixel(x, y, Ink.INK if (dx > half - 7.0 or y < 15) else Ink.ACTION))
+	arrow.pixel_size = 0.005
+	arrow.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	arrow.no_depth_test = true
+	arrow.shaded = false
+	arrow.render_priority = 5
+	holder.add_child(arrow)
+	var bob := arrow.create_tween().set_loops()
+	bob.tween_property(arrow, "position:y", 0.14, 0.4).set_trans(Tween.TRANS_SINE)
+	bob.tween_property(arrow, "position:y", 0.0, 0.4).set_trans(Tween.TRANS_SINE)
+	return marker
 
 
 ## Board labels never overlap (016; play-test 6 caught "TRACKER" under an order badge and a
@@ -1210,17 +1375,12 @@ func _declutter() -> void:
 		return ta < tb or (ta == tb and (a["box"] as Rect2).position.x < (b["box"] as Rect2).position.x))
 	for group: Dictionary in groups:
 		var box: Rect2 = group["box"]
-		var shift: float = 0.0
-		for pass_index: int in 8:
-			var moved: bool = false
-			for other: Rect2 in placed:
-				var here := Rect2(box.position + Vector2(0, shift), box.size)
-				if here.intersects(other):
-					shift = other.end.y - box.position.y + 3.0
-					moved = true
-			if not moved:
-				break
-		if shift > 0.0:
+		# Play-test 7: always pushing DOWN walked a crowded tag onto its own machine's body.
+		# Both ways are tried and the shorter one is taken.
+		var down_shift: float = _clear_shift(box, placed, 1.0)
+		var up_shift: float = _clear_shift(box, placed, -1.0)
+		var shift: float = down_shift if absf(down_shift) <= absf(up_shift) else up_shift
+		if shift != 0.0:
 			# Screen pixels per metre of world height at this group, from the camera itself.
 			var anchor: Vector3 = group["anchor"]
 			var per_m: float = absf(_camera.unproject_position(anchor - Vector3(0, 1, 0)).y - _camera.unproject_position(anchor).y)
@@ -1230,6 +1390,22 @@ func _declutter() -> void:
 				if n != null and is_instance_valid(n):
 					n.position = (n.get_meta("base_pos", n.position) as Vector3) - Vector3(0, down, 0)
 		placed.append(Rect2(box.position + Vector2(0, shift), box.size))
+
+
+## How far (in screen pixels, signed by `sense`: +1 down, -1 up) `box` must move to clear every
+## rect in `placed`.
+func _clear_shift(box: Rect2, placed: Array[Rect2], sense: float) -> float:
+	var shift: float = 0.0
+	for pass_index: int in 8:
+		var moved: bool = false
+		for other: Rect2 in placed:
+			var here := Rect2(box.position + Vector2(0, shift), box.size)
+			if here.intersects(other):
+				shift = (other.end.y - box.position.y + 3.0) if sense > 0.0 else (other.position.y - box.end.y - 3.0)
+				moved = true
+		if not moved:
+			break
+	return shift
 
 
 ## A billboard label's box on screen: its own quad's size, centred where it projects.
@@ -1279,7 +1455,15 @@ func _play_new_events() -> void:
 				_shown += 1
 			await _walk(actor, path)
 			continue
-		await _animate(e)
+		# Play-test 7: one shot through three machines, or a drum going up among them, played
+		# its hits one after another, a sixth of a second each -- and read as lag. What one cause
+		# does now lands together: each is started, and the next follows a beat later.
+		var next: int = int(_state.events[_shown][GridEv.F_KIND]) if _shown < _state.events.size() else -1
+		if CONCURRENT.has(int(e[GridEv.F_KIND])) and CONCURRENT.has(next):
+			_animate(e)
+			await _wait(T_TOGETHER)
+		else:
+			await _animate(e)
 		while _vfx.is_frozen():
 			await get_tree().process_frame
 	_busy = false
@@ -1509,7 +1693,7 @@ func _lob(from: Vector3, to: Vector3, colour: Color) -> void:
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.albedo_color = colour
-	shell.material_override = material
+	shell.material_override = Ink.hold(material)
 	_marks_root.add_child(shell)
 	var arc_height: float = 1.2 + from.distance_to(to) * 0.25
 	var tween := create_tween()
@@ -1546,6 +1730,7 @@ func _refresh_tag_from_event(view: Dictionary, ref: int) -> void:
 	var u: GridUnit = _state.unit(ref)
 	var hp_now: int = int(e[GridEv.F_V2])
 	(view["tag"] as Label3D).text = "%d/%d" % [hp_now, u.max_hp]
+	_place_loot(view)
 
 
 func _shoved(actor: int, target: int, cell: Vector2i) -> void:
@@ -1656,7 +1841,7 @@ func _tracer(from: Vector3, to: Vector3, colour: Color) -> void:
 	haze.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	haze.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	haze.albedo_color = Color(colour, 0.35)
-	glow.material_override = haze
+	glow.material_override = Ink.hold(haze)
 	_marks_root.add_child(glow)
 	glow.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
 	var haze_fade := create_tween()
@@ -1666,14 +1851,15 @@ func _tracer(from: Vector3, to: Vector3, colour: Color) -> void:
 	var box := BoxMesh.new()
 	box.size = Vector3(0.04, 0.04, from.distance_to(to))
 	beam.mesh = box
+	# Additive and over-bright rather than emissive (play-test 7): the emissive, transparent
+	# version recompiled its shader on every shot here -- a 300 ms freeze -- however it was held.
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.albedo_color = colour.lerp(Color.WHITE, 0.5)
-	material.emission_enabled = true
-	material.emission = colour
-	material.emission_energy_multiplier = 2.5
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	beam.material_override = material
+	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	var hot: Color = colour.lerp(Color.WHITE, 0.5)
+	material.albedo_color = Color(hot.r * 2.5, hot.g * 2.5, hot.b * 2.5, 1.0)
+	beam.material_override = Ink.hold(material)
 	_marks_root.add_child(beam)
 	beam.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
 	var tween := create_tween()
@@ -1796,6 +1982,7 @@ func _refresh() -> void:
 					_mark(_threat_quads, Vector2i(victim.x, victim.y), COL_THREAT)
 				_mark(_threat_quads, threat["end"], COL_THREAT)
 		_intent_marker(int(ref), threat, full)
+	_volley_badges(threats)
 
 	for ref: Variant in _state.spawn_marks:
 		_mark(_threat_quads, _state.spawn_marks[ref], COL_THREAT if CombatSim.drone_in(_state, int(ref)) <= 1 else COL_SPAWN)
@@ -1846,6 +2033,7 @@ func _refresh() -> void:
 ## arrow to where it is thrown. The info panel says the same in words.
 func _preview_marks(sel: GridUnit, w: int, cell: Vector2i) -> void:
 	var preview: Dictionary = CombatSim.preview_attack(_state, sel.ref, w, cell)
+	_aim_badges(preview.get("effects", []))
 	for effect: Dictionary in (preview.get("effects", []) as Array):
 		if not effect.has("prop"):
 			continue
@@ -1862,6 +2050,20 @@ func _preview_marks(sel: GridUnit, w: int, cell: Vector2i) -> void:
 			var victim: GridUnit = _state.unit(int(hit["ref"]))
 			var from := Vector2i(victim.x, victim.y)
 			_throw_arrow(from, Hex.neighbor(from, Hex.direction(Vector2i(sel.x, sel.y), from)))
+
+
+## Play-test 7: what the aimed attack does, on the board -- an amber total on every machine it
+## hurts (the player's action is amber), KO where it kills, at the hex's far edge so it never
+## sits on the enemy's own total. From the same dry run as the info panel.
+func _aim_badges(effects: Array) -> void:
+	for effect: Dictionary in effects:
+		if effect.has("prop") or int(effect.get("hp_lost", 0)) <= 0:
+			continue
+		var t: GridUnit = _state.unit(int(effect["ref"]))
+		if t == null:
+			continue
+		var word: String = " KO" if bool(effect["killed"]) else ""
+		_badge("-%d%s" % [int(effect["hp_lost"]), word], _to_world(t.x, t.y) + Vector3(0, 0.05, -HEX * 0.6), Ink.ACTION, 1.0)
 
 
 ## A flat amber arrow on the ground, inked: this goes there.
@@ -1903,7 +2105,7 @@ func _refresh_hud(threats: Dictionary) -> void:
 			"can_move": not CombatSim.reachable(_state, u.ref).is_empty(),
 			"can_act": not u.acted and not u.seized and u.has_weapon(),
 			"selected": u.ref == _selected,
-			"parts": Array(u.part_ids), "level": u.level, "number": u.slot + 1,
+			"parts": Array(u.part_ids), "level": u.level,
 		})
 	_hud.set_crew(cards)
 	var status: Dictionary = CombatSim.objective_status(_state)
@@ -2006,7 +2208,7 @@ func _preview_text(preview: Dictionary) -> String:
 ## into a pit, moved, and every prop that breaks. Built from the REAL rules run on a copy.
 func _effects_text(effects: Array, preview: Dictionary) -> String:
 	var lines: PackedStringArray = []
-	for effect: Dictionary in effects:
+	for effect: Dictionary in _nearest_first(effects):
 		if effect.has("prop"):
 			var cell: Vector2i = effect["prop"]
 			var kind: String = String((_state.props.get(cell, {"kind": "prop"}) as Dictionary)["kind"])
@@ -2028,6 +2230,34 @@ func _effects_text(effects: Array, preview: Dictionary) -> String:
 	if lines.is_empty():
 		return "Nothing there is affected."
 	return "\n".join(lines)
+
+
+## Play-test 7: the preview reads from the shooter outwards -- the other side's machines nearest
+## first, then your own, then props -- so "robot, drum, enemy" lists the enemy's damage first.
+func _nearest_first(effects: Array) -> Array:
+	var sel: GridUnit = _state.unit(_selected) if _selected >= 0 else null
+	var from := Vector2i(sel.x, sel.y) if sel != null else Vector2i.ZERO
+	var keyed: Array = []
+	for effect: Dictionary in effects:
+		var group: int = 2
+		var cell: Vector2i = from
+		if effect.has("prop"):
+			cell = effect["prop"]
+		else:
+			var t: GridUnit = _state.unit(int(effect["ref"]))
+			if t != null:
+				group = 1 if t.team == GridUnit.TEAM_PLAYER else 0
+				cell = Vector2i(t.x, t.y)
+		keyed.append([group, Hex.distance(from, cell), keyed.size(), effect])
+	keyed.sort_custom(func(a: Array, b: Array) -> bool:
+		for i: int in 3:
+			if int(a[i]) != int(b[i]):
+				return int(a[i]) < int(b[i])
+		return false)
+	var out: Array = []
+	for k: Array in keyed:
+		out.append(k[3])
+	return out
 
 
 func _threat_summary(threats: Dictionary) -> String:
@@ -2055,11 +2285,21 @@ func _threat_summary(threats: Dictionary) -> String:
 ## A card's line: short enough never to be cut off (play-test 6: "Brawler · move 3 · plate
 ## armour · th..."). The damage type and the rest are in the info panel.
 func _card_line(u: GridUnit) -> String:
-	return "%s  ·  move %d  ·  %s" % [u.role.capitalize(), u.move,
-		String((_db.combat_rules.get("armor_types", []) as Array)[u.armor_type])]
+	return "%s  ·  %s  ·  move %d" % [_frame_of(u), u.role.capitalize(), u.move]
+
+
+## The frame a machine is built on ("Brute"): crew machines carry their own names now
+## (play-test 7), so the frame is said beside it.
+func _frame_of(u: GridUnit) -> String:
+	var chassis: String = String(u.part_ids[0]) if not u.part_ids.is_empty() else ""
+	return String((_db.parts.get(chassis, {}) as Dictionary).get("name", "Machine")).replace(" Frame", "")
 
 
 func _unit_line(u: GridUnit) -> String:
+	if u.team == GridUnit.TEAM_PLAYER:
+		return "%s frame  ·  %s  ·  move %d  ·  %s armour  ·  %s" % [_frame_of(u), u.role.capitalize(), u.move,
+			String((_db.combat_rules.get("armor_types", []) as Array)[u.armor_type]),
+			String((_db.combat_rules.get("damage_types", []) as Array)[u.damage_type])]
 	return "%s  ·  move %d  ·  %s armour  ·  %s" % [u.role.capitalize(), u.move,
 		String((_db.combat_rules.get("armor_types", []) as Array)[u.armor_type]),
 		String((_db.combat_rules.get("damage_types", []) as Array)[u.damage_type])]
@@ -2128,9 +2368,9 @@ func _clear_marks() -> void:
 			child.queue_free()
 
 
-## An intent's badge (its firing order, on the hex it will hit) and, when `full`, a red bar
-## from the shooter along its whole line. Grey and MISSES when the shooter can no longer
-## reach (it was shoved); LOCKED for a tracker.
+## An intent that will MISS (its shooter was shoved out of reach) says so on the hex it was
+## aimed at; when `full`, a red bar runs from the shooter along its whole line. What the volley
+## does is `_volley_badges`: one total per hex, not one badge per shot.
 func _intent_marker(ref: int, threat: Dictionary, full: bool) -> void:
 	var u: GridUnit = _state.unit(ref)
 	var legal: bool = bool(threat["legal"])
@@ -2138,28 +2378,14 @@ func _intent_marker(ref: int, threat: Dictionary, full: bool) -> void:
 	var end: Vector2i = threat["end"] if legal else threat["aim"]
 	var to: Vector3 = _to_world(end.x, end.y) + Vector3(0, 0.35, 0)
 	var colour: Color = Ink.DANGER if legal else Color(0.6, 0.6, 0.6, 0.7)
-	var text: String = str(int(threat["order"]))
 	if not legal:
-		text += " MISSES"
-	elif int(threat.get("lock", -1)) >= 0:
-		text += " LOCKED"
-	# On the ground at the hex's near edge, where it names the hex and hides no machine.
-	_badge(text, to + Vector3(0, -0.2, HEX * 0.62), Ink.DANGER if legal else colour, 1.0 if legal else 0.8)
-	# The shooter wears its number too, just over its tag's top line, so a badge can be traced
-	# back. Lifted in the billboard's plane, not in world height: the camera looks down, so a
-	# world-height step shows at about half its size and the badge sat on the tag's first line.
-	var tag_y: float = 2.35 if u.kind == "sorter" else 1.75
-	var half: float = 0.14
-	if _views.has(ref):
-		# From the text, not `get_aabb()`: a label's mesh is rebuilt a frame after its text
-		# changes, so right after `_set_tag` its box still measures the old text.
-		var tag: Label3D = (_views[ref] as Dictionary)["tag"]
-		tag_y = (tag.get_meta("base_pos", tag.position) as Vector3).y
-		half = float(tag.text.count("\n") + 1) * float(tag.font_size) * tag.pixel_size * 0.6
-	_badge(str(int(threat["order"])), _to_world(u.x, u.y) + Vector3(0, tag_y, 0), Ink.DANGER, 0.7, ref,
-		Vector2(0.0, half + 0.21 * 0.7 + 0.04))
+		_badge("0 MISSES", to + Vector3(0, -0.2, HEX * 0.62), colour, 0.8)
 	if not full or from.distance_to(to) < 0.01:
 		return
+	_intent_marker_bar(from, to, colour)
+
+
+func _intent_marker_bar(from: Vector3, to: Vector3, colour: Color = Ink.DANGER) -> void:
 	var bar := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = Vector3(0.07, 0.03, from.distance_to(to))
@@ -2168,10 +2394,29 @@ func _intent_marker(ref: int, threat: Dictionary, full: bool) -> void:
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.albedo_color = colour
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	bar.material_override = material
+	bar.material_override = Ink.hold(material)
 	bar.set_meta("intent", true)
 	_marks_root.add_child(bar)
 	bar.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
+
+
+## Play-test 7: "when several enemies hit one spot, show one number -- the total", and whatever
+## stands in a line's way shows what it takes too. The whole volley is run on a copy of the
+## fight (`CombatSim.incoming`), so the number is what END TURN will do: every machine's total
+## on its hex (KO if it will not survive), a prop's on its own. LOCKED where a tracker has it.
+func _volley_badges(threats: Dictionary) -> void:
+	var locked: Dictionary = {}
+	for ref: Variant in threats:
+		if bool(threats[ref]["legal"]) and int(threats[ref].get("lock", -1)) >= 0:
+			locked[int(threats[ref]["lock"])] = true
+	var volley: Dictionary = CombatSim.incoming(_state)
+	for hit: Dictionary in (volley["units"] as Array):
+		var cell: Vector2i = hit["cell"]
+		var word: String = " KO" if bool(hit["killed"]) else (" LOCKED" if locked.has(int(hit["ref"])) else "")
+		_badge("-%d%s" % [int(hit["hp_lost"]), word], _to_world(cell.x, cell.y) + Vector3(0, -0.2, HEX * 0.62), Ink.DANGER, 1.0)
+	for hit: Dictionary in (volley["props"] as Array):
+		var cell: Vector2i = hit["cell"]
+		_badge("-%d" % int(hit["hp_lost"]), _to_world(cell.x, cell.y) + Vector3(0, -0.2, HEX * 0.62), Ink.DANGER, 0.8)
 
 
 func _marker_label(text: String, at: Vector3, colour: Color, size: int) -> void:
@@ -2195,9 +2440,11 @@ func _marker_label(text: String, at: Vector3, colour: Color, size: int) -> void:
 ## A MISSES or LOCKED suffix hangs under it.
 func _badge(text: String, at: Vector3, colour: Color, scale: float, owner_ref: int = -1, lift: Vector2 = Vector2.ZERO) -> void:
 	var nodes: Array[Node3D] = []
-	var disc: Node3D = _disc(at, 0.21 * scale, Ink.INK, colour, 4, lift)
-	nodes.append(disc)
 	var parts: PackedStringArray = text.split(" ", false, 1)
+	# A total like "-12" needs a wider disc than a single figure.
+	var radius: float = 0.21 * scale * (1.0 + 0.18 * float(maxi(0, parts[0].length() - 1)))
+	var disc: Node3D = _disc(at, radius, Ink.INK, colour, 4, lift)
+	nodes.append(disc)
 	var label := Label3D.new()
 	label.text = parts[0]
 	label.font = UIKit.font_comic()
@@ -2226,7 +2473,7 @@ func _badge(text: String, at: Vector3, colour: Color, scale: float, owner_ref: i
 		word.render_priority = 6
 		word.outline_render_priority = 5
 		word.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		word.offset = (lift + Vector2(0.21 * scale + 0.05, 0.0)) / 0.005
+		word.offset = (lift + Vector2(radius + 0.05, 0.0)) / 0.005
 		word.position = at
 		nodes.append(word)
 	for node: Node3D in nodes:
@@ -2261,7 +2508,7 @@ func _spawn_marker(hive_ref: int, cell: Vector2i) -> void:
 	plate_material.emission_enabled = true
 	plate_material.emission = colour
 	plate_material.emission_energy_multiplier = 0.25
-	plate.material_override = plate_material
+	plate.material_override = Ink.hold(plate_material)
 	plate.set_meta("intent", true)
 	_marks_root.add_child(plate)
 
@@ -2277,7 +2524,7 @@ func _spawn_marker(hive_ref: int, cell: Vector2i) -> void:
 	var ring_material := StandardMaterial3D.new()
 	ring_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	ring_material.albedo_color = colour
-	ring.material_override = ring_material
+	ring.material_override = Ink.hold(ring_material)
 	ring.set_meta("intent", true)
 	_marks_root.add_child(ring)
 	if urgent:
@@ -2294,7 +2541,7 @@ func _spawn_marker(hive_ref: int, cell: Vector2i) -> void:
 		ghost_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		ghost_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		ghost_material.albedo_color = Color(colour, 0.22)
-		ghost.material_override = ghost_material
+		ghost.material_override = Ink.hold(ghost_material)
 		ghost.set_meta("intent", true)
 		_marks_root.add_child(ghost)
 		var flicker := ghost.create_tween().set_loops()
@@ -2331,7 +2578,7 @@ func _spawn_marker(hive_ref: int, cell: Vector2i) -> void:
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.albedo_color = Color(colour, 0.7)
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	beam.material_override = material
+	beam.material_override = Ink.hold(material)
 	beam.set_meta("intent", true)
 	_marks_root.add_child(beam)
 	beam.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
@@ -2365,7 +2612,7 @@ func _arrival_marker(cell: Vector2i) -> void:
 	ghost_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	ghost_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	ghost_material.albedo_color = Color(COL_PAD_DANGER, 0.24)
-	ghost.material_override = ghost_material
+	ghost.material_override = Ink.hold(ghost_material)
 	ghost.set_meta("intent", true)
 	_marks_root.add_child(ghost)
 	var flicker := ghost.create_tween().set_loops()
@@ -2398,7 +2645,7 @@ func _pylon_beams() -> void:
 		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		material.albedo_color = Color(COL_PAD_DANGER, 0.75)
-		beam.material_override = material
+		beam.material_override = Ink.hold(material)
 		beam.set_meta("intent", true)
 		_marks_root.add_child(beam)
 		beam.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
@@ -2796,6 +3043,12 @@ func _end_turn() -> void:
 	_armed = false
 	_ability = -1
 	_selected = -1
+	# The enemy's next round is planned inside the END action (a fifth of a second with a full
+	# board): the banner answers the press first, so the wait reads as the enemy getting ready.
+	_busy = true
+	_hud.set_banner("ENEMY FIRE", UIKit.RED)
+	await get_tree().process_frame
+	_busy = false
 	await _act([CombatSim.ACT_END, -1, 0, 0])
 	_turn_start = _actions.size()
 

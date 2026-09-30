@@ -59,6 +59,7 @@ var _result_body: Label
 var _retry: Button
 var _title: Button
 var _continue: Button
+var _opening: Control
 
 
 func _ready() -> void:
@@ -462,7 +463,7 @@ func _fill_card(parts: Dictionary, card: Dictionary) -> void:
 			pip_style.shadow = Vector2.ZERO
 			pip.add_theme_stylebox_override("panel", pip_style)
 			bar.add_child(pip)
-	(parts["portrait"] as MachinePortrait).show_machine(card.get("parts", []), int(card.get("level", 0)), alive, int(card.get("number", -1)))
+	(parts["portrait"] as MachinePortrait).show_machine(card.get("parts", []), int(card.get("level", 0)), alive)
 	(parts["hp"] as Label).text = "%d / %d HP" % [int(card["hp"]), int(card["max_hp"])]
 	(parts["arms"] as Label).text = String(card.get("arms", ""))
 	var heat: Label = parts["heat"]
@@ -493,6 +494,59 @@ func _build_objective_plate() -> void:
 	_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_objective_label.custom_minimum_size = Vector2(CARD_SIZE.x - UIKit.SPACE_LG * 2, 0)
 	box.add_child(_objective_label)
+
+
+## The opening card (play-test 7: "the objective must be visible from the moment the board is").
+## The fight's name and its objective over a cover while the board is drawn and every effect
+## is warmed up behind it; the cover then fades and the card with it.
+func show_opening(title: String, objective: String) -> void:
+	hide_opening()
+	_opening = Control.new()
+	_opening.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_opening)
+	_opening.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var shade := ColorRect.new()
+	shade.color = Color("11141c")
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_opening.add_child(shade)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var center := CenterContainer.new()
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_opening.add_child(center)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UIKit.ink_card(UIKit.PAPER_CARD, UIKit.SPACE_XXL, UIKit.SPACE_XL, 8))
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	panel.add_child(box)
+	var name := _label(title.to_upper(), 52, UIKit.INK, UIKit.font_comic())
+	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(name)
+	var caption := _label("OBJECTIVE", UIKit.SIZE_MICRO, UIKit.INK_DIM, UIKit.font_comic())
+	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(caption)
+	var goal := _label(objective, 30, UIKit.INK, UIKit.font_comic())
+	goal.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	goal.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	goal.custom_minimum_size = Vector2(760, 0)
+	box.add_child(goal)
+
+
+func hide_opening(fade: float = 0.0) -> void:
+	if _opening == null or not is_instance_valid(_opening):
+		_opening = null
+		return
+	var card: Control = _opening
+	_opening = null
+	if fade <= 0.0:
+		card.queue_free()
+		return
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tween := card.create_tween()
+	tween.tween_property(card, "modulate:a", 0.0, fade)
+	tween.tween_callback(card.queue_free)
 
 
 func _build_result() -> void:

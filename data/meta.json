@@ -5,15 +5,15 @@
     "salvagers": {"name": "THE SALVAGERS", "text": "A brawler, a hauler and a scout: a bit of everything."},
     "wall": {"name": "THE WALL", "text": "Two anchors and a marksman: slow, plated, and it shoots from behind itself.",
       "crew": [
-        {"name": "Bulwark", "parts": ["ch_bulwark", "co_arc", "ar_hammer", "ar_pulse", "mo_ablative"]},
-        {"name": "Hauler", "parts": ["ch_hauler", "co_furnace", "ar_ripper", "ar_scatter", "mo_governor"]},
-        {"name": "Lancer", "parts": ["ch_lancer", "co_dynamo", "ar_lance", "ar_scanner", "mo_scavenger"]}
+        {"name": "Slab", "parts": ["ch_bulwark", "co_arc", "ar_hammer", "ar_pulse", "mo_ablative"]},
+        {"name": "Winch", "parts": ["ch_hauler", "co_furnace", "ar_ripper", "ar_scatter", "mo_governor"]},
+        {"name": "Needle", "parts": ["ch_lancer", "co_dynamo", "ar_lance", "ar_scanner", "mo_scavenger"]}
       ]},
     "runners": {"name": "THE RUNNERS", "text": "Three light frames: first to every pile, last to be hit, nothing to spare.",
       "crew": [
-        {"name": "Skirmisher", "parts": ["ch_skirmisher", "co_dynamo", "ar_saw", "ar_scatter", "mo_governor"]},
-        {"name": "Courier", "parts": ["ch_courier", "co_arc", "ar_pulse", "ar_lance", "mo_scavenger"]},
-        {"name": "Strider", "parts": ["ch_strider", "co_slug", "ar_scanner", "ar_ripper", "mo_ablative"]}
+        {"name": "Dash", "parts": ["ch_skirmisher", "co_dynamo", "ar_saw", "ar_scatter", "mo_governor"]},
+        {"name": "Magpie", "parts": ["ch_courier", "co_arc", "ar_pulse", "ar_lance", "mo_scavenger"]},
+        {"name": "Wick", "parts": ["ch_strider", "co_slug", "ar_scanner", "ar_ripper", "mo_ablative"]}
       ]}
   },
   "tiers": [

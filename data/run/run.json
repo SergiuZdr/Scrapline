@@ -34,7 +34,7 @@
   "starting_scrap": 10,
   "starting_crew": [
     {
-      "name": "Brute",
+      "name": "Knuckles",
       "parts": [
         "ch_brute",
         "co_slug",
@@ -44,7 +44,7 @@
       ]
     },
     {
-      "name": "Hauler",
+      "name": "Mule",
       "parts": [
         "ch_hauler",
         "co_furnace",
@@ -54,7 +54,7 @@
       ]
     },
     {
-      "name": "Strider",
+      "name": "Stilts",
       "parts": [
         "ch_strider",
         "co_arc",

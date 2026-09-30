@@ -17,7 +17,7 @@
   ],
   "player": [
     {
-      "name": "Brute",
+      "name": "Knuckles",
       "parts": [
         "ch_brute",
         "co_slug",
@@ -29,7 +29,7 @@
       "y": 7
     },
     {
-      "name": "Hauler",
+      "name": "Mule",
       "parts": [
         "ch_hauler",
         "co_furnace",
@@ -41,7 +41,7 @@
       "y": 7
     },
     {
-      "name": "Strider",
+      "name": "Stilts",
       "parts": [
         "ch_strider",
         "co_arc",

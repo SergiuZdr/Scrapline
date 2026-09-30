@@ -102,6 +102,19 @@ func clear_transients() -> void:
 			child.queue_free()
 
 
+## Drops every effect in flight and any shake or freeze: after the fight's warm-up (play-test 7),
+## which fires one of everything behind the opening card so its shaders compile there.
+func settle() -> void:
+	for child: Node in get_children():
+		child.queue_free()
+	_shake_time = 0.0
+	_shake_strength = 0.0
+	_hitstop_remaining = 0.0
+	_hitstop_cooldown = 0.0
+	if _camera_rig != null:
+		_camera_rig.rotation.z = 0.0
+
+
 ## A muzzle flash at the attacker, oriented toward the target. Sells that a shot was
 ## fired even when the projectile itself is instantaneous.
 func muzzle_flash(from: Vector3, toward: Vector3, colour: Color) -> void:
@@ -110,7 +123,7 @@ func muzzle_flash(from: Vector3, toward: Vector3, colour: Color) -> void:
 	# Blown toward white. At full damage-type chroma the flash is a solid block of the
 	# same colour the construct is painted, which is why a frozen one was mistaken for
 	# part of the construct; fire reads as fire because its core is hotter than its edge.
-	flash.material_override = _unshaded_billboard(colour.lerp(Color.WHITE, 0.55), 2.6)
+	flash.material_override = Ink.hold(_unshaded_billboard(colour.lerp(Color.WHITE, 0.55), 2.6))
 	var direction: Vector3 = (toward - from).normalized()
 	flash.position = from + Vector3(0, 0.75, 0) + direction * 0.45
 	add_child(flash)
@@ -193,7 +206,7 @@ func destruction(at: Vector3, colour: Color) -> void:
 			randf_range(0.0, 0.25))
 		material.roughness = 0.92
 		material.metallic = 0.35
-		chunk.material_override = material
+		chunk.material_override = Ink.hold(material)
 		chunk.position = origin
 		add_child(chunk)
 
@@ -230,7 +243,7 @@ func burst(at: Vector3, colour: Color, radius: float = 2.0) -> void:
 	torus.rings = 12
 	torus.ring_segments = 6
 	ring.mesh = torus
-	ring.material_override = _unshaded(colour, 2.6)
+	ring.material_override = Ink.hold(_unshaded(colour, 2.6))
 	ring.position = at + Vector3(0, 0.5, 0)
 	add_child(ring)
 
@@ -294,7 +307,7 @@ func sparks(at: Vector3, colour: Color, count: int, force: float = 1.0) -> void:
 	var hot: StandardMaterial3D = _unshaded(colour.lerp(Color.WHITE, 0.45), 2.2)
 	hot.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	hot.billboard_keep_scale = true
-	streak.material = hot
+	streak.material = Ink.hold(hot)
 	burst.mesh = streak
 	burst.position = at
 	add_child(burst)
@@ -309,7 +322,7 @@ func fireball(at: Vector3, radius: float = 1.0) -> void:
 		var ball := MeshInstance3D.new()
 		ball.mesh = _flash_mesh
 		var hot: StandardMaterial3D = _unshaded_billboard(Color("fff1c8") if layer == 0 else Color("ff8a3c"), 2.6 - float(layer) * 0.6)
-		ball.material_override = hot
+		ball.material_override = Ink.hold(hot)
 		ball.position = at + Vector3(randf_range(-0.12, 0.12), 0.35 + float(layer) * 0.15, randf_range(-0.12, 0.12))
 		ball.scale = Vector3.ONE * 0.4
 		add_child(ball)
@@ -318,15 +331,9 @@ func fireball(at: Vector3, radius: float = 1.0) -> void:
 			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		grow.tween_property(hot, "albedo_color", Color(0.6, 0.12, 0.04, 0.0), 0.42 + float(layer) * 0.08).set_delay(0.06)
 		grow.chain().tween_callback(ball.queue_free)
-	var light := OmniLight3D.new()
-	light.light_color = Color("ffb060")
-	light.light_energy = 7.0
-	light.omni_range = radius * 5.0
-	light.position = at + Vector3(0, 0.8, 0)
-	add_child(light)
-	var dim := create_tween()
-	dim.tween_property(light, "light_energy", 0.0, 0.45)
-	dim.tween_callback(light.queue_free)
+	# No light (play-test 7): the toon ramp draws the key alone, so an omni lit nothing -- and
+	# every material in its range compiled an omni-light variant of its shader on the spot,
+	# which was most of the half-second freeze on a kill.
 	smoke(at + Vector3(0, 0.5, 0), 16, radius)
 	sparks(at + Vector3(0, 0.4, 0), Color("ffb060"), 24, 1.6)
 	scorch(at, radius)
@@ -369,7 +376,7 @@ func smoke(at: Vector3, count: int, size: float = 1.0) -> void:
 	grey.albedo_texture = _soft
 	# Lighter than the ground it rises over, or dark smoke on a dark yard is invisible.
 	grey.albedo_color = Color(0.24, 0.22, 0.21, 0.6)
-	quad.material = grey
+	quad.material = Ink.hold(grey)
 	puffs.mesh = quad
 	puffs.position = at
 	add_child(puffs)
@@ -391,7 +398,7 @@ func scorch(at: Vector3, radius: float = 1.0) -> void:
 	soot.albedo_texture = _soft
 	soot.albedo_color = Color(0.02, 0.015, 0.01, 0.7)
 	soot.uv1_scale = Vector3(1, 1, 1)
-	mark.material_override = soot
+	mark.material_override = Ink.hold(soot)
 	mark.position = Vector3(at.x, 0.035, at.z)
 	add_child(mark)
 	var fade := create_tween()

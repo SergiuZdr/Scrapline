@@ -93,7 +93,7 @@ func _column(i: int) -> Control:
 	if portrait.get_parent() != null:
 		portrait.get_parent().remove_child(portrait)
 	box.add_child(portrait)
-	portrait.show_machine(_draft[i], 0, true, i + 1)
+	portrait.show_machine(_draft[i], 0, true)
 	var inner := VBoxContainer.new()
 	inner.add_theme_constant_override("separation", UIKit.SPACE_XS)
 	var margin := MarginContainer.new()

@@ -133,22 +133,23 @@ func _notes(hz: Array, each: float, amplitude: float) -> AudioStreamWAV:
 	return _wav(data)
 
 
-## The yard at night: a low hum under slow filtered wind, four seconds that loop.
+## The yard at night: machinery idling somewhere, four seconds that loop. Play-test 7: the slow
+## swell of filtered noise that was here read as surf ("this game is not about the beach"), so
+## there is no noise at all now -- two low drones beating slowly against each other and a
+## faint transformer whine, every frequency a whole number of cycles in the loop so the seam
+## is silent.
 func _ambience() -> AudioStreamWAV:
 	var seconds: float = 4.0
 	var count: int = int(SAMPLE_RATE * seconds)
 	var data := PackedByteArray()
 	data.resize(count * 2)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 90210
-	var previous: float = 0.0
 	for i: int in count:
 		var t: float = float(i) / float(count)
-		previous = previous + 0.02 * (rng.randf_range(-1.0, 1.0) - previous)
-		# Whole numbers of cycles in the loop, so the seam is silent.
-		var gust: float = 0.6 + 0.4 * sin(TAU * t)
-		var hum: float = sin(TAU * 55.0 * t * seconds) * 0.10 + sin(TAU * 82.0 * t * seconds) * 0.05
-		_write_sample(data, i, (previous * 2.2 * gust + hum) * 0.5)
+		var s: float = t * seconds
+		# 55 and 56.5 Hz beat 1.5 times a second: an engine turning over, not a wave.
+		var drone: float = sin(TAU * 55.0 * s) * 0.09 + sin(TAU * 56.5 * s) * 0.07 + sin(TAU * 110.0 * s) * 0.03
+		var whine: float = sin(TAU * 240.0 * s) * 0.012 * (0.7 + 0.3 * sin(TAU * 2.0 * t))
+		_write_sample(data, i, (drone + whine) * 0.8)
 	var stream: AudioStreamWAV = _wav(data)
 	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	stream.loop_end = count
