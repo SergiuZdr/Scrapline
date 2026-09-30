@@ -2,6 +2,23 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [024] Play-test 7 fixes — 2026-09-30 ([detail](iterations/024-playtest-7-fixes.md))
+
+### Changed
+- **One number per hex under fire**: the total the enemy's volley (and the next round's start)
+  will do there, including whatever stands in a line's way. Your aimed attack shows its own
+  totals in amber; its list reads from the nearest enemy outwards.
+- **No more half-second freezes** when a lot happens: effects stopped recompiling their shaders
+  mid-fight, and one cause's hits land together.
+- **The fight opens on a card** with the board's name and objective; the objective stays up.
+- **The machine you control** stands in an amber ring with an arrow over it.
+- The scrap mark sits on its enemy's HP line; crowded labels no longer slide onto the machines.
+- A shove that could go two ways goes the way that does more; a piercing weapon can be aimed as
+  far as its beam flies.
+- The background hum no longer sounds like the sea. No numbers painted on the machines.
+- **Crew machines have names** (Knuckles, Mule, Stilts; Slab, Winch, Needle; Dash, Magpie,
+  Wick), not their frames'.
+
 ## [023] The feel pass — 2026-09-30 ([detail](iterations/023-feel.md))
 
 ### Added

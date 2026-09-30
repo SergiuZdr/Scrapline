@@ -4,6 +4,9 @@ extends SceneTree
 ##
 ##   godot --headless --path . --script res://tools/run_bot.gd -- [--runs 100] [--set path=json ...]
 ##
+## `--from N` starts at seed 1000 + N: `--runs 38 --from 0`, `--from 38`, ... split 150 runs over
+## several processes (a batch of three-act runs takes over half an hour in one).
+##
 ## `--set` overrides one run.json number for this run of the bot only, to try a balance dial
 ## without editing the data: `--set enemies.count_by_column=[3,3,3,3,4,4,5,5,5]`. Several
 ## variants can then run side by side.
@@ -19,6 +22,11 @@ func _initialize() -> void:
 	var at: int = args.find("--runs")
 	if at >= 0 and at + 1 < args.size():
 		runs = args[at + 1].to_int()
+	# `--from N`: start at seed 1000 + N, so one batch can be split across processes.
+	var first_seed: int = 0
+	at = args.find("--from")
+	if at >= 0 and at + 1 < args.size():
+		first_seed = args[at + 1].to_int()
 	for i: int in args.size() - 1:
 		if args[i] == "--set":
 			# `path=json` into run.json; `combat.path=json` into the combat rules (enemy kinds
@@ -41,6 +49,8 @@ func _initialize() -> void:
 	var won: int = 0
 	var reasons: Dictionary = {}
 	var ended_col: Dictionary = {}
+	var ended_act: Dictionary = {}
+	var reached_act: Dictionary = {}
 	var fights: int = 0
 	var moves: int = 0
 	var boss_hp: int = 0
@@ -52,7 +62,7 @@ func _initialize() -> void:
 	var start_ms: int = Time.get_ticks_msec()
 	for r: int in runs:
 		var setup: RunSetup = RunSetup.create(db.parts, db.tiles, db.fights, db.run_rules,
-			db.combat_rules, db.balance.effectiveness, 1000 + r)
+			db.combat_rules, db.balance.effectiveness, 1000 + first_seed + r)
 		var state: RunState = RunSim.start(setup)
 		var guard: int = 0
 		while state.outcome == RunState.ONGOING and guard < 400:
@@ -79,6 +89,9 @@ func _initialize() -> void:
 			reasons[state.end_reason] = int(reasons.get(state.end_reason, 0)) + 1
 			var col: int = int(state.site(state.current)["col"])
 			ended_col[col] = int(ended_col.get(col, 0)) + 1
+			ended_act[state.act] = int(ended_act.get(state.act, 0)) + 1
+		for a: int in range(1, state.act + 1):
+			reached_act[a] = int(reached_act.get(a, 0)) + 1
 		fights += state.fights_won
 		moves += state.moves
 		scrap_left += state.scrap
@@ -99,5 +112,11 @@ func _initialize() -> void:
 	for col: Variant in cols:
 		where.append("col %d: %d" % [col, ended_col[col]])
 	print("  losses by column: %s" % ", ".join(where))
+	# 025: by act -- how many runs got there, and how many ended there.
+	var acts: PackedStringArray = []
+	for a: int in range(1, RunSim.act_count(RunSetup.create(db.parts, db.tiles, db.fights, db.run_rules,
+			db.combat_rules, db.balance.effectiveness, 1000)) + 1):
+		acts.append("act %d: reached %d, lost %d" % [a, int(reached_act.get(a, 0)), int(ended_act.get(a, 0))])
+	print("  by act: %s" % ", ".join(acts))
 	print("")
 	quit(1 if errors > 0 else 0)
