@@ -53,7 +53,7 @@ choice of crew and tier.
   (crew, tier, START) once something is unlocked (`shots/022/choose.png`); the run's end lists what
   it unlocked and what comes next; the title shows "UNLOCKED n / 16".
 - `verify_meta.gd`: 57 passed (ten runs of five fights with one win: every one of the ten unlocks
-  something). SUITES.
+  something). Every suite passes; run bot over 150 two-act runs: **75.3%**, 0 illegal actions (021's 85.0% was a 60-run sample: the larger run is the number to keep).
 
 Found on the way: 021 shipped two enemy kinds with no glossary card (the onboarding suite was
 not run before its merge). Both have one now.
