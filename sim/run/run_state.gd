@@ -11,6 +11,8 @@ const LOST: int = 2
 ## indexed by id. Links are two-way: the region is a graph, not a one-way tree.
 var sites: Array[Dictionary] = []
 var current: int = 0
+## Which act the crew is in, from 1 (021). Each act is its own region.
+var act: int = 1
 var moves: int = 0
 ## Columns at or below this are consumed by the Reclaimer.
 var front_col: int = -1
@@ -78,6 +80,6 @@ func fingerprint() -> String:
 	var visited: PackedStringArray = []
 	for s: Dictionary in sites:
 		visited.append("1" if bool(s["visited"]) else "0")
-	return "cur=%d moves=%d front=%d scrap=%d hold=%d crew=[%s] cargo=[%s] visited=%s pending=%s outcome=%d built=%s scouted=%s events=%s" % [
-		current, moves, front_col, scrap, hold_size, ";".join(crew_text),
+	return "act=%d cur=%d moves=%d front=%d scrap=%d hold=%d crew=[%s] cargo=[%s] visited=%s pending=%s outcome=%d built=%s scouted=%s events=%s" % [
+		act, current, moves, front_col, scrap, hold_size, ";".join(crew_text),
 		",".join(cargo), "".join(visited), str(pending.get("kind", "")), outcome, assembled, str(scouted), ",".join(PackedStringArray(seen_events))]

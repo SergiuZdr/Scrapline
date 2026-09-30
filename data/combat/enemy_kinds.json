@@ -52,5 +52,18 @@
       ],
       "hp": 4
     }
+  },
+  "sentinel": {
+    "name": "Sentinel",
+    "text": "Old yard guard, plated and bolted down: takes 1 less from every hit and cannot be shoved.",
+    "plate": 1,
+    "anchored": true
+  },
+  "pour": {
+    "name": "The Pour",
+    "text": "The Slag Flats' keeper. Every other round it marks the hexes your machines stand on; a round later they flood with slag for the rest of the fight (2 damage a round to anything on them). Keep moving, and break it before the floor runs out.",
+    "floods": 3,
+    "every": 2,
+    "hazard": 2
   }
 }

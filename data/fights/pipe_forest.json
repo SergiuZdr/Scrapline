@@ -1,0 +1,135 @@
+{
+  "id": "pipe_forest",
+  "name": "The Pipe Forest",
+  "acts": [
+    2
+  ],
+  "_comment": "021, Act 2: standing pipe stubs (scrap heaps) break every line; slag seeps between them.",
+  "rows": [
+    "....s...",
+    ".s...s..",
+    "...l....",
+    ".s.s..s.",
+    "..l..l..",
+    ".s...s..",
+    "...r....",
+    "........"
+  ],
+  "player": [
+    {
+      "name": "Brute",
+      "parts": [
+        "ch_brute",
+        "co_slug",
+        "ar_saw",
+        "ar_hammer",
+        "mo_scavenger"
+      ],
+      "x": 1,
+      "y": 7
+    },
+    {
+      "name": "Hauler",
+      "parts": [
+        "ch_hauler",
+        "co_furnace",
+        "ar_pulse",
+        "ar_lance",
+        "mo_ablative"
+      ],
+      "x": 4,
+      "y": 7
+    },
+    {
+      "name": "Strider",
+      "parts": [
+        "ch_strider",
+        "co_arc",
+        "ar_scanner",
+        "ar_scatter",
+        "mo_governor"
+      ],
+      "x": 6,
+      "y": 7
+    }
+  ],
+  "enemy": [
+    {
+      "name": "Citadel",
+      "kind": "sentinel",
+      "parts": [
+        "ch_citadel",
+        "co_mag",
+        "ar_maul",
+        "ar_scatter",
+        "mo_reactive"
+      ],
+      "x": 0,
+      "y": 0
+    },
+    {
+      "name": "Lancer",
+      "kind": "sentinel",
+      "parts": [
+        "ch_lancer",
+        "co_dynamo",
+        "ar_railgun",
+        "ar_scanner",
+        "mo_targeting"
+      ],
+      "x": 2,
+      "y": 0
+    },
+    {
+      "name": "Bulwark",
+      "parts": [
+        "ch_bulwark",
+        "co_tesla",
+        "ar_pulse",
+        "ar_hammer",
+        "mo_coolant"
+      ],
+      "x": 6,
+      "y": 0
+    },
+    {
+      "name": "Reaper",
+      "parts": [
+        "ch_reaper",
+        "co_ember",
+        "ar_ripper",
+        "ar_saw",
+        "mo_bypass"
+      ],
+      "x": 3,
+      "y": 1
+    },
+    {
+      "name": "Skirmisher",
+      "parts": [
+        "ch_skirmisher",
+        "co_arc",
+        "ar_scatter",
+        "ar_pulse",
+        "mo_capacitor"
+      ],
+      "x": 7,
+      "y": 1
+    },
+    {
+      "name": "Courier",
+      "parts": [
+        "ch_courier",
+        "co_solvent",
+        "ar_lance",
+        "ar_scatter",
+        "mo_servo"
+      ],
+      "x": 4,
+      "y": 2
+    }
+  ],
+  "objective": {
+    "type": "rout"
+  }
+}

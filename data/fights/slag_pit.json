@@ -1,6 +1,7 @@
 {
   "id": "slag_pit",
   "name": "The Slag Pit",
+  "acts": [1, 2],
   "_comment": "A molten channel across the middle: shove enemies into it, and do not stand in it.",
   "rows": [
     "..r.....",

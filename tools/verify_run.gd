@@ -20,6 +20,7 @@ func _initialize() -> void:
 	_test_fight_feeds_the_run()
 	_test_wreck_and_rebuild()
 	_test_boss_held()
+	_test_acts()
 	_test_levels()
 	_test_perks()
 	_test_tuning()
@@ -240,6 +241,44 @@ func _test_boss_held() -> void:
 		result.outcome == CombatState.LOST and not result.crew(GridUnit.TEAM_PLAYER).is_empty())
 	RunSim.apply(state, setup, [RunSim.FIGHT, actions])
 	_check("a boss fight that is not won ends the run", state.outcome == RunState.LOST)
+
+
+## 021: breaking a gate that is not the last act's starts the next act with the same crew.
+func _test_acts() -> void:
+	var setup: RunSetup = _setup(33)
+	_check("the run has two acts", RunSim.act_count(setup) == 2)
+	var state: RunState = RunSim.start(setup)
+	var first: String = state.fingerprint()
+	var plain: RunSetup = _setup(33)
+	plain.rules = plain.rules.duplicate()
+	plain.rules.erase("acts")
+	_check("Act 1 is generated exactly as it was before acts existed",
+		RunSim.start(plain).fingerprint().replace("act=1 ", "") == first.replace("act=1 ", ""))
+	_check("Act 1's rules are the run's own", RunSim.rules_of(state, setup)["enemies"]["count_by_column"] == setup.rules["enemies"]["count_by_column"])
+	state.scrap = 7
+	state.crew[0]["level"] = 2
+	state.crew[1]["hp"] = 3
+	state.cargo.append("ar_lance")
+	var sites_before: int = state.sites.size()
+	RunSim._next_act(state, setup)
+	_check("through the gate: Act 2, at its first site, nothing pending",
+		state.act == 2 and state.current == 0 and state.pending.is_empty() and state.outcome == RunState.ONGOING)
+	_check("the crew, its levels and the hold come along", int(state.crew[0]["level"]) == 2 and state.cargo.has("ar_lance"))
+	_check("arriving repairs and pays (hp 3 -> %d, scrap 7 -> %d)" % [int(state.crew[1]["hp"]), state.scrap],
+		int(state.crew[1]["hp"]) == 9 and state.scrap == 22)
+	_check("a fresh region with the Reclaimer behind again (%d sites, was %d)" % [state.sites.size(), sites_before],
+		state.front_col == -1 and state.moves == 0 and String(state.site(state.sites.size() - 1)["type"]) == "boss")
+	_check("Act 2's squads are its own", RunSim.rules_of(state, setup)["enemies"]["count_by_column"][0] == 4
+		and (RunSim.rules_of(state, setup)["kinds"]["weights"] as Dictionary).has("sentinel"))
+	var names: Dictionary = {}
+	for id: int in state.sites.size() - 1:
+		names[String(RunSim._make_fight(state, setup, id, "skirmish")["name"])] = true
+	_check("its fights are on the Slag Flats' boards %s" % [names.keys()],
+		not names.has("The Container Row") and (names.has("The Slag Lake") or names.has("The Pipe Forest") or names.has("The Cooling Flats")))
+	var gate: Dictionary = RunSim._make_fight(state, setup, state.sites.size() - 1, "boss")
+	_check("and its gate is The Pour's", String((gate["enemy"] as Array)[0].get("kind", "")) == "pour")
+	state.act = RunSim.act_count(setup)
+	_check("the last act's gate is the end of the run", state.act >= RunSim.act_count(setup))
 
 
 ## Play-test 3: scrap buys machine levels; 011: every level also keeps one perk of three.
