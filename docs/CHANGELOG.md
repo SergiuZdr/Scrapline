@@ -2,6 +2,19 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [019] The whole roster, made of scrap — 2026-09-30 ([detail](iterations/019-the-roster.md))
+
+The user: yes to the new Brute, to livery by maker and to TRELLIS sites; "do the rest of the roster".
+
+### Changed
+- **All 40 parts are new and are the game's models**: ten frames with their own heads, legs and
+  backs; a shoulder per maker and a weapon per class; a core plate per maker; ten modules.
+- **Parts look patched from scrap**: mismatched and rusted plates, bolted repairs.
+- **Livery by maker** everywhere. `-- --models old` shows the previous roster.
+
+### Added
+- `tools/shot_roster.gd`; the `patch` zone.
+
 ## [018] Models, second pass — 2026-09-30 ([detail](iterations/018-models-second-pass.md))
 
 The user on 017: the Brute was "Lego", the workshop "a yellow brick". Still behind `--models new`.
