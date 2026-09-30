@@ -543,7 +543,7 @@ func _landmark(type: String, id: int) -> Node3D:
 		"workshop":
 			# 017: a generated landmark (route C) when the new models are asked for; its work
 			# lamp hangs over the roof, where the kit's hung inside the gantry.
-			if _generated(root, "workshop", 35.0):
+			if _generated(root, "workshop", 215.0):
 				_lamp(root, Vector3(0.0, 1.1, 0.0), Color("ffc27a"), 4.0)
 			else:
 				_prop(root, "service_gantry", Vector3(0, 0, 0), 90.0, 0.6)
@@ -584,7 +584,7 @@ func _generated(parent: Node3D, kind: String, yaw: float) -> bool:
 		return false
 	var piece: Node3D = packed.instantiate() as Node3D
 	piece.rotation_degrees.y = yaw
-	Ink.dress_prop(piece, _livery)
+	Ink.dress_set_piece(piece, _livery)
 	parent.add_child(piece)
 	return true
 

@@ -101,8 +101,11 @@ func _sites(world: Node3D, kind: String, out: String) -> void:
 		else:
 			Models.use_new(true)
 			piece = Models.site(kind).instantiate() as Node3D
-			piece.rotation_degrees.y = 35.0
-		Ink.dress_prop(piece, livery)
+			piece.rotation_degrees.y = 215.0
+		if i == 0:
+			Ink.dress_prop(piece, livery)
+		else:
+			Ink.dress_set_piece(piece, livery)
 		piece.position = Vector3((float(i) - 0.5) * 3.6, 0.0, 0.0)
 		world.add_child(piece)
 		var tag := Label3D.new()
