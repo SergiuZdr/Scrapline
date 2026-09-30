@@ -51,7 +51,7 @@ under it. All synthesised -- still no audio file in the game.
 - **The kill punch** (`combat_scene._punch`): 7% in over 0.07 s, back over 0.3 s.
 - **SOUND: ON/OFF** on the title, kept in the profile (`Profile.sound_on/set_sound`).
 - `verify_meta.gd` 59 passed: every sound a screen asks for is in the bank (it reads the
-  scripts), and SOUND OFF is kept. SUITES.
+  scripts), and SOUND OFF is kept. Every suite passes (combat 207, input 22, run 138, run UI 48, onboarding 39, save 15, assembly 140, animation 34).
 
 Not done, and not checkable from here: **nobody has listened to it.** The sounds were written
 as waveforms and never heard; levels, pitch and whether the ambience is pleasant need the user's
