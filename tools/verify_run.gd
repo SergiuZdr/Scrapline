@@ -314,6 +314,30 @@ func _test_acts() -> void:
 		and (core["enemy"] as Array).size() == 5)
 	_check("the last act's gate is the end of the run", state.act == RunSim.act_count(setup))
 
+	# 026 (play-test 8): later acts pay in rare parts; caches stand apart.
+	var rares: int = 0
+	var offered: int = 0
+	for id: int in state.sites.size() - 1:
+		state.current = id
+		for part: Variant in (RunSim.salvage(state, setup, "skirmish")["options"] as Array):
+			offered += 1
+			rares += 1 if setup.rarity(String(part)) >= 3 else 0
+	_check("Act 3's salvage leans rare (%d of %d offered)" % [rares, offered], rares * 4 >= offered)
+	var elite: Array = RunSim.salvage(state, setup, "elite")["options"]
+	_check("and an Act 3 elite always offers a rare", setup.rarity(PartTuning.base_of(String(elite[0]))) >= 3)
+	var apart: bool = true
+	var defends: int = 0
+	for seed_value: int in 60:
+		var rng := SimRNG.new(seed_value)
+		var o: Dictionary = RunSim._roll_objective(setup, rng, setup.fights["proto_yard"], "skirmish")
+		if String(o["type"]) != "defend":
+			continue
+		defends += 1
+		var c: Array = o["caches"]
+		if c.size() == 2 and Hex.distance(Vector2i(int(c[0]["x"]), int(c[0]["y"])), Vector2i(int(c[1]["x"]), int(c[1]["y"]))) < 3:
+			apart = false
+	_check("defend caches stand at least 3 hexes apart (%d defend fights)" % defends, apart and defends > 5)
+
 
 ## Play-test 3: scrap buys machine levels; 011: every level also keeps one perk of three.
 func _test_levels() -> void:

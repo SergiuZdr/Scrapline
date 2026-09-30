@@ -29,7 +29,7 @@ const CARD_SIZE := Vector2(340, 150)
 ## left this turn, its HP. The picked one is the only full card, so the column asks for less.
 const SLIM_SIZE := Vector2(340, 94)
 const WEAPON_SIZE := Vector2(310, 76)
-const ABILITY_SIZE := Vector2(250, 58)
+const ABILITY_SIZE := Vector2(250, 64)
 ## The action bar's box: right of the camera buttons, left of UNDO / END TURN.
 const BAR_LEFT: float = 356.0
 const BAR_WIDTH: float = 1150.0
@@ -276,16 +276,14 @@ func _action_button(info: Dictionary, index: int, selected: bool, ability: bool)
 		picture.position = Vector2(UIKit.SPACE_MD, (size.y - 60.0) * 0.5)
 		picture.size = Vector2(60, 60)
 		box.offset_left = UIKit.SPACE_MD + 68
-	box.add_child(_label(String(info["name"]).to_upper(), 20 if not ability else 16,
-		UIKit.INK if available else UIKit.INK_FAINT, UIKit.font_comic()))
+	# Play-test 8: the name on one line and the detail on two, each fitted to the card's own
+	# width (`UIKit.fit` steps the font down), so nothing runs off its edge or below its foot.
+	var inner: float = size.x - box.offset_left - UIKit.SPACE_SM
+	box.add_child(UIKit.fit(_label(String(info["name"]).to_upper(), 20 if not ability else 16,
+		UIKit.INK if available else UIKit.INK_FAINT, UIKit.font_comic()), inner, 1, 12))
 	var line: String = String(info["detail"]) if available else String(info["reason"])
-	var detail := _label(line, UIKit.SIZE_MICRO if ability else UIKit.SIZE_LABEL,
-		(UIKit.INK_DIM if available else UIKit.INK_RED), UIKit.font_strong())
-	# Wrapped inside the button's own width: nothing runs off its right edge.
-	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	detail.custom_minimum_size = Vector2(size.x - box.offset_left - UIKit.SPACE_SM, 0)
-	detail.max_lines_visible = 2
-	box.add_child(detail)
+	box.add_child(UIKit.fit(_label(line, UIKit.SIZE_MICRO if ability else UIKit.SIZE_LABEL,
+		(UIKit.INK_DIM if available else UIKit.INK_RED), UIKit.font_strong()), inner, 2, 10))
 	return button
 
 

@@ -91,6 +91,8 @@ const T_BANNER: float = 0.30
 ## The beat between consequences of one cause that are played together (play-test 7), and the
 ## events that are.
 const T_TOGETHER: float = 0.05
+## How long the opening card stays up at least (play-test 8).
+const OPENING_SECONDS: float = 5.0
 const CONCURRENT: Array[int] = [GridEv.DAMAGE, GridEv.DESTROYED, GridEv.PROP_HIT, GridEv.PROP_BROKEN,
 	GridEv.EXPLOSION, GridEv.PILE_DROPPED, GridEv.BUMP, GridEv.MARKED, GridEv.PART_TORN, GridEv.HEAT,
 	GridEv.PILE_LOST, GridEv.FLUE_BLEW]
@@ -281,6 +283,7 @@ func _opening(objective: String) -> void:
 	_flood_marker(cell)
 	_throw_arrow(cell, Hex.neighbor(cell, 0))
 	_intent_marker_bar(at, at + Vector3(1.5, 0, 0))
+	_intent_marker_bar(at, at + Vector3(0, 0, 1.5), Ink.DANGER, true)
 	# Every style of hex mark, and the HUD as it will first be drawn.
 	var ring: Array[Vector2i] = Hex.neighbors(cell)
 	var styles: Array = MARK_STYLES.keys()
@@ -308,7 +311,8 @@ func _opening(objective: String) -> void:
 	_hud.set_hint("")
 	if pile:
 		_remove_pile(cell)
-	var left: float = 0.0 if headless or _bot else 1.4 - float(Time.get_ticks_msec() - shown_at) / 1000.0
+	# Play-test 8: at least 5 s, so the objective can be read before the board takes over.
+	var left: float = 0.0 if headless or _bot else OPENING_SECONDS - float(Time.get_ticks_msec() - shown_at) / 1000.0
 	if left > 0.0:
 		await _wait(left)
 	_hud.hide_opening(0.0 if headless else 0.3)
@@ -974,42 +978,45 @@ func _build_view(u: GridUnit) -> Dictionary:
 	tag.outline_size = 18
 	tag.outline_modulate = Ink.INK
 	tag.modulate = Ink.PAPER
+	# Above everything on the board (play-test 8: the hatching of enemy fire hid HP).
+	tag.render_priority = 10
+	tag.outline_render_priority = 9
 	tag.set_meta("base_pos", tag.position)
 	root.add_child(tag)
 
-	# Play-test 4: not every enemy drops scrap. The ones that will say so, over their tag,
-	# in the colour of a gain -- which makes "who do I finish first" a real choice.
+	# Play-test 4: not every enemy drops scrap. Play-test 8: a mark beside the tag kept drifting
+	# with the labels, so a carrier now carries it -- a green scrap bundle on the ground at the
+	# edge of its own ring, moving with it and never among the labels.
 	if u.team == GridUnit.TEAM_ENEMY and u.carries_scrap and not u.objective:
-		var loot := Sprite3D.new()
-		loot.texture = load("res://art/icons/scrap.svg")
-		loot.pixel_size = 0.0042
-		loot.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		loot.no_depth_test = true
-		loot.shaded = false
-		loot.modulate = Ink.GAIN
-		# Beside the tag, on the left -- offset in the billboard's own plane, so it stays on the
-		# left whichever way the camera is turned.
-		loot.position = tag.position
-		loot.offset = Vector2(-0.52, 0.0) / loot.pixel_size
-		loot.render_priority = 2
-		loot.set_meta("base_pos", loot.position)
-		loot.set_meta("label_of", u.ref)
-		root.add_child(loot)
-		# On an ink disc, so the mark reads over anything behind it.
-		var back: Node3D = _disc(loot.position, 0.17, Ink.INK, Ink.GAIN, 1, Vector2(-0.52, 0.0))
-		back.set_meta("base_pos", back.position)
-		back.set_meta("label_of", u.ref)
-		root.add_child(back)
+		root.add_child(_scrap_bundle())
 
 	var view: Dictionary = {"root": root, "model": model, "rig": rig, "ring": ring, "tag": tag, "dead": false}
 	view["extras"] = root.get_children().filter(func(n: Node) -> bool: return n.has_meta("label_of"))
-	if not (view["extras"] as Array).is_empty():
-		view["loot"] = view["extras"]
 	_set_tag(view, u)
 	for w: int in u.weapons.size():
 		if not u.can_fire(w):
 			_hide_arm(view, w)
 	return view
+
+
+## What a scrap carrier wears (play-test 8): a little heap of green bolts on the ground at its
+## ring's edge -- the colour of a gain, in the scrap piles' own shapes, so "this one drops a
+## pile" reads as the pile it will become.
+func _scrap_bundle() -> Node3D:
+	var bundle := Node3D.new()
+	bundle.position = Vector3(-0.42, 0.0, 0.34)
+	var bolt: Material = Ink.toon(Ink.GAIN, "clean")
+	for i: int in 3:
+		var bit := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.13, 0.08, 0.1) * (1.0 - 0.18 * float(i))
+		bit.mesh = box
+		bit.position = Vector3(float(i % 2) * 0.09 - 0.04, 0.04 + float(i) * 0.06, float(i) * 0.03)
+		bit.rotation = Vector3(0.2 * float(i), 0.7 * float(i), 0.1)
+		bit.material_override = bolt
+		Ink.line(bit, Ink.LINE_WORLD)
+		bundle.add_child(bit)
+	return bundle
 
 
 ## A salvage cache (defend objective): a stack of strapped crates. Not a machine
@@ -1206,28 +1213,6 @@ func _set_tag(view: Dictionary, u: GridUnit) -> void:
 	if not status.is_empty():
 		lines.append(" · ".join(status))
 	(view["tag"] as Label3D).text = "\n".join(lines)
-	_place_loot(view)
-
-
-## The scrap mark sits right beside the HP figures, on the tag's first line (play-test 7: at a
-## fixed spot left of the tag's centre it overlapped a long status line and floated beside a
-## tag it no longer lined up with). Offset in the billboard's plane, so it holds on any turn.
-func _place_loot(view: Dictionary) -> void:
-	if not view.has("loot"):
-		return
-	var tag: Label3D = view["tag"]
-	var lines: PackedStringArray = tag.text.split("\n")
-	var font: Font = tag.font
-	var width: float = font.get_string_size(lines[0], HORIZONTAL_ALIGNMENT_LEFT, -1, tag.font_size).x * tag.pixel_size
-	var line_h: float = font.get_height(tag.font_size) * tag.pixel_size
-	var lift := Vector2(-(width * 0.5 + 0.24), float(lines.size() - 1) * 0.5 * line_h)
-	for node: Variant in (view["loot"] as Array):
-		if node is Sprite3D:
-			(node as Sprite3D).offset = lift / (node as Sprite3D).pixel_size
-		elif node is Node3D:
-			for child: Node in (node as Node3D).get_children():
-				if child is Sprite3D:
-					(child as Sprite3D).offset = lift / (child as Sprite3D).pixel_size
 
 
 func _refresh_tag(ref: int) -> void:
@@ -1401,6 +1386,10 @@ func _declutter() -> void:
 		var down_shift: float = _clear_shift(box, placed, 1.0)
 		var up_shift: float = _clear_shift(box, placed, -1.0)
 		var shift: float = down_shift if absf(down_shift) <= absf(up_shift) else up_shift
+		# Play-test 8: never further than the group's own height -- a tag that had to climb
+		# further went all the way to the banner. Past that, it stays and may overlap.
+		if absf(shift) > box.size.y + 4.0:
+			shift = 0.0
 		if shift != 0.0:
 			# Screen pixels per metre of world height at this group, from the camera itself.
 			var anchor: Vector3 = group["anchor"]
@@ -1769,7 +1758,6 @@ func _refresh_tag_from_event(view: Dictionary, ref: int) -> void:
 	var u: GridUnit = _state.unit(ref)
 	var hp_now: int = int(e[GridEv.F_V2])
 	(view["tag"] as Label3D).text = "%d/%d" % [hp_now, u.max_hp]
-	_place_loot(view)
 
 
 func _shoved(actor: int, target: int, cell: Vector2i) -> void:
@@ -2087,6 +2075,12 @@ func _refresh() -> void:
 func _preview_marks(sel: GridUnit, w: int, cell: Vector2i) -> void:
 	var preview: Dictionary = CombatSim.preview_attack(_state, sel.ref, w, cell)
 	_aim_badges(preview.get("effects", []))
+	# Play-test 8: a beam stops at its range + 2, at half damage past its range; say where.
+	var weapon: Dictionary = sel.weapons[w]
+	if String(weapon["shape"]) == "shot" and int(weapon["pierce"]) > 0 and bool(preview.get("legal", false)):
+		var end: Vector2i = preview["end"]
+		var top: Vector3 = _to_world(end.x, end.y) + Vector3(0, _tile_top(end.x, end.y), 0)
+		_marker_label("BEAM ENDS", top + Vector3(0, 0.1, HEX * 0.7), Ink.ACTION, 28)
 	for effect: Dictionary in (preview.get("effects", []) as Array):
 		if not effect.has("prop"):
 			continue
@@ -2252,6 +2246,14 @@ func _refresh_weapon_bar(sel: GridUnit) -> void:
 
 func _preview_text(preview: Dictionary) -> String:
 	var text: String = _effects_text(preview.get("effects", []), preview)
+	var sel: GridUnit = _state.unit(_selected) if _selected >= 0 else null
+	if sel != null and not _pending.is_empty() and not bool(_pending["ability"]):
+		var w: int = int(_pending["i"])
+		var weapon: Dictionary = sel.weapons[w]
+		var reach: int = CombatSim.weapon_reach(_state, sel, w)
+		if int(weapon["pierce"]) > 0:
+			text += "\nThe beam goes %d hexes, then stops (BEAM ENDS); past %d it does half damage." % [
+				reach + _state.setup.pierce_overshoot, reach]
 	if bool(preview.get("overheats", false)):
 		text += "\nOVERHEATS: no attack next round"
 	return text
@@ -2449,22 +2451,51 @@ func _intent_marker(ref: int, threat: Dictionary, full: bool) -> void:
 		_badge("0 MISSES", to + Vector3(0, -0.2, HEX * 0.62), colour, 0.8)
 	if not full or from.distance_to(to) < 0.01:
 		return
-	_intent_marker_bar(from, to, colour)
+	var lob: bool = String((u.weapons[int(threat["w"])] as Dictionary).get("shape", "")) == "lob"
+	_intent_marker_bar(from, to, colour, lob)
 
 
-func _intent_marker_bar(from: Vector3, to: Vector3, colour: Color = Ink.DANGER) -> void:
+## An attack's line (play-test 8): a flat ribbon ending in an arrow head, so it says where it
+## goes; a lob -- which touches nothing on the way -- rises in an arch over whatever is between.
+func _intent_marker_bar(from: Vector3, to: Vector3, colour: Color = Ink.DANGER, lob: bool = false) -> void:
+	var points: PackedVector3Array = []
+	var steps: int = 14 if lob else 1
+	var rise: float = 0.9 + from.distance_to(to) * 0.18 if lob else 0.0
+	for i: int in steps + 1:
+		var t: float = float(i) / float(steps)
+		points.append(from.lerp(to, t) + Vector3(0, sin(t * PI) * rise, 0))
+	var head: float = 0.46
+	var half: float = 0.05
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.UP)
+	# The shaft stops where the head begins.
+	var tip: Vector3 = points[points.size() - 1]
+	var back: Vector3 = (points[points.size() - 2] - tip).normalized()
+	points[points.size() - 1] = tip + back * head
+	for i: int in points.size() - 1:
+		var a: Vector3 = points[i]
+		var b: Vector3 = points[i + 1]
+		var side: Vector3 = (b - a).cross(Vector3.UP).normalized() * half
+		for v: Vector3 in [a - side, a + side, b + side, a - side, b + side, b - side]:
+			st.add_vertex(v)
+	var base: Vector3 = tip + back * head
+	var wide: Vector3 = (-back).cross(Vector3.UP).normalized() * half * 4.0
+	for v: Vector3 in [base - wide, base + wide, tip]:
+		st.add_vertex(v)
 	var bar := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(0.07, 0.03, from.distance_to(to))
-	bar.mesh = box
+	bar.mesh = st.commit()
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material.albedo_color = colour
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	# Over the machines, so the head is seen where it lands (tags stay above it).
+	material.no_depth_test = true
+	material.render_priority = 3
 	bar.material_override = Ink.hold(material)
 	bar.set_meta("intent", true)
 	_marks_root.add_child(bar)
-	bar.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
 
 
 ## Play-test 7: "when several enemies hit one spot, show one number -- the total", and whatever
@@ -2939,6 +2970,9 @@ func _tap(cell: Vector2i) -> void:
 	if there != null:
 		var about: String = "Protect it: every cache still standing pays out scrap." if there.objective \
 			else _unit_line(there) + "\n" + _arms_line(there)
+		if there.team == GridUnit.TEAM_ENEMY and not there.objective:
+			about += "\n" + ("Drops a scrap pile when destroyed (the green bolts at its feet)." if there.carries_scrap
+				else "Drops nothing when destroyed.")
 		if not there.kind.is_empty():
 			var kind: Dictionary = _db.enemy_kinds.get(there.kind, {})
 			about += "\n\n%s: %s" % [String(kind.get("name", there.kind)).to_upper(), String(kind.get("text", ""))]
