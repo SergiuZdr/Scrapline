@@ -60,12 +60,50 @@ func _initialize() -> void:
 	_test_playtest5()
 	_test_scrap_on_the_way()
 	_test_shot_leanings()
-	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown"]:
+	_test_act2_kinds()
+	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
+			"slag_lake", "pipe_forest", "cooling_flats", "the_pour"]:
 		_test_bot_fight(id)
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
 	print("")
 	quit(1 if _failed > 0 else 0)
+
+
+## 021, Act 2: The Pour floods what it marked a round before; a sentinel is plated and anchored.
+func _test_act2_kinds() -> void:
+	var far := Vector2i(0, 0)
+	var pour: Dictionary = _unit(HAMMER, far, 40)
+	pour["kind"] = "pour"
+	var s: CombatState = _fight(_rows(), [_unit(HAMMER, C, 30)], [pour])
+	_place(s, 0, C)
+	_place(s, 10, far)
+	var marked: bool = false
+	var flooded_at: int = -1
+	var hp_before: int = 0
+	for turn: int in 5:
+		_place(s, 0, C)   # stand still: the point is what standing still costs
+		_place(s, 10, far)
+		s.intents.clear()
+		if s.pour_marks.has(C) and not marked:
+			marked = true
+			hp_before = s.unit(0).hp
+			var copy: CombatState = s.clone()
+			CombatSim.apply(copy, [CombatSim.ACT_END, 0, 0, 0])
+			_check("a dry run of the flood does not leak into the fight", copy.flooded.has(C) and not s.flooded.has(C))
+		CombatSim.apply(s, [CombatSim.ACT_END, 0, 0, 0])
+		if s.flooded.has(C) and flooded_at < 0:
+			flooded_at = turn
+			break
+	_check("The Pour marks the hex a machine stands on", marked)
+	_check("a round later that hex is slag", flooded_at >= 0 and s.hazard(C.x, C.y) == 2)
+	_check("and what stood on it took the slag's 2", marked and s.unit(0).hp <= hp_before - 2)
+	var plain: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, far)])
+	var guard: Dictionary = _unit(HAMMER, far)
+	guard["kind"] = "sentinel"
+	var plated: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [guard])
+	_check("a sentinel takes 1 less from every hit", plated.unit(10).armor == plain.unit(10).armor + 1)
+	_check("and cannot be shoved", plated.unit(10).unshovable)
 
 
 # --- Fixtures ---------------------------------------------------------------

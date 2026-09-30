@@ -190,7 +190,7 @@ func _build_top_bar() -> void:
 	add_child(rule)
 	var act: Dictionary = _act()
 	# Ink & Rust (016): the act's name lettered on the page, paper on an ink edge.
-	var title := UIKit.on_page(_label("ACT 1  ·  %s" % String(act.get("name", "THE CRANE YARDS")), 44, UIKit.PAGE_TEXT, UIKit.font_display()), 10)
+	var title := UIKit.on_page(_label("ACT %d  ·  %s" % [Run.state.act, String(act.get("name", "THE CRANE YARDS"))], 44, UIKit.PAGE_TEXT, UIKit.font_display()), 10)
 	title.position = Vector2(40, 12)
 	add_child(title)
 	var mission := UIKit.on_page(_label(String(act.get("mission", "")), UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()), 5)
@@ -257,7 +257,7 @@ func _build_top_bar() -> void:
 
 func _act() -> Dictionary:
 	var acts: Array = Run.db.story.get("acts", [])
-	return acts[0] if not acts.is_empty() else {}
+	return acts[clampi(Run.state.act - 1, 0, acts.size() - 1)] if not acts.is_empty() else {}
 
 
 func _refresh_gauge() -> void:
@@ -862,7 +862,7 @@ func _run_over() -> void:
 	var endings: Dictionary = Run.db.story.get("endings", {})
 	var ending: String = String(endings.get("won", "")) if won else (String(endings.get("gate_held", ""))
 		if state.end_reason.begins_with("The gate held") else String(endings.get("wrecked", "")))
-	var box := _modal("ACT 1 CLEARED" if won else "RUN OVER",
+	var box := _modal("THE RUN IS WON" if won else "RUN OVER",
 		"%s\n\n%d fights won  ·  %d moves  ·  %d scrap" % [ending if not ending.is_empty() else state.end_reason,
 			state.fights_won, state.moves, state.scrap], 900)
 	var row := _row(box)

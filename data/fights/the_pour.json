@@ -1,0 +1,125 @@
+{
+  "id": "the_pour",
+  "name": "The Pour",
+  "acts": [
+    2
+  ],
+  "_comment": "021: Act 2's gate. Its keeper floods the hexes the crew stands on, a round after marking them. The escorts are rolled by the run at the other enemy positions; as a file it is a complete fight for practice and tests.",
+  "rows": [
+    "...ss...",
+    "........",
+    ".l....l.",
+    "........",
+    "..b..b..",
+    "........",
+    ".r....r.",
+    "........"
+  ],
+  "player": [
+    {
+      "name": "Brute",
+      "parts": [
+        "ch_brute",
+        "co_slug",
+        "ar_saw",
+        "ar_hammer",
+        "mo_scavenger"
+      ],
+      "x": 2,
+      "y": 7
+    },
+    {
+      "name": "Hauler",
+      "parts": [
+        "ch_hauler",
+        "co_furnace",
+        "ar_pulse",
+        "ar_lance",
+        "mo_ablative"
+      ],
+      "x": 4,
+      "y": 7
+    },
+    {
+      "name": "Strider",
+      "parts": [
+        "ch_strider",
+        "co_arc",
+        "ar_scanner",
+        "ar_scatter",
+        "mo_governor"
+      ],
+      "x": 5,
+      "y": 7
+    }
+  ],
+  "enemy": [
+    {
+      "name": "The Pour",
+      "kind": "pour",
+      "parts": [
+        "ch_bulwark",
+        "co_furnace",
+        "ar_mortar",
+        "ar_pulse",
+        "mo_reactive"
+      ],
+      "hp": 22,
+      "x": 3,
+      "y": 1
+    },
+    {
+      "name": "Bulwark",
+      "parts": [
+        "ch_bulwark",
+        "co_tesla",
+        "ar_pulse",
+        "ar_hammer",
+        "mo_coolant"
+      ],
+      "x": 1,
+      "y": 1
+    },
+    {
+      "name": "Reaper",
+      "parts": [
+        "ch_reaper",
+        "co_ember",
+        "ar_ripper",
+        "ar_saw",
+        "mo_bypass"
+      ],
+      "x": 6,
+      "y": 1
+    },
+    {
+      "name": "Skirmisher",
+      "parts": [
+        "ch_skirmisher",
+        "co_arc",
+        "ar_scatter",
+        "ar_pulse",
+        "mo_capacitor"
+      ],
+      "x": 5,
+      "y": 0
+    },
+    {
+      "name": "Courier",
+      "parts": [
+        "ch_courier",
+        "co_solvent",
+        "ar_lance",
+        "ar_scatter",
+        "mo_servo"
+      ],
+      "x": 0,
+      "y": 0
+    }
+  ],
+  "objective": {
+    "type": "rout"
+  },
+  "boss": true,
+  "max_rounds": 22
+}

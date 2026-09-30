@@ -1781,6 +1781,13 @@ func _refresh() -> void:
 	for cell: Vector2i in _state.arrivals:
 		_mark(_threat_quads, cell, COL_THREAT)
 		_arrival_marker(cell)
+	# The Pour (021): hexes already slag, and the ones that flood next round.
+	for cell: Variant in _state.flooded:
+		_flood_marker(cell)
+	for cell: Vector2i in _state.pour_marks:
+		_mark(_threat_quads, cell, COL_THREAT)
+		var top: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
+		_marker_label("FLOODS NEXT TURN · move off", top + Vector3(0, 0.08, HEX * 0.72), COL_PAD_DANGER.lightened(0.35), 24)
 	_pylon_beams()
 
 	var sel: GridUnit = _state.unit(_selected) if _selected >= 0 else null
@@ -2306,6 +2313,21 @@ func _spawn_marker(hive_ref: int, cell: Vector2i) -> void:
 	beam.set_meta("intent", true)
 	_marks_root.add_child(beam)
 	beam.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
+
+
+## A hex The Pour has flooded (021): a pool of slag over the tile, for the rest of the fight.
+func _flood_marker(cell: Vector2i) -> void:
+	var pool := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = HEX * 0.86
+	disc.bottom_radius = HEX * 0.86
+	disc.height = 0.03
+	disc.radial_segments = 6
+	pool.mesh = disc
+	pool.material_override = Ink.glow(Color("ff6a1f"), 0.5)
+	pool.position = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y) + 0.02, 0)
+	pool.set_meta("intent", true)
+	_marks_root.add_child(pool)
 
 
 ## Where the Reclaimer's drones come in next round (013): a red hex, a ghost of what is
