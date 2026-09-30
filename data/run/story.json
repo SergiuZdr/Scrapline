@@ -17,6 +17,11 @@
       "name": "THE CRANE YARDS",
       "mission": "Reach the Sorting Gate. The Reclaimer follows the key.",
       "gate": "THE SORTING GATE"
+    },
+    {
+      "name": "THE SLAG FLATS",
+      "mission": "Cross the flats to The Pour. The slag is still warm.",
+      "gate": "THE POUR"
     }
   ],
   "reclaimer": {

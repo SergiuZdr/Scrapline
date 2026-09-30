@@ -986,6 +986,7 @@ static func _begin_round(state: CombatState) -> void:
 			u.heat = maxi(0, u.heat - u.vent)
 			state.emit(GridEv.HEAT, u.ref, -1, u.x, u.y, u.heat, u.heat_cap)
 
+	_pours(state)
 	# Terrain bites before anyone moves, so standing on slag is a decision made last turn.
 	for u: GridUnit in state.units:
 		if u.alive and state.hazard(u.x, u.y) > 0:
@@ -1076,6 +1077,44 @@ static func _hives(state: CombatState) -> void:
 		state.spawn_marks[u.ref] = pick
 		state.spawn_due[u.ref] = state.round_number + every
 		state.emit(GridEv.SPAWN_MARKED, u.ref, -1, pick.x, pick.y, every)
+
+
+## The Pour (021). A kind that `floods`: the hexes it marked last round become slag now, for
+## the rest of the fight; then, every `every` rounds, it marks the hex under each of the other
+## side's machines (up to `floods`, nearest first). Marked a round ahead, so the answer is to
+## move -- and the floor it leaves gets smaller until it is destroyed.
+static func _pours(state: CombatState) -> void:
+	if not state.pour_marks.is_empty():
+		var hazard: int = 1
+		for u: GridUnit in state.units:
+			if u.alive and int((state.setup.kinds.get(u.kind, {}) as Dictionary).get("floods", 0)) > 0:
+				hazard = maxi(hazard, int((state.setup.kinds[u.kind] as Dictionary).get("hazard", 2)))
+		for cell: Vector2i in state.pour_marks:
+			if not state.flooded.has(cell):
+				state.flooded[cell] = hazard
+				state.emit(GridEv.FLOODED, -1, -1, cell.x, cell.y, hazard)
+		state.pour_marks.clear()
+	for u: GridUnit in state.units:
+		if not u.alive or u.kind.is_empty():
+			continue
+		var rules: Dictionary = state.setup.kinds.get(u.kind, {})
+		var floods: int = int(rules.get("floods", 0))
+		if floods <= 0 or state.round_number % maxi(1, int(rules.get("every", 2))) != 0:
+			continue
+		var targets: Array[GridUnit] = []
+		for other: GridUnit in state.units:
+			if other.alive and other.team != u.team and not other.objective and not state.flooded.has(Vector2i(other.x, other.y)):
+				targets.append(other)
+		var here := Vector2i(u.x, u.y)
+		targets.sort_custom(func(a: GridUnit, b: GridUnit) -> bool:
+			var da: int = Hex.distance(here, Vector2i(a.x, a.y))
+			var db: int = Hex.distance(here, Vector2i(b.x, b.y))
+			return da < db or (da == db and a.ref < b.ref))
+		for i: int in mini(floods, targets.size()):
+			var cell := Vector2i(targets[i].x, targets[i].y)
+			if not state.pour_marks.has(cell):
+				state.pour_marks.append(cell)
+				state.emit(GridEv.POUR_MARKED, u.ref, targets[i].ref, cell.x, cell.y, 1)
 
 
 static func _builds(state: CombatState, kind: String) -> bool:

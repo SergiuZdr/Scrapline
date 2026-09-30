@@ -1,6 +1,7 @@
 {
   "id": "slag_channel",
   "name": "Slag Channel",
+  "acts": [1, 2],
   "_comment": "013: a stream of slag runs down the yard. Crossing it costs HP every round you stand in it; the ridge beside it is the dry way over.",
   "rows": [
     "........",

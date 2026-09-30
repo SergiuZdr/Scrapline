@@ -30,6 +30,10 @@ var spawn_marks: Dictionary = {}
 var spawn_due: Dictionary = {}
 ## Where the Reclaimer's drones will come in next round (013), marked a round ahead.
 var arrivals: Array = []
+## The Pour (021): hexes marked to flood at the start of the next enemy phase, and the hexes
+## already flooded (`Vector2i -> hazard`). Both copied by `clone()`.
+var pour_marks: Array = []
+var flooded: Dictionary = {}
 ## What the player has collected this fight.
 var piles_collected: int = 0
 var scrap_collected: int = 0
@@ -72,7 +76,9 @@ func range_bonus(x: int, y: int) -> int:
 
 
 func hazard(x: int, y: int) -> int:
-	return setup.hazard[y * width + x]
+	var base: int = setup.hazard[y * width + x]
+	# A hex The Pour flooded (021) is slag for the rest of the fight.
+	return maxi(base, int(flooded.get(Vector2i(x, y), 0)))
 
 
 func is_pit(c: Vector2i) -> bool:
@@ -162,6 +168,8 @@ func clone() -> CombatState:
 	c.spawn_marks = spawn_marks.duplicate()
 	c.spawn_due = spawn_due.duplicate()
 	c.arrivals = arrivals.duplicate()
+	c.pour_marks = pour_marks.duplicate()
+	c.flooded = flooded.duplicate()
 	c.piles_collected = piles_collected
 	c.scrap_collected = scrap_collected
 	return c

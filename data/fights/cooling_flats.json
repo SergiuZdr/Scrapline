@@ -1,0 +1,135 @@
+{
+  "id": "cooling_flats",
+  "name": "The Cooling Flats",
+  "acts": [
+    2
+  ],
+  "_comment": "021, Act 2: open ground crossed by two slag runs, drums on the banks: nowhere to hide, plenty to set off.",
+  "rows": [
+    "........",
+    "..r..b..",
+    "llll....",
+    "....llll",
+    ".b......",
+    "......r.",
+    "..^.....",
+    "........"
+  ],
+  "player": [
+    {
+      "name": "Brute",
+      "parts": [
+        "ch_brute",
+        "co_slug",
+        "ar_saw",
+        "ar_hammer",
+        "mo_scavenger"
+      ],
+      "x": 2,
+      "y": 7
+    },
+    {
+      "name": "Hauler",
+      "parts": [
+        "ch_hauler",
+        "co_furnace",
+        "ar_pulse",
+        "ar_lance",
+        "mo_ablative"
+      ],
+      "x": 4,
+      "y": 7
+    },
+    {
+      "name": "Strider",
+      "parts": [
+        "ch_strider",
+        "co_arc",
+        "ar_scanner",
+        "ar_scatter",
+        "mo_governor"
+      ],
+      "x": 5,
+      "y": 7
+    }
+  ],
+  "enemy": [
+    {
+      "name": "Citadel",
+      "kind": "sentinel",
+      "parts": [
+        "ch_citadel",
+        "co_mag",
+        "ar_maul",
+        "ar_scatter",
+        "mo_reactive"
+      ],
+      "x": 1,
+      "y": 0
+    },
+    {
+      "name": "Lancer",
+      "kind": "sentinel",
+      "parts": [
+        "ch_lancer",
+        "co_dynamo",
+        "ar_railgun",
+        "ar_scanner",
+        "mo_targeting"
+      ],
+      "x": 3,
+      "y": 0
+    },
+    {
+      "name": "Bulwark",
+      "parts": [
+        "ch_bulwark",
+        "co_tesla",
+        "ar_pulse",
+        "ar_hammer",
+        "mo_coolant"
+      ],
+      "x": 5,
+      "y": 0
+    },
+    {
+      "name": "Reaper",
+      "parts": [
+        "ch_reaper",
+        "co_ember",
+        "ar_ripper",
+        "ar_saw",
+        "mo_bypass"
+      ],
+      "x": 7,
+      "y": 0
+    },
+    {
+      "name": "Skirmisher",
+      "parts": [
+        "ch_skirmisher",
+        "co_arc",
+        "ar_scatter",
+        "ar_pulse",
+        "mo_capacitor"
+      ],
+      "x": 2,
+      "y": 1
+    },
+    {
+      "name": "Courier",
+      "parts": [
+        "ch_courier",
+        "co_solvent",
+        "ar_lance",
+        "ar_scatter",
+        "mo_servo"
+      ],
+      "x": 6,
+      "y": 1
+    }
+  ],
+  "objective": {
+    "type": "rout"
+  }
+}
