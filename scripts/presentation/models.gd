@@ -1,7 +1,7 @@
 class_name Models
 extends RefCounted
 
-## Which models the game draws (017): the shipped set, or the NEW set under proof.
+## Which models the game draws: the NEW set (the default since 019), or the shipped one (`--models old`).
 ##
 ## `-- --models new` swaps in whatever the new set has -- machine parts from
 ## `art/parts_new/` (route A, `tools/blender/make_ink_parts.py`), their pictures from
@@ -25,7 +25,8 @@ static func new_models() -> bool:
 	if _new < 0:
 		var args: PackedStringArray = OS.get_cmdline_user_args()
 		var at: int = args.find("--models")
-		_new = 1 if at >= 0 and at + 1 < args.size() and args[at + 1] == "new" else 0
+		# 019: the new roster is the game's; `--models old` shows the shipped one.
+		_new = 0 if at >= 0 and at + 1 < args.size() and args[at + 1] == "old" else 1
 	return _new == 1
 
 
