@@ -128,16 +128,50 @@ func impact(at: Vector3, colour: Color, severity: float) -> void:
 	var origin: Vector3 = at + Vector3(0, 0.7, 0)
 	sparks(origin, colour, count, 1.0 + severity)
 
-	if severity >= 0.5:
-		var flash := MeshInstance3D.new()
-		flash.mesh = _flash_mesh
-		flash.material_override = _unshaded_billboard(colour, 2.4)
-		flash.position = origin
-		add_child(flash)
-		var flash_tween := create_tween()
-		flash_tween.tween_property(flash, "scale", Vector3(2.4, 2.4, 2.4), 0.16)
-		flash_tween.parallel().tween_property(flash.material_override, "albedo_color:a", 0.0, 0.16)
-		flash_tween.tween_callback(flash.queue_free)
+	# 023: the hit is DRAWN -- a spiked star, flat amber in an ink edge, that pops and is gone.
+	# The glow flash it replaces belonged to the photographed look.
+	var star := Sprite3D.new()
+	star.texture = _star_texture()
+	star.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	star.shaded = false
+	star.no_depth_test = true
+	star.render_priority = 3
+	star.flip_h = _star_flip
+	_star_flip = not _star_flip
+	star.pixel_size = lerpf(0.0035, 0.0075, clampf(severity, 0.0, 1.0))
+	star.position = origin
+	star.scale = Vector3.ONE * 0.5
+	add_child(star)
+	var pop := create_tween()
+	pop.tween_property(star, "scale", Vector3.ONE * 1.15, 0.06)
+	pop.tween_property(star, "scale", Vector3.ONE, 0.05)
+	pop.tween_interval(0.07)
+	pop.tween_property(star, "modulate:a", 0.0, 0.06)
+	pop.tween_callback(star.queue_free)
+
+
+var _star_flip: bool = false
+
+
+## The impact star: twelve uneven spikes, amber with a paper heart and an ink edge, drawn once.
+func _star_texture() -> ImageTexture:
+	return Ink.texture("impact_star", Vector2i(192, 192), func(image: Image) -> void:
+		var centre := Vector2(96, 96)
+		for y: int in 192:
+			for x: int in 192:
+				var d: Vector2 = Vector2(x, y) - centre
+				var spoke: float = absf(fposmod(d.angle() / TAU * 12.0, 1.0) - 0.5) * 2.0
+				var long_spoke: float = 1.0 if int(floor(fposmod(d.angle() / TAU * 12.0, 12.0))) % 2 == 0 else 0.78
+				var edge: float = lerpf(92.0 * long_spoke, 46.0, spoke)
+				var r: float = d.length()
+				if r > edge:
+					image.set_pixel(x, y, Color(0, 0, 0, 0))
+				elif r > edge - 7.0:
+					image.set_pixel(x, y, Ink.INK)
+				elif r < edge * 0.45:
+					image.set_pixel(x, y, Ink.PAPER)
+				else:
+					image.set_pixel(x, y, Ink.ACTION))
 
 
 ## A destroyed construct throws debris. This is the one effect allowed to be loud --

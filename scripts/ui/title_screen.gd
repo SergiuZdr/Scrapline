@@ -94,6 +94,13 @@ func _ready() -> void:
 	words.custom_minimum_size = Vector2(164, 52)
 	extras.add_child(words)
 
+	var sound := _menu_button("SOUND: ON" if Profile.sound_on() else "SOUND: OFF", false, func() -> void:
+		Profile.set_sound(not Profile.sound_on())
+		Audio.play("ui_confirm")
+		get_tree().reload_current_scene())
+	sound.custom_minimum_size = Vector2(164, 52)
+	extras.add_child(sound)
+
 	var quit := _menu_button("QUIT", false, func() -> void: get_tree().quit())
 	quit.custom_minimum_size = Vector2(220, 52)
 	column.add_child(quit)

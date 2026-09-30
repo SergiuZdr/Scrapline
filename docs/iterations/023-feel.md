@@ -1,7 +1,7 @@
 # Iteration 023 — The feel pass
 
-**Status:** in progress
-**Started:** 2026-09-30 · **Finished:** —
+**Status:** done -- waiting for the user to listen and play
+**Started:** 2026-09-30 · **Finished:** 2026-09-30
 **Answers:** the user: "continue with the feel pass and between run progression". Roadmap:
 "Audio, camera, final VFX (hit effects in ink)".
 
@@ -36,6 +36,31 @@ under it. All synthesised -- still no audio file in the game.
 
 ## Result
 
+- **The bank** (`scripts/autoload/audio.gd`) grew from 10 sounds to 26, all synthesised: two new
+  shapes (`_buzz`, a chopped swept sawtooth for motors and arcs; `_notes`, short notes in a row)
+  and `step`, `shot`, `lob`, `thump`, `zap`, `saw`, `clang`, `pickup`, `warn`, `shield`, `spawn`,
+  `flood`, `travel`, `reward`, `win`, `lose`; a four-second looping yard **ambience**
+  (`Audio.ambience`), on in the map and the fight.
+- **Hooks**: a shot sounds by its kind (an arcing weapon zaps, a saw or claw buzzes, anything
+  else clangs; a lob whistles and thumps); every step of a walk; pickups; pads and arrivals
+  warn; shields; spawns; travel; a salvage pick; the fight's and the run's end.
+- **The Pour** now says what it does: POUR_MARKED and FLOODED float their words, shake and sound
+  (021 drew the marks only when the board was next refreshed).
+- **The ink star** (`BattleVFX._star_texture`, `shots/023_star.png`): every hit pops a spiked
+  amber star with a paper heart and an ink edge, sized by how hard it was; the glow flash is gone.
+- **The kill punch** (`combat_scene._punch`): 7% in over 0.07 s, back over 0.3 s.
+- **SOUND: ON/OFF** on the title, kept in the profile (`Profile.sound_on/set_sound`).
+- `verify_meta.gd` 59 passed: every sound a screen asks for is in the bank (it reads the
+  scripts), and SOUND OFF is kept. SUITES.
+
+Not done, and not checkable from here: **nobody has listened to it.** The sounds were written
+as waveforms and never heard; levels, pitch and whether the ambience is pleasant need the user's
+ears. The star was seen as a texture, not caught mid-hit in a fight.
+
 ## Decisions, lessons, open questions
+- **Still no audio file in the game**; sound is a switch, not a slider, for now.
+- **A kill is the only thing that moves the fight's camera.**
+- Open: how does it sound? Which sounds are wrong, too loud, or missing? Is music wanted?
 
 ## Next
+Act 3; ship prep.

@@ -95,8 +95,20 @@ func choose_run(crew: String, tier: int) -> void:
 	_save()
 
 
+## The SOUND switch on the title (023).
+func sound_on() -> bool:
+	return bool(_data.get("sound", true))
+
+
+func set_sound(on: bool) -> void:
+	_data["sound"] = on
+	_save()
+	Audio.set_enabled(on)
+
+
 func _load() -> void:
 	_data = SaveFile.load_from(_path).data
+	Audio.set_enabled(sound_on())
 
 
 func _save() -> void:

@@ -2,6 +2,15 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [023] The feel pass — 2026-09-30 ([detail](iterations/023-feel.md))
+
+### Added
+- **Sixteen new sounds**, all synthesised: each kind of weapon, steps, pickups, warnings, shields,
+  spawns, the flood, travel, salvage, winning and losing; a looping yard ambience.
+- **Hits are drawn**: an inked star pops on every impact, bigger for harder hits.
+- **A kill punches the camera in.** The Pour's marks and floods speak.
+- **SOUND: ON/OFF** on the title.
+
 ## [022] Between-run progression — 2026-09-30 ([detail](iterations/022-progression.md))
 
 ### Added
