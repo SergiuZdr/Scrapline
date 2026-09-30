@@ -14,9 +14,9 @@
     "........"
   ],
   "player": [
-    {"name": "Brute", "parts": ["ch_brute", "co_slug", "ar_saw", "ar_hammer", "mo_scavenger"], "x": 2, "y": 6},
-    {"name": "Hauler", "parts": ["ch_hauler", "co_furnace", "ar_pulse", "ar_lance", "mo_ablative"], "x": 4, "y": 7},
-    {"name": "Strider", "parts": ["ch_strider", "co_arc", "ar_scanner", "ar_scatter", "mo_governor"], "x": 5, "y": 6}
+    {"name": "Knuckles", "parts": ["ch_brute", "co_slug", "ar_saw", "ar_hammer", "mo_scavenger"], "x": 2, "y": 6},
+    {"name": "Mule", "parts": ["ch_hauler", "co_furnace", "ar_pulse", "ar_lance", "mo_ablative"], "x": 4, "y": 7},
+    {"name": "Stilts", "parts": ["ch_strider", "co_arc", "ar_scanner", "ar_scatter", "mo_governor"], "x": 5, "y": 6}
   ],
   "enemy": [
     {"name": "Yard Runner", "parts": ["ch_courier", "co_slug", "ar_scanner", "ar_scanner", "mo_governor"], "hp": 4, "carries": true, "x": 2, "y": 3},

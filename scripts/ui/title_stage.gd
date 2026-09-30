@@ -78,12 +78,12 @@ func _ground() -> void:
 	add_child(stand)
 
 
-## The three machines of a run's default crew, numbered, at ease.
+## The three machines of a run's default crew, at ease.
 func _crew(db: ContentDB, crew: Array) -> void:
 	var spots: Array = [Vector3(-2.4, 0.12, 0.5), Vector3(-0.9, 0.12, -0.5), Vector3(0.5, 0.12, 0.6)]
 	for i: int in mini(crew.size(), spots.size()):
 		var parts: PackedStringArray = PackedStringArray((crew[i] as Dictionary).get("parts", []))
-		var model: Node3D = ConstructView.build_parts(parts, db, Color("4fa8d8"), 0, i + 1)
+		var model: Node3D = ConstructView.build_parts(parts, db, Color("4fa8d8"), 0)
 		Ink.dress_machine(model, parts, Ink.YOURS)
 		model.scale = Vector3.ONE * 1.35
 		model.position = spots[i]

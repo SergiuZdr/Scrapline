@@ -114,6 +114,27 @@ static func textured(texture: Texture2D, colour: Color = Color.WHITE) -> ShaderM
 	return m
 
 
+## Keeps one copy of a short-lived material alive for the session, per set of shader features
+## (play-test 7). Godot builds ONE shader for every StandardMaterial3D with the same features and
+## frees it with the last of them, so a tracer whose material died with it compiled its shader
+## again on the next shot: on this Mac's GL driver, a half-second freeze on every attack.
+## Wrap any material an effect makes and throws away: `x.material_override = Ink.hold(m)`.
+static var _held: Dictionary = {}
+
+
+static func hold(m: BaseMaterial3D) -> BaseMaterial3D:
+	var key: String = str([m.shading_mode, m.transparency, m.blend_mode, m.billboard_mode, m.billboard_keep_scale,
+		m.emission_enabled, m.vertex_color_use_as_albedo, m.albedo_texture != null, m.no_depth_test,
+		m.disable_receive_shadows, m.cull_mode, m.depth_draw_mode, m.metallic > 0.0, m.roughness < 1.0])
+	if not _held.has(key):
+		var copy: BaseMaterial3D = m.duplicate()
+		# Asking for the RID builds the copy's shader now; a copy that is never drawn and never
+		# asked holds nothing (measured: 300 ms a tracer either way until this line).
+		copy.get_rid()
+		_held[key] = copy
+	return m
+
+
 ## A signal: flat, unlit, and the only thing allowed to bloom.
 static func glow(colour: Color, energy: float = 1.4) -> StandardMaterial3D:
 	var key: String = "glow:%s:%.2f" % [colour.to_html(), energy]

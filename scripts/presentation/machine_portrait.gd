@@ -69,8 +69,8 @@ func _init(size: Vector2i = Vector2i(112, 112), frame: String = "portrait", inke
 
 
 ## Shows this machine; does nothing if it is the one already shown.
-func show_machine(parts: Array, level: int, alive: bool = true, number: int = -1) -> void:
-	var key: String = "%s:%d:%s:%d" % [",".join(parts), level, alive, number]
+func show_machine(parts: Array, level: int, alive: bool = true) -> void:
+	var key: String = "%s:%d:%s" % [",".join(parts), level, alive]
 	if key == _key:
 		return
 	_key = key
@@ -79,7 +79,7 @@ func show_machine(parts: Array, level: int, alive: bool = true, number: int = -1
 	# No content needed (build_parts ignores it), and none taken from the `Run` autoload: a
 	# display class that names an autoload cannot be compiled by a `--script` tool (012 found
 	# this one through CombatHUD).
-	var model: Node3D = ConstructView.build_parts(PackedStringArray(parts), null, Color("4fa8d8"), level, number)
+	var model: Node3D = ConstructView.build_parts(PackedStringArray(parts), null, Color("4fa8d8"), level)
 	if ink and not parts.is_empty():
 		Ink.dress_machine(model, PackedStringArray(parts), Ink.YOURS)
 	_pivot.add_child(model)

@@ -663,8 +663,12 @@ func _test_assembly() -> void:
 		["ch_brute", "co_arc", "ar_pulse", "ar_scatter", "mo_ablative"],
 		["ch_courier", "co_dynamo", "ar_scanner", "ar_hammer", "mo_governor"]]
 	_check("common parts are on the bench without limit", RunSim.apply(state, setup, [RunSim.ASSEMBLE, twin]))
-	_check("the frame names the machine; a second on the same frame is II",
-		String(state.crew[0]["name"]) == "Brute" and String(state.crew[1]["name"]) == "Brute II" and String(state.crew[2]["name"]) == "Courier")
+	var crew_names: Array = []
+	for spec: Dictionary in (setup.rules["starting_crew"] as Array):
+		crew_names.append(String(spec["name"]))
+	_check("a machine keeps its crew's name on any frame (play-test 7) %s" % [crew_names],
+		String(state.crew[0]["name"]) == crew_names[0] and String(state.crew[1]["name"]) == crew_names[1]
+		and String(state.crew[2]["name"]) == crew_names[2] and crew_names[0] != "Brute")
 	_check("each machine starts at its new full HP", int(state.crew[2]["hp"]) == RunSim.max_hp(setup, state.crew[2]))
 	_check("only once", not RunSim.apply(state, setup, [RunSim.ASSEMBLE, twin]))
 	var fresh: RunState = RunSim.start(setup)
