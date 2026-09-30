@@ -136,3 +136,15 @@ An element that cannot name its question is decoration competing with the ones t
 
 Still the synthesised PCM bank in `scripts/autoload/audio.gd` (no files to license). Music
 is a later decision: licensed, commissioned or generated.
+
+**The yard's ambience (024)** is machinery idling: two low drones beating slowly and a faint
+transformer whine, no noise. The first one (023) swelled filtered noise and read as surf (the
+user: "this game is not about the beach").
+
+**No numbers on the machines (024).** The stencilled crew number (010) is gone at the user's
+word; a crew machine is told by its name, its card and, in the fight, the amber ring when it is
+the one under your hand.
+
+**Effects and shaders (024).** Every short-lived material goes through `Ink.hold`, no effect lights
+an OmniLight3D, and a transparent material is additive rather than emissive -- each of these
+compiled a shader mid-fight (up to 850 ms a frame here). New effects join the fight's warm-up.

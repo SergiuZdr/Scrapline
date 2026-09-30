@@ -40,9 +40,9 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 021 | [Act 2: the Slag Flats](iterations/021-act-2.md) | Acts in the run; three boards, sentinels, The Pour and its flooding; bot 85.0% over two acts | ✅ awaiting the play-test |
 | 022 | [Between-run progression](iterations/022-progression.md) | Unlocks only: 12 parts, two crews, two tiers by lifetime milestones; the crew and tier choice; a run saves its options | ✅ awaiting the play-test |
 | 023 | [The feel pass](iterations/023-feel.md) | 16 new synthesised sounds and a yard ambience, hits drawn as ink stars, a kill's camera punch, a sound switch | ✅ awaiting the user's ears |
-| 019 | Acts 2–3 | The Slag Flats and the Crucible | ⬜ |
-| 020 | Feel pass | Audio, camera, final VFX (hit effects in ink) | ⬜ |
-| 021 | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
+| — | [Play-test 7](playtests/2026-09-30-playtest-7.md) | Totals per hex, a lag, the objective from the start, shove and pierce, surf in the ambience, which robot is mine, stencils, names; Act 3 | ✅ |
+| 024 | [Play-test 7 fixes](iterations/024-playtest-7-fixes.md) | One total per hex (the volley run on a copy), the aim's totals, the machine under your hand ringed, the opening card; the lag was shader compiles (measured, fixed); tied shoves, pierce aim, names, a hum not surf | ✅ awaiting the play-test |
+| — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
 
