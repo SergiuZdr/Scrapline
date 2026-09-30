@@ -41,14 +41,20 @@ static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array 
 	var banner_row := HBoxContainer.new()
 	banner_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	banner.add_child(banner_row)
-	banner_row.add_child(_label(RARITY_NAMES[rarity - 1], UIKit.SIZE_MICRO, UIKit.PAGE_TEXT, UIKit.font_comic()))
+	# Play-test 8: every line on a card is fitted to its width (`UIKit.fit`), none runs past it.
+	var inner_w: float = size.x - UIKit.SPACE_SM * 2 - 6
+	var rarity_label: Label = _label(RARITY_NAMES[rarity - 1], UIKit.SIZE_MICRO, UIKit.PAGE_TEXT, UIKit.font_comic())
+	var rarity_w: float = UIKit.font_comic().get_string_size(rarity_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.SIZE_MICRO).x + 2
+	banner_row.add_child(UIKit.fit(rarity_label, rarity_w))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	banner_row.add_child(spacer)
 	# Who made it, then what it is: "KESSLER ARM" (011: parts from one maker add up).
-	banner_row.add_child(_label(("%s %s" % [PartText.maker_short(db.makers, parts, id), PartText.slot_label(parts, id)]).strip_edges(),
-		UIKit.SIZE_MICRO, Color(UIKit.PAGE_TEXT, 0.75), UIKit.font_comic()))
+	var made: Label = _label(("%s %s" % [PartText.maker_short(db.makers, parts, id), PartText.slot_label(parts, id)]).strip_edges(),
+		UIKit.SIZE_MICRO, Color(UIKit.PAGE_TEXT, 0.75), UIKit.font_comic())
+	made.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	banner_row.add_child(UIKit.fit(made, maxf(40.0, inner_w - rarity_w - UIKit.SPACE_SM), 1, 9))
 
 	var inner := VBoxContainer.new()
 	inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -73,17 +79,14 @@ static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array 
 		picture.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		inner.add_child(picture)
-	inner.add_child(_label(PartText.name_of(parts, id), 20, colour, UIKit.font_comic()))
-	var text := _label(PartText.summary(parts, id, db.combat_abilities), UIKit.SIZE_MICRO, UIKit.TEXT_DIM)
-	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.custom_minimum_size = Vector2(size.x - UIKit.SPACE_SM * 2, 0)
-	inner.add_child(text)
+	inner.add_child(UIKit.fit(_label(PartText.name_of(parts, id), 20, colour, UIKit.font_comic()), inner_w, 1, 13))
+	inner.add_child(UIKit.fit(_label(PartText.summary(parts, id, db.combat_abilities), UIKit.SIZE_MICRO, UIKit.TEXT_DIM), inner_w, 2, 10))
 	if not compare_crew.is_empty():
 		var verdict: Array = compare(parts, id, compare_crew)
-		inner.add_child(_label(String(verdict[0]), UIKit.SIZE_MICRO, verdict[1], UIKit.font_strong()))
+		inner.add_child(UIKit.fit(_label(String(verdict[0]), UIKit.SIZE_MICRO, verdict[1], UIKit.font_strong()), inner_w, 1, 9))
 		var completes: String = set_verdict(db, id, compare_crew)
 		if not completes.is_empty():
-			inner.add_child(_label(completes, UIKit.SIZE_MICRO, UIKit.GREEN, UIKit.font_strong()))
+			inner.add_child(UIKit.fit(_label(completes, UIKit.SIZE_MICRO, UIKit.GREEN, UIKit.font_strong()), inner_w, 1, 9))
 	return button
 
 
@@ -135,8 +138,8 @@ static func compare(parts: Dictionary, id: String, crew: Array) -> Array:
 			if current.is_empty():
 				return ["FILLS %s'S EMPTY %s" % [String(member["name"]).to_upper(), socket_names[s].to_upper()], UIKit.GREEN]
 			if rarity > int((parts.get(current, {}) as Dictionary).get("rarity", 1)):
-				return ["BETTER THAN %s'S %s" % [String(member["name"]).to_upper(), PartText.name_of(parts, current).to_upper()], UIKit.GREEN]
-	return ["NO RARER THAN WHAT YOU HAVE", UIKit.TEXT_FAINT]
+				return ["BEATS %s'S %s" % [String(member["name"]).to_upper(), PartText.name_of(parts, current).to_upper()], UIKit.GREEN]
+	return ["NOT RARER THAN YOURS", UIKit.TEXT_FAINT]
 
 
 static func _label(text: String, size: int, colour: Color, face: Font = null) -> Label:
@@ -144,7 +147,8 @@ static func _label(text: String, size: int, colour: Color, face: Font = null) ->
 	label.text = text
 	label.add_theme_font_size_override("font_size", size)
 	label.add_theme_color_override("font_color", colour)
-	if face != null:
-		label.add_theme_font_override("font", face)
+	# Always a face of our own: `UIKit.fit` measures with it, and a card is built before it
+	# is in a tree that could lend it the theme's.
+	label.add_theme_font_override("font", face if face != null else UIKit.font())
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
