@@ -47,6 +47,7 @@ const FLOODED: int = 36     ## the hex at (x, y) is slag for the rest of the fig
 const FLUE_BLEW: int = 37    ## the furnace flue at (x, y) blew for v1 (025); what stood on it takes a DAMAGE
 const PULSE_MARKED: int = 38 ## actor (the Core, 025) marked every hex within v1 of (x, y): they pulse next round
 const PULSED: int = 39       ## actor pulsed from (x, y) for v1 to each of the other side in its ring
+const ENRAGED: int = 40      ## actor (a keeper, 027) fell below half HP at (x, y): its rules escalate; v1 = guards it calls
 
 ## What a PROP_PLACED / PROP_BROKEN `v1` names. An int, because events are flat ints.
 const PROP_KINDS: PackedStringArray = ["crate", "barrel", "pylon"]
@@ -65,7 +66,7 @@ const NAMES: PackedStringArray = [
 	"HEAT", "OVERHEAT", "SEIZED", "VENTED", "MARKED", "PART_TORN", "PILE_DROPPED", "PILE_TAKEN",
 	"PROP_HIT", "PROP_BROKEN", "EXPLOSION", "FELL", "ABILITY", "PULLED", "PROP_PLACED",
 	"SPAWN_MARKED", "SPAWNED", "SPAWN_BLOCKED", "SHIELDED", "ARRIVAL_MARKED", "WRECK_THROWN", "PILE_LOST", "POUR_MARKED", "FLOODED",
-	"FLUE_BLEW", "PULSE_MARKED", "PULSED",
+	"FLUE_BLEW", "PULSE_MARKED", "PULSED", "ENRAGED",
 ]
 
 

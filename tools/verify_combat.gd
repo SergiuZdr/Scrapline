@@ -257,6 +257,18 @@ func _test_act3() -> void:
 	_check("and a round later pulses for 4 (%d)" % pulse_hp, pulse_hp == 4)
 	_check("it cannot be shoved", c.unit(10).unshovable)
 
+	# 027: at half HP the Core erupts -- faster, wider, harder -- and calls two guards next round.
+	var core2: Dictionary = _unit(HAMMER, core_at, 40)
+	core2["kind"] = "heart"
+	var e: CombatState = _fight(_rows(), [_unit(HAMMER, Vector2i(0, 8), 30)], [core2])
+	var before_units: int = e.units.size()
+	CombatSim.hurt(e, 0, e.unit(10), 19)
+	_check("not enraged above half HP", not e.enraged.has(10))
+	CombatSim.hurt(e, 0, e.unit(10), 1)
+	_check("enraged at half HP", e.enraged.has(10) and int(CombatSim.kind_rules(e, e.unit(10))["pulse_radius"]) == 3)
+	CombatSim.apply(e, [CombatSim.ACT_END, 0, 0, 0])
+	_check("and its two guards arrive the next round", e.units.size() == before_units + 2)
+
 
 # --- Fixtures ---------------------------------------------------------------
 
