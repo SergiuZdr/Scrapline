@@ -526,8 +526,13 @@ func _landmark(type: String, id: int) -> Node3D:
 	var root := Node3D.new()
 	_livery = SITE_LIVERY.get(type, Ink.STEEL)
 	# 020: any kind with a generated model (`art/sites/<kind>.glb`) stands as that; the kit
-	# builds the rest. The workshop keeps its lamp (below).
-	if type != "workshop" and _generated(root, type, 215.0):
+	# builds the rest. The workshop keeps its lamp (below). A site with a door or a counter
+	# turns it to the camera; the rest turn by their own id, a little smaller or larger, so
+	# seven fights on one map are not seven copies of one wreck at one angle.
+	var faces: bool = FACING_SITES.has(type)
+	var yaw: float = 215.0 if faces else 215.0 + float(_h(id, 5) % 70) - 35.0
+	var size: float = 1.0 if faces else 0.92 + float(_h(id, 6) % 13) / 100.0
+	if type != "workshop" and _generated(root, type, yaw, size):
 		_livery = Color(0, 0, 0, 0)
 		return root
 	match type:
@@ -577,18 +582,23 @@ func _landmark(type: String, id: int) -> Node3D:
 	return root
 
 
+## Generated sites whose front (a door, a counter, a camp's open side) must face the camera.
+const FACING_SITES: PackedStringArray = ["workshop", "trader", "start"]
+
+
 ## The livery the landmark being built wears (016); clear while building clutter.
 var _livery: Color = Color(0, 0, 0, 0)
 
 
 ## A generated set piece (`Models.site`, 017) in place of the kit landmark: built at map size
 ## by `tools/blender/clean_generated.py` and zoned like the kit, so it is dressed the same way.
-func _generated(parent: Node3D, kind: String, yaw: float) -> bool:
+func _generated(parent: Node3D, kind: String, yaw: float, size: float = 1.0) -> bool:
 	var packed: PackedScene = Models.site(kind)
 	if packed == null:
 		return false
 	var piece: Node3D = packed.instantiate() as Node3D
 	piece.rotation_degrees.y = yaw
+	piece.scale = Vector3.ONE * size
 	Ink.dress_set_piece(piece, _livery)
 	parent.add_child(piece)
 	return true
