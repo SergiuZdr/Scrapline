@@ -66,6 +66,25 @@ func new_run(seed_value: int = -1, options: Dictionary = {}) -> void:
 	briefed = false
 	bay_seen = false
 	_save()
+	# The names the player gave this crew last time (027), as actions: the save holds them.
+	var names: Array = Profile.crew_names(crew_id())
+	for i: int in mini(names.size(), state.crew.size()):
+		if not String(names[i]).is_empty() and String(names[i]) != String(state.crew[i]["name"]):
+			apply([RunSim.RENAME, i, String(names[i])])
+
+
+## Which crew this run started with (022).
+func crew_id() -> String:
+	return String(setup.options.get("crew_id", "salvagers")) if setup != null else "salvagers"
+
+
+## Renames machine `i` for this run and remembers the name for the next run of this crew (027).
+func rename(i: int, text: String) -> bool:
+	var name: String = RunSim.clean_name(text)
+	if name.is_empty() or not apply([RunSim.RENAME, i, name]):
+		return false
+	Profile.set_crew_name(crew_id(), i, name)
+	return true
 
 
 ## Resumes the saved run. False (with `problem` set) if there is none or it cannot load.

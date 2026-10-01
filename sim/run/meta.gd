@@ -37,6 +37,22 @@ static func next_unlock(unlocked: Array, rules: Dictionary) -> Dictionary:
 	return {}
 
 
+## How far these stats are toward an unlock (027): `[have, need]` for the condition furthest
+## from done (every condition must be met), capped at `need`.
+static func progress(stats: Dictionary, entry: Dictionary) -> Array:
+	var best: Array = [1, 1]
+	var worst: float = 2.0
+	var when: Dictionary = entry.get("when", {})
+	for key: Variant in when:
+		var need: int = maxi(1, int(when[key]))
+		var have: int = mini(need, int(stats.get(key, 1 if String(key) == "act" else 0)))
+		var ratio: float = float(have) / float(need)
+		if ratio < worst:
+			worst = ratio
+			best = [have, need]
+	return best
+
+
 ## What `kind` of thing these unlock ids have opened: part ids, crew ids or tier numbers.
 static func opened(unlocked: Array, rules: Dictionary, kind: String) -> Array:
 	var out: Array = []

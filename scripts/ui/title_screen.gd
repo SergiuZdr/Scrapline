@@ -67,12 +67,16 @@ func _ready() -> void:
 	column.add_child(_menu_button("PRACTICE FIGHT", false, func() -> void:
 		get_tree().change_scene_to_file("res://scenes/combat.tscn")))
 
-	# 022: what the runs so far have opened.
+	# 022: what the runs so far have opened; 027: always shown, with the next goal and how far.
 	var total: int = (Run.db.meta.get("unlocks", []) as Array).size()
-	if total > 0 and int(Profile.stats().get("runs", 0)) > 0:
+	if total > 0:
+		var next: Dictionary = Meta.next_unlock(Profile.unlocked(), Run.db.meta)
+		var line: String = "UNLOCKED %d / %d" % [Profile.unlocked().size(), total]
+		if not next.is_empty():
+			var p: Array = Meta.progress(Profile.stats(), next)
+			line += "  ·  next: %s (%d / %d)" % [String(next.get("text", "")).to_lower(), int(p[0]), int(p[1])]
 		var progress := Label.new()
-		progress.text = "UNLOCKED %d / %d  ·  %d runs, %d won" % [Profile.unlocked().size(), total,
-			int(Profile.stats().get("runs", 0)), int(Profile.stats().get("wins", 0))]
+		progress.text = line
 		progress.add_theme_font_override("font", UIKit.font_strong())
 		progress.add_theme_font_size_override("font_size", UIKit.SIZE_BODY)
 		UIKit.on_page(progress, 5)
@@ -90,6 +94,10 @@ func _ready() -> void:
 	var shakedown := _menu_button("TUTORIAL", false, _play_shakedown)
 	shakedown.custom_minimum_size = Vector2(164, 52)
 	extras.add_child(shakedown)
+	var goals := _menu_button("UNLOCKS", false, func() -> void:
+		UnlocksPanel.open(self, Run.db, Profile.unlocked(), Profile.stats()))
+	goals.custom_minimum_size = Vector2(164, 52)
+	extras.add_child(goals)
 	var words := _menu_button("GLOSSARY", false, func() -> void: Glossary.open(self, Run.db.glossary))
 	words.custom_minimum_size = Vector2(164, 52)
 	extras.add_child(words)
