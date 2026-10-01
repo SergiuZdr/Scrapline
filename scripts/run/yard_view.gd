@@ -26,6 +26,7 @@ const RING_DONE := Color("4a4a50")
 const RING_FAR := Color("7c7a78")
 ## Each site's landmark wears one livery, so a kind of place has a colour of its own.
 const SITE_LIVERY: Dictionary = {"start": Color("d9a441"), "skirmish": Color("8a8f8c"), "elite": Color("9c3b2e"), "warlord": Color("7a1f18"),
+	"refinery": Color("b5541c"), "auction": Color("6b5a8a"), "arena": Color("8e2f2f"),
 	"scrapyard": Color("b4532a"), "workshop": Color("d9a441"), "trader": Color("6e7443"),
 	"tower": Color("8a8f8c"), "signal": Color("6e7443"), "boss": Color("2a2628")}
 const LANDMARK_SCALE: float = 0.46
@@ -510,12 +511,12 @@ func _style_site(id: int, targets: Array[int]) -> void:
 		disc.modulate = Color(colour, 0.6) if faded else colour
 		disc.pixel_size = icon.pixel_size * 1.6
 	# A cleared fight leaves its wrecks smoking.
-	var fought: bool = bool(site["visited"]) and ["skirmish", "elite", "boss", "warlord"].has(String(site["type"])) and id != 0
+	var fought: bool = bool(site["visited"]) and ["skirmish", "elite", "boss", "warlord", "arena"].has(String(site["type"])) and id != 0
 	if fought and entry["smoke"] == null:
 		entry["smoke"] = _smoke(root)
 
 
-const _ICONS: Dictionary = {"start": "yard", "skirmish": "fight", "elite": "colossus", "warlord": "colossus",
+const _ICONS: Dictionary = {"start": "yard", "skirmish": "fight", "elite": "colossus", "warlord": "colossus", "refinery": "foundry", "auction": "store", "arena": "fight",
 	"scrapyard": "scrap", "workshop": "foundry", "boss": "gauntlet",
 	"trader": "store", "tower": "yardview", "signal": "doctrine"}
 
@@ -543,6 +544,17 @@ func _landmark(type: String, id: int) -> Node3D:
 		"skirmish":
 			_prop(root, "car_stack_0", Vector3(-0.4, 0, -0.3), float(_h(id, 1) % 60))
 			_prop(root, "tyre_stack_0", Vector3(0.8, 0, 0.6), 0.0)
+		"refinery":
+			_prop(root, "service_gantry", Vector3(0, 0, 0), 30.0, 0.5)
+			_lamp(root, Vector3(0.0, 0.8, 0.0), Color("ff7a2e"), 4.0)
+		"auction":
+			_prop(root, "container_1", Vector3(-0.2, 0, -0.2), 40.0, 0.6)
+			_prop(root, "tyre_stack_2", Vector3(0.8, 0, 0.5), 0.0)
+			_lamp(root, Vector3(0.3, 0, 0.3), Color("c9a2ff"), 3.0)
+		"arena":
+			for i: int in 4:
+				_prop(root, "barrier_%d" % (i % 2), Vector3(cos(float(i) * PI * 0.5) * 0.9, 0, sin(float(i) * PI * 0.5) * 0.9), float(i) * 90.0, 0.6)
+			_lamp(root, Vector3(0.0, 0.8, 0.0), Color("ffd08a"), 3.5)
 		"warlord":
 			# 030: the elite's bunker, bigger, under a red lamp: a named fight, worth the detour.
 			if not _generated(root, "elite", yaw, 1.3):

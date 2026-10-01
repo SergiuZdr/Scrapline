@@ -13,8 +13,13 @@
     "elite": 18,
     "trader": 8,
     "tower": 6,
-    "signal": 14
+    "signal": 14,
+    "refinery": 7,
+    "auction": 6,
+    "arena": 7
   },
+  "refinery": {"costs": [10, 18, 40], "_comment": "031: refining a part of rarity r costs costs[r-1] and gives a random part of rarity r+1, the same slot (a rare becomes a legendary)."},
+  "auction": {"tiers": [{"cost": 20, "min": 2, "legend_pct": 8}, {"cost": 45, "min": 3, "legend_pct": 25}], "_comment": "031: crates bought blind; `legend_pct` is the chance it holds a legendary instead."},
   "_sites_013": "013: traders (buy from stock, sell from the hold), watchtowers (scout), signals (data/run/events.json).",
   "trader": {
     "prices": [12, 20, 32, 60],
@@ -75,6 +80,7 @@
     "boss_hp_bonus": 4,
     "boss_escorts": 3,
     "warlord_escorts": 2,
+    "arena_extra": 1,
     "_boss": "013: the gate is its own map (data/fights/sorting_gate.json): the Sorter, its pylons, and `boss_escorts` rolled escorts. boss_count / boss_hp_bonus apply only if no gate map exists."
   },
   "rewards": {
@@ -91,6 +97,7 @@
     "elite_min_rarity": 2,
     "cache_scrap": 6,
     "warlord_scrap": 30,
+    "arena_scrap": 35,
     "hoard_scrap": 25,
     "salvage_scrap": 8,
     "_salvage": "011: every salvage screen offers `choices` parts from different slots (the second leaning to a maker the crew builds sets from) or `salvage_scrap` scrap instead; an elite's first part comes tuned."

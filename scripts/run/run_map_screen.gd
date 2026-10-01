@@ -22,6 +22,7 @@ const AssemblyPanel := preload("res://scripts/run/assembly_panel.gd")
 const TunePanel := preload("res://scripts/run/tune_panel.gd")
 
 const SITE_NAMES: Dictionary = {"start": "CAMP", "skirmish": "FIGHT", "elite": "ELITE", "warlord": "WARLORD",
+	"refinery": "REFINERY", "auction": "AUCTION", "arena": "ARENA",
 	"scrapyard": "SCRAPYARD", "workshop": "WORKSHOP", "boss": "THE GATE",
 	"trader": "TRADER", "tower": "WATCHTOWER", "signal": "SIGNAL"}
 const RECLAIMER_RED := Color("ff5a3d")
@@ -551,6 +552,12 @@ func _gives(kind: String) -> String:
 	match kind:
 		"skirmish":
 			return "A fight: +%d scrap, then 1 of 3 parts or %d scrap." % [int(rewards.get("skirmish_scrap", 10)), int(rewards.get("salvage_scrap", 8))]
+		"arena":
+			return "A pit fight: one more enemy than an elite, +%d scrap and an uncommon or better part." % int(rewards.get("arena_scrap", 35))
+		"refinery":
+			return "Turn one part in the hold into a random part of the next rarity, for scrap."
+		"auction":
+			return "Buy a crate blind: a better part, maybe a legendary."
 		"warlord":
 			return "The act's warlord, with its own rule: +%d scrap and a hoard with a LEGENDARY part." % int(rewards.get("warlord_scrap", 30))
 		"elite":
@@ -609,6 +616,10 @@ func _show_overlay() -> void:
 			Hints.show_once(_overlay, "workshop", Run.db, Vector2(40, 140))
 		"trader":
 			_trader_panel()
+		"refinery":
+			_refinery_panel()
+		"auction":
+			_auction_panel()
 		"tower":
 			_tower_panel()
 		"signal":
@@ -834,6 +845,68 @@ func _trader_panel() -> void:
 			sell.add_theme_font_size_override("font_size", UIKit.SIZE_LABEL)
 			sell.pressed.connect(func() -> void: _apply([RunSim.SELL, c]))
 			flow.add_child(sell)
+	var leave := _button("MOVE ON", UIKit.primary(), UIKit.BG, Vector2(240, 60))
+	leave.pressed.connect(func() -> void: _apply([RunSim.LEAVE]))
+	_row(box).add_child(leave)
+
+
+## The refinery (031): every part in the hold that can go up a rarity, with its price.
+func _refinery_panel() -> void:
+	var state: RunState = Run.state
+	var used: bool = bool(state.pending.get("used", false))
+	var box := _modal("REFINERY", "%s  You have %d scrap." % [_site_text("refinery"), state.scrap], 1240)
+	if used:
+		box.add_child(_label("The furnace is spent for today.", UIKit.SIZE_HEADING, UIKit.TEXT_DIM, UIKit.font_strong()))
+	else:
+		box.add_child(_label("Pick a part: it becomes a random part of the NEXT rarity, the same slot (a rare becomes a legendary). Once.",
+			UIKit.SIZE_BODY, UIKit.TEXT_DIM, UIKit.font_strong()))
+		var flow := HFlowContainer.new()
+		flow.add_theme_constant_override("h_separation", UIKit.SPACE_SM)
+		flow.add_theme_constant_override("v_separation", UIKit.SPACE_SM)
+		flow.custom_minimum_size = Vector2(1140, 0)
+		box.add_child(flow)
+		for c: int in state.cargo.size():
+			var part: String = state.cargo[c]
+			var cost: int = RunSim.refine_cost(Run.setup, part)
+			if cost < 0:
+				continue
+			var b := _button("%s  ·  %d SCRAP" % [PartText.name_of(Run.db.parts, part).to_upper(), cost],
+				UIKit.choice() if state.scrap >= cost else UIKit.secondary(), UIKit.TEXT, Vector2(0, 48))
+			b.add_theme_font_size_override("font_size", UIKit.SIZE_LABEL)
+			b.disabled = state.scrap < cost
+			b.pressed.connect(func() -> void: _apply([RunSim.REFINE, c]))
+			flow.add_child(b)
+		if state.cargo.is_empty():
+			box.add_child(_label("The hold is empty.", UIKit.SIZE_BODY, UIKit.TEXT_FAINT))
+	var leave := _button("MOVE ON", UIKit.primary(), UIKit.BG, Vector2(240, 60))
+	leave.pressed.connect(func() -> void: _apply([RunSim.LEAVE]))
+	_row(box).add_child(leave)
+
+
+## The auction (031): two crates, bought blind.
+func _auction_panel() -> void:
+	var state: RunState = Run.state
+	var used: bool = bool(state.pending.get("used", false))
+	var box := _modal("SALVAGE AUCTION", "%s  You have %d scrap." % [_site_text("auction"), state.scrap], 1000)
+	var row := _row(box)
+	var tiers: Array = (Run.setup.rules.get("auction", {}) as Dictionary).get("tiers", [])
+	var names: PackedStringArray = ["A DENTED CRATE", "A SEALED CRATE"]
+	var rarity: PackedStringArray = ["", "COMMON", "UNCOMMON", "RARE"]
+	for t: int in tiers.size():
+		var tier: Dictionary = tiers[t]
+		var cost: int = int(tier.get("cost", 0))
+		var b := _button("%s  ·  %d SCRAP" % [names[mini(t, names.size() - 1)], cost],
+			UIKit.choice() if state.scrap >= cost and not used else UIKit.secondary(), UIKit.TEXT, Vector2(440, 64))
+		b.disabled = used or state.scrap < cost
+		b.tooltip_text = "%s or better; %d%% chance it is a LEGENDARY" % [rarity[clampi(int(tier.get("min", 2)), 1, 3)], int(tier.get("legend_pct", 0))]
+		b.pressed.connect(func() -> void: _apply([RunSim.BID, t]))
+		row.add_child(b)
+	box.add_child(_label("The dented crate: uncommon or better, %d%% legendary.  The sealed crate: rare or better, %d%% legendary.  One crate a visit." % [
+		int((tiers[0] as Dictionary).get("legend_pct", 0)) if tiers.size() > 0 else 0, int((tiers[1] as Dictionary).get("legend_pct", 0)) if tiers.size() > 1 else 0],
+		UIKit.SIZE_BODY, UIKit.TEXT_DIM, UIKit.font_strong()))
+	if used and not state.cargo.is_empty():
+		box.add_child(_label("Won: %s" % PartText.name_of(Run.db.parts, state.cargo[state.cargo.size() - 1]).to_upper(), UIKit.SIZE_HEADING,
+			UIKit.GREEN, UIKit.font_comic()))
 	var leave := _button("MOVE ON", UIKit.primary(), UIKit.BG, Vector2(240, 60))
 	leave.pressed.connect(func() -> void: _apply([RunSim.LEAVE]))
 	_row(box).add_child(leave)
