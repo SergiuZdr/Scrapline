@@ -1,24 +1,37 @@
 extends Control
 
 ## The assembly bay (play-test 4: "at the start of the run there should be a way to
-## customise the initial robots from basic parts").
+## customise the initial robots from basic parts"). Play-test 9 asked for a new approach:
 ##
-## Three machines side by side, each whole on its lift, each socket a row you step through
-## with the arrows: every common part without limit, plus one each of the defaults'
-## uncommons (`run.json` `assembly`). The draft is only a draft until ROLL OUT, which is a
-## single `RunSim.ASSEMBLE` -- so the build is part of the run's action list like
-## everything else, and a replay rebuilds it exactly.
+##   THE CREW (left)   three cards -- each machine's picture, its name (editable), its numbers;
+##                     the one being built is ringed in amber.
+##   THE LIFT (middle) the machine being built, big, with what it adds up to: HP, move, role,
+##                     armour, damage, and its maker sets.
+##   THE BENCH (right) the five sockets as tabs, and every part the bench has for the chosen
+##                     socket as cards: tap one to fit it. Parts the bench has once say so.
+##
+## The draft is only a draft until ROLL OUT, which is one `RunSim.ASSEMBLE` (and a RENAME for
+## each name changed) -- so the build is part of the run's action list like everything else.
 
 signal done
 
 const SOCKET_NAMES: PackedStringArray = ["FRAME", "CORE", "LEFT ARM", "RIGHT ARM", "MODULE"]
-const COLUMN_WIDTH: float = 590.0
+const CREW_CARD := Vector2(380, 214)
+const PART_CARD := Vector2(158, 196)
+const LIFT := Vector2i(760, 560)
 
 ## One five-part list per machine, in socket order.
 var _draft: Array = []
 var _defaults: Array = []
-var _columns: HBoxContainer
+## The names as typed (027), one per machine.
+var _names: Array = []
+var _machine: int = 0
+var _socket: int = 0
+var _crew_box: VBoxContainer
+var _lift_box: VBoxContainer
+var _bench_box: VBoxContainer
 var _portraits: Array[MachinePortrait] = []
+var _lift: MachinePortrait
 var _status: Label
 
 
@@ -33,25 +46,45 @@ func _ready() -> void:
 	for member: Dictionary in Run.state.crew:
 		_draft.append((member["parts"] as Array).duplicate())
 		_defaults.append((member["parts"] as Array).duplicate())
+		_names.append(String(member["name"]))
 
 	var story: Dictionary = Run.db.story.get("briefing", {})
 	var title := UIKit.on_page(_label(String(story.get("bay", "THE ASSEMBLY BAY")), UIKit.SIZE_DISPLAY, UIKit.PAGE_TEXT, UIKit.font_display()), 10)
-	title.position = Vector2(40, 20)
+	title.position = Vector2(40, 16)
 	add_child(title)
-	var line := UIKit.on_page(_label(String(story.get("bay_text", "")) + "  Basic parts as many as you like; one each of the Rend Saw, the Rail Lance and the Strider frame.",
+	var line := UIKit.on_page(_label(String(story.get("bay_text", "")) + "  Pick a machine on the left, a socket on the right, then a part.",
 		UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()), 5)
-	line.position = Vector2(42, 84)
+	line.position = Vector2(42, 80)
 	add_child(line)
 
-	_columns = HBoxContainer.new()
-	_columns.position = Vector2(40, 124)
-	_columns.add_theme_constant_override("separation", UIKit.SPACE_LG)
-	add_child(_columns)
+	for caption: Array in [["THE CREW", 40.0], ["ON THE LIFT", 440.0], ["THE BENCH", 1220.0]]:
+		var head := UIKit.on_page(_label(String(caption[0]), 26, UIKit.PAGE_TEXT, UIKit.font_comic()), 6)
+		head.position = Vector2(float(caption[1]), 118)
+		add_child(head)
+
+	_crew_box = VBoxContainer.new()
+	_crew_box.position = Vector2(40, 160)
+	_crew_box.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	add_child(_crew_box)
 	for i: int in _draft.size():
-		_portraits.append(MachinePortrait.new(Vector2i(int(COLUMN_WIDTH), 380), "full", true))
+		_portraits.append(MachinePortrait.new(Vector2i(150, 190), "full", true))
+
+	var lift_panel := PanelContainer.new()
+	lift_panel.position = Vector2(440, 160)
+	lift_panel.add_theme_stylebox_override("panel", UIKit.ink_card(UIKit.PAPER_CARD, UIKit.SPACE_MD, UIKit.SPACE_SM, 6))
+	add_child(lift_panel)
+	_lift_box = VBoxContainer.new()
+	_lift_box.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	lift_panel.add_child(_lift_box)
+	_lift = MachinePortrait.new(LIFT, "full", true)
+
+	_bench_box = VBoxContainer.new()
+	_bench_box.position = Vector2(1220, 160)
+	_bench_box.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	add_child(_bench_box)
 
 	var bar := HBoxContainer.new()
-	bar.position = Vector2(40, 1080 - 92)
+	bar.position = Vector2(40, 1080 - 88)
 	bar.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	add_child(bar)
 	var reset := _button("RESET", UIKit.secondary(), UIKit.TEXT, Vector2(180, 60))
@@ -62,8 +95,8 @@ func _ready() -> void:
 	var shuffle := _button("RANDOMISE", UIKit.secondary(), UIKit.TEXT, Vector2(220, 60))
 	shuffle.pressed.connect(_randomise)
 	bar.add_child(shuffle)
-	_status = _label("", UIKit.SIZE_BODY, UIKit.RED, UIKit.font_strong())
-	_status.custom_minimum_size = Vector2(900, 0)
+	_status = _label("", UIKit.SIZE_BODY, Ink.DANGER, UIKit.font_strong())
+	_status.custom_minimum_size = Vector2(1060, 0)
 	_status.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.add_child(_status)
 	var go := _button("ROLL OUT", UIKit.primary(), UIKit.BG, Vector2(300, 64))
@@ -74,74 +107,170 @@ func _ready() -> void:
 
 
 func _rebuild() -> void:
-	for child: Node in _columns.get_children():
-		_columns.remove_child(child)
-		child.queue_free()
+	# The portraits are kept (each renders its machine once) and only re-seated.
+	for portrait: MachinePortrait in _portraits + [_lift]:
+		if portrait.get_parent() != null:
+			portrait.get_parent().remove_child(portrait)
+	for box: Node in [_crew_box, _lift_box, _bench_box]:
+		for child: Node in box.get_children():
+			box.remove_child(child)
+			child.queue_free()
 	for i: int in _draft.size():
-		_columns.add_child(_column(i))
+		_crew_box.add_child(_crew_card(i))
+	_build_lift()
+	_build_bench()
 
 
-## One machine: whole, on its lift; its name as the frame will give it; its five sockets.
-func _column(i: int) -> Control:
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(COLUMN_WIDTH, 0)
-	panel.add_theme_stylebox_override("panel", UIKit.card(UIKit.SURFACE, UIKit.RADIUS_CARD, 0, UIKit.SPACE_SM))
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", UIKit.SPACE_XS)
-	panel.add_child(box)
+# --- The crew ----------------------------------------------------------------
+
+func _crew_card(i: int) -> Control:
+	var card := Button.new()
+	card.custom_minimum_size = CREW_CARD
+	card.focus_mode = Control.FOCUS_NONE
+	var style: InkBox = UIKit.ink_card(UIKit.PAPER_CARD, 0, 0, 7 if i == _machine else 4)
+	if i == _machine:
+		style.band_width = 9.0
+		style.band = Ink.ACTION
+	for key: String in ["normal", "hover", "pressed", "focus"]:
+		card.add_theme_stylebox_override(key, style)
+	card.pressed.connect(func() -> void:
+		_machine = i
+		Audio.play("ui_confirm", -16.0)
+		_rebuild())
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	card.add_child(row)
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_SM)
+	row.offset_left = UIKit.SPACE_MD + 6
 	var portrait: MachinePortrait = _portraits[i]
-	if portrait.get_parent() != null:
-		portrait.get_parent().remove_child(portrait)
-	box.add_child(portrait)
+	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(portrait)
 	portrait.show_machine(_draft[i], 0, true)
-	var inner := VBoxContainer.new()
-	inner.add_theme_constant_override("separation", UIKit.SPACE_XS)
-	var margin := MarginContainer.new()
-	for side: String in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, UIKit.SPACE_MD)
-	margin.add_child(inner)
-	box.add_child(margin)
-	var member := {"name": "", "parts": _draft[i], "alive": true, "hp": 0, "level": 0}
-	var unit: GridUnit = RunSim.preview_machine(Run.setup, member)
-	inner.add_child(_label("%s  ·  %d HP  ·  MOVE %d" % [_name_of(i), unit.max_hp, unit.move], 22, UIKit.TEXT, UIKit.font_comic()))
-	# Sets are a build decision from the first minute (011): two parts from one maker add up.
+	var text := VBoxContainer.new()
+	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	text.add_theme_constant_override("separation", 2)
+	row.add_child(text)
+	var unit: GridUnit = _unit(i)
+	text.add_child(UIKit.fit(_label(String(_names[i]).to_upper(), 28, UIKit.INK, UIKit.font_comic()), 190, 1, 16))
+	text.add_child(UIKit.fit(_label("%s frame  ·  %s" % [_frame_name(i), unit.role.capitalize()], UIKit.SIZE_LABEL, UIKit.INK_DIM, UIKit.font_strong()), 190, 1, 11))
+	text.add_child(_label("%d HP  ·  MOVE %d" % [unit.max_hp, unit.move], UIKit.SIZE_BODY, UIKit.INK, UIKit.font_comic()))
+	for set_line: String in PartText.set_lines(Run.db.parts, Run.db.makers, _draft[i]):
+		text.add_child(UIKit.fit(_label(set_line, UIKit.SIZE_MICRO, UIKit.INK_GREEN, UIKit.font_strong()), 190, 1, 9))
+	return card
+
+
+# --- The lift ----------------------------------------------------------------
+
+func _build_lift() -> void:
+	var i: int = _machine
+	var unit: GridUnit = _unit(i)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	_lift_box.add_child(head)
+	# The name is the player's (027): typed here, it goes in with ROLL OUT.
+	var name_edit := LineEdit.new()
+	name_edit.text = String(_names[i])
+	name_edit.max_length = RunSim.NAME_MAX
+	name_edit.custom_minimum_size = Vector2(380, 54)
+	name_edit.add_theme_font_override("font", UIKit.font_comic())
+	name_edit.add_theme_font_size_override("font_size", 34)
+	name_edit.tooltip_text = "This machine's name -- type to change it"
+	for key: String in ["normal", "focus", "read_only"]:
+		name_edit.add_theme_stylebox_override(key, UIKit.ink_card(UIKit.PAPER, UIKit.SPACE_SM, 2, 3))
+	name_edit.add_theme_color_override("font_color", UIKit.INK)
+	name_edit.add_theme_color_override("caret_color", UIKit.INK)
+	name_edit.text_changed.connect(func(text: String) -> void:
+		var clean: String = RunSim.clean_name(text)
+		if not clean.is_empty():
+			_names[i] = clean
+			var card: Button = _crew_box.get_child(i) as Button
+			if card != null:
+				# Only the card's name changes: a full rebuild would take the caret away.
+				var label: Label = card.get_child(0).get_child(1).get_child(0) as Label
+				label.text = clean.to_upper())
+	head.add_child(name_edit)
+	head.add_child(_label("RENAME", UIKit.SIZE_MICRO, UIKit.INK_DIM, UIKit.font_comic()))
+	_lift_box.add_child(_lift)
+	_lift.show_machine(_draft[i], 0, true)
+	var rules: Dictionary = Run.setup.combat_rules
+	var chips := HBoxContainer.new()
+	chips.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	_lift_box.add_child(chips)
+	for chip: Array in [["HP", str(unit.max_hp)], ["MOVE", str(unit.move)], ["HEAT CAP", str(unit.heat_cap)],
+			["ROLE", unit.role.to_upper()], ["ARMOUR", String((rules.get("armor_types", []) as Array)[unit.armor_type]).to_upper()],
+			["DAMAGE", String((rules.get("damage_types", []) as Array)[unit.damage_type]).to_upper()]]:
+		chips.add_child(_chip(String(chip[0]), String(chip[1])))
 	var sets: PackedStringArray = PartText.set_lines(Run.db.parts, Run.db.makers, _draft[i])
-	for line: String in sets:
-		inner.add_child(_label(line, UIKit.SIZE_LABEL, UIKit.GREEN, UIKit.font_strong()))
-	if sets.is_empty():
-		inner.add_child(_label("No maker set yet: two parts from one maker add a bonus.", UIKit.SIZE_LABEL, UIKit.TEXT_FAINT))
-	for s: int in 5:
-		inner.add_child(_socket_row(i, s))
+	_lift_box.add_child(UIKit.fit(_label("  ·  ".join(sets) if not sets.is_empty() else "No maker set yet: two parts from one maker add a bonus.",
+		UIKit.SIZE_LABEL, UIKit.INK_GREEN if not sets.is_empty() else UIKit.INK_DIM, UIKit.font_strong()), float(LIFT.x), 1, 10))
+
+
+func _chip(caption: String, value: String) -> Control:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UIKit.ink_card(UIKit.PAPER, UIKit.SPACE_SM, 2, 2))
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 0)
+	panel.add_child(box)
+	box.add_child(_label(caption, UIKit.SIZE_MICRO, UIKit.INK_DIM, UIKit.font_comic()))
+	box.add_child(UIKit.fit(_label(value, 20, UIKit.INK, UIKit.font_comic()), 96, 1, 11))
 	return panel
 
 
-func _socket_row(i: int, s: int) -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", UIKit.SPACE_SM)
-	var part: String = String(_draft[i][s])
-	var back := _button("<", UIKit.secondary(), UIKit.TEXT, Vector2(48, 58))
-	back.pressed.connect(_step.bind(i, s, -1))
-	row.add_child(back)
-	var text := VBoxContainer.new()
-	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.add_theme_constant_override("separation", 0)
-	row.add_child(text)
-	text.add_child(_label("%s  ·  %s" % [SOCKET_NAMES[s], PartText.name_of(Run.db.parts, part)], UIKit.SIZE_BODY,
-		PartText.rarity_colour(Run.db.parts, part), UIKit.font_comic()))
-	var summary := _label("%s  ·  %s" % [PartText.maker_short(Run.db.makers, Run.db.parts, part),
-		PartText.summary(Run.db.parts, part, Run.db.combat_abilities)], UIKit.SIZE_LABEL, UIKit.TEXT_DIM)
-	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	summary.custom_minimum_size = Vector2(COLUMN_WIDTH - 170, 0)
-	summary.max_lines_visible = 1
-	text.add_child(summary)
-	var next := _button(">", UIKit.secondary(), UIKit.TEXT, Vector2(48, 58))
-	next.pressed.connect(_step.bind(i, s, 1))
-	row.add_child(next)
-	return row
+# --- The bench ---------------------------------------------------------------
+
+func _build_bench() -> void:
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	_bench_box.add_child(tabs)
+	for s: int in 5:
+		var tab := _button(SOCKET_NAMES[s], UIKit.choice() if s == _socket else UIKit.secondary(), UIKit.TEXT, Vector2(128, 48))
+		tab.add_theme_font_size_override("font_size", 18)
+		tab.pressed.connect(func() -> void:
+			_socket = s
+			_rebuild())
+		tabs.add_child(tab)
+	var fitted: String = String(_draft[_machine][_socket])
+	_bench_box.add_child(UIKit.on_page(UIKit.fit(_label("%s ON %s: %s" % [SOCKET_NAMES[_socket], String(_names[_machine]).to_upper(),
+		PartText.name_of(Run.db.parts, fitted)], UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_comic()), 650, 1, 12), 5))
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(668, 640)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_bench_box.add_child(scroll)
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", UIKit.SPACE_SM)
+	grid.add_theme_constant_override("v_separation", UIKit.SPACE_SM)
+	scroll.add_child(grid)
+	for part: String in _options(_socket):
+		var card: Button = PartCard.build(Run.db, part, PART_CARD)
+		var free: bool = _available(part, _machine, _socket)
+		var limit: int = RunSim.bench_count(Run.setup, part)
+		if part == fitted:
+			# The fitted one: ringed in amber, the selection.
+			var ring: StyleBoxFlat = UIKit.choice()
+			ring.set_border_width_all(5)
+			for key: String in ["normal", "hover", "pressed", "focus"]:
+				card.add_theme_stylebox_override(key, ring)
+		elif not free:
+			card.disabled = true
+			card.modulate = Color(1, 1, 1, 0.45)
+		if limit > 0:
+			card.tooltip_text = "The bench has %d of these" % limit
+			var note := _label("ONLY %d" % limit if free or part == fitted else "IN USE", UIKit.SIZE_MICRO, Ink.DANGER, UIKit.font_comic())
+			card.add_child(note)
+			note.position = Vector2(PART_CARD.x - 64, PART_CARD.y - 22)
+		card.pressed.connect(func() -> void:
+			if part != fitted and free:
+				_draft[_machine][_socket] = part
+				Audio.play("cycle", -16.0)
+				_status.text = ""
+				_rebuild())
+		grid.add_child(card)
 
 
 ## The next part on the bench for this socket, skipping any the other machines have
-## already used up (the once-only extras).
+## already used up (the once-only extras). Kept for the arrows the tests drive.
 func _step(i: int, s: int, by: int) -> void:
 	var options: Array[String] = _options(s)
 	if options.is_empty():
@@ -184,15 +313,12 @@ func _available(part: String, i: int, s: int) -> bool:
 	return used < limit
 
 
-## The name the frame will give this machine (the sim decides it on ROLL OUT; this only
-## shows it): the frame's name, "II" for a second machine on the same frame.
-func _name_of(i: int) -> String:
-	var base: String = PartText.name_of(Run.db.parts, String(_draft[i][0])).replace(" Frame", "")
-	var same: int = 0
-	for m: int in i + 1:
-		if PartText.name_of(Run.db.parts, String(_draft[m][0])).replace(" Frame", "") == base:
-			same += 1
-	return base.to_upper() + ("" if same == 1 else (" II" if same == 2 else " III"))
+func _unit(i: int) -> GridUnit:
+	return RunSim.preview_machine(Run.setup, {"name": "", "parts": _draft[i], "alive": true, "hp": 0, "level": 0})
+
+
+func _frame_name(i: int) -> String:
+	return PartText.name_of(Run.db.parts, String(_draft[i][0])).replace(" Frame", "")
 
 
 ## A random legal build: presentation randomness is fine here -- only the chosen build
@@ -211,12 +337,16 @@ func _randomise() -> void:
 
 
 func _roll_out() -> void:
-	if Run.apply([RunSim.ASSEMBLE, _draft.duplicate(true)]):
-		Audio.play("ui_confirm", -8.0)
-		done.emit()
-	else:
+	if not Run.apply([RunSim.ASSEMBLE, _draft.duplicate(true)]):
 		Audio.play("ui_deny", -8.0)
 		_status.text = "That build is not possible from the bench."
+		return
+	# Names changed in the bay (027): one RENAME each, remembered for this crew's next run.
+	for i: int in _names.size():
+		if String(_names[i]) != String(Run.state.crew[i]["name"]):
+			Run.rename(i, String(_names[i]))
+	Audio.play("ui_confirm", -8.0)
+	done.emit()
 
 
 func _label(text: String, font_size: int, colour: Color, face: Font = null) -> Label:
@@ -224,8 +354,7 @@ func _label(text: String, font_size: int, colour: Color, face: Font = null) -> L
 	label.text = text
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", colour)
-	if face != null:
-		label.add_theme_font_override("font", face)
+	label.add_theme_font_override("font", face if face != null else UIKit.font())
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
 
