@@ -200,3 +200,5 @@ Salvage, scrapyards and traders roll with the act's own `rewards`: Act 2 35/45/2
 10/45/45 by rarity, and an Act 3 elite always offers a rare. Acts 2 and 3 enemies carry +5 HP and
 Act 3's hit 2 harder; each keeper gets its act's arming. Defend caches roll 3+ hexes apart.
 Run bot: 56.6% over three acts, the losses in Acts 2 and 3.
+
+Levels go to 5 (65 and 95 scrap) so late scrap has somewhere to go (027).

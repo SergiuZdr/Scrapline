@@ -267,7 +267,7 @@ func _test_act3() -> void:
 	CombatSim.hurt(e, 0, e.unit(10), 1)
 	_check("enraged at half HP", e.enraged.has(10) and int(CombatSim.kind_rules(e, e.unit(10))["pulse_radius"]) == 3)
 	CombatSim.apply(e, [CombatSim.ACT_END, 0, 0, 0])
-	_check("and its two guards arrive the next round", e.units.size() == before_units + 2)
+	_check("and its three guards arrive the next round", e.units.size() == before_units + 3)
 
 
 # --- Fixtures ---------------------------------------------------------------
