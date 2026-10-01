@@ -242,5 +242,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-01 | **026: is 56.6% over three acts right? Does the garage need a new layout** (026 fitted its text and added a cover, the layout is 008's)? | The user plays | |
 | 2026-10-01 | **027: is The Pour hard enough (5 gate losses in 110 bot runs)? Do the new bay and garage read well?** | The user plays | |
 | 2026-10-01 | **028: are HOLD, HACK and SURVIVE fun? Are the yard conditions noticeable enough?** | The user plays | |
-
 | 2026-10-01 | **029: do the flamer, harpoon and shield caster feel different? Are legendaries worth the hunt?** | The user plays | |
