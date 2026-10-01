@@ -204,6 +204,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-01 | An automatic layout move needs a bound: "the shorter way, up or down" with no limit sent a crowded tag to the banner (PT8-3) |
 | 2026-10-01 | Measure an art complaint across every combination before fixing one model: "arms go through the body" was 78 of 100 frame/arm pairs |
 | 2026-10-01 | A transparent overlay drawn at a higher render priority than a label hides it however "no depth test" the label is: order the priorities, labels last |
+| 2026-10-01 | A bot batch is ~55 s a run alone and ~5 min with 15 processes sharing the CPU: size batches at 10 runs a process, launch them detached (`nohup`), and wait on the processes, or the one-hour limit kills them silently |
 
 ## Open questions
 
@@ -244,3 +245,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-01 | **028: are HOLD, HACK and SURVIVE fun? Are the yard conditions noticeable enough?** | The user plays | |
 | 2026-10-01 | **029: do the flamer, harpoon and shield caster feel different? Are legendaries worth the hunt?** | The user plays | |
 | 2026-10-01 | **030: are the warlords fun? Act 3 is now the bot's easiest act (12.6% lost)** | Tighten after 031; the user plays | |
+| 2026-10-01 | **031: is Act 1 too hard with arenas (bot loses 14.7% there, was 5.3%)? Does the refinery make late crews too strong?** | The user plays | |
