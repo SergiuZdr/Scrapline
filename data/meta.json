@@ -7,7 +7,7 @@
       "crew": [
         {"name": "Slab", "parts": ["ch_bulwark", "co_arc", "ar_hammer", "ar_pulse", "mo_ablative"]},
         {"name": "Winch", "parts": ["ch_hauler", "co_furnace", "ar_ripper", "ar_scatter", "mo_governor"]},
-        {"name": "Needle", "parts": ["ch_lancer", "co_dynamo", "ar_lance", "ar_scanner", "mo_scavenger"]}
+        {"name": "Longshot", "parts": ["ch_lancer", "co_dynamo", "ar_lance", "ar_scanner", "mo_scavenger"]}
       ]},
     "runners": {"name": "THE RUNNERS", "text": "Three light frames: first to every pile, last to be hit, nothing to spare.",
       "crew": [

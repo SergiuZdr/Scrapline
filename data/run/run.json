@@ -44,7 +44,7 @@
       ]
     },
     {
-      "name": "Mule",
+      "name": "Needle",
       "parts": [
         "ch_hauler",
         "co_furnace",
@@ -54,7 +54,7 @@
       ]
     },
     {
-      "name": "Stilts",
+      "name": "Relay",
       "parts": [
         "ch_strider",
         "co_arc",

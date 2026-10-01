@@ -27,6 +27,7 @@ extends RefCounted
 ##   [BUY, index]                        trader: buy part `index` of its stock
 ##   [SELL, cargo_index]                 trader: sell a part from the hold
 ##   [CHOOSE, option]                    signal: take one of the event's options
+##   [RENAME, crew_index, name]          give a machine its own name (027), any time but a fight
 
 const TRAVEL: int = 0
 const FIGHT: int = 1
@@ -43,6 +44,9 @@ const TUNE: int = 11
 const BUY: int = 12
 const SELL: int = 13
 const CHOOSE: int = 14
+const RENAME: int = 15
+## How long a machine's name may be (027): it has to fit a card and a tab.
+const NAME_MAX: int = 12
 ## Site panels LEAVE closes (a signal is closed by one of its own options).
 const LEAVABLE: PackedStringArray = ["workshop", "trader", "tower"]
 
@@ -113,7 +117,29 @@ static func apply(state: RunState, setup: RunSetup, action: Array) -> bool:
 			return _assemble(state, setup, action[1] as Array)
 		TUNE:
 			return action.size() >= 4 and _tune(state, setup, int(action[1]), int(action[2]), int(action[3]))
+		RENAME:
+			return action.size() >= 3 and _rename(state, int(action[1]), String(action[2]))
 	return false
+
+
+## A machine's name, as the player typed it (027): trimmed, 1 to NAME_MAX letters, digits,
+## spaces or dashes, never while a fight is pending (the fight already carries its names).
+static func clean_name(text: String) -> String:
+	var out: String = ""
+	for c: String in text.strip_edges():
+		if c == " " or c == "-" or c == "'" or c.to_upper() != c.to_lower() or (c >= "0" and c <= "9"):
+			out += c
+	return out.strip_edges().left(NAME_MAX)
+
+
+static func _rename(state: RunState, crew: int, text: String) -> bool:
+	var name: String = clean_name(text)
+	if crew < 0 or crew >= state.crew.size() or name.is_empty() or name != text:
+		return false
+	if String(state.pending.get("kind", "")) == "fight":
+		return false
+	state.crew[crew]["name"] = name
+	return true
 
 
 # --- Queries -----------------------------------------------------------------

@@ -879,11 +879,17 @@ func _run_over() -> void:
 		gains += "\nUNLOCKED  ·  %s" % _unlock_name(entry)
 	var next: Dictionary = banked.get("next", {})
 	if not next.is_empty():
-		gains += "\nNext: %s  (%s)" % [_unlock_name(next), String(next.get("text", "")).to_lower()]
+		var p: Array = Meta.progress(Profile.stats(), next)
+		gains += "\nNext unlock: %s  (%s: %d / %d)" % [_unlock_name(next), String(next.get("text", "")).to_lower(), int(p[0]), int(p[1])]
 	var box := _modal("THE RUN IS WON" if won else "RUN OVER",
 		"%s\n\n%d fights won  ·  act %d  ·  %d scrap\n%s" % [ending if not ending.is_empty() else state.end_reason,
 			state.fights_won, state.act, state.scrap, gains], 900)
 	var row := _row(box)
+	# 027: every unlock as a goal, the ones this run earned ringed as new.
+	var fresh: Array = (banked.get("new", []) as Array).map(func(e: Dictionary) -> String: return String(e["id"]))
+	var goals := _button("UNLOCKS", UIKit.secondary(), UIKit.TEXT, Vector2(200, 64))
+	goals.pressed.connect(func() -> void: UnlocksPanel.open(self, Run.db, Profile.unlocked(), Profile.stats(), fresh))
+	row.add_child(goals)
 	var title := _button("TITLE", UIKit.secondary(), UIKit.TEXT, Vector2(200, 64))
 	title.pressed.connect(func() -> void:
 		Run.end_run()
