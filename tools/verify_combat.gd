@@ -64,6 +64,7 @@ func _initialize() -> void:
 	_test_playtest7()
 	_test_act3()
 	_test_objectives_028()
+	_test_weapons_029()
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
 			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core"]:
 		_test_bot_fight(id)
@@ -328,6 +329,50 @@ func _test_objectives_028() -> void:
 	wired.intents.clear()
 	CombatSim.apply(wired, [CombatSim.ACT_END, 0, 0, 0])
 	_check("LIVE WIRES: 2 to whatever starts a round on one", wired.unit(0).hp == hp - 2)
+
+
+## 029: the flamer's cone, the harpoon's drag, the shield caster.
+func _test_weapons_029() -> void:
+	var flamer: Array = ["ch_brute", "co_dynamo", "ar_flamer", "ar_hammer", "mo_scavenger"]
+	var aim: Vector2i = Hex.neighbor(C, 0)
+	var beyond: Array[Vector2i] = []
+	for n: Vector2i in Hex.neighbors(aim):
+		if Hex.distance(C, n) == 2:
+			beyond.append(n)
+	_check("(precondition) a cone covers the hex aimed at and three beyond", beyond.size() == 3)
+	var foes: Array = [_unit(HAMMER, aim, 20)]
+	for b: Vector2i in beyond:
+		foes.append(_unit(HAMMER, b, 20))
+	var burn: CombatState = _fight(_rows(), [_unit(flamer, C, 30)], foes)
+	_place(burn, 0, C)
+	_place(burn, 10, aim)
+	for i: int in beyond.size():
+		_place(burn, 11 + i, beyond[i])
+	var plan: Dictionary = CombatSim.strike_plan(burn, burn.unit(0), 0, aim)
+	_check("the flamer's cone hits all four (%d)" % (plan["hits"] as Array).size(), (plan["hits"] as Array).size() == 4)
+	_check("and cannot be aimed two hexes out", not bool(CombatSim.strike_plan(burn, burn.unit(0), 0, beyond[0])["legal"]))
+
+	var harpoon: Array = ["ch_hauler", "co_dynamo", "ar_harpoon", "ar_hammer", "mo_scavenger"]
+	var line: Array[Vector2i] = []
+	var step: Vector2i = C
+	for i: int in 3:
+		step = Hex.neighbor(step, 0)
+		line.append(step)
+	var drag: CombatState = _fight(_rows(), [_unit(harpoon, C, 30)], [_unit(HAMMER, line[2], 20)])
+	_place(drag, 0, C)
+	_place(drag, 10, line[2])
+	_attack(drag, 0, 0, line[2])
+	_check("a harpoon drags its target a hex toward the shooter", _at(drag, 10) == line[1])
+
+	var caster: Array = ["ch_hauler", "co_dynamo", "ar_shieldcaster", "ar_hammer", "mo_scavenger"]
+	var ally_at: Vector2i = Hex.neighbor(Hex.neighbor(C, 3), 3)
+	var guard: CombatState = _fight(_rows(), [_unit(caster, C, 30), _unit(HAMMER, ally_at, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(guard, 0, C)
+	_place(guard, 1, ally_at)
+	_check("a shield caster cannot be aimed at an enemy or the ground", not CombatSim.can_attack(guard, 0, 0, Vector2i(0, 0))
+		and not CombatSim.can_attack(guard, 0, 0, Hex.neighbor(C, 0)))
+	_attack(guard, 0, 0, ally_at)
+	_check("a shield caster shields the ally it is aimed at (%d)" % guard.unit(1).shield, guard.unit(1).shield == 3)
 
 
 # --- Fixtures ---------------------------------------------------------------

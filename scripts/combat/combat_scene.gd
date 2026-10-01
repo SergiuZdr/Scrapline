@@ -1752,6 +1752,16 @@ func _attack(ref: int, aim: Vector2i, w: int, end: Vector2i) -> void:
 			_vfx.muzzle_flash(muzzle, hit_point, colour.lightened(0.5))
 			_tracer(muzzle, hit_point, colour)
 			Audio.play("zap" if int(weapon["chain"]) > 0 else "shot", -7.0)
+		"cone":
+			# 029: the flamer -- a gout of fire over the wedge it burns.
+			_vfx.muzzle_flash(muzzle, _to_world(aim.x, aim.y), Color("ff7a3c"))
+			for n: Vector2i in [aim] + Hex.neighbors(aim):
+				if _state.inside(n) and (n == aim or Hex.distance(Vector2i(u.x, u.y), n) == 2):
+					_vfx.burst(_to_world(n.x, n.y) + Vector3(0, 0.3, 0), Color("ff7a3c"), 1.0)
+			Audio.play("flood", -8.0)
+		"shield":
+			_tracer(muzzle, _to_world(aim.x, aim.y) + Vector3(0, 0.8, 0), Ink.YOURS)
+			Audio.play("shield", -8.0)
 		"lob":
 			var landing: Vector3 = _to_world(aim.x, aim.y) + Vector3(0, 0.4, 0)
 			_vfx.muzzle_flash(muzzle, landing, colour.lightened(0.5))
@@ -2301,6 +2311,9 @@ func _refresh_weapon_bar(sel: GridUnit) -> void:
 
 func _preview_text(preview: Dictionary) -> String:
 	var text: String = _effects_text(preview.get("effects", []), preview)
+	if preview.has("shield"):
+		var guarded: GridUnit = _state.unit(int((preview["shield"] as Dictionary)["ref"]))
+		text = "%s takes %d less from every hit until your next turn." % [guarded.name, int((preview["shield"] as Dictionary)["amount"])]
 	var sel: GridUnit = _state.unit(_selected) if _selected >= 0 else null
 	if sel != null and not _pending.is_empty() and not bool(_pending["ability"]):
 		var w: int = int(_pending["i"])
@@ -2445,6 +2458,10 @@ func _weapon_detail(u: GridUnit, w: int) -> String:
 	match String(weapon["shape"]):
 		"melee":
 			bits.append("melee")
+		"cone":
+			bits.append("flame cone")
+		"shield":
+			bits.append("shield ally %d" % CombatSim.weapon_reach(_state, u, w))
 		"shot":
 			bits.append("shot %d" % CombatSim.weapon_reach(_state, u, w))
 		"lob":
@@ -2456,6 +2473,8 @@ func _weapon_detail(u: GridUnit, w: int) -> String:
 	for key: String in ["splash", "shove"]:
 		if int(weapon[key]) > 0:
 			bits.append(key)
+	if int(weapon.get("pull", 0)) > 0:
+		bits.append("drags")
 	if bool(weapon["mark"]):
 		bits.append("marks")
 	if bool(weapon["tears"]):

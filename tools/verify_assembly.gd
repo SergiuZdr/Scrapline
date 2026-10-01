@@ -47,7 +47,9 @@ func _run() -> void:
 	var partial: bool = dir != "res://art/parts"
 	var chassis_ids: Array[String] = []
 	for part_id: String in content.parts:
-		if String((content.parts[part_id] as Dictionary).get("slot", "")) == "chassis" and not PartTuning.is_tuned(part_id):
+		# A part that borrows another's model (029, `"model"`) has no file of its own to check.
+		if String((content.parts[part_id] as Dictionary).get("slot", "")) == "chassis" and not PartTuning.is_tuned(part_id) \
+				and not (content.parts[part_id] as Dictionary).has("model"):
 			if not partial or ResourceLoader.exists("%s/%s.glb" % [dir, part_id]):
 				chassis_ids.append(part_id)
 	chassis_ids.sort()

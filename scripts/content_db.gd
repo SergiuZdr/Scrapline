@@ -58,6 +58,10 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	# Every part's two tunings become parts of their own (`ar_hammer:a`), so anything that
 	# looks a part up by id works on a tuned one (011, `PartTuning`).
 	PartTuning.expand(db.parts)
+	for id: Variant in db.parts:
+		var model: String = String((db.parts[id] as Dictionary).get("model", ""))
+		if not model.is_empty() and not PartTuning.is_tuned(String(id)):
+			PartTuning.models[String(id)] = model
 	var maker_data: Variant = db._read_json("%s/parts/makers.json" % root)
 	if maker_data is Dictionary:
 		db.makers = _without_comments(maker_data as Dictionary)
