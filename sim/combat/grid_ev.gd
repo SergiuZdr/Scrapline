@@ -51,6 +51,7 @@ const ENRAGED: int = 40      ## actor (a keeper, 027) fell below half HP at (x, 
 const HOLD_SCORED: int = 41  ## the crew held the zone this round (028); v1 = score now, v2 = needed
 const HACKED: int = 42       ## actor took the terminal at (x, y) (028); v1 = taken now, v2 = needed
 const WAVE_MARKED: int = 43  ## a wave comes in at (x, y) next round (028, the survive objective)
+const HAULED: int = 44       ## actor (the Magnet King, 030) hauled the other side toward (x, y)
 
 ## What a PROP_PLACED / PROP_BROKEN `v1` names. An int, because events are flat ints.
 const PROP_KINDS: PackedStringArray = ["crate", "barrel", "pylon"]
@@ -69,7 +70,7 @@ const NAMES: PackedStringArray = [
 	"HEAT", "OVERHEAT", "SEIZED", "VENTED", "MARKED", "PART_TORN", "PILE_DROPPED", "PILE_TAKEN",
 	"PROP_HIT", "PROP_BROKEN", "EXPLOSION", "FELL", "ABILITY", "PULLED", "PROP_PLACED",
 	"SPAWN_MARKED", "SPAWNED", "SPAWN_BLOCKED", "SHIELDED", "ARRIVAL_MARKED", "WRECK_THROWN", "PILE_LOST", "POUR_MARKED", "FLOODED",
-	"FLUE_BLEW", "PULSE_MARKED", "PULSED", "ENRAGED", "HOLD_SCORED", "HACKED", "WAVE_MARKED",
+	"FLUE_BLEW", "PULSE_MARKED", "PULSED", "ENRAGED", "HOLD_SCORED", "HACKED", "WAVE_MARKED", "HAULED",
 ]
 
 

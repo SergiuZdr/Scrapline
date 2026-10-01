@@ -45,7 +45,8 @@
     "boss": "The Sorting Gate, and the Sorter that keeps it, shielded by the gate's pylons. Through it is the next yard.",
     "trader": "A free trader in a container, lamps on. Parts for scrap, and scrap for your spares.",
     "tower": "A crane cab still standing. From up there the fog is thinner.",
-    "signal": "Something out here is sending. Worth a look, maybe."
+    "signal": "Something out here is sending. Worth a look, maybe.",
+    "warlord": "A Reclaimer warlord holds this ground with its own rule. Its hoard is worth the detour."
   },
   "endings": {
     "won": "The key turns in the Core. Behind the crew the Reclaimer's booms sag and go still, one district at a time, and the valley is quiet for the first time in forty years.",

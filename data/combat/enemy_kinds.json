@@ -83,5 +83,23 @@
     "builds": true,
     "every": 4,
     "enraged": {"pulse_every": 2, "pulse_radius": 3, "pulse_damage": 5, "summons": 3}
+  },
+  "grinder": {
+    "name": "The Grinder",
+    "text": "Act 1's warlord: a ring of saws. At the start of every round, 2 to each of your machines standing next to it -- the hexes around it are marked. Hit it from range, or hit it and step away.",
+    "aura": 2,
+    "anchored": true
+  },
+  "magnet": {
+    "name": "The Magnet King",
+    "text": "Act 2's warlord. Every other round it hauls each of your machines within 3 a hex toward itself -- into pits, into each other -- marked the round before. Stand where a haul does you no harm, or stay out of reach.",
+    "haul_every": 2,
+    "haul_radius": 3,
+    "anchored": true
+  },
+  "twin": {
+    "name": "Twin Furnace",
+    "text": "Act 3's warlords come in a pair. While both stand, each takes 2 less from every hit: break one, then the other.",
+    "twin_armor": 2
   }
 }

@@ -1,0 +1,128 @@
+{
+  "id": "warlord_twins",
+  "name": "The Twin Furnaces",
+  "acts": [
+    3
+  ],
+  "warlord": true,
+  "_comment": "030: Act 3's warlords, a pair. Each takes 2 less while the other stands: break one, then the other.",
+  "rows": [
+    "........",
+    ".f....f.",
+    "........",
+    "..r..r..",
+    "........",
+    ".f.bb.f.",
+    "........",
+    "........"
+  ],
+  "player": [
+    {
+      "name": "Knuckles",
+      "parts": [
+        "ch_brute",
+        "co_slug",
+        "ar_saw",
+        "ar_hammer",
+        "mo_scavenger"
+      ],
+      "x": 2,
+      "y": 7
+    },
+    {
+      "name": "Needle",
+      "parts": [
+        "ch_hauler",
+        "co_furnace",
+        "ar_pulse",
+        "ar_lance",
+        "mo_ablative"
+      ],
+      "x": 4,
+      "y": 7
+    },
+    {
+      "name": "Relay",
+      "parts": [
+        "ch_strider",
+        "co_arc",
+        "ar_scanner",
+        "ar_scatter",
+        "mo_governor"
+      ],
+      "x": 6,
+      "y": 7
+    }
+  ],
+  "enemy": [
+    {
+      "name": "Furnace West",
+      "parts": [
+        "ch_citadel",
+        "co_crucible",
+        "ar_flamer",
+        "ar_mortar",
+        "mo_reactive"
+      ],
+      "x": 2,
+      "y": 0,
+      "kind": "twin",
+      "hp": 26
+    },
+    {
+      "name": "Furnace East",
+      "parts": [
+        "ch_citadel",
+        "co_crucible",
+        "ar_flamer",
+        "ar_mortar",
+        "mo_reactive"
+      ],
+      "x": 5,
+      "y": 0,
+      "kind": "twin",
+      "hp": 26
+    },
+    {
+      "name": "Lancer",
+      "parts": [
+        "ch_lancer",
+        "co_dynamo",
+        "ar_railgun",
+        "ar_scanner",
+        "mo_targeting"
+      ],
+      "x": 0,
+      "y": 0
+    },
+    {
+      "name": "Reaper",
+      "parts": [
+        "ch_reaper",
+        "co_ember",
+        "ar_ripper",
+        "ar_saw",
+        "mo_bypass"
+      ],
+      "x": 7,
+      "y": 0
+    },
+    {
+      "name": "Bulwark",
+      "parts": [
+        "ch_bulwark",
+        "co_tesla",
+        "ar_pulse",
+        "ar_hammer",
+        "mo_coolant"
+      ],
+      "x": 3,
+      "y": 2
+    }
+  ],
+  "objective": {
+    "type": "rout"
+  },
+  "keepers": 2,
+  "max_rounds": 18
+}

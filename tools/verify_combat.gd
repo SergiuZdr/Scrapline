@@ -65,8 +65,10 @@ func _initialize() -> void:
 	_test_act3()
 	_test_objectives_028()
 	_test_weapons_029()
+	_test_warlords_030()
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
-			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core"]:
+			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core",
+		"warlord_grinder", "warlord_magnet", "warlord_twins"]:
 		_test_bot_fight(id)
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
@@ -373,6 +375,43 @@ func _test_weapons_029() -> void:
 		and not CombatSim.can_attack(guard, 0, 0, Hex.neighbor(C, 0)))
 	_attack(guard, 0, 0, ally_at)
 	_check("a shield caster shields the ally it is aimed at (%d)" % guard.unit(1).shield, guard.unit(1).shield == 3)
+
+
+## 030: the warlords' rules.
+func _test_warlords_030() -> void:
+	var saws: Dictionary = _unit(HAMMER, C, 40)
+	saws["kind"] = "grinder"
+	var n: Vector2i = Hex.neighbor(C, 0)
+	var g: CombatState = _fight(_rows(), [_unit(HAMMER, n, 30), _unit(HAMMER, Vector2i(0, 8), 30)], [saws])
+	_place(g, 0, n)
+	_place(g, 1, Vector2i(0, 8))
+	_place(g, 10, C)
+	var next_to: int = g.unit(0).hp
+	var away: int = g.unit(1).hp
+	g.intents.clear()
+	CombatSim.apply(g, [CombatSim.ACT_END, 0, 0, 0])
+	_check("the Grinder's ring cuts what stands next to it (%d -> %d), not further" % [next_to, g.unit(0).hp],
+		g.unit(0).hp <= next_to - 2 and g.unit(1).hp == away)
+
+	var king: Dictionary = _unit(HAMMER, C, 40)
+	king["kind"] = "magnet"
+	var three: Vector2i = _off(C, 3, -3, 0)
+	var m: CombatState = _fight(_rows(), [_unit(HAMMER, three, 30)], [king])
+	_place(m, 0, three)
+	_place(m, 10, C)
+	m.intents.clear()
+	CombatSim.apply(m, [CombatSim.ACT_END, 0, 0, 0])
+	_check("the Magnet King hauls a machine 3 away a hex toward it (round 2)", Hex.distance(_at(m, 0), C) == 2)
+
+	var west: Dictionary = _unit(HAMMER, Vector2i(2, 0), 30)
+	west["kind"] = "twin"
+	var east: Dictionary = _unit(HAMMER, Vector2i(6, 0), 30)
+	east["kind"] = "twin"
+	var t: CombatState = _fight(_rows(), [_unit(HAMMER, C, 30)], [west, east])
+	var both: int = CombatSim.damage_to(t, t.unit(0), t.unit(10), 6, false)
+	t.unit(11).alive = false
+	var alone: int = CombatSim.damage_to(t, t.unit(0), t.unit(10), 6, false)
+	_check("a twin takes 2 less while its twin stands (%d), and not after (%d)" % [both, alone], alone == both + 2)
 
 
 # --- Fixtures ---------------------------------------------------------------

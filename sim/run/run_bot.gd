@@ -225,6 +225,9 @@ static func _choose_site(state: RunState, setup: RunSetup) -> int:
 					score += 30 if hurt or state.alive_crew() < state.crew.size() else 4
 				"elite":
 					score += -20 if hurt else 6
+				# 030: a warlord is a detour worth a legendary; a hurt crew passes it by.
+				"warlord":
+					score += -30 if hurt else 10
 				# Fights are where salvage comes from; a bot that detours to every scrapyard
 				# plays a run with half the fights a player would take.
 				"scrapyard":

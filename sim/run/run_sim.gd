@@ -50,7 +50,7 @@ const NAME_MAX: int = 12
 ## Site panels LEAVE closes (a signal is closed by one of its own options).
 const LEAVABLE: PackedStringArray = ["workshop", "trader", "tower"]
 
-const FIGHT_TYPES: PackedStringArray = ["skirmish", "elite", "boss"]
+const FIGHT_TYPES: PackedStringArray = ["skirmish", "elite", "boss", "warlord"]
 
 
 static func start(setup: RunSetup) -> RunState:
@@ -160,7 +160,8 @@ static func destinations(state: RunState) -> Array[int]:
 ## crew has visited.
 static func revealed(state: RunState, id: int) -> bool:
 	var s: Dictionary = state.site(id)
-	if bool(s["visited"]) or String(s["type"]) == "boss" or state.scouted.has(id):
+	# The gate and the act's warlord (030) are known from the start: they are why you go.
+	if bool(s["visited"]) or String(s["type"]) == "boss" or String(s["type"]) == "warlord" or state.scouted.has(id):
 		return true
 	for other: Variant in (s["links"] as Array):
 		if bool(state.site(int(other))["visited"]):
@@ -413,6 +414,8 @@ static func move_preview(state: RunState, setup: RunSetup, to: int) -> Dictionar
 			enemies += int(rules.get("elite_extra", 1))
 		elif kind == "boss":
 			enemies = 1 + int(rules.get("boss_escorts", 3))
+		elif kind == "warlord":
+			enemies = 1 + int(rules.get("warlord_escorts", 3))
 	return {"advances": advances, "front_after": front_after, "lost": lost, "enemies": enemies,
 		"reach": FIGHT_TYPES.has(kind) and int(site.get("col", -9)) == front_after + 1,
 		"leaving_costs": state.consumed(state.current)}
@@ -587,6 +590,12 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 		state.log.append("Driven off. No salvage from this one.")
 		return true
 	state.fights_won += 1
+	if kind == "warlord":
+		# 030: a warlord's hoard -- a legendary -- and the act goes on.
+		state.scrap += int(rules_of(state, setup).get("rewards", {}).get("warlord_scrap", 30))
+		state.pending = hoard(state, setup, false)
+		state.log.append("The warlord is down. Its hoard is open.")
+		return true
 	if kind == "boss":
 		if state.act < act_count(setup):
 			# 029: the keeper's hoard -- a pick with a legendary in it -- then the next act.
@@ -620,14 +629,17 @@ static func salvage(state: RunState, setup: RunSetup, kind: String) -> Dictionar
 
 ## A broken gate's hoard (029): three parts from three slots, the first a LEGENDARY (rarity 4),
 ## or scrap; picking one moves the crew on to the next act.
-static func hoard(state: RunState, setup: RunSetup) -> Dictionary:
+static func hoard(state: RunState, setup: RunSetup, then_next_act: bool = true) -> Dictionary:
 	var rewards: Dictionary = rules_of(state, setup).get("rewards", {})
 	var rng: SimRNG = _rng(setup, state.current, 13, state.act)
 	var options: Array = _roll_parts(setup, rng, 1, crew_makers(state, setup), rewards)
 	var legend: String = _roll_at_least(setup, rng, 4)
 	if not legend.is_empty() and not options.is_empty():
 		options[0] = legend
-	return {"kind": "reward", "options": options, "scrap": int(rewards.get("hoard_scrap", 25)), "then": "next_act"}
+	var out: Dictionary = {"kind": "reward", "options": options, "scrap": int(rewards.get("hoard_scrap", 25))}
+	if then_next_act:
+		out["then"] = "next_act"
+	return out
 
 
 static func _pick(state: RunState, setup: RunSetup, index: int) -> bool:
@@ -1006,6 +1018,13 @@ static func _generate_region(state: RunState, setup: RunSetup) -> void:
 			has_shop = has_shop or String(state.sites[id]["type"]) == "workshop"
 		if not has_shop:
 			state.sites[int(ids[rng.range_int(0, ids.size() - 1)])]["type"] = "workshop"
+	# 030: the act's warlord -- one site in `warlord_column`, never a workshop and never the
+	# column's only site, so it is always a detour you choose.
+	var warlord_col: int = int(rules.get("warlord_column", -1))
+	if warlord_col > 0 and warlord_col < columns - 1:
+		var ids: Array = (by_col[warlord_col] as Array).filter(func(id: Variant) -> bool: return String(state.sites[id]["type"]) != "workshop")
+		if ids.size() >= 1 and (by_col[warlord_col] as Array).size() >= 2:
+			state.sites[int(ids[rng.range_int(0, ids.size() - 1)])]["type"] = "warlord"
 
 
 static func _link(state: RunState, a: int, b: int) -> void:
@@ -1051,13 +1070,16 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 	var rng: SimRNG = _rng(setup, site_id, 2, state.act)
 	var ids: Array = []
 	var gate: String = ""
+	var warlord: String = ""
 	for id: Variant in setup.fights:
 		var map: Dictionary = setup.fights[id]
 		# The shakedown (012) is the tutorial's own board and the gate's (013) the boss's.
 		# A map names the acts it belongs to (021); one that names none is Act 1's.
 		if not (map.get("acts", [1]) as Array).has(float(state.act)) and not (map.get("acts", [1]) as Array).has(state.act):
 			continue
-		if bool(map.get("boss", false)):
+		if bool(map.get("warlord", false)):
+			warlord = String(id)
+		elif bool(map.get("boss", false)):
 			gate = String(id)
 		elif not bool(map.get("tutorial", false)):
 			ids.append(id)
@@ -1065,6 +1087,8 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 	var template: Dictionary = setup.fights[ids[rng.range_int(0, ids.size() - 1)]]
 	if kind == "boss" and not gate.is_empty():
 		return _make_gate_fight(state, setup, site_id, setup.fights[gate], rng)
+	if kind == "warlord" and not warlord.is_empty():
+		return _make_gate_fight(state, setup, site_id, setup.fights[warlord], rng, "warlord_escorts")
 	var col: int = int(state.sites[site_id]["col"])
 	var enemies_rules: Dictionary = rules_of(state, setup).get("enemies", {})
 	var counts: Array = enemies_rules.get("count_by_column", [3])
@@ -1159,7 +1183,8 @@ static func _roll_modifier(state: RunState, setup: RunSetup, rng: SimRNG, fight:
 
 
 ## The act's gate (013): its authored map and keeper, escorts rolled at its other positions.
-static func _make_gate_fight(state: RunState, setup: RunSetup, site_id: int, template: Dictionary, rng: SimRNG) -> Dictionary:
+static func _make_gate_fight(state: RunState, setup: RunSetup, site_id: int, template: Dictionary, rng: SimRNG,
+		escorts_key: String = "boss_escorts") -> Dictionary:
 	var enemies_rules: Dictionary = rules_of(state, setup).get("enemies", {})
 	var fight: Dictionary = {"id": "run_site_%d" % site_id, "name": String(template.get("name", "")),
 		"rows": (template["rows"] as Array).duplicate(), "objective": {"type": "rout"}}
@@ -1175,12 +1200,17 @@ static func _make_gate_fight(state: RunState, setup: RunSetup, site_id: int, tem
 		player.append(spec)
 	fight["player"] = player
 	var positions: Array = template.get("enemy", [])
-	var enemy: Array = [(positions[0] as Dictionary).duplicate(true)]
+	# A board may author more than one keeper (030: the Twin Furnaces): `keepers` of them.
+	var keepers: int = maxi(1, int(template.get("keepers", 1)))
+	var enemy: Array = []
+	for k: int in mini(keepers, positions.size()):
+		enemy.append((positions[k] as Dictionary).duplicate(true))
 	# Play-test 8: the later keepers were easier than the Sorter; the act's arming reaches them too.
 	if enemies_rules.has("bonus"):
-		(enemy[0] as Dictionary)["bonus"] = (enemies_rules["bonus"] as Dictionary).duplicate()
-	var escorts: int = int(enemies_rules.get("boss_escorts", 3))
-	for i: int in range(1, mini(escorts + 1, positions.size())):
+		for keeper: Variant in enemy:
+			(keeper as Dictionary)["bonus"] = (enemies_rules["bonus"] as Dictionary).duplicate()
+	var escorts: int = int(enemies_rules.get(escorts_key, 3))
+	for i: int in range(keepers, mini(escorts + keepers, positions.size())):
 		var parts: Array = [_roll_slot(setup, rng, "chassis", 3), _roll_slot(setup, rng, "core", 3),
 			_roll_slot(setup, rng, "arm", 3), _roll_slot(setup, rng, "arm", 3), _roll_slot(setup, rng, "module", 3)]
 		var escort: Dictionary = {"name": String((setup.parts[parts[0]] as Dictionary).get("name", "")).replace(" Frame", ""),

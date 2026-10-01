@@ -407,10 +407,11 @@
       ]
     },
     "magnet": {
-      "group": "ABILITIES",
-      "name": "Magnet",
-      "text": "Free: collect a scrap pile up to 2 hexes away without moving.",
+      "group": "ENEMIES",
+      "name": "The Magnet King",
+      "text": "Act 2's warlord: every other round it hauls each of your machines within 3 a hex toward itself -- into pits, into each other.",
       "forms": [
+        "magnet king",
         "magnet"
       ]
     },
@@ -628,6 +629,42 @@
       "forms": [
         "survive",
         "waves"
+      ]
+    },
+    "grinder": {
+      "group": "ENEMIES",
+      "name": "The Grinder",
+      "text": "Act 1's warlord: at the start of every round, 2 to each of your machines next to it. Hit it from range, or hit and step away.",
+      "forms": [
+        "grinder",
+        "the grinder"
+      ]
+    },
+    "twin": {
+      "group": "ENEMIES",
+      "name": "Twin Furnace",
+      "text": "Act 3's warlords, a pair: each takes 2 less while the other stands. Break one, then the other.",
+      "forms": [
+        "twin furnace",
+        "twin"
+      ]
+    },
+    "warlord": {
+      "group": "THE RUN",
+      "name": "Warlord",
+      "text": "One per act, in the middle of the map: a named fight with its own rule, a detour you choose. Its hoard holds a legendary part.",
+      "forms": [
+        "warlord",
+        "warlords"
+      ]
+    },
+    "legendary": {
+      "group": "YOUR MACHINES",
+      "name": "Legendary",
+      "text": "The rarest parts, from a gate's or a warlord's hoard, and rarely from Act 3's salvage. Never on an enemy.",
+      "forms": [
+        "legendary",
+        "legendaries"
       ]
     }
   }
