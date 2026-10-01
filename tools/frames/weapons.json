@@ -1,0 +1,108 @@
+{
+  "id": "frame_weapons",
+  "name": "Weapons Test",
+  "_comment": "Row 0 is the far (enemy) edge. Barrels (b), a pit (o), a crate wall (c). The Lancer is a tracker, the Dredge a bomber.",
+  "rows": [
+    "........",
+    "..s..r..",
+    "....c.s.",
+    ".r..^...",
+    ".....br.",
+    ".s....l.",
+    "....r.s.",
+    "........"
+  ],
+  "player": [
+    {
+      "name": "Knuckles",
+      "parts": [
+        "ch_colossus",
+        "co_crucible",
+        "ar_flamer",
+        "ar_godhammer",
+        "mo_aegis"
+      ],
+      "x": 3,
+      "y": 5
+    },
+    {
+      "name": "Needle",
+      "parts": [
+        "ch_hauler",
+        "co_flux",
+        "ar_harpoon",
+        "ar_shieldcaster",
+        "mo_plating"
+      ],
+      "x": 4,
+      "y": 7
+    },
+    {
+      "name": "Relay",
+      "parts": [
+        "ch_strider",
+        "co_arc",
+        "ar_scanner",
+        "ar_railgun",
+        "mo_targeting"
+      ],
+      "x": 5,
+      "y": 6
+    }
+  ],
+  "enemy": [
+    {
+      "name": "Reaper",
+      "parts": [
+        "ch_reaper",
+        "co_bile",
+        "ar_ripper",
+        "ar_saw",
+        "mo_bypass"
+      ],
+      "x": 1,
+      "y": 0
+    },
+    {
+      "name": "Courier",
+      "parts": [
+        "ch_courier",
+        "co_ember",
+        "ar_pulse",
+        "ar_scatter",
+        "mo_servo"
+      ],
+      "x": 3,
+      "y": 0
+    },
+    {
+      "name": "Lancer",
+      "parts": [
+        "ch_lancer",
+        "co_mag",
+        "ar_scanner",
+        "ar_railgun",
+        "mo_targeting"
+      ],
+      "x": 5,
+      "y": 1,
+      "kind": "tracker"
+    },
+    {
+      "name": "Dredge",
+      "parts": [
+        "ch_dredge",
+        "co_solvent",
+        "ar_maul",
+        "ar_mortar",
+        "mo_ablative"
+      ],
+      "x": 7,
+      "y": 0,
+      "kind": "bomber"
+    }
+  ],
+  "objective": {
+    "type": "rout"
+  }
+}
