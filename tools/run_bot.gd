@@ -51,6 +51,9 @@ func _initialize() -> void:
 	var ended_col: Dictionary = {}
 	var ended_act: Dictionary = {}
 	var reached_act: Dictionary = {}
+	var gate_lost: Dictionary = {}
+	var last_gate_scrap: int = 0
+	var last_gate_runs: int = 0
 	var fights: int = 0
 	var moves: int = 0
 	var boss_hp: int = 0
@@ -82,6 +85,9 @@ func _initialize() -> void:
 			if was_boss and int(action[0]) == RunSim.FIGHT:
 				reached_boss += 1
 				boss_hp += hp_before
+				if state.act == RunSim.act_count(setup):
+					last_gate_runs += 1
+					last_gate_scrap += state.scrap
 			guard += 1
 		if state.outcome == RunState.WON:
 			won += 1
@@ -90,6 +96,8 @@ func _initialize() -> void:
 			var col: int = int(state.site(state.current)["col"])
 			ended_col[col] = int(ended_col.get(col, 0)) + 1
 			ended_act[state.act] = int(ended_act.get(state.act, 0)) + 1
+			if String(state.site(state.current)["type"]) == "boss":
+				gate_lost[state.act] = int(gate_lost.get(state.act, 0)) + 1
 		for a: int in range(1, state.act + 1):
 			reached_act[a] = int(reached_act.get(a, 0)) + 1
 		fights += state.fights_won
@@ -116,7 +124,8 @@ func _initialize() -> void:
 	var acts: PackedStringArray = []
 	for a: int in range(1, RunSim.act_count(RunSetup.create(db.parts, db.tiles, db.fights, db.run_rules,
 			db.combat_rules, db.balance.effectiveness, 1000)) + 1):
-		acts.append("act %d: reached %d, lost %d" % [a, int(reached_act.get(a, 0)), int(ended_act.get(a, 0))])
+		acts.append("act %d: reached %d, lost %d, at its gate %d" % [a, int(reached_act.get(a, 0)), int(ended_act.get(a, 0)), int(gate_lost.get(a, 0))])
 	print("  by act: %s" % ", ".join(acts))
+	print("  scrap held going into the last gate: %.1f avg over %d runs" % [float(last_gate_scrap) / maxf(1.0, last_gate_runs), last_gate_runs])
 	print("")
 	quit(1 if errors > 0 else 0)

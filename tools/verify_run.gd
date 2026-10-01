@@ -377,10 +377,18 @@ func _test_levels() -> void:
 	_check("a perk once taken is not offered again", not RunSim.perk_offer(state, setup, 0).has(offer[1]))
 	RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0, 0])
 	RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0, 2])
-	_check("levels cost 25 and 40, and stop at 3", int(member["level"]) == 3 and state.scrap == 20
+	_check("levels cost 25 and 40", int(member["level"]) == 3 and state.scrap == 20)
+	# 027: two more levels (65, 95) as somewhere for late scrap to go; then the top.
+	state.scrap = 160
+	RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0, 0])
+	RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0, 0])
+	_check("levels 4 and 5 cost 65 and 95, and stop at 5", int(member["level"]) == 5 and state.scrap == 0
 		and not RunSim.apply(state, setup, [RunSim.LEVEL_UP, 0, 0]) and RunSim.perk_offer(state, setup, 0).is_empty())
-	_check("three levels, three different perks", (member["perks"] as Array).size() == 3
-		and not (member["perks"][0] == member["perks"][1] or member["perks"][1] == member["perks"][2]))
+	var kept: Array = member["perks"]
+	var distinct: Dictionary = {}
+	for k: Variant in kept:
+		distinct[k] = true
+	_check("five levels, five different perks", kept.size() == 5 and distinct.size() == 5)
 	var fight_site: int = RunSim.destinations(state)[0]
 	state.sites[fight_site]["type"] = "skirmish"
 	RunSim.apply(state, setup, [RunSim.TRAVEL, fight_site])

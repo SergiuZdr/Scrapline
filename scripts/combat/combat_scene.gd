@@ -1204,6 +1204,8 @@ func _set_tag(view: Dictionary, u: GridUnit) -> void:
 		status.append("PYLONS -3")
 	if u.team == GridUnit.TEAM_PLAYER and not u.objective and u.heat > 0:
 		status.append("HEAT %d/%d" % [u.heat, u.heat_cap])
+	if _state != null and _state.enraged.has(u.ref):
+		status.append("ENRAGED")
 	if u.marked:
 		status.append("MARKED")
 	if u.seized:
@@ -1620,6 +1622,16 @@ func _animate(e: Array) -> void:
 			_vfx.sparks(at, Color("ffb060"), 12, 1.4)
 			Audio.play("thump", -10.0)
 			await _wait(0.06)
+		GridEv.ENRAGED:
+			# 027: a keeper at half HP escalates -- the moment the fight turns.
+			var at: Vector3 = _unit_pos(actor) + Vector3(0, 0.6, 0)
+			_vfx.burst(at, COL_PAD_DANGER, 4.0)
+			_vfx.shake(0.8)
+			var u: GridUnit = _state.unit(actor)
+			_letters(at + Vector3(0, 2.6, 0), "BOILS OVER!" if u != null and u.kind == "pour" else "ERUPTS!", Ink.DANGER, 120, 0.06)
+			_refresh_tag(actor)
+			Audio.play("detonate", -2.0)
+			await _wait(0.6)
 		GridEv.PULSE_MARKED:
 			_float_text(_unit_pos(actor) + Vector3(0, 2.9, 0), "THE CORE CHARGES", COL_PAD_DANGER)
 			Audio.play("warn", -6.0)
