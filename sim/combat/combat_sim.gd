@@ -835,6 +835,7 @@ static func hurt(state: CombatState, actor: int, target: GridUnit, dmg: int) -> 
 	target.hp = maxi(0, target.hp - dmg)
 	state.emit(GridEv.DAMAGE, actor, target.ref, target.x, target.y, dmg, target.hp)
 	if target.hp > 0:
+		_maybe_enrage(state, target)
 		return
 	target.alive = false
 	state.emit(GridEv.DESTROYED, actor, target.ref, target.x, target.y)
@@ -844,6 +845,32 @@ static func hurt(state: CombatState, actor: int, target: GridUnit, dmg: int) -> 
 		state.emit(GridEv.PILE_DROPPED, actor, target.ref, cell.x, cell.y, state.setup.pile_value)
 	if target.kind == "bomber":
 		explode(state, target.ref, cell, int((state.setup.kinds.get("bomber", {}) as Dictionary).get("blast", 4)))
+
+
+## A kind's rules for this unit (027): its kind's numbers, with its `enraged` block laid over them
+## once it has fallen below half HP.
+static func kind_rules(state: CombatState, u: GridUnit) -> Dictionary:
+	var rules: Dictionary = state.setup.kinds.get(u.kind, {}) if not u.kind.is_empty() else {}
+	if state.enraged.has(u.ref) and rules.has("enraged"):
+		rules = rules.duplicate()
+		rules.merge(rules["enraged"] as Dictionary, true)
+	return rules
+
+
+## A keeper with an `enraged` block (027, play-test 9: the later bosses were "boring and easy")
+## escalates once, the moment it falls to half HP or below: its rules change for the rest of the
+## fight and it calls `summons` guards, who arrive at the start of the next round.
+static func _maybe_enrage(state: CombatState, u: GridUnit) -> void:
+	if state.enraged.has(u.ref) or u.hp * 2 > u.max_hp:
+		return
+	var base: Dictionary = state.setup.kinds.get(u.kind, {}) if not u.kind.is_empty() else {}
+	if not base.has("enraged"):
+		return
+	state.enraged[u.ref] = true
+	var count: int = int((base["enraged"] as Dictionary).get("summons", 0))
+	if count > 0:
+		state.summons[u.ref] = count
+	state.emit(GridEv.ENRAGED, u.ref, -1, u.x, u.y, count)
 
 
 ## Damage to every neighbour of `cell`: units take it straight (no armour), props take it
@@ -1165,7 +1192,7 @@ static func _pulses(state: CombatState) -> void:
 	if not state.pulse_marks.is_empty():
 		var keeper: GridUnit = state.unit(state.pulse_by)
 		if keeper != null and keeper.alive:
-			var dmg: int = int((state.setup.kinds.get(keeper.kind, {}) as Dictionary).get("pulse_damage", 4))
+			var dmg: int = int(kind_rules(state, keeper).get("pulse_damage", 4))
 			state.emit(GridEv.PULSED, keeper.ref, -1, keeper.x, keeper.y, dmg)
 			for cell: Vector2i in state.pulse_marks:
 				var t: GridUnit = state.unit_at(cell.x, cell.y)
@@ -1176,7 +1203,7 @@ static func _pulses(state: CombatState) -> void:
 	for u: GridUnit in state.units:
 		if not u.alive or u.kind.is_empty():
 			continue
-		var rules: Dictionary = state.setup.kinds.get(u.kind, {})
+		var rules: Dictionary = kind_rules(state, u)
 		var every: int = int(rules.get("pulse_every", 0))
 		if every <= 0 or state.round_number % every != every - 1:
 			continue
@@ -1192,6 +1219,7 @@ static func _pulses(state: CombatState) -> void:
 ## Hives build on their marked hex, then mark the next one. A marked hex that anything
 ## stands on (or that became solid) blocks the build: that is the counterplay.
 static func _hives(state: CombatState) -> void:
+	_summon(state)
 	# Play-test 4: the build site used to be re-marked next to the hive every other round,
 	# then the hive walked off, so the site seemed to wander. Now a hive sets down ONE
 	# fabricator pad and it stays put: every `every` rounds it builds a drone, the round
@@ -1250,8 +1278,8 @@ static func _pours(state: CombatState) -> void:
 	if not state.pour_marks.is_empty():
 		var hazard: int = 1
 		for u: GridUnit in state.units:
-			if u.alive and int((state.setup.kinds.get(u.kind, {}) as Dictionary).get("floods", 0)) > 0:
-				hazard = maxi(hazard, int((state.setup.kinds[u.kind] as Dictionary).get("hazard", 2)))
+			if u.alive and int(kind_rules(state, u).get("floods", 0)) > 0:
+				hazard = maxi(hazard, int(kind_rules(state, u).get("hazard", 2)))
 		for cell: Vector2i in state.pour_marks:
 			if not state.flooded.has(cell):
 				state.flooded[cell] = hazard
@@ -1260,7 +1288,7 @@ static func _pours(state: CombatState) -> void:
 	for u: GridUnit in state.units:
 		if not u.alive or u.kind.is_empty():
 			continue
-		var rules: Dictionary = state.setup.kinds.get(u.kind, {})
+		var rules: Dictionary = kind_rules(state, u)
 		var floods: int = int(rules.get("floods", 0))
 		if floods <= 0 or state.round_number % maxi(1, int(rules.get("every", 2))) != 0:
 			continue
@@ -1278,6 +1306,40 @@ static func _pours(state: CombatState) -> void:
 			if not state.pour_marks.has(cell):
 				state.pour_marks.append(cell)
 				state.emit(GridEv.POUR_MARKED, u.ref, targets[i].ref, cell.x, cell.y, 1)
+
+
+## The guards an enraged keeper called (027), on free hexes next to it, then two out, in
+## `Hex.neighbors` / `Hex.within` order; as many as there is room for.
+static func _summon(state: CombatState) -> void:
+	var refs: Array = state.summons.keys()
+	refs.sort()
+	for ref: Variant in refs:
+		var keeper: GridUnit = state.unit(int(ref))
+		var count: int = int(state.summons[ref])
+		state.summons.erase(ref)
+		if keeper == null or not keeper.alive or state.setup.drone == null:
+			continue
+		var here := Vector2i(keeper.x, keeper.y)
+		var cells: Array[Vector2i] = Hex.neighbors(here)
+		cells.append_array(Hex.within(here, 2).filter(func(c: Vector2i) -> bool: return Hex.distance(c, here) == 2))
+		for cell: Vector2i in cells:
+			if count <= 0:
+				break
+			if not state.inside(cell) or state.solid(cell) or state.is_pit(cell) or state.unit_at(cell.x, cell.y) != null:
+				continue
+			var drone: GridUnit = state.setup.drone.copy()
+			var slot: int = 0
+			for u: GridUnit in state.units:
+				if u.team == GridUnit.TEAM_ENEMY:
+					slot = maxi(slot, u.slot + 1)
+			drone.slot = slot
+			drone.ref = GridUnit.TEAM_ENEMY * 10 + slot
+			drone.x = cell.x
+			drone.y = cell.y
+			state.units.append(drone)
+			state.units.sort_custom(func(a: GridUnit, b: GridUnit) -> bool: return a.ref < b.ref)
+			state.emit(GridEv.SPAWNED, keeper.ref, drone.ref, cell.x, cell.y)
+			count -= 1
 
 
 static func _builds(state: CombatState, kind: String) -> bool:

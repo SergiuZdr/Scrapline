@@ -37,6 +37,9 @@ var flooded: Dictionary = {}
 ## The Core (025): the ring it pulses at the start of the next round, and which unit marked it.
 var pulse_marks: Array = []
 var pulse_by: int = -1
+## Keepers past half HP (027): ref -> true; and guards they called, arriving next round.
+var enraged: Dictionary = {}
+var summons: Dictionary = {}
 ## What the player has collected this fight.
 var piles_collected: int = 0
 var scrap_collected: int = 0
@@ -180,6 +183,8 @@ func clone() -> CombatState:
 	c.flooded = flooded.duplicate()
 	c.pulse_marks = pulse_marks.duplicate()
 	c.pulse_by = pulse_by
+	c.enraged = enraged.duplicate()
+	c.summons = summons.duplicate()
 	c.piles_collected = piles_collected
 	c.scrap_collected = scrap_collected
 	return c
