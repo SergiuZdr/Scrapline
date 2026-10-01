@@ -95,6 +95,23 @@ func choose_run(crew: String, tier: int) -> void:
 	_save()
 
 
+## Names the player gave a crew's machines (027), by crew id and slot: a new run of that crew
+## starts with them. "" where the crew's own name stands.
+func crew_names(crew_id: String) -> Array:
+	return ((_data.get("names", {}) as Dictionary).get(crew_id, []) as Array).duplicate()
+
+
+func set_crew_name(crew_id: String, slot: int, name: String) -> void:
+	var names: Dictionary = (_data.get("names", {}) as Dictionary).duplicate(true)
+	var list: Array = names.get(crew_id, [])
+	while list.size() <= slot:
+		list.append("")
+	list[slot] = name
+	names[crew_id] = list
+	_data["names"] = names
+	_save()
+
+
 ## The SOUND switch on the title (023).
 func sound_on() -> bool:
 	return bool(_data.get("sound", true))

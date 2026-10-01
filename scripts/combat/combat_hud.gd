@@ -25,6 +25,9 @@ signal title_pressed
 signal continue_pressed
 
 const CARD_SIZE := Vector2(340, 150)
+## HP pips (play-test 9): always this size, this many to a row.
+const PIP_SIZE := Vector2(13, 9)
+const PIPS_PER_ROW: int = 12
 ## A machine not picked shrinks to a slim row (016, review point R5-2): its name, what it has
 ## left this turn, its HP. The picked one is the only full card, so the column asks for less.
 const SLIM_SIZE := Vector2(340, 94)
@@ -403,8 +406,12 @@ func _build_card(ref: int) -> Dictionary:
 
 	# HP as pips, one per point, so a glance counts it (as the map's dock does): ink boxes,
 	# filled in your blue.
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 2)
+	# Play-test 9: a fixed pip in fixed rows of PIPS_PER_ROW, so the card never changes size
+	# with a machine's HP (a long bar used to squeeze or stretch every pip).
+	var bar := GridContainer.new()
+	bar.columns = PIPS_PER_ROW
+	bar.add_theme_constant_override("h_separation", 2)
+	bar.add_theme_constant_override("v_separation", 2)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(bar)
 
@@ -443,17 +450,16 @@ func _fill_card(parts: Dictionary, card: Dictionary) -> void:
 
 	(parts["name"] as Label).text = String(card["name"]).to_upper() + ("" if alive else "  ·  WRECKED")
 	(parts["detail"] as Label).text = String(card["detail"])
-	var bar: HBoxContainer = parts["bar"]
+	var bar: GridContainer = parts["bar"]
 	var full: int = maxi(1, int(card["max_hp"]))
 	var now: int = int(card["hp"])
 	if bar.get_child_count() != full or int(bar.get_meta("hp", -1)) != now:
 		bar.set_meta("hp", now)
 		for child: Node in bar.get_children():
 			child.queue_free()
-		var width: float = clampf(190.0 / float(full) - 2.0, 4.0, 13.0)
 		for n: int in full:
 			var pip := Panel.new()
-			pip.custom_minimum_size = Vector2(width, 12)
+			pip.custom_minimum_size = PIP_SIZE
 			pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			var colour: Color = (Ink.DANGER if now * 3 <= full else Ink.YOURS) if n < now else UIKit.PAPER_CARD
 			var pip_style := InkBox.new(colour, 0, 0)

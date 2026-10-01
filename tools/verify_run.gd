@@ -21,6 +21,7 @@ func _initialize() -> void:
 	_test_wreck_and_rebuild()
 	_test_boss_held()
 	_test_acts()
+	_test_names()
 	_test_levels()
 	_test_perks()
 	_test_tuning()
@@ -241,6 +242,20 @@ func _test_boss_held() -> void:
 		result.outcome == CombatState.LOST and not result.crew(GridUnit.TEAM_PLAYER).is_empty())
 	RunSim.apply(state, setup, [RunSim.FIGHT, actions])
 	_check("a boss fight that is not won ends the run", state.outcome == RunState.LOST)
+
+
+## 027: the default crew's names, and a machine renamed by the player.
+func _test_names() -> void:
+	var setup: RunSetup = _setup(5)
+	var state: RunState = RunSim.start(setup)
+	var names: Array = state.crew.map(func(m: Dictionary) -> String: return String(m["name"]))
+	_check("the default crew is Knuckles, Needle and Relay %s" % [names], names == ["Knuckles", "Needle", "Relay"])
+	var actions: Array = [[RunSim.RENAME, 1, "Old Betty"]]
+	_check("a machine can be renamed", RunSim.apply(state, setup, actions[0]) and String(state.crew[1]["name"]) == "Old Betty")
+	_check("an empty or overlong name is refused", not RunSim.apply(state, setup, [RunSim.RENAME, 0, "  "])
+		and not RunSim.apply(state, setup, [RunSim.RENAME, 0, "A name far too long for a card"]))
+	var decoded: Array = RunStore.decode(JSON.stringify({"version": 1, "seed": 5, "actions": actions}))["actions"]
+	_check("the rename is saved and replays", String(RunSim.replay(setup, decoded).crew[1]["name"]) == "Old Betty")
 
 
 ## 021: breaking a gate that is not the last act's starts the next act with the same crew.
