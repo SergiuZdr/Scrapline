@@ -201,9 +201,12 @@ func _go() -> void:
 			await _frames(3)
 			state = _run.get("state")
 			_check("pick a part, click SCRAP: it is broken down", state.scrap == scrap_now + RunSim.scrap_value(_run.get("setup"), held_part))
-			_press(_find_button(panel, "STATS"))
-			await _frames(3)
-			_check("the STATS tab shows the machine's numbers", _find_label_prefix(panel, "HEALTH") != null)
+			_check("NUMBERS shows the machine's numbers beside its loadout (027)", _find_label_prefix(panel, "HEALTH") != null)
+			# 027: RENAME in the garage is an action in the run, and the crew's next run keeps it.
+			panel.call("_rename", "Rusty")
+			await _frames(2)
+			state = _run.get("state")
+			_check("RENAME renames the machine", String(state.crew[int(panel.get("selected"))]["name"]) == "Rusty")
 			state.scrap = 100
 			panel.call("_rebuild")
 			await _frames(2)

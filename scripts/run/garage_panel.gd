@@ -22,9 +22,14 @@ const SORTS: PackedStringArray = ["NEWEST", "RARITY", "SLOT"]
 const SLOT_ORDER: PackedStringArray = ["chassis", "core", "arm", "module"]
 const TEAM := Color("4fa8d8")
 const REST_YAW: float = 0.6
-const VIEW_SIZE := Vector2i(700, 560)
+const VIEW_SIZE := Vector2i(600, 420)
 ## Width of the lines lettered over the bay (name, sets, perks, LEVEL UP), fitted to it.
-const INFO_W: float = 400.0
+const INFO_W: float = 560.0
+## The layout (027, play-test 9: "the garage NEEDS a new design"): three columns over the hold --
+## THE MACHINE (the bay, then its name, level and LEVEL UP), LOADOUT (its five sockets), and
+## NUMBERS (everything the fight will read off it). Each answers one question.
+const LOADOUT_W: float = 570.0
+const NUMBERS_W: float = 600.0
 
 ## The crew member on show.
 var selected: int = 0
@@ -37,6 +42,8 @@ var _status: Label
 var _header: HBoxContainer
 var _info: VBoxContainer
 var _right: VBoxContainer
+var _numbers: VBoxContainer
+var _renaming: bool = false
 var _bottom: VBoxContainer
 ## `[button, crew, socket]` for every socket on screen, so a drag can light the ones that fit.
 var _sockets: Array = []
@@ -104,26 +111,33 @@ func _ready() -> void:
 	view.add_child(viewport)
 	_build_stage(viewport)
 
-	# Play-test 8: the lines over the bay sit on a dark wash, so the bay's gantry and lamps
-	# never cut through the lettering.
-	var wash := PanelContainer.new()
-	wash.position = Vector2(48, 128)
-	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var wash_style := StyleBoxFlat.new()
-	wash_style.bg_color = Color(0.05, 0.06, 0.08, 0.62)
-	wash_style.set_content_margin_all(UIKit.SPACE_SM)
-	wash.add_theme_stylebox_override("panel", wash_style)
-	add_child(wash)
+	var info_card := PanelContainer.new()
+	info_card.position = Vector2(40, 548)
+	info_card.custom_minimum_size = Vector2(float(VIEW_SIZE.x) + 6.0, 142)
+	info_card.add_theme_stylebox_override("panel", UIKit.ink_card(UIKit.PAPER_CARD, UIKit.SPACE_MD, UIKit.SPACE_SM, 4))
+	add_child(info_card)
 	_info = VBoxContainer.new()
 	_info.mouse_filter = Control.MOUSE_FILTER_PASS
 	_info.add_theme_constant_override("separation", UIKit.SPACE_XS)
-	wash.add_child(_info)
+	info_card.add_child(_info)
 
+	for caption: Array in [["LOADOUT", 664.0], ["NUMBERS", 1256.0]]:
+		var head := UIKit.on_page(_label(String(caption[0]), 24, UIKit.PAGE_TEXT, UIKit.font_comic()), 6)
+		head.position = Vector2(float(caption[1]), 110)
+		add_child(head)
 	_right = VBoxContainer.new()
-	_right.position = Vector2(770, 116)
-	_right.size = Vector2(1110, 560)
-	_right.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	_right.position = Vector2(660, 146)
+	_right.size = Vector2(LOADOUT_W, 540)
+	_right.add_theme_constant_override("separation", UIKit.SPACE_XS)
 	add_child(_right)
+	var numbers := ScrollContainer.new()
+	numbers.position = Vector2(1252, 146)
+	numbers.custom_minimum_size = Vector2(NUMBERS_W + 28, 544)
+	numbers.size = numbers.custom_minimum_size
+	numbers.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(numbers)
+	_numbers = VBoxContainer.new()
+	numbers.add_child(_numbers)
 
 	_bottom = VBoxContainer.new()
 	_bottom.position = Vector2(40, 700)
@@ -394,16 +408,14 @@ func _on_view_input(event: InputEvent) -> void:
 # --- Layout -------------------------------------------------------------------
 
 func _rebuild() -> void:
-	for box: Node in [_header, _info, _right, _bottom]:
+	for box: Node in [_header, _info, _right, _bottom, _numbers]:
 		for child: Node in box.get_children():
 			child.queue_free()
 	_sockets = []
 	_build_header()
 	_build_info()
-	if _tab == "PARTS":
-		_build_parts()
-	else:
-		_build_stats()
+	_build_parts()
+	_build_stats()
 	_build_hold()
 	_rebuild_model()
 
@@ -440,48 +452,83 @@ func _build_header() -> void:
 	_header.add_child(done)
 
 
-## Over the machine: its name, level, HP; under it, LEVEL UP.
+## Under the bay (027): the machine's name (RENAME), its level out of the top one, HP, and
+## LEVEL UP with what the next level gives. Sets and perks are in NUMBERS.
 func _build_info() -> void:
 	var member: Dictionary = Run.state.crew[selected]
 	var alive: bool = bool(member["alive"])
 	var level: int = int(member.get("level", 0))
-	# Lettered over the bay's night (016): paper on an ink edge, each line its meaning's colour.
-	_info.add_child(UIKit.fit(_page(String(member["name"]).to_upper(), UIKit.SIZE_DISPLAY, UIKit.PAGE_TEXT, UIKit.font_display(), 10), INFO_W, 1, 28))
-	_info.add_child(_page(("LEVEL %d" % level) if alive else "WRECK: rebuild it at a workshop", 24,
-		Ink.ACTION if alive else Ink.DANGER, UIKit.font_comic()))
-	if alive:
-		var full: int = RunSim.max_hp(Run.setup, member)
-		_info.add_child(_page("%d / %d HP" % [int(member["hp"]), full], UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_comic()))
-		# What it is built into (011): its maker sets, then the perks its levels bought.
-		for line: String in PartText.set_lines(Run.db.parts, Run.db.makers, member["parts"]):
-			_info.add_child(UIKit.fit(_page(line, UIKit.SIZE_LABEL, Ink.GAIN, UIKit.font_strong()), INFO_W, 1, 11))
-		var names: PackedStringArray = []
-		for id: Variant in (member.get("perks", []) as Array):
-			names.append(String((Run.db.perks.get(String(id), {}) as Dictionary).get("name", id)).to_upper())
-		if not names.is_empty():
-			_info.add_child(UIKit.fit(_page("  ·  ".join(names), UIKit.SIZE_LABEL, UIKit.PAGE_TEXT, UIKit.font_strong()), INFO_W, 2, 11))
-	# The wash fits whatever this machine's lines come to.
-	(_info.get_parent() as Control).reset_size.call_deferred()
-	# LEVEL UP sits under the name, clear of the machine.
-	var foot := VBoxContainer.new()
-	foot.mouse_filter = Control.MOUSE_FILTER_PASS
-	_info.add_child(foot)
+	var top_level: int = ((Run.setup.rules.get("levels", {}) as Dictionary).get("costs", []) as Array).size()
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	_info.add_child(head)
+	if _renaming:
+		var edit := LineEdit.new()
+		edit.text = String(member["name"])
+		edit.max_length = RunSim.NAME_MAX
+		edit.custom_minimum_size = Vector2(300, 48)
+		edit.add_theme_font_override("font", UIKit.font_comic())
+		edit.add_theme_font_size_override("font_size", 30)
+		for key: String in ["normal", "focus"]:
+			edit.add_theme_stylebox_override(key, UIKit.ink_card(UIKit.PAPER, UIKit.SPACE_SM, 2, 3))
+		edit.add_theme_color_override("font_color", UIKit.INK)
+		edit.add_theme_color_override("caret_color", UIKit.INK)
+		edit.text_submitted.connect(_rename)
+		head.add_child(edit)
+		edit.grab_focus.call_deferred()
+		var ok := _button("SAVE", UIKit.choice(), UIKit.TEXT, Vector2(110, 48))
+		ok.pressed.connect(func() -> void: _rename(edit.text))
+		head.add_child(ok)
+	else:
+		head.add_child(UIKit.fit(_label(String(member["name"]).to_upper(), 36, UIKit.INK, UIKit.font_comic()), 300, 1, 20))
+		var rename := _button("RENAME", UIKit.secondary(), UIKit.TEXT, Vector2(120, 44))
+		rename.add_theme_font_size_override("font_size", 18)
+		rename.pressed.connect(func() -> void:
+			_renaming = true
+			_rebuild())
+		head.add_child(rename)
+	var status := HBoxContainer.new()
+	status.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	_info.add_child(status)
 	if not alive:
+		status.add_child(_label("WRECK: rebuild it at a workshop", 22, UIKit.INK_RED, UIKit.font_comic()))
 		return
+	status.add_child(_label("LEVEL %d / %d" % [level, top_level], 22, UIKit.INK, UIKit.font_comic()))
+	var pips := HBoxContainer.new()
+	pips.add_theme_constant_override("separation", 3)
+	pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	for n: int in top_level:
+		var pip := ColorRect.new()
+		pip.custom_minimum_size = Vector2(26, 10)
+		pip.color = Ink.ACTION if n < level else UIKit.PAPER_DIM
+		pips.add_child(pip)
+	status.add_child(pips)
+	status.add_child(_label("%d / %d HP" % [int(member["hp"]), RunSim.max_hp(Run.setup, member)], 22, UIKit.INK, UIKit.font_comic()))
 	var cost: int = RunSim.level_cost(Run.state, Run.setup, selected)
 	var next: Dictionary = RunSim.next_level_bonus(Run.state, Run.setup, selected)
 	var gain: String = "next level: %s, and one perk of three" % PartText.bonus_text(next)
+	var foot := HBoxContainer.new()
+	foot.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	_info.add_child(foot)
 	if cost < 0:
-		foot.add_child(_page("TOP LEVEL", UIKit.SIZE_HEADING, Ink.GAIN, UIKit.font_comic()))
+		foot.add_child(_label("TOP LEVEL", 22, UIKit.INK_GREEN, UIKit.font_comic()))
 	elif Run.state.scrap >= cost:
-		var up := _button("LEVEL UP  ·  %d SCRAP" % cost, UIKit.choice(), UIKit.TEXT, Vector2(300, 52))
+		var up := _button("LEVEL UP  ·  %d SCRAP" % cost, UIKit.choice(), UIKit.TEXT, Vector2(280, 48))
 		up.tooltip_text = "Overhaul %s (%s)" % [String(member["name"]), gain]
 		up.pressed.connect(_offer_perks)
 		foot.add_child(up)
-		foot.add_child(UIKit.fit(_page(gain, UIKit.SIZE_LABEL, Ink.GAIN, UIKit.font_strong()), INFO_W, 2, 11))
+		foot.add_child(UIKit.fit(_label(gain, UIKit.SIZE_LABEL, UIKit.INK_GREEN, UIKit.font_strong()), INFO_W - 300, 2, 10))
 	else:
-		foot.add_child(UIKit.fit(_page("LEVEL UP  ·  %d SCRAP (you have %d)" % [cost, Run.state.scrap], UIKit.SIZE_BODY, Color("a9a192"), UIKit.font_comic()), INFO_W, 1, 12))
-		foot.add_child(UIKit.fit(_page(gain, UIKit.SIZE_LABEL, Color("a9a192"), UIKit.font_strong()), INFO_W, 2, 11))
+		foot.add_child(UIKit.fit(_label("LEVEL UP  ·  %d SCRAP (you have %d)  ·  %s" % [cost, Run.state.scrap, gain],
+			UIKit.SIZE_LABEL, UIKit.INK_DIM, UIKit.font_strong()), INFO_W, 2, 10))
+
+
+## Renames the machine for this run and its crew's next (027).
+func _rename(text: String) -> void:
+	_renaming = false
+	if not Run.rename(selected, text):
+		_message = "A name is 1 to %d letters, digits, spaces or dashes." % RunSim.NAME_MAX
+	_rebuild()
 
 
 func _build_tabs() -> void:
@@ -499,7 +546,6 @@ func _build_tabs() -> void:
 # --- PARTS --------------------------------------------------------------------
 
 func _build_parts() -> void:
-	_build_tabs()
 	var alive: bool = bool(Run.state.crew[selected]["alive"])
 	for s: int in 5:
 		_right.add_child(_socket(selected, s, alive))
@@ -508,7 +554,7 @@ func _build_parts() -> void:
 func _socket(i: int, s: int, alive: bool) -> Control:
 	var part: String = String((Run.state.crew[i]["parts"] as Array)[s])
 	var button := Button.new()
-	button.custom_minimum_size = Vector2(1110, 92)
+	button.custom_minimum_size = Vector2(LOADOUT_W, 102)
 	button.focus_mode = Control.FOCUS_NONE
 	button.disabled = not alive
 	_sockets.append([button, i, s])
@@ -525,7 +571,7 @@ func _socket(i: int, s: int, alive: bool) -> Control:
 	picture.texture = PartText.thumb(part)
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	picture.custom_minimum_size = Vector2(76, 76)
+	picture.custom_minimum_size = Vector2(70, 70)
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(picture)
 	var text := VBoxContainer.new()
@@ -537,9 +583,9 @@ func _socket(i: int, s: int, alive: bool) -> Control:
 		rarity = "  ·  " + PartCard.RARITY_NAMES[clampi(int((Run.db.parts.get(part, {}) as Dictionary).get("rarity", 1)), 1, 3) - 1]
 	# Play-test 8: both lines fitted to the row (`UIKit.fit`), whatever the part's name.
 	text.add_child(UIKit.fit(_label("%s  ·  %s%s" % [SOCKET_NAMES[s], PartText.name_of(Run.db.parts, part) if not part.is_empty() else "EMPTY", rarity],
-		20, PartText.rarity_colour(Run.db.parts, part) if not part.is_empty() else UIKit.RED, UIKit.font_comic()), 820, 1, 14))
+		20, PartText.rarity_colour(Run.db.parts, part) if not part.is_empty() else UIKit.RED, UIKit.font_comic()), LOADOUT_W - 220, 1, 13))
 	text.add_child(UIKit.fit(_label(PartText.summary(Run.db.parts, part, Run.db.combat_abilities) if not part.is_empty()
-		else "Drag a %s here from the hold." % RunSetup.socket_slot(s), UIKit.SIZE_BODY, UIKit.TEXT_DIM), 820, 2, 12))
+		else "Drag a %s here from the hold." % RunSetup.socket_slot(s), UIKit.SIZE_LABEL, UIKit.TEXT_DIM), LOADOUT_W - 220, 2, 10))
 	if not part.is_empty():
 		row.add_child(_maker_tag(i, part))
 	button.mouse_entered.connect(_focus_socket.bind(s))
@@ -558,19 +604,18 @@ func _socket(i: int, s: int, alive: bool) -> Control:
 
 ## Every number of the machine, read off the unit the sim would field.
 func _build_stats() -> void:
-	_build_tabs()
 	var member: Dictionary = Run.state.crew[selected]
 	var u: GridUnit = RunSim.preview_machine(Run.setup, member)
 	var rules: Dictionary = Run.setup.combat_rules
 	# On a paper card (016): ink text needs paper under it.
 	var sheet := PanelContainer.new()
 	sheet.add_theme_stylebox_override("panel", UIKit.card(UIKit.SURFACE, 0, UIKit.SPACE_LG, UIKit.SPACE_MD))
-	_right.add_child(sheet)
+	_numbers.add_child(sheet)
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", UIKit.SPACE_XS)
 	sheet.add_child(body)
 	var grid := GridContainer.new()
-	grid.columns = 2
+	grid.columns = 1
 	grid.add_theme_constant_override("h_separation", UIKit.SPACE_XL)
 	grid.add_theme_constant_override("v_separation", UIKit.SPACE_XS)
 	body.add_child(grid)
@@ -585,7 +630,7 @@ func _build_stats() -> void:
 
 	# The lines below are rich text: every glossary word in them can be tapped (012).
 	var words: Dictionary = Run.db.glossary
-	body.add_child(Glossary.label("ROLE  ·  %s%s" % [u.role.to_upper(), _role_note(u)], UIKit.SIZE_BODY, UIKit.TEXT, words, 1060,
+	body.add_child(Glossary.label("ROLE  ·  %s%s" % [u.role.to_upper(), _role_note(u)], UIKit.SIZE_BODY, UIKit.TEXT, words, int(NUMBERS_W) - 40,
 		UIKit.font_strong()))
 	for w: Dictionary in u.weapons:
 		if bool(w["empty"]):
@@ -594,17 +639,17 @@ func _build_stats() -> void:
 		var reach: String = "melee" if shape == "melee" else ("lob %d-%d" % [int(w["range_min"]), int(w["range"])] if shape == "lob" else "shot %d" % int(w["range"]))
 		var dmg: int = int(w["damage"]) + u.damage_bonus + (u.melee_bonus if shape == "melee" else 0)
 		body.add_child(Glossary.label("%s  ·  %s  ·  %d damage  ·  +%d heat" % [String(w["name"]).to_upper(), reach, dmg,
-			CombatSim.attack_heat(u, w)], UIKit.SIZE_BODY, UIKit.TEXT, words, 1060, UIKit.font_strong()))
+			CombatSim.attack_heat(u, w)], UIKit.SIZE_BODY, UIKit.TEXT, words, int(NUMBERS_W) - 40, UIKit.font_strong()))
 	for ability: Dictionary in u.abilities:
 		body.add_child(Glossary.label("%s  ·  %s  ·  cooldown %d:  %s" % [String(ability["name"]).to_upper(),
 			"free" if bool(ability["free"]) else "uses the action", int(ability["cooldown"]), String(ability.get("text", ""))],
-			UIKit.SIZE_LABEL, UIKit.TEXT_DIM, words, 1060))
+			UIKit.SIZE_LABEL, UIKit.TEXT_DIM, words, int(NUMBERS_W) - 40))
 	for id: Variant in (member.get("perks", []) as Array):
 		var perk: Dictionary = Run.db.perks.get(String(id), {})
 		body.add_child(Glossary.label("PERK  ·  %s  ·  %s" % [String(perk.get("name", id)).to_upper(), String(perk.get("text", ""))],
-			UIKit.SIZE_LABEL, UIKit.GREEN, words, 1060))
+			UIKit.SIZE_LABEL, UIKit.GREEN, words, int(NUMBERS_W) - 40))
 	for line_text: String in PartText.set_lines(Run.db.parts, Run.db.makers, member["parts"]):
-		body.add_child(Glossary.label("SET  ·  " + line_text, UIKit.SIZE_LABEL, UIKit.GREEN, words, 1060))
+		body.add_child(Glossary.label("SET  ·  " + line_text, UIKit.SIZE_LABEL, UIKit.GREEN, words, int(NUMBERS_W) - 40))
 
 
 ## Who made a part, and how many of that maker's parts the machine carries: three pips that
@@ -612,7 +657,7 @@ func _build_stats() -> void:
 func _maker_tag(i: int, part: String) -> Control:
 	var box := VBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.custom_minimum_size = Vector2(150, 0)
+	box.custom_minimum_size = Vector2(104, 0)
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	var maker: String = String((Run.db.parts.get(part, {}) as Dictionary).get("maker", ""))
 	if maker.is_empty():
@@ -653,7 +698,7 @@ func _role_note(u: GridUnit) -> String:
 func _stat(grid: GridContainer, name: String, value: int, top: int, text: String) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", UIKit.SPACE_SM)
-	row.custom_minimum_size = Vector2(540, 40)
+	row.custom_minimum_size = Vector2(NUMBERS_W - 50, 34)
 	var label := _label(name, UIKit.SIZE_BODY, UIKit.TEXT_DIM, UIKit.font_strong())
 	label.custom_minimum_size = Vector2(150, 0)
 	row.add_child(label)
