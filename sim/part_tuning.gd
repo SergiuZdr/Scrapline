@@ -61,6 +61,16 @@ static func base_of(id: String) -> String:
 	return id if at < 0 else id.substr(0, at)
 
 
+## The model a part is DRAWN with (029): a new part may wear another part's model (`"model"` in
+## its JSON) until it has its own; a tuned part wears its base part's. Filled by `ContentDB`.
+static var models: Dictionary = {}
+
+
+static func model_of(id: String) -> String:
+	var base: String = base_of(id)
+	return String(models.get(base, base))
+
+
 static func is_tuned(id: String) -> bool:
 	return id.find(":") >= 0
 

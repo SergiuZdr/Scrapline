@@ -5,14 +5,14 @@ extends RefCounted
 ## play-test 2 could not tell rarity from the edge), the picture, the name, what it does,
 ## and whether it would beat anything the crew has fitted.
 
-const RARITY_NAMES: PackedStringArray = ["COMMON", "UNCOMMON", "RARE"]
+const RARITY_NAMES: PackedStringArray = ["COMMON", "UNCOMMON", "RARE", "LEGENDARY"]
 
 
 ## A Button holding the card. `compare_crew`: the run's crew, to say whether the part is
 ## an upgrade; pass [] to skip the comparison.
 static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array = []) -> Button:
 	var parts: Dictionary = db.parts
-	var rarity: int = clampi(int((parts.get(id, {}) as Dictionary).get("rarity", 1)), 1, 3)
+	var rarity: int = clampi(int((parts.get(id, {}) as Dictionary).get("rarity", 1)), 1, 4)
 	var colour: Color = PartText.rarity_colour(parts, id)
 	var button := Button.new()
 	button.custom_minimum_size = size

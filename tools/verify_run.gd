@@ -23,6 +23,7 @@ func _initialize() -> void:
 	_test_acts()
 	_test_names()
 	_test_objectives_rolled()
+	_test_legendaries()
 	_test_levels()
 	_test_perks()
 	_test_tuning()
@@ -266,6 +267,29 @@ func _test_objectives_rolled() -> void:
 	_check("all six objectives are rolled %s" % [seen.keys()], seen.size() == 6)
 	_check("all four yard conditions are rolled %s" % [mods.keys()], mods.size() == 4)
 	_check("and every such fight builds %s" % [errors.slice(0, 2)], errors.is_empty())
+
+
+## 029: a broken gate's hoard holds a legendary; legendaries never reach enemies or the bench.
+func _test_legendaries() -> void:
+	var setup: RunSetup = _setup(77)
+	var state: RunState = RunSim.start(setup)
+	var hoard: Dictionary = RunSim.hoard(state, setup)
+	_check("a gate's hoard offers a legendary %s" % [hoard["options"]], setup.rarity(String((hoard["options"] as Array)[0])) == 4)
+	state.pending = hoard
+	var act: int = state.act
+	_check("picking from the hoard moves the crew on to the next act", RunSim.apply(state, setup, [RunSim.PICK, 0]) and state.act == act + 1)
+	var on_enemies: bool = false
+	for seed_value: int in 30:
+		var s2: RunSetup = _setup(500 + seed_value)
+		var st: RunState = RunSim.start(s2)
+		for id: int in st.sites.size():
+			for e: Dictionary in (RunSim._make_fight(st, s2, id, "elite")["enemy"] as Array):
+				for p: Variant in (e["parts"] as Array):
+					if s2.rarity(String(p)) >= 4 or String(p) == "ar_shieldcaster":
+						on_enemies = true
+	_check("no enemy carries a legendary or a shield caster", not on_enemies)
+	_check("no legendary is on the bench", setup.parts.keys().filter(func(id: Variant) -> bool:
+		return setup.rarity(String(id)) >= 4 and RunSim.bench_count(setup, String(id)) != 0).is_empty())
 
 
 ## 027: the default crew's names, and a machine renamed by the player.

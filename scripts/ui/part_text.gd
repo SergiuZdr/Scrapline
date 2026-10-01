@@ -39,6 +39,11 @@ static func summary(parts: Dictionary, id: String, abilities: Dictionary = {}) -
 			var reach: String = "melee" if shape == "melee" else ("lob %d-%d" % [int(g.get("range_min", 1)), int(g.get("range", 1))] if shape == "lob"
 				else "shot %d" % int(g.get("range", 1)))
 			var line: String = "%s · %d dmg" % [reach, int(g.get("damage", 0))]
+			# 029: the new families say what they do.
+			if shape == "cone":
+				line = "flame cone · %d dmg to 4 hexes" % int(g.get("damage", 0))
+			elif shape == "shield":
+				line = "shields an ally %d · -%d per hit" % [int(g.get("range", 1)), int(g.get("damage", 0))]
 			# A cold weapon says nothing about heat: "+0 heat" is noise on a card.
 			if int(g.get("heat", 0)) > 0:
 				line += " · +%d heat" % int(g.get("heat", 0))
@@ -52,6 +57,8 @@ static func summary(parts: Dictionary, id: String, abilities: Dictionary = {}) -
 			for key: String in ["splash", "shove"]:
 				if int(g.get(key, 0)) > 0:
 					extra.append(key)
+			if int(g.get("pull", 0)) > 0:
+				extra.append("drags")
 			if bool(g.get("mark", false)):
 				extra.append("marks")
 			if bool(g.get("tears", false)):
@@ -84,18 +91,24 @@ static func summary(parts: Dictionary, id: String, abilities: Dictionary = {}) -
 
 ## Rarity as a colour. Gold was reserved for premium currency; the game has none now,
 ## so gold marks the rarest salvage instead.
+## The legendary tier (029): a hot orange-red, nothing else on a card is.
+const LEGENDARY := Color("e0552a")
+
+
 static func rarity_colour(parts: Dictionary, id: String) -> Color:
 	match int((parts.get(id, {}) as Dictionary).get("rarity", 1)):
 		2:
 			return UIKit.BLUE
 		3:
 			return UIKit.GOLD
+		4:
+			return LEGENDARY
 	return UIKit.TEXT_DIM
 
 
 ## A tuned part wears its base part's picture: a tuning is a number, not a new model.
 static func thumb(id: String) -> Texture2D:
-	id = PartTuning.base_of(id)
+	id = PartTuning.model_of(id)
 	if id.is_empty():
 		return null
 	if not _thumbs.has(id):

@@ -315,5 +315,66 @@
         }
       }
     ]
+  },
+  {
+    "id": "co_flux",
+    "name": "Flux Core",
+    "slot": "core",
+    "rarity": 2,
+    "maker": "vektor",
+    "model": "co_dynamo",
+    "mesh": "res://art/parts/co_dynamo.glb",
+    "flavour": "Bends the shot a hair. Enough.",
+    "damage_type": "emp",
+    "grid": {
+      "damage": 0,
+      "heat": 0,
+      "vent": 1,
+      "range": 1
+    },
+    "tuning": [
+      {
+        "name": "Tight Field",
+        "grid": {
+          "vent": 1
+        }
+      },
+      {
+        "name": "Hot Flux",
+        "grid": {
+          "damage": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "co_crucible",
+    "name": "Crucible Heart",
+    "slot": "core",
+    "rarity": 4,
+    "maker": "cinder",
+    "model": "co_furnace",
+    "mesh": "res://art/parts/co_furnace.glb",
+    "flavour": "Pulled out of the Core still glowing.",
+    "damage_type": "thermal",
+    "grid": {
+      "damage": 2,
+      "heat": 0,
+      "vent": 2
+    },
+    "tuning": [
+      {
+        "name": "White Heat",
+        "grid": {
+          "damage": 1
+        }
+      },
+      {
+        "name": "Deep Sink",
+        "grid": {
+          "vent": 1
+        }
+      }
+    ]
   }
 ]

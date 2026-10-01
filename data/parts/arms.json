@@ -347,5 +347,229 @@
         }
       }
     ]
+  },
+  {
+    "id": "ar_flamer",
+    "name": "Slag Flamer",
+    "slot": "arm",
+    "rarity": 2,
+    "maker": "cinder",
+    "model": "ar_scatter",
+    "mesh": "res://art/parts/ar_scatter.glb",
+    "flavour": "Burns a wedge of yard. Everything in it agrees to move.",
+    "weapon_class": "scattergun",
+    "grid": {
+      "shape": "cone",
+      "range": 1,
+      "damage": 2,
+      "heat": 2
+    },
+    "tuning": [
+      {
+        "name": "Wide Nozzle",
+        "grid": {
+          "damage": 1
+        }
+      },
+      {
+        "name": "Cold Feed",
+        "grid": {
+          "heat": -1
+        }
+      }
+    ]
+  },
+  {
+    "id": "ar_harpoon",
+    "name": "Hook Harpoon",
+    "slot": "arm",
+    "rarity": 1,
+    "maker": "kessler",
+    "model": "ar_lance",
+    "mesh": "res://art/parts/ar_lance.glb",
+    "flavour": "Fired, set, reeled in. The far ones come close.",
+    "weapon_class": "lance",
+    "grid": {
+      "shape": "shot",
+      "range": 3,
+      "damage": 2,
+      "heat": 1,
+      "pull": 1
+    },
+    "tuning": [
+      {
+        "name": "Barbed Head",
+        "grid": {
+          "damage": 1
+        }
+      },
+      {
+        "name": "Long Line",
+        "grid": {
+          "range": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "ar_shieldcaster",
+    "name": "Aegis Caster",
+    "slot": "arm",
+    "rarity": 2,
+    "maker": "arclight",
+    "model": "ar_scanner",
+    "mesh": "res://art/parts/ar_scanner.glb",
+    "flavour": "Puts a field on a friend. Asks nothing back.",
+    "weapon_class": "scanner",
+    "enemy": false,
+    "grid": {
+      "shape": "shield",
+      "range": 3,
+      "damage": 3,
+      "heat": 1
+    },
+    "tuning": [
+      {
+        "name": "Hard Light",
+        "grid": {
+          "damage": 1
+        }
+      },
+      {
+        "name": "Wide Beam",
+        "grid": {
+          "range": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "ar_cleaver",
+    "name": "Scrap Cleaver",
+    "slot": "arm",
+    "rarity": 1,
+    "maker": "cinder",
+    "model": "ar_ripper",
+    "mesh": "res://art/parts/ar_ripper.glb",
+    "flavour": "A sheet of plate on a hinge. Messy. Effective.",
+    "weapon_class": "ripper",
+    "grid": {
+      "shape": "melee",
+      "range": 1,
+      "damage": 4,
+      "heat": 1
+    },
+    "tuning": [
+      {
+        "name": "Serrated",
+        "grid": {
+          "tears": true
+        }
+      },
+      {
+        "name": "Balanced",
+        "grid": {
+          "heat": -1
+        }
+      }
+    ]
+  },
+  {
+    "id": "ar_coilgun",
+    "name": "Arc Coilgun",
+    "slot": "arm",
+    "rarity": 3,
+    "maker": "arclight",
+    "model": "ar_pulse",
+    "mesh": "res://art/parts/ar_pulse.glb",
+    "flavour": "A rail that remembers it was a coil.",
+    "weapon_class": "coil",
+    "grid": {
+      "shape": "shot",
+      "range": 4,
+      "damage": 3,
+      "heat": 2,
+      "pierce": 1,
+      "chain": 1
+    },
+    "tuning": [
+      {
+        "name": "Overwound",
+        "grid": {
+          "damage": 1
+        }
+      },
+      {
+        "name": "Long Coil",
+        "grid": {
+          "range": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "ar_godhammer",
+    "name": "Godhammer",
+    "slot": "arm",
+    "rarity": 4,
+    "maker": "kessler",
+    "model": "ar_maul",
+    "mesh": "res://art/parts/ar_maul.glb",
+    "flavour": "Taken off the Sorter's arm. Nobody has lifted it twice by choice.",
+    "weapon_class": "maul",
+    "grid": {
+      "shape": "melee",
+      "range": 1,
+      "damage": 7,
+      "heat": 2,
+      "shove": 1,
+      "tears": true
+    },
+    "tuning": [
+      {
+        "name": "Seismic",
+        "grid": {
+          "damage": 1
+        }
+      },
+      {
+        "name": "Balanced Haft",
+        "grid": {
+          "heat": -1
+        }
+      }
+    ]
+  },
+  {
+    "id": "ar_sunspear",
+    "name": "Sunspear",
+    "slot": "arm",
+    "rarity": 4,
+    "maker": "vektor",
+    "model": "ar_railgun",
+    "mesh": "res://art/parts/ar_railgun.glb",
+    "flavour": "A beam the Pour used to cut its own channels.",
+    "weapon_class": "railgun",
+    "grid": {
+      "shape": "shot",
+      "range": 6,
+      "damage": 5,
+      "heat": 2,
+      "pierce": 3
+    },
+    "tuning": [
+      {
+        "name": "Focused",
+        "grid": {
+          "damage": 1
+        }
+      },
+      {
+        "name": "Cooled Lens",
+        "grid": {
+          "heat": -1
+        }
+      }
+    ]
   }
 ]

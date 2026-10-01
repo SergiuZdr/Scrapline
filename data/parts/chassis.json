@@ -371,5 +371,69 @@
         }
       }
     ]
+  },
+  {
+    "id": "ch_scrapper",
+    "name": "Scrapper Frame",
+    "slot": "chassis",
+    "rarity": 2,
+    "maker": "cinder",
+    "model": "ch_skirmisher",
+    "mesh": "res://art/parts/ch_skirmisher.glb",
+    "flavour": "Built from three frames that lost an argument.",
+    "armor_type": "composite",
+    "role": "brawler",
+    "grid": {
+      "hp": 10,
+      "move": 4,
+      "heat_cap": 6,
+      "ability": "dash"
+    },
+    "tuning": [
+      {
+        "name": "Patched",
+        "grid": {
+          "hp": 2
+        }
+      },
+      {
+        "name": "Stripped",
+        "grid": {
+          "move": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "ch_colossus",
+    "name": "Colossus Frame",
+    "slot": "chassis",
+    "rarity": 4,
+    "maker": "kessler",
+    "model": "ch_citadel",
+    "mesh": "res://art/parts/ch_citadel.glb",
+    "flavour": "The Sorting Gate's own chassis, cut loose.",
+    "armor_type": "plate",
+    "role": "anchor",
+    "grid": {
+      "hp": 18,
+      "move": 3,
+      "heat_cap": 8,
+      "ability": "charge"
+    },
+    "tuning": [
+      {
+        "name": "Bastion",
+        "grid": {
+          "hp": 3
+        }
+      },
+      {
+        "name": "Geared",
+        "grid": {
+          "move": 1
+        }
+      }
+    ]
   }
 ]
