@@ -38,6 +38,25 @@ static func next_action(state: RunState, setup: RunSetup) -> Array:
 			return _trade(state, setup)
 		"tower":
 			return [RunSim.LEAVE]
+		# 031: refine the best part it can afford, keeping a rebuild's worth back; one crate at
+		# an auction if the scrap is spare; then on.
+		"refinery":
+			if not bool(state.pending.get("used", false)):
+				var reserve: int = int((setup.rules.get("workshop", {}) as Dictionary).get("rebuild_cost", 20))
+				var best: int = -1
+				for c: int in state.cargo.size():
+					var cost: int = RunSim.refine_cost(setup, state.cargo[c])
+					if cost >= 0 and state.scrap - cost >= reserve and (best < 0 or setup.rarity(state.cargo[c]) > setup.rarity(state.cargo[best])):
+						best = c
+				if best >= 0:
+					return [RunSim.REFINE, best]
+			return [RunSim.LEAVE]
+		"auction":
+			if not bool(state.pending.get("used", false)):
+				var tiers: Array = (setup.rules.get("auction", {}) as Dictionary).get("tiers", [])
+				if not tiers.is_empty() and state.scrap - int((tiers[0] as Dictionary).get("cost", 0)) >= 30 and not state.overfull():
+					return [RunSim.BID, 0]
+			return [RunSim.LEAVE]
 		"signal":
 			return [RunSim.CHOOSE, _signal_choice(state, setup)]
 	var refit: Array = _best_refit(state, setup)
@@ -238,6 +257,10 @@ static func _choose_site(state: RunState, setup: RunSetup) -> int:
 					score += 6
 				"trader":
 					score += 3
+				"refinery", "auction":
+					score += 3
+				"arena":
+					score += -25 if hurt else 5
 				"tower":
 					score += 2
 		score = score * 1000 + (IntentAI.mix(setup.rng_seed, id, state.moves, 3) & 0x3FF)

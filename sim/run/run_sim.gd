@@ -28,6 +28,8 @@ extends RefCounted
 ##   [SELL, cargo_index]                 trader: sell a part from the hold
 ##   [CHOOSE, option]                    signal: take one of the event's options
 ##   [RENAME, crew_index, name]          give a machine its own name (027), any time but a fight
+##   [REFINE, cargo_index]               refinery (031): a part becomes one of the next rarity, same slot
+##   [BID, tier]                         auction (031): a crate of tier 0 or 1, unopened until bought
 
 const TRAVEL: int = 0
 const FIGHT: int = 1
@@ -45,12 +47,14 @@ const BUY: int = 12
 const SELL: int = 13
 const CHOOSE: int = 14
 const RENAME: int = 15
+const REFINE: int = 16
+const BID: int = 17
 ## How long a machine's name may be (027): it has to fit a card and a tab.
 const NAME_MAX: int = 12
 ## Site panels LEAVE closes (a signal is closed by one of its own options).
-const LEAVABLE: PackedStringArray = ["workshop", "trader", "tower"]
+const LEAVABLE: PackedStringArray = ["workshop", "trader", "tower", "refinery", "auction"]
 
-const FIGHT_TYPES: PackedStringArray = ["skirmish", "elite", "boss", "warlord"]
+const FIGHT_TYPES: PackedStringArray = ["skirmish", "elite", "boss", "warlord", "arena"]
 
 
 static func start(setup: RunSetup) -> RunState:
@@ -119,6 +123,10 @@ static func apply(state: RunState, setup: RunSetup, action: Array) -> bool:
 			return action.size() >= 4 and _tune(state, setup, int(action[1]), int(action[2]), int(action[3]))
 		RENAME:
 			return action.size() >= 3 and _rename(state, int(action[1]), String(action[2]))
+		REFINE:
+			return action.size() >= 2 and _refine(state, setup, int(action[1]))
+		BID:
+			return action.size() >= 2 and _bid(state, setup, int(action[1]))
 	return false
 
 
@@ -379,6 +387,9 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 		state.pending = {"kind": "signal", "event": _pick_event(state, setup, to)}
 		state.seen_events.append(String(state.pending["event"]))
 		state.log.append("A signal.")
+	elif kind == "refinery" or kind == "auction":
+		state.pending = {"kind": kind, "used": false}
+		state.log.append("A refinery, furnaces banked." if kind == "refinery" else "A salvage auction under a tarp.")
 	return true
 
 
@@ -410,8 +421,8 @@ static func move_preview(state: RunState, setup: RunSetup, to: int) -> Dictionar
 		var rules: Dictionary = rules_of(state, setup).get("enemies", {})
 		var counts: Array = rules.get("count_by_column", [3])
 		enemies = int(counts[mini(int(site["col"]), counts.size() - 1)])
-		if kind == "elite":
-			enemies += int(rules.get("elite_extra", 1))
+		if kind == "elite" or kind == "arena":
+			enemies += int(rules.get("elite_extra", 1)) + (int(rules.get("arena_extra", 1)) if kind == "arena" else 0)
 		elif kind == "boss":
 			enemies = 1 + int(rules.get("boss_escorts", 3))
 		elif kind == "warlord":
@@ -539,12 +550,14 @@ static func _choose(state: RunState, setup: RunSetup, index: int) -> bool:
 	return true
 
 
-## One part of at least `min_rarity`, from every slot's pool.
+## One part of at least `min_rarity`, from every slot's pool -- never a legendary unless asked
+## for one (031: a signal's "uncommon or better" was able to hand one out).
 static func _roll_at_least(setup: RunSetup, rng: SimRNG, min_rarity: int) -> String:
 	var all: Array = []
 	for slot: String in ["chassis", "core", "arm", "module"]:
 		for id: Variant in (setup.pools[slot] as Array):
-			if setup.rarity(String(id)) >= min_rarity:
+			var r: int = setup.rarity(String(id))
+			if r >= min_rarity and (r < 4 or min_rarity >= 4):
 				all.append(id)
 	return String(rng.pick(all)) if not all.is_empty() else ""
 
@@ -605,7 +618,7 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 		_end(state, RunState.WON, "The last gate is broken: the run is won.")
 		return true
 	var rewards: Dictionary = rules_of(state, setup).get("rewards", {})
-	var gained: int = int(rewards.get("elite_scrap" if kind == "elite" else "skirmish_scrap", 10))
+	var gained: int = int(rewards.get("elite_scrap" if kind == "elite" else ("arena_scrap" if kind == "arena" else "skirmish_scrap"), 10))
 	gained += result.caches().size() * int(rewards.get("cache_scrap", 6))
 	state.scrap += gained
 	state.pending = salvage(state, setup, kind)
@@ -619,7 +632,7 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 static func salvage(state: RunState, setup: RunSetup, kind: String) -> Dictionary:
 	# Play-test 8: the act's own rewards -- later acts lean rare, or a built crew finds nothing.
 	var rewards: Dictionary = rules_of(state, setup).get("rewards", {})
-	var min_rarity: int = int(rewards.get("elite_min_rarity", 2)) if kind == "elite" else 1
+	var min_rarity: int = int(rewards.get("elite_min_rarity", 2)) if kind == "elite" or kind == "arena" else 1
 	var rng: SimRNG = _rng(setup, state.current, 5, state.act)
 	var options: Array = _roll_parts(setup, rng, min_rarity, crew_makers(state, setup), rewards)
 	if kind == "elite" and not options.is_empty() and PartTuning.can_tune(setup.parts, String(options[0])):
@@ -671,6 +684,57 @@ static func _pick_part(state: RunState, setup: RunSetup, index: int) -> bool:
 	state.cargo.append(part)
 	state.log.append("Loaded %s into the hold." % String((setup.parts[part] as Dictionary).get("name", part)))
 	state.pending = {}
+	return true
+
+
+## The refinery (031): one part from the hold becomes a random part of the next rarity, the same
+## slot, for `refinery.costs[rarity - 1]`; once a visit. A rare becomes a legendary.
+static func refine_cost(setup: RunSetup, part: String) -> int:
+	var costs: Array = (setup.rules.get("refinery", {}) as Dictionary).get("costs", [10, 18, 40])
+	var r: int = setup.rarity(part)
+	return int(costs[r - 1]) if r >= 1 and r <= costs.size() else -1
+
+
+static func _refine(state: RunState, setup: RunSetup, c: int) -> bool:
+	if String(state.pending.get("kind", "")) != "refinery" or bool(state.pending.get("used", false)):
+		return false
+	if c < 0 or c >= state.cargo.size():
+		return false
+	var part: String = state.cargo[c]
+	var cost: int = refine_cost(setup, part)
+	if cost < 0 or state.scrap < cost:
+		return false
+	var slot: String = String((setup.parts[part] as Dictionary).get("slot", ""))
+	var next: int = setup.rarity(part) + 1
+	var pool: Array = (setup.pools[slot] as Array).filter(func(id: String) -> bool: return setup.rarity(id) == next)
+	if pool.is_empty():
+		return false
+	var rng: SimRNG = _rng(setup, state.current, 21 + c, state.act)
+	var made: String = String(rng.pick(pool))
+	state.scrap -= cost
+	state.cargo[c] = made
+	state.pending["used"] = true
+	state.log.append("Refined %s into %s." % [String((setup.parts[part] as Dictionary).get("name", part)), String((setup.parts[made] as Dictionary).get("name", made))])
+	return true
+
+
+## The auction (031): crates by tier -- `auction.tiers[i]`: `{ cost, min, legend_pct }` -- a part of
+## at least `min` rarity, or a legendary with `legend_pct`; once a visit.
+static func _bid(state: RunState, setup: RunSetup, tier: int) -> bool:
+	if String(state.pending.get("kind", "")) != "auction" or bool(state.pending.get("used", false)):
+		return false
+	var tiers: Array = (setup.rules.get("auction", {}) as Dictionary).get("tiers", [])
+	if tier < 0 or tier >= tiers.size():
+		return false
+	var t: Dictionary = tiers[tier]
+	if state.scrap < int(t.get("cost", 0)):
+		return false
+	var rng: SimRNG = _rng(setup, state.current, 31 + tier, state.act)
+	var part: String = _roll_at_least(setup, rng, 4) if rng.chance_percent(int(t.get("legend_pct", 0))) else _roll_at_least(setup, rng, int(t.get("min", 2)))
+	state.scrap -= int(t.get("cost", 0))
+	state.cargo.append(part)
+	state.pending["used"] = true
+	state.log.append("Won a crate at auction: %s." % String((setup.parts[part] as Dictionary).get("name", part)))
 	return true
 
 
@@ -1043,11 +1107,11 @@ static func _link(state: RunState, a: int, b: int) -> void:
 static func _weighted(rng: SimRNG, kinds: Array, weights: Dictionary, allow_elite: bool) -> String:
 	var total: int = 0
 	for kind: Variant in kinds:
-		if String(kind) != "elite" or allow_elite:
+		if not ["elite", "arena"].has(String(kind)) or allow_elite:
 			total += int(weights[kind])
 	var roll: int = rng.range_int(1, maxi(1, total))
 	for kind: Variant in kinds:
-		if String(kind) == "elite" and not allow_elite:
+		if ["elite", "arena"].has(String(kind)) and not allow_elite:
 			continue
 		roll -= int(weights[kind])
 		if roll <= 0:
@@ -1096,8 +1160,8 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 	var count: int = int(counts[mini(col, counts.size() - 1)])
 	var cap: int = int(caps[mini(col, caps.size() - 1)])
 	var hp_bonus: int = 0
-	if kind == "elite":
-		count += int(enemies_rules.get("elite_extra", 1))
+	if kind == "elite" or kind == "arena":
+		count += int(enemies_rules.get("elite_extra", 1)) + (int(enemies_rules.get("arena_extra", 1)) if kind == "arena" else 0)
 		hp_bonus = int(enemies_rules.get("elite_hp_bonus", 3))
 	elif kind == "boss":
 		count = int(enemies_rules.get("boss_count", 5))
