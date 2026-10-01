@@ -209,3 +209,11 @@ in 003 shows players ignoring part damage or finding it confusing, cut it back t
   include it, so killing or shoving the conduit visibly lowers them.
 - **The Core** (gate): never moves; marks every hex within 2 a round ahead every third round and
   pulses 4 into the crew standing there; its pad builds a drone every 4 rounds.
+
+## Objectives and conditions (028)
+
+Six objectives: ROUT, DEFEND, SALVAGE, and HOLD (a three-hex zone: a round that starts with a crew
+machine on it and no enemy scores; three win), HACK (terminals taken by ending a move on them),
+SURVIVE (waves on the far row, marked a round ahead). Yard conditions, one at most, never at a gate:
+DUST STORM (-1 reach), LIVE WIRES (cable hexes, 2 a round), SCRAP RAIN (double piles), HEAT WAVE
+(-1 vent). All numbers in `rules.json` `modifiers` and `run.json` `objectives` / `modifiers`.
