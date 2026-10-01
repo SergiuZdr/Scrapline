@@ -49,8 +49,8 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 027 | [Play-test 9 fixes](iterations/027-playtest-9-fixes.md) | Names and RENAME, a new bay and garage, an UNLOCKS screen, arms seated by measurement, escalating keepers, levels to 5 (bot 53.9%) | ✅ awaiting the play-test |
 | 028 | [Objectives and yard conditions](iterations/028-objectives-and-modifiers.md) | HOLD, HACK, SURVIVE; dust storm, live wires, scrap rain, heat wave (bot 57.9%) | ✅ awaiting the play-test |
 | 029 | [Weapons and legendary parts](iterations/029-weapons-and-legendaries.md) | Flamer, harpoon, shield caster; ten parts and five legendaries; the keeper's hoard (bot 64.5%) | ✅ awaiting the play-test |
-| 030 | Warlords | A named mini-boss per act, with its own mechanic and drop | 🔨 |
-| 031 | Sites and events | Arena, refinery, convoy, auction; twenty new signal events | ⬜ |
+| 030 | [Warlords](iterations/030-warlords.md) | The Grinder, the Magnet King, the Twin Furnaces: a detour per act with a legendary (bot 63.8%) | ✅ awaiting the play-test |
+| 031 | Sites and events | Arena, refinery, auction; twenty new signal events | 🔨 |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

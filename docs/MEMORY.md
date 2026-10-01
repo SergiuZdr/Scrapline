@@ -243,3 +243,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-01 | **027: is The Pour hard enough (5 gate losses in 110 bot runs)? Do the new bay and garage read well?** | The user plays | |
 | 2026-10-01 | **028: are HOLD, HACK and SURVIVE fun? Are the yard conditions noticeable enough?** | The user plays | |
 | 2026-10-01 | **029: do the flamer, harpoon and shield caster feel different? Are legendaries worth the hunt?** | The user plays | |
+| 2026-10-01 | **030: are the warlords fun? Act 3 is now the bot's easiest act (12.6% lost)** | Tighten after 031; the user plays | |
