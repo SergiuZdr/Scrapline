@@ -108,3 +108,10 @@ Most of the variety comes from arms and modules, the slots that grant actions.
 Parts stay in `data/parts/*.json`. Add fields for the grid game (`move`, `grid_hp`,
 `shape`, `range`, `damage`, `heat`, `tuning`) and remove fields for the continuous sim
 (`speed` ticks, `range_bonus` in cm) once 003 lands.
+
+## New families and legendaries (029)
+
+Shapes now: melee, shot, lob, **cone** (flamer: the aimed neighbour and three beyond), **shield**
+(aimed at an ally). A shot may **pull** (harpoon). Rarity 4 is LEGENDARY: from a gate's hoard and,
+rarely, Act 3 salvage. A part with `"model"` borrows that part's model and picture until it has its
+own (`PartTuning.model_of`); `"enemy": false` keeps a part off enemies.
