@@ -558,7 +558,7 @@ static func damage_to(state: CombatState, u: GridUnit, target: GridUnit, amount:
 	var dmg: int = (amount * pct + 50) / 100
 	if shot:
 		dmg -= state.cover(target.x, target.y)
-	dmg -= target.armor + target.shield + _warden_cover(state, target) + _pylon_cover(state, target)
+	dmg -= target.armor + target.shield + _warden_cover(state, target) + _pylon_cover(state, target) + _twin_cover(state, target)
 	if target.marked:
 		dmg += state.setup.mark_bonus
 	return maxi(state.setup.min_damage, dmg)
@@ -573,6 +573,20 @@ static func conduit_boost(state: CombatState, u: GridUnit) -> int:
 		var other: GridUnit = state.unit_at(n.x, n.y)
 		if other != null and other != u and other.team == u.team and other.kind == "conduit":
 			return int((state.setup.kinds.get("conduit", {}) as Dictionary).get("boost", 1))
+	return 0
+
+
+## The Twin Furnaces (030): a kind with `twin_armor` takes that much less while another of its
+## kind still stands.
+static func _twin_cover(state: CombatState, target: GridUnit) -> int:
+	if target.kind.is_empty():
+		return 0
+	var armor: int = int((state.setup.kinds.get(target.kind, {}) as Dictionary).get("twin_armor", 0))
+	if armor <= 0:
+		return 0
+	for other: GridUnit in state.units:
+		if other != target and other.alive and other.kind == target.kind:
+			return armor
 	return 0
 
 
@@ -1282,6 +1296,52 @@ static func _round_hazards(state: CombatState) -> void:
 			hurt(state, -1, u, state.hazard(u.x, u.y))
 	_flues(state)
 	_pulses(state)
+	_auras(state)
+	_hauls(state)
+
+
+## The Grinder (030): a kind with an `aura` cuts every one of the other side standing next to
+## it, at the start of every round.
+static func _auras(state: CombatState) -> void:
+	for u: GridUnit in state.units:
+		if not u.alive or u.kind.is_empty():
+			continue
+		var aura: int = int(kind_rules(state, u).get("aura", 0))
+		if aura <= 0:
+			continue
+		for n: Vector2i in Hex.neighbors(Vector2i(u.x, u.y)):
+			var t: GridUnit = state.unit_at(n.x, n.y) if state.inside(n) else null
+			if t != null and t.team != u.team and t.alive:
+				hurt(state, u.ref, t, aura)
+
+
+## Whether a kind that hauls (030, the Magnet King) hauls at the start of round `round`.
+static func hauls_on(state: CombatState, u: GridUnit, round: int) -> bool:
+	var every: int = int(kind_rules(state, u).get("haul_every", 0))
+	return every > 0 and round > 0 and round % every == 0
+
+
+## The Magnet King (030): every `haul_every` rounds it hauls each of the other side within
+## `haul_radius` one hex toward itself -- nearest first -- into pits, bumps, each other.
+static func _hauls(state: CombatState) -> void:
+	for u: GridUnit in state.units:
+		if not u.alive or u.kind.is_empty() or not hauls_on(state, u, state.round_number):
+			continue
+		var here := Vector2i(u.x, u.y)
+		var radius: int = int(kind_rules(state, u).get("haul_radius", 3))
+		var pulled: Array[GridUnit] = []
+		for t: GridUnit in state.units:
+			if t.alive and t.team != u.team and not t.objective and Hex.distance(Vector2i(t.x, t.y), here) <= radius \
+					and Hex.distance(Vector2i(t.x, t.y), here) > 1:
+				pulled.append(t)
+		pulled.sort_custom(func(a: GridUnit, b: GridUnit) -> bool:
+			var da: int = Hex.distance(Vector2i(a.x, a.y), here)
+			var db: int = Hex.distance(Vector2i(b.x, b.y), here)
+			return da < db or (da == db and a.ref < b.ref))
+		state.emit(GridEv.HAULED, u.ref, -1, here.x, here.y, pulled.size())
+		for t: GridUnit in pulled:
+			if t.alive:
+				shove(state, u.ref, t, Hex.directions(Vector2i(t.x, t.y), here)[0])
 
 
 ## Whether the furnace flues blow at the start of round `round` (025): every `flue_every`th.

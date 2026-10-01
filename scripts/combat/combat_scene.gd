@@ -66,7 +66,7 @@ const INK_TERRAIN: Dictionary = {
 	"flue": Color("241a17"), "wire": Color("2a2818"),
 }
 ## The gate keepers drawn bigger than anything else on the board (013, 025).
-const BIG_KINDS: Array[String] = ["sorter", "heart"]
+const BIG_KINDS: Array[String] = ["sorter", "heart", "grinder", "magnet", "twin"]
 ## Damage-type colours for impacts, indexed like the rules' `damage_types`.
 const DAMAGE_COLOURS: Array[Color] = [Color("ffcf9a"), Color("ff7a3c"), Color("7fd4ff"), Color("b5e05a")]
 
@@ -1658,6 +1658,11 @@ func _animate(e: Array) -> void:
 			_refresh_tag(actor)
 			Audio.play("detonate", -2.0)
 			await _wait(0.6)
+		GridEv.HAULED:
+			_float_text(_unit_pos(actor) + Vector3(0, 2.6, 0), "HAUL!", COL_PAD_DANGER)
+			_vfx.burst(_unit_pos(actor) + Vector3(0, 0.4, 0), Color("c9a2ff"), 5.0)
+			Audio.play("zap", -4.0)
+			await _wait(0.25)
 		GridEv.HOLD_SCORED:
 			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.6, 0), "ZONE HELD  %d / %d" % [int(e[GridEv.F_V1]), int(e[GridEv.F_V2])], UIKit.GREEN)
 			Audio.play("reward", -8.0)
@@ -2091,6 +2096,7 @@ func _refresh() -> void:
 	_pylon_beams()
 	_conduit_links()
 	_objective_marks()
+	_warlord_marks()
 	# Act 3 (025): flues that blow at the start of next round, and the Core's marked ring.
 	if CombatSim.flues_blow(_state, _state.round_number + 1):
 		for y: int in _state.height:
@@ -2824,6 +2830,33 @@ func _pylon_beams() -> void:
 		var hum := beam.create_tween().set_loops()
 		hum.tween_property(material, "albedo_color:a", 0.35, 0.5).set_trans(Tween.TRANS_SINE)
 		hum.tween_property(material, "albedo_color:a", 0.8, 0.5).set_trans(Tween.TRANS_SINE)
+
+
+## 030: the warlords' rules on the board -- the Grinder's saw ring (its neighbours, red, every
+## round), the Magnet King's reach the round before it hauls, a beam between the Twin Furnaces.
+func _warlord_marks() -> void:
+	var twins: Array[GridUnit] = []
+	for u: GridUnit in _state.units:
+		if not u.alive or u.kind.is_empty():
+			continue
+		var rules: Dictionary = CombatSim.kind_rules(_state, u)
+		var here := Vector2i(u.x, u.y)
+		var top: Vector3 = _to_world(u.x, u.y) + Vector3(0, _tile_top(u.x, u.y), 0)
+		if int(rules.get("aura", 0)) > 0:
+			for n: Vector2i in Hex.neighbors(here):
+				if _state.inside(n):
+					_mark(_threat_quads, n, COL_THREAT)
+			_marker_label("SAW RING · %d to anything next to it, every round" % int(rules["aura"]), top + Vector3(0, 0.08, HEX * 1.6), Ink.PAPER, 28)
+		if CombatSim.hauls_on(_state, u, _state.round_number + 1):
+			for cell: Vector2i in Hex.within(here, int(rules.get("haul_radius", 3))):
+				if _state.inside(cell) and Hex.distance(cell, here) > 1:
+					_mark(_threat_quads, cell, COL_SPAWN)
+			_marker_label("HAULS NEXT ROUND · everything within %d comes a hex closer" % int(rules.get("haul_radius", 3)),
+				top + Vector3(0, 0.08, HEX * 1.6), Ink.PAPER, 28)
+		if int((_db.enemy_kinds.get(u.kind, {}) as Dictionary).get("twin_armor", 0)) > 0:
+			twins.append(u)
+	if twins.size() == 2:
+		_intent_marker_bar(_to_world(twins[0].x, twins[0].y) + Vector3(0, 1.4, 0), _to_world(twins[1].x, twins[1].y) + Vector3(0, 1.4, 0), COL_PAD_DANGER)
 
 
 ## 028: HOLD's zone (blue rings, HOLD ZONE), HACK's terminals (consoles: blue to take, green when
