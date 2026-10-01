@@ -18,6 +18,11 @@ const PARTS_DIR: String = "res://art/parts"
 ## `build` -- this is purely so weapons read in profile at gameplay distance.
 const ARM_SPLAY: float = 0.30
 const ARM_CANT: float = 0.10
+## Arm seating (027): the share of an arm allowed inside its body's bounds, and the furthest an
+## arm is pushed out to get there.
+const ARM_INSIDE: float = 0.06
+const ARM_PUSH_MAX: float = 0.16
+static var _arm_push: Dictionary = {}
 
 const SOCKETS: Dictionary = {
 	"core": "socket_core",
@@ -106,9 +111,137 @@ static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_c
 		# instead of the whole reactor glowing and washing the signal out.
 		_tint(piece, team_colour, PartMaterials.livery_of(part_id))
 
+	_seat_arms(root, chassis, chassis_id)
 	if level > 0:
 		_level_kit(chassis, sockets, level, PartMaterials.livery_of(chassis_id), team_colour)
 	return root
+
+
+## Arms clear of the body (027, play-test 9: "arms go through other parts of the body"). Each
+## arm is pushed straight out from the body, a step at a time, until no more than ARM_INSIDE of
+## it lies inside the body's bounds (the shoulder may still sit in its socket), at most
+## ARM_PUSH_MAX. Measured on the real geometry; cached per frame, arm and side.
+static func _seat_arms(root: Node3D, chassis: Node3D, chassis_id: String) -> void:
+	var body := AABB()
+	var have_body: bool = false
+	for slot: String in ["arm_l", "arm_r"]:
+		var arm: Node3D = _find_named(root, "part_" + slot)
+		if arm == null:
+			continue
+		var key: String = "%s|%s|%s|%s" % [chassis_id, String(arm.scene_file_path), slot, Models.part_path(chassis_id)]
+		if not _arm_push.has(key):
+			if not have_body:
+				body = _body_bounds(chassis, root)
+				have_body = true
+			var points: PackedVector3Array = _vertices(arm, root)
+			var centre: Vector3 = body.get_center()
+			var mean := Vector3.ZERO
+			for v: Vector3 in points:
+				mean += v
+			mean /= float(maxi(1, points.size()))
+			var out := Vector3(signf(mean.x - centre.x), 0, 0)
+			if out.x == 0.0:
+				out.x = 1.0 if slot == "arm_r" else -1.0
+			var push: float = 0.0
+			while push < ARM_PUSH_MAX and _inside_share(points, out * push, body) > ARM_INSIDE:
+				push += 0.01
+			_arm_push[key] = out * push
+		var offset: Vector3 = _arm_push[key]
+		if offset != Vector3.ZERO:
+			# The offset is in machine space; the arm hangs from a socket with its own turn.
+			var parent_xf := Transform3D.IDENTITY
+			var n: Node = arm.get_parent()
+			while n != null and n != root:
+				if n is Node3D:
+					parent_xf = (n as Node3D).transform * parent_xf
+				n = n.get_parent()
+			arm.position += parent_xf.basis.inverse() * offset
+
+
+static func _inside_share(points: PackedVector3Array, shift: Vector3, body: AABB) -> float:
+	var inside: int = 0
+	for v: Vector3 in points:
+		if body.has_point(v + shift):
+			inside += 1
+	return float(inside) / float(maxi(1, points.size()))
+
+
+## The share of a machine's arm geometry that sits inside its body (027, play-test 9: "arms go
+## through other parts of the body"): arm vertices inside the bounds of the chassis without its
+## legs, both arms together. For `tools/probe_arms.gd` and the seating below.
+static func arm_intrusion(model: Node3D) -> float:
+	var chassis: Node3D = model.get_node_or_null("part_chassis")
+	if chassis == null:
+		return 0.0
+	var body: AABB = _body_bounds(chassis, model)
+	var inside: int = 0
+	var total: int = 0
+	for slot: String in ["arm_l", "arm_r"]:
+		var arm: Node3D = _find_named(model, "part_" + slot)
+		if arm == null:
+			continue
+		for v: Vector3 in _vertices(arm, model):
+			total += 1
+			if body.has_point(v):
+				inside += 1
+	return float(inside) / float(maxi(1, total))
+
+
+## Bounds of a chassis's body -- every mesh but its legs -- in `space`'s coordinates, shrunk a
+## little so a part merely touching the surface does not count as inside.
+static func _body_bounds(chassis: Node3D, space: Node3D) -> AABB:
+	var box := AABB()
+	var first: bool = true
+	for mesh: MeshInstance3D in _meshes(chassis):
+		if _under_leg(mesh, chassis):
+			continue
+		for v: Vector3 in _vertices(mesh, space, false):
+			if first:
+				box = AABB(v, Vector3.ZERO)
+				first = false
+			else:
+				box = box.expand(v)
+	return box.grow(-0.02)
+
+
+static func _under_leg(node: Node, top: Node) -> bool:
+	var n: Node = node
+	while n != null and n != top:
+		# The legs, and every part bolted onto a socket (arms, core, module): not the body.
+		if String(n.name).begins_with("limb_leg") or String(n.name).begins_with("part_"):
+			return true
+		n = n.get_parent()
+	return false
+
+
+## Every triangle corner of the meshes under `node` (or of `node` alone), in `space`'s coordinates
+## -- composed from local transforms, so it works before the model is in a tree.
+static func _vertices(node: Node, space: Node3D, deep: bool = true) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	var meshes: Array[MeshInstance3D] = _meshes(node) if deep else ([node] as Array[MeshInstance3D] if node is MeshInstance3D else [] as Array[MeshInstance3D])
+	for mesh: MeshInstance3D in meshes:
+		if mesh.mesh == null:
+			continue
+		var xf := Transform3D.IDENTITY
+		var n: Node = mesh
+		while n != null and n != space:
+			if n is Node3D:
+				xf = (n as Node3D).transform * xf
+			n = n.get_parent()
+		var faces: PackedVector3Array = mesh.mesh.get_faces()
+		for i: int in range(0, faces.size(), 3):
+			out.append(xf * faces[i])
+	return out
+
+
+static func _find_named(node: Node, name: String) -> Node3D:
+	if String(node.name) == name and node is Node3D:
+		return node as Node3D
+	for child: Node in node.get_children():
+		var found: Node3D = _find_named(child, name)
+		if found != null:
+			return found
+	return null
 
 
 ## Starts loading part models on background threads, so the first time a screen builds a
