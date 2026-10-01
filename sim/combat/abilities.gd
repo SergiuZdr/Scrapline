@@ -101,6 +101,7 @@ static func use(state: CombatState, ref: int, i: int, target: Vector2i) -> bool:
 			u.y = target.y
 			state.emit(GridEv.MOVED, u.ref, -1, u.x, u.y, here.x, here.y)
 			CombatSim.collect_path(state, u, path)
+			CombatSim.capture(state, u)
 		"charge":
 			_charge(state, u, target, ability)
 		"grapple":

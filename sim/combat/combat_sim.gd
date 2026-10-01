@@ -195,7 +195,8 @@ static func weapon_reach(state: CombatState, u: GridUnit, w: int) -> int:
 	var weapon: Dictionary = u.weapons[w]
 	if String(weapon["shape"]) == "melee":
 		return 1
-	return int(weapon["range"]) + u.range_bonus + state.range_bonus(u.x, u.y)
+	# DUST STORM (028) shortens every shot and lob, never below 1.
+	return maxi(1, int(weapon["range"]) + u.range_bonus + state.range_bonus(u.x, u.y) + state.setup.range_mod)
 
 
 ## How far weapon `w` of `u` may be AIMED: its reach, or for a piercing shot as far as its beam
@@ -727,6 +728,17 @@ static func objective_status(state: CombatState) -> Dictionary:
 		"salvage":
 			status["text"] = "SALVAGE  ·  scrap piles collected %d of %d  ·  or destroy every enemy" % [
 				state.piles_collected, status["need"]]
+		"hold":
+			status["held"] = state.hold_score
+			status["text"] = "HOLD  ·  start %d rounds on the blue zone with no enemy on it (%d of %d)  ·  or destroy every enemy" % [
+				status["need"], state.hold_score, status["need"]]
+		"hack":
+			status["hacked"] = state.hacked.size()
+			status["text"] = "HACK  ·  end a move on a terminal to take it (%d of %d)  ·  or destroy every enemy" % [
+				state.hacked.size(), status["need"]]
+		"survive":
+			status["text"] = "SURVIVE  ·  waves every %d rounds  ·  hold out %d more round%s, or destroy every enemy" % [
+				int(o.get("every", 2)), status["rounds_left"], "" if int(status["rounds_left"]) == 1 else "s"]
 		_:
 			status["text"] = "ROUT  ·  destroy every enemy"
 			# A fight with its own, shorter limit says so (014: the gate closes).
@@ -753,8 +765,20 @@ static func _move(state: CombatState, ref: int, x: int, y: int) -> bool:
 	u.moved = true
 	state.emit(GridEv.MOVED, ref, -1, x, y, from.x, from.y)
 	collect_path(state, u, options[dest])
+	capture(state, u)
 	_check_outcome(state)
 	return true
+
+
+## HACK (028): a crew machine that ends a move on a terminal takes it, for good.
+static func capture(state: CombatState, u: GridUnit) -> void:
+	var o: Dictionary = state.objective()
+	if String(o.get("type", "")) != "hack" or u.team != GridUnit.TEAM_PLAYER or u.objective:
+		return
+	var here := Vector2i(u.x, u.y)
+	if (o.get("cells", []) as Array).has(here) and not state.hacked.has(here):
+		state.hacked.append(here)
+		state.emit(GridEv.HACKED, u.ref, -1, here.x, here.y, state.hacked.size(), int(o.get("need", 0)))
 
 
 static func _player_attack(state: CombatState, ref: int, w: int, target: Vector2i) -> bool:
@@ -1064,7 +1088,7 @@ static func _end_turn(state: CombatState) -> void:
 		return
 	state.intents.clear()
 	var o: Dictionary = state.objective()
-	if String(o.get("type", "")) == "defend" and state.round_number >= int(o.get("rounds", 0)):
+	if ["defend", "survive"].has(String(o.get("type", ""))) and state.round_number >= int(o.get("rounds", 0)):
 		_finish(state, CombatState.WON)
 		return
 	if state.round_number >= state.setup.max_rounds:
@@ -1117,8 +1141,10 @@ static func _begin_round(state: CombatState) -> void:
 			state.emit(GridEv.HEAT, u.ref, -1, u.x, u.y, u.heat, u.heat_cap)
 
 	_round_hazards(state)
+	_hold(state)
 	if _check_outcome(state):
 		return
+	_waves(state)
 
 	_hives(state)
 	_reclaimer(state)
@@ -1150,6 +1176,69 @@ static func _begin_round(state: CombatState) -> void:
 				intent["lock"] = locked.ref
 			state.intents.append(intent)
 			state.emit(GridEv.INTENT_SET, u.ref, int(intent.get("lock", -1)), target.x, target.y, w, order)
+
+
+## HOLD (028): a round that starts with a crew machine on the zone and no enemy on it scores.
+static func _hold(state: CombatState) -> void:
+	var o: Dictionary = state.objective()
+	if String(o.get("type", "")) != "hold" or state.round_number <= 1:
+		return
+	var ours: bool = false
+	var theirs: bool = false
+	for cell: Variant in (o.get("cells", []) as Array):
+		var u: GridUnit = state.unit_at((cell as Vector2i).x, (cell as Vector2i).y)
+		if u == null or u.objective:
+			continue
+		if u.team == GridUnit.TEAM_PLAYER:
+			ours = true
+		else:
+			theirs = true
+	if ours and not theirs:
+		state.hold_score += 1
+		var first: Vector2i = (o["cells"] as Array)[0]
+		state.emit(GridEv.HOLD_SCORED, -1, -1, first.x, first.y, state.hold_score, int(o.get("need", 0)))
+
+
+## SURVIVE (028): every `every` rounds a wave of `count` drones comes in on the top row, on open
+## hexes chosen by a hash and marked a round ahead (standing on one blocks it). The last wave
+## comes two rounds before the end.
+static func _waves(state: CombatState) -> void:
+	var o: Dictionary = state.objective()
+	if String(o.get("type", "")) != "survive" or state.setup.drone == null:
+		return
+	if not state.wave_marks.is_empty():
+		for cell: Vector2i in state.wave_marks:
+			if state.unit_at(cell.x, cell.y) != null or state.solid(cell):
+				state.emit(GridEv.SPAWN_BLOCKED, -1, -1, cell.x, cell.y, 0)
+				continue
+			var drone: GridUnit = state.setup.drone.copy()
+			var slot: int = 0
+			for u: GridUnit in state.units:
+				if u.team == GridUnit.TEAM_ENEMY:
+					slot = maxi(slot, u.slot + 1)
+			drone.slot = slot
+			drone.ref = GridUnit.TEAM_ENEMY * 10 + slot
+			drone.x = cell.x
+			drone.y = cell.y
+			state.units.append(drone)
+			state.units.sort_custom(func(a: GridUnit, b: GridUnit) -> bool: return a.ref < b.ref)
+			state.emit(GridEv.SPAWNED, -2, drone.ref, cell.x, cell.y)
+		state.wave_marks.clear()
+	var every: int = maxi(1, int(o.get("every", 2)))
+	if state.round_number % every != every - 1 or state.round_number + 2 > int(o.get("rounds", 0)):
+		return
+	var open: Array[Vector2i] = []
+	for x: int in state.width:
+		var cell := Vector2i(x, 0)
+		if not state.solid(cell) and not state.is_pit(cell) and state.unit_at(x, 0) == null:
+			open.append(cell)
+	open.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		var ha: int = IntentAI.mix(state.setup.rng_seed, a.x, state.round_number, 71)
+		var hb: int = IntentAI.mix(state.setup.rng_seed, b.x, state.round_number, 71)
+		return ha < hb or (ha == hb and a.x < b.x))
+	for i: int in mini(int(o.get("count", 2)), open.size()):
+		state.wave_marks.append(open[i])
+		state.emit(GridEv.WAVE_MARKED, -1, -1, open[i].x, open[i].y, 1)
 
 
 ## What the start of a round does to the board before anyone moves: The Pour's floods, slag
@@ -1412,6 +1501,10 @@ static func _check_outcome(state: CombatState) -> bool:
 	elif kind == "defend" and state.caches().is_empty():
 		_finish(state, CombatState.LOST)
 	elif kind == "salvage" and state.piles_collected >= int(o.get("need", 0)):
+		_finish(state, CombatState.WON)
+	elif kind == "hack" and state.hacked.size() >= int(o.get("need", 0)):
+		_finish(state, CombatState.WON)
+	elif kind == "hold" and state.hold_score >= int(o.get("need", 0)):
 		_finish(state, CombatState.WON)
 	else:
 		return false

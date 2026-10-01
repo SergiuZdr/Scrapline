@@ -63,6 +63,7 @@ func _initialize() -> void:
 	_test_act2_kinds()
 	_test_playtest7()
 	_test_act3()
+	_test_objectives_028()
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
 			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core"]:
 		_test_bot_fight(id)
@@ -268,6 +269,65 @@ func _test_act3() -> void:
 	_check("enraged at half HP", e.enraged.has(10) and int(CombatSim.kind_rules(e, e.unit(10))["pulse_radius"]) == 3)
 	CombatSim.apply(e, [CombatSim.ACT_END, 0, 0, 0])
 	_check("and its three guards arrive the next round", e.units.size() == before_units + 3)
+
+
+## 028: HOLD, HACK, SURVIVE and the yard's conditions.
+func _test_objectives_028() -> void:
+	var far := Vector2i(0, 0)
+	var zone: Array = [{"x": C.x, "y": C.y}, {"x": C.x + 1, "y": C.y}, {"x": C.x - 1, "y": C.y}]
+	var hold: CombatState = _fight(_rows(), [_unit(HAMMER, C, 40)], [_unit(HAMMER, far, 40)], {"type": "hold", "need": 3, "cells": zone})
+	var scores: Array = []
+	for turn: int in 3:
+		_place(hold, 0, C)
+		_place(hold, 10, far)
+		hold.intents.clear()
+		CombatSim.apply(hold, [CombatSim.ACT_END, 0, 0, 0])
+		scores.append(hold.hold_score)
+	_check("HOLD: each round started on the zone scores %s" % [scores], scores == [1, 2, 3])
+	_check("HOLD: three scores win", hold.outcome == CombatState.WON)
+	var contested: CombatState = _fight(_rows(), [_unit(HAMMER, C, 40)], [_unit(HAMMER, Vector2i(C.x + 1, C.y), 40)],
+		{"type": "hold", "need": 3, "cells": zone})
+	_place(contested, 10, Vector2i(C.x + 1, C.y))
+	contested.intents.clear()
+	CombatSim.apply(contested, [CombatSim.ACT_END, 0, 0, 0])
+	_check("HOLD: an enemy on the zone denies the round", contested.hold_score == 0 or contested.unit_at(C.x + 1, C.y) == null)
+
+	var terminals: Array = [{"x": 2, "y": 4}, {"x": 4, "y": 6}, {"x": 6, "y": 4}]
+	var hack: CombatState = _fight(_rows(), [_unit(DASHER, Vector2i(4, 4), 40)], [_unit(HAMMER, far, 40)], {"type": "hack", "need": 2, "cells": terminals})
+	var reach: Dictionary = CombatSim.reachable(hack, 0)
+	_check("(precondition) a terminal is in reach", reach.has(Vector2i(2, 4)))
+	CombatSim.apply(hack, [CombatSim.ACT_MOVE, 0, 2, 4])
+	_check("HACK: ending a move on a terminal takes it", hack.hacked == [Vector2i(2, 4)] and hack.outcome == CombatState.ONGOING)
+	var copy: CombatState = hack.clone()
+	_check("a dry run copies the taken terminals", copy.hacked == hack.hacked)
+
+	var survive: CombatState = _fight(_rows(), [_unit(HAMMER, Vector2i(4, 8), 60)], [_unit(HAMMER, far, 60)],
+		{"type": "survive", "rounds": 6, "every": 2, "count": 2})
+	var waves: int = 0
+	for turn: int in 6:
+		var before: int = survive.units.size()
+		survive.intents.clear()
+		CombatSim.apply(survive, [CombatSim.ACT_END, 0, 0, 0])
+		if survive.units.size() > before:
+			waves += 1
+	_check("SURVIVE: waves come in (%d)" % waves, waves >= 2)
+	_check("SURVIVE: outlasting the rounds wins", survive.outcome == CombatState.WON)
+
+	var dusty: CombatState = _fight(_rows(), [_unit(LANCE, C)], [_unit(HAMMER, far)])
+	var clear_reach: int = CombatSim.weapon_reach(dusty, dusty.unit(0), 1)
+	var fight: Dictionary = {"id": "t", "rows": _rows(), "player": [_unit(LANCE, C)], "enemy": [_unit(HAMMER, far)], "modifiers": ["dust", "heat_wave", "scrap_rain"]}
+	var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 1)
+	var storm: CombatState = CombatSim.start(setup)
+	_check("DUST STORM: shots reach 1 less (%d -> %d)" % [clear_reach, CombatSim.weapon_reach(storm, storm.unit(0), 1)],
+		CombatSim.weapon_reach(storm, storm.unit(0), 1) == clear_reach - 1)
+	_check("HEAT WAVE: the crew vents 1 less", storm.unit(0).vent == maxi(0, dusty.unit(0).vent - 1))
+	_check("SCRAP RAIN: piles are worth double", setup.pile_value == int(_db.combat_rules.get("pile_value", 4)) * 2)
+	var wired: CombatState = _fight(_rows({C: "w"}), [_unit(HAMMER, C, 30)], [_unit(HAMMER, far, 30)])
+	_place(wired, 0, C)
+	var hp: int = wired.unit(0).hp
+	wired.intents.clear()
+	CombatSim.apply(wired, [CombatSim.ACT_END, 0, 0, 0])
+	_check("LIVE WIRES: 2 to whatever starts a round on one", wired.unit(0).hp == hp - 2)
 
 
 # --- Fixtures ---------------------------------------------------------------

@@ -22,6 +22,7 @@ func _initialize() -> void:
 	_test_boss_held()
 	_test_acts()
 	_test_names()
+	_test_objectives_rolled()
 	_test_levels()
 	_test_perks()
 	_test_tuning()
@@ -185,7 +186,7 @@ func _test_fight_feeds_the_run() -> void:
 	state.crew[0]["hp"] = 6
 	RunSim.apply(state, setup, [RunSim.TRAVEL, fight_site])
 	_check("a fight site sets a fight pending", String(state.pending.get("kind", "")) == "fight")
-	_check("every fight has an objective", ["rout", "defend", "salvage"].has(String(state.pending["fight"]["objective"]["type"])))
+	_check("every fight has an objective", ["rout", "defend", "salvage", "hold", "hack", "survive"].has(String(state.pending["fight"]["objective"]["type"])))
 	var combat_setup: CombatSetup = RunSim.fight_setup(state, setup)
 	_check("the fight builds with no errors %s" % [combat_setup.errors], combat_setup.errors.is_empty())
 	_check("a machine enters the fight with its run HP (6)", combat_setup.units[0].hp == 6)
@@ -242,6 +243,29 @@ func _test_boss_held() -> void:
 		result.outcome == CombatState.LOST and not result.crew(GridUnit.TEAM_PLAYER).is_empty())
 	RunSim.apply(state, setup, [RunSim.FIGHT, actions])
 	_check("a boss fight that is not won ends the run", state.outcome == RunState.LOST)
+
+
+## 028: every objective and every yard condition is rolled somewhere, and each fight builds.
+func _test_objectives_rolled() -> void:
+	var seen: Dictionary = {}
+	var mods: Dictionary = {}
+	var errors: Array = []
+	for seed_value: int in 40:
+		var setup: RunSetup = _setup(300 + seed_value)
+		var state: RunState = RunSim.start(setup)
+		for id: int in state.sites.size() - 1:
+			if int(state.sites[id]["col"]) == 0:
+				continue
+			var f: Dictionary = RunSim._make_fight(state, setup, id, "skirmish")
+			seen[String((f["objective"] as Dictionary)["type"])] = true
+			for m: Variant in (f.get("modifiers", []) as Array):
+				mods[String(m)] = true
+			var built: CombatSetup = CombatSetup.build(f, setup.combat_rules, setup.parts, setup.tiles, setup.wheel, 1)
+			if not built.errors.is_empty():
+				errors.append(built.errors)
+	_check("all six objectives are rolled %s" % [seen.keys()], seen.size() == 6)
+	_check("all four yard conditions are rolled %s" % [mods.keys()], mods.size() == 4)
+	_check("and every such fight builds %s" % [errors.slice(0, 2)], errors.is_empty())
 
 
 ## 027: the default crew's names, and a machine renamed by the player.

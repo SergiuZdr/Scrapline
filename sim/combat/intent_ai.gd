@@ -37,6 +37,9 @@ const SCORE_FELL: int = 30
 const SCORE_PYLON: int = 90
 ## How many of the best candidates get the full dry run (explosions, pits, bombers).
 const REFINE: int = 6
+## 028: standing on HOLD's zone (both sides), and on a terminal not yet taken (the crew).
+const SCORE_ZONE: int = 45
+const SCORE_TERMINAL: int = 80
 
 
 ## Returns `{ "dest", "path", "w" (-1 = no attack), "target": Vector2i, "score" }`.
@@ -62,7 +65,7 @@ static func plan(state: CombatState, u: GridUnit, ctx: Dictionary) -> Dictionary
 	var best_attack: int = 0
 	var candidates: Array = []
 	for cell: Vector2i in cells:
-		var base: int = _tile_value(state, cell, (options[cell] as Array).size(), danger, shield)
+		var base: int = _tile_value(state, cell, (options[cell] as Array).size(), danger, shield) + _objective_value(state, u, cell)
 		# Evaluate from the destination by standing there for the length of the loop.
 		u.x = cell.x
 		u.y = cell.y
@@ -106,7 +109,8 @@ static func plan(state: CombatState, u: GridUnit, ctx: Dictionary) -> Dictionary
 	best_score = -1000000
 	for cell: Vector2i in cells:
 		var gap: int = _nearest_target_distance(state, u, cell)
-		var score: int = -absi(gap - want) * 10 + _tile_value(state, cell, (options[cell] as Array).size(), danger, shield)
+		var score: int = -absi(gap - want) * 10 + _tile_value(state, cell, (options[cell] as Array).size(), danger, shield) \
+			+ _objective_value(state, u, cell)
 		var tie: int = mix(state.setup.rng_seed, u.ref * 131 + state.round_number, cell.x * 17 + cell.y, 99)
 		if score > best_score or (score == best_score and tie < best_tie):
 			best_score = score
@@ -228,6 +232,20 @@ static func _dry_value(state: CombatState, u: GridUnit, cell: Vector2i, w: int, 
 	if u.team == GridUnit.TEAM_PLAYER and u.heat + CombatSim.attack_heat(u, weapon) >= u.heat_cap:
 		value += SCORE_OVERHEAT
 	return value
+
+
+## 028: what standing on `cell` does for the fight's objective. HOLD: both sides want the zone
+## (the crew to score, the enemy to deny it); HACK: the crew wants a terminal it has not taken.
+static func _objective_value(state: CombatState, u: GridUnit, cell: Vector2i) -> int:
+	var o: Dictionary = state.objective()
+	var cells: Array = o.get("cells", [])
+	match String(o.get("type", "")):
+		"hold":
+			return SCORE_ZONE if cells.has(cell) else 0
+		"hack":
+			if u.team == GridUnit.TEAM_PLAYER and cells.has(cell) and not state.hacked.has(cell):
+				return SCORE_TERMINAL
+	return 0
 
 
 static func _tile_value(state: CombatState, cell: Vector2i, steps: int, danger: Dictionary, shield: Dictionary) -> int:

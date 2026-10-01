@@ -686,11 +686,20 @@ func _fight_panel() -> void:
 		"rout": "ROUT: destroy every enemy.",
 		"defend": "DEFEND: keep the salvage caches standing for %d rounds (or destroy every enemy). Each cache you save pays out scrap." % int(objective.get("rounds", 0)),
 		"salvage": "SALVAGE: collect %d scrap piles before the enemy carries them off (or destroy every enemy)." % int(objective.get("need", 0)),
+		"hold": "HOLD: start %d rounds with a machine on the zone and no enemy on it (or destroy every enemy)." % int(objective.get("need", 0)),
+		"hack": "HACK: end a move on %d of the terminals (or destroy every enemy)." % int(objective.get("need", 0)),
+		"survive": "SURVIVE: waves come in every %d rounds; hold out %d rounds (or destroy every enemy)." % [int(objective.get("every", 2)), int(objective.get("rounds", 6))],
 	}
+	# 028: the yard's condition, if the fight rolled one.
+	var yard: PackedStringArray = []
+	for id: Variant in ((fight as Dictionary).get("modifiers", []) as Array):
+		var m: Dictionary = (Run.db.combat_rules.get("modifiers", {}) as Dictionary).get(String(id), {})
+		yard.append("%s: %s" % [String(m.get("name", id)), String(m.get("text", ""))])
 	var flavour: String = _site_text(kind)
 	var box := _modal(String(titles.get(kind, "FIGHT")),
 		"%s\n\n%s\n\n%d enemies: %s.\nDamage your machines take here stays with them after the fight." % [
-			flavour, String(goals.get(String(objective.get("type", "rout")), "")), enemies.size(), ", ".join(enemies)], 960)
+			flavour, String(goals.get(String(objective.get("type", "rout")), "")) + ("\n" + "\n".join(yard) if not yard.is_empty() else ""),
+			enemies.size(), ", ".join(enemies)], 960)
 	if (fight as Dictionary).has("reclaimer"):
 		# 013: fighting by the line -- say so before the player walks in.
 		box.add_child(_label("THE RECLAIMER IS CLOSE: its drones come in behind you at round %d." % int((fight["reclaimer"] as Dictionary).get("round", 3)),
