@@ -28,6 +28,10 @@ func _go() -> void:
 	# A test profile with every first-time hint seen, so no callout sits over a click, and
 	# the player's own profile is never touched (012).
 	var profile: Node = root.get_node("Profile")
+	# A fresh file every time: names a previous run of this test gave the crew (027) would come
+	# back as RENAME actions.
+	for path: String in ["user://test_profile_ui.json", SaveFile.backup_of("user://test_profile_ui.json")]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	profile.call("use_path", "user://test_profile_ui.json")
 	for id: Variant in ((_run.get("db") as ContentDB).tutorial.get("hints", {}) as Dictionary):
 		profile.call("mark_seen", String(id))
