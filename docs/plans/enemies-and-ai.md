@@ -83,3 +83,9 @@ About 20 enemy archetypes plus 3 bosses at launch. Each act has 6–8, with some
   the red goes up. Its own side is not hurt by the pulse.
 - The terrain that changes the fight: **furnace flues** blow every other round (both sides; the
   enemy AI stays off a flue about to blow, the player's bot too).
+
+## Escalation (027)
+
+A keeper with an `enraged` block changes its rules once, at half HP, and calls guards for the next
+round: The Pour floods every round (four hexes, 3 a round), the Core pulses every other round,
+3 hexes out, for 5. Each calls three drones. The fight has a second half.

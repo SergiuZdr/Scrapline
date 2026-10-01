@@ -2,6 +2,19 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [027] Play-test 9 fixes — 2026-10-01 ([detail](iterations/027-playtest-9-fixes.md))
+
+### Changed
+- **The crew is Knuckles, Needle and Relay**, and any machine can be **renamed** (in the bay or
+  the garage); the names stay for that crew's next run.
+- **A new assembly bay**: the crew on the left, the machine big on the lift with its numbers,
+  the bench of parts as cards by socket.
+- **A new garage**: the machine, its loadout and its numbers side by side over the hold.
+- **UNLOCKS**: every between-run unlock with what it gives, what earns it and how close you are.
+- **The Pour and the Core fight back at half HP** (faster, wider, harder, with three guards) and
+  have more HP; machines can be levelled to 5.
+- Arms no longer sit inside their bodies. HP squares keep a fixed size, twelve to a row.
+
 ## [026] Play-test 8 fixes — 2026-10-01 ([detail](iterations/026-playtest-8-fixes.md))
 
 ### Changed

@@ -323,7 +323,7 @@
     "pour": {
       "group": "ENEMIES",
       "name": "The Pour",
-      "text": "The Slag Flats' keeper. Every other round it marks the hexes your machines stand on; a round later those hexes are slag for the rest of the fight (2 damage a round to anything on them). Keep moving, and break it before the floor runs out. At half HP it boils over: every round, four hexes, 3 a round, and two guard drones.",
+      "text": "The Slag Flats' keeper. Every other round it marks the hexes your machines stand on; a round later those hexes are slag for the rest of the fight (2 damage a round to anything on them). Keep moving, and break it before the floor runs out. At half HP it boils over: every round, four hexes, 3 a round, and three guard drones.",
       "forms": [
         "the pour",
         "pour"
@@ -594,7 +594,7 @@
     "core": {
       "group": "ENEMIES",
       "name": "The Core",
-      "text": "The Crucible's heart and the run's last fight. It never moves. Every third round it marks every hex within 2 of it, and a round later pulses: 4 damage to each of your machines still in the ring. Hit it, then get out before it pulses. At half HP it erupts: every other round, 3 hexes out, for 5, and two guard drones.",
+      "text": "The Crucible's heart and the run's last fight. It never moves. Every third round it marks every hex within 2 of it, and a round later pulses: 4 damage to each of your machines still in the ring. Hit it, then get out before it pulses. At half HP it erupts: every other round, 3 hexes out, for 5, and three guard drones.",
       "forms": [
         "the core",
         "heart"

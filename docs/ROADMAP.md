@@ -45,6 +45,9 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 025 | [Act 3: the Crucible](iterations/025-act-3.md) | Furnace flues, conduits, the Core that pulses its ring; three boards; the run ends at the Core (bot 66.0% over three acts) | ✅ awaiting the play-test |
 | — | [Play-test 8](playtests/2026-10-01-playtest-8.md) | Pierce reach, the scrap mark and wandering HP, a readable loading card, overflowing cards, no rares late, easy late bosses, caches side by side, attack arrows | ✅ |
 | 026 | [Play-test 8 fixes](iterations/026-playtest-8-fixes.md) | Tags at their machines and on top, a scrap bundle, arrowed/arched attacks, a 5 s card, fitted card text, a garage cover; rares and tougher Acts 2-3 (bot 56.6%) | ✅ awaiting the play-test |
+| — | [Play-test 9](playtests/2026-10-01-playtest-9.md) | Main holds everything; names; easy late bosses and idle scrap; unclear unlocks; arms in bodies; the garage and bay need a design; too little content | ✅ |
+| 027 | [Play-test 9 fixes](iterations/027-playtest-9-fixes.md) | Names and RENAME, a new bay and garage, an UNLOCKS screen, arms seated by measurement, escalating keepers, levels to 5 (bot 53.9%) | ✅ awaiting the play-test |
+| 028 | Content (the user's pick of five) | -- | ⏭ |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

@@ -108,3 +108,12 @@ primary action per screen) stay. The hub, its tabs and every F2P screen are cut.
 - **Attack lines** are arrows; a lob's arches over what it flies over. A beam's end is labelled.
 - **The opening card** stays 5 s. **The garage** opens behind a cover until the machine is drawn.
 - **Every card line is fitted** to its box (`UIKit.fit`: wrap, then a smaller font, then "...").
+
+## Play-test 9 (027)
+
+- **The bay**: THE CREW (cards, names) / ON THE LIFT (the machine, its numbers, a name field) /
+  THE BENCH (socket tabs, part cards; once-only parts say so).
+- **The garage**: THE MACHINE (bay, name and RENAME, level of 5, HP, LEVEL UP) / LOADOUT / NUMBERS,
+  over the hold. No tabs: everything a machine is, at once.
+- **UNLOCKS**: from the title and the run's end; every unlock as a goal with a progress bar.
+- HP pips: fixed size, twelve to a row.
