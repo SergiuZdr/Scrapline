@@ -202,3 +202,14 @@ Act 3's hit 2 harder; each keeper gets its act's arming. Defend caches roll 3+ h
 Run bot: 56.6% over three acts, the losses in Acts 2 and 3.
 
 Levels go to 5 (65 and 95 scrap) so late scrap has somewhere to go (027).
+
+## New sites (031)
+
+- **Arena** -- a fight with an elite's count plus `arena_extra`, for `arena_scrap` (35) and an
+  elite's salvage (uncommon or better). Rolled like an elite (never in the first column).
+- **Refinery** -- `[REFINE, cargo]`: one part in the hold becomes a random part of the next rarity
+  in the same slot, for `refinery.costs` (10 / 18 / 40); a rare becomes a legendary. Once a visit.
+- **Auction** -- `[BID, tier]`: a blind crate, 20 scrap (uncommon+, 8% legendary) or 45 (rare+,
+  25% legendary). Once a visit.
+- Signals: 20 more events, built from the existing effects. "Uncommon or better" never gives a
+  legendary any more; only the auction, hoards and the refinery do.

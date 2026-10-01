@@ -50,7 +50,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 028 | [Objectives and yard conditions](iterations/028-objectives-and-modifiers.md) | HOLD, HACK, SURVIVE; dust storm, live wires, scrap rain, heat wave (bot 57.9%) | ✅ awaiting the play-test |
 | 029 | [Weapons and legendary parts](iterations/029-weapons-and-legendaries.md) | Flamer, harpoon, shield caster; ten parts and five legendaries; the keeper's hoard (bot 64.5%) | ✅ awaiting the play-test |
 | 030 | [Warlords](iterations/030-warlords.md) | The Grinder, the Magnet King, the Twin Furnaces: a detour per act with a legendary (bot 63.8%) | ✅ awaiting the play-test |
-| 031 | Sites and events | Arena, refinery, auction; twenty new signal events | 🔨 |
+| 031 | [Sites and events](iterations/031-sites-and-events.md) | Arena, refinery, auction; twenty new signal events (bot 58.0%) | ✅ awaiting the play-test |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

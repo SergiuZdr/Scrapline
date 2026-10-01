@@ -2,6 +2,16 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [031] Sites and events — 2026-10-01 ([detail](iterations/031-sites-and-events.md))
+
+### Added
+- **The arena**: a harder fight for more scrap and better salvage. **The refinery**: a part from the
+  hold becomes one of the next rarity. **The auction**: a blind crate, sometimes a legendary.
+- **Twenty new signal events.**
+
+### Fixed
+- A signal's "uncommon or better" could hand out a legendary.
+
 ## [030] Warlords — 2026-10-01 ([detail](iterations/030-warlords.md))
 
 ### Added
