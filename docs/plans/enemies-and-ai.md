@@ -89,3 +89,10 @@ About 20 enemy archetypes plus 3 bosses at launch. Each act has 6–8, with some
 A keeper with an `enraged` block changes its rules once, at half HP, and calls guards for the next
 round: The Pour floods every round (four hexes, 3 a round), the Core pulses every other round,
 3 hexes out, for 5. Each calls three drones. The fight has a second half.
+
+## Warlords (030)
+
+One per act, a detour in the middle of the map: the Grinder (Act 1, `aura` 2 -- a saw ring at round
+start), the Magnet King (Act 2, `haul_every` 2 / `haul_radius` 3 -- hauls the crew a hex closer),
+the Twin Furnaces (Act 3, `twin_armor` 2 while both stand). Each is an authored board with
+`"warlord": true` and its keepers, escorts rolled; its hoard holds a legendary.
