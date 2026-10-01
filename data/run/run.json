@@ -98,16 +98,31 @@
     "_comment": "repair_amount is per machine; a rebuilt wreck comes back at half HP. tune_costs by rarity: tuning a part once, one of its two options (011)."
   },
   "objective_weights": {
-    "rout": 30,
-    "defend": 40,
-    "salvage": 30
+    "rout": 22,
+    "defend": 22,
+    "salvage": 16,
+    "hold": 14,
+    "hack": 14,
+    "survive": 12
+  },
+  "modifiers": {
+    "_comment": "028: the chance, by column, that a fight (not a gate) rolls one yard condition (combat rules `modifiers`), and which. LIVE WIRES lays `wires` tiles.",
+    "chance_by_column": [0, 15, 20, 25, 30, 35, 40, 45, 50],
+    "weights": {"dust": 25, "wires": 25, "scrap_rain": 20, "heat_wave": 25},
+    "wires": [2, 4]
   },
   "objectives": {
     "defend_rounds": 4,
     "defend_caches": 2,
     "salvage_piles": 4,
     "salvage_need": 3,
-    "cache_spacing": 3
+    "cache_spacing": 3,
+    "hold_need": 3,
+    "hack_terminals": 4,
+    "hack_need": 3,
+    "survive_rounds": 6,
+    "survive_every": 2,
+    "survive_count": 2
   },
   "terrain": {
     "_comment": "Props and pits scattered on generated fights, in the middle rows, per fight: a random count in [min, max].",

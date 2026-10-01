@@ -32,7 +32,7 @@ const PIPS_PER_ROW: int = 12
 ## left this turn, its HP. The picked one is the only full card, so the column asks for less.
 const SLIM_SIZE := Vector2(340, 94)
 const WEAPON_SIZE := Vector2(310, 76)
-const ABILITY_SIZE := Vector2(250, 64)
+const ABILITY_SIZE := Vector2(250, 74)
 ## The action bar's box: right of the camera buttons, left of UNDO / END TURN.
 const BAR_LEFT: float = 356.0
 const BAR_WIDTH: float = 1150.0

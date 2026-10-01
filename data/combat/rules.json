@@ -47,5 +47,12 @@
   "_pylon": "013: the Sorting Gate's pylons (props). While one stands, the Sorter takes `enemy_kinds.sorter.pylon_armor` less from every hit.",
   "pylon_hp": 6,
   "_flue": "025: a furnace flue (tile `f`, its blast in the tile's grid block) blows at the start of every `flue_every`-th round.",
-  "flue_every": 2
+  "flue_every": 2,
+  "_modifiers": "028: the yard's conditions a fight may roll (run.json `modifiers`). `range` is added to every shot and lob, `vent` to the crew's vent, `pile_mult` multiplies a pile's worth; LIVE WIRES lays `wire` tiles (2 a round to whatever starts on one).",
+  "modifiers": {
+    "dust": {"name": "DUST STORM", "text": "Dust over the yard: every shot and lob reaches 1 hex less.", "range": -1},
+    "wires": {"name": "LIVE WIRES", "text": "Cables down and sparking: 2 damage to whatever starts a round on one."},
+    "scrap_rain": {"name": "SCRAP RAIN", "text": "A cargo hauler spilled its load: every scrap pile is worth double.", "pile_mult": 2},
+    "heat_wave": {"name": "HEAT WAVE", "text": "The furnaces are running: your machines vent 1 less heat a round.", "vent": -1}
+  }
 }

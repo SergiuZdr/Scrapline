@@ -1063,6 +1063,7 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 	var laid: Dictionary = template.duplicate()
 	laid["rows"] = fight["rows"]
 	fight["objective"] = _roll_objective(setup, rng, laid, kind)
+	_roll_modifier(state, setup, rng, fight, template)
 
 	var player: Array = []
 	var slots: Array = template.get("player", [])
@@ -1103,6 +1104,36 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 		enemy.append(spec)
 	fight["enemy"] = enemy
 	return fight
+
+
+## The yard's condition for a fight (028): by column, one of `run.json` `modifiers.weights`, or
+## none. LIVE WIRES lays `wires` cables on open hexes in the middle rows, clear of the objective.
+static func _roll_modifier(state: RunState, setup: RunSetup, rng: SimRNG, fight: Dictionary, template: Dictionary) -> void:
+	var rules: Dictionary = rules_of(state, setup).get("modifiers", {})
+	if rules.is_empty():
+		return
+	var col: int = int(state.sites[state.current if fight.get("id", "") == "" else int(String(fight["id"]).get_slice("_", 2))]["col"])
+	var chances: Array = rules.get("chance_by_column", [0])
+	if not rng.chance_percent(int(chances[mini(col, chances.size() - 1)])):
+		return
+	var weights: Dictionary = rules.get("weights", {})
+	var id: String = _weighted(rng, weights.keys(), weights, true)
+	if id.is_empty():
+		return
+	fight["modifiers"] = [id]
+	if id == "wires":
+		var rows: Array = fight["rows"]
+		var taken: Array = []
+		for spec: Dictionary in (template.get("player", []) as Array) + (template.get("enemy", []) as Array):
+			taken.append(Vector2i(int(spec["x"]), int(spec["y"])))
+		var o: Dictionary = fight.get("objective", {})
+		for key: String in ["cells", "caches", "piles"]:
+			for c: Variant in (o.get(key, []) as Array):
+				taken.append(Vector2i(int((c as Dictionary)["x"]), int((c as Dictionary)["y"])))
+		var span: Array = rules.get("wires", [2, 4])
+		for cell: Vector2i in _free_cells(rng, rows, taken, [2, 3, 4, 5], rng.range_int(int(span[0]), int(span[1]))):
+			var row: String = String(rows[cell.y])
+			rows[cell.y] = row.substr(0, cell.x) + "w" + row.substr(cell.x + 1)
 
 
 ## The act's gate (013): its authored map and keeper, escorts rolled at its other positions.
@@ -1199,6 +1230,27 @@ static func _roll_objective(setup: RunSetup, rng: SimRNG, template: Dictionary, 
 				piles.append({"x": cell.x, "y": cell.y})
 				taken.append(cell)
 			return {"type": "salvage", "need": mini(int(o.get("salvage_need", 3)), piles.size()), "piles": piles}
+		"hold":
+			# 028: three hexes in the middle of the board -- a centre and two open neighbours.
+			for centre: Vector2i in _free_cells(rng, rows, taken, [3, 4], 6):
+				var zone: Array = [centre]
+				for n: Vector2i in Hex.neighbors(centre):
+					if zone.size() >= 3:
+						break
+					if n.y >= 0 and n.y < rows.size() and n.x >= 0 and n.x < String(rows[n.y]).length() \
+							and String(rows[n.y])[n.x] == "." and not taken.has(n):
+						zone.append(n)
+				if zone.size() == 3:
+					return {"type": "hold", "need": int(o.get("hold_need", 3)), "cells": zone.map(func(c: Vector2i) -> Dictionary: return {"x": c.x, "y": c.y})}
+		"hack":
+			var terminals: Array = []
+			for cell: Vector2i in _free_cells(rng, rows, taken, [2, 3, 4, 5], int(o.get("hack_terminals", 4)), 2):
+				terminals.append({"x": cell.x, "y": cell.y})
+				taken.append(cell)
+			return {"type": "hack", "need": mini(int(o.get("hack_need", 3)), terminals.size()), "cells": terminals}
+		"survive":
+			return {"type": "survive", "rounds": int(o.get("survive_rounds", 6)), "every": int(o.get("survive_every", 2)),
+				"count": int(o.get("survive_count", 2))}
 	return {"type": "rout"}
 
 

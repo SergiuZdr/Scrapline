@@ -146,5 +146,18 @@
       "move_cost": 1,
       "flue": 3
     }
+  },
+  {
+    "id": "wire",
+    "name": "Live Wire",
+    "glyph": "w",
+    "colour": "2a2a1a",
+    "height": 0.0,
+    "blocks": false,
+    "text": "A downed cable, sparking (LIVE WIRES). Anything standing on it at the start of a round takes 2.",
+    "grid": {
+      "move_cost": 1,
+      "hazard": 2
+    }
   }
 ]

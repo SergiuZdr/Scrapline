@@ -63,7 +63,7 @@ const MARK_STYLES: Dictionary = {
 const INK_TERRAIN: Dictionary = {
 	"open": Color("1f2024"), "rubble": Color("403830"), "slag": Color("3d1f17"), "ridge": Color("42454c"),
 	"scrap": Color("1c1917"), "barrel": Color("1f2024"), "crate": Color("1f2024"), "pylon": Color("1f2024"),
-	"flue": Color("241a17"),
+	"flue": Color("241a17"), "wire": Color("2a2818"),
 }
 ## The gate keepers drawn bigger than anything else on the board (013, 025).
 const BIG_KINDS: Array[String] = ["sorter", "heart"]
@@ -238,7 +238,7 @@ func _start_fight() -> void:
 	_frame_camera()
 	# The objective is up before anything moves (play-test 7), on the opening card and in its plate.
 	var status: Dictionary = CombatSim.objective_status(_state)
-	_hud.set_objective(String(status["text"]), false)
+	_hud.set_objective(String(status["text"]) + _yard_line(), false)
 	_busy = true
 	if _actions.is_empty():
 		# A fresh fight plays from the very start, so the models start where the SETUP
@@ -247,7 +247,7 @@ func _start_fight() -> void:
 	else:
 		# A resumed fight does not replay its history on screen: it opens on the turn.
 		_spawn_units()
-	await _opening(String(status["text"]))
+	await _opening(String(status["text"]) + _yard_line())
 	if _actions.is_empty():
 		_shown = 0
 		await _play_new_events()
@@ -281,6 +281,7 @@ func _opening(objective: String) -> void:
 	_spawn_marker(-1, cell)
 	_arrival_marker(cell)
 	_flood_marker(cell)
+	_terminal(Hex.neighbor(cell, 3) if _state.inside(Hex.neighbor(cell, 3)) else cell, false)
 	_throw_arrow(cell, Hex.neighbor(cell, 0))
 	_intent_marker_bar(at, at + Vector3(1.5, 0, 0))
 	_intent_marker_bar(at, at + Vector3(0, 0, 1.5), Ink.DANGER, true)
@@ -316,6 +317,16 @@ func _opening(objective: String) -> void:
 	if left > 0.0:
 		await _wait(left)
 	_hud.hide_opening(0.0 if headless else 0.3)
+
+
+## The yard's conditions (028), as a line under the objective.
+func _yard_line() -> String:
+	var lines: PackedStringArray = []
+	var table: Dictionary = _db.combat_rules.get("modifiers", {})
+	for id: String in _setup.modifiers:
+		var m: Dictionary = table.get(id, {})
+		lines.append("%s · %s" % [String(m.get("name", id.to_upper())), String(m.get("text", ""))])
+	return "" if lines.is_empty() else "\n" + "\n".join(lines)
 
 
 func _setup_name() -> String:
@@ -621,6 +632,21 @@ func _dress_tile(id: String, x: int, y: int, top: float) -> void:
 			pool.material_override = Ink.glow(Color("ff6a2a"), 1.1)
 			Ink.line(pool, Ink.LINE_WORLD)
 			_board.add_child(pool)
+		"wire":
+			# LIVE WIRES (028): a downed cable across the hex, hazard-striped, sparking.
+			var cable: Material = Ink.toon(Color("1d1c1a"), "clean")
+			var stripe: Material = Ink.glow(Color("ffc43d"), 0.6)
+			for k: int in 3:
+				var seg := MeshInstance3D.new()
+				var box := BoxMesh.new()
+				box.size = Vector3(HEX * 0.5, 0.05, 0.06)
+				seg.mesh = box
+				var angle: float = float(h % 7) * 0.4 + float(k) * 0.9
+				seg.position = at + Vector3(cos(angle) * 0.12, 0.04, sin(angle) * 0.12)
+				seg.rotation.y = angle
+				seg.material_override = cable if k != 1 else stripe
+				Ink.line(seg, Ink.LINE_WORLD)
+				_board.add_child(seg)
 		"flue":
 			# A furnace flue (025): an ember glow under an iron grate. The glow is the flue's own
 			# signal; the red hatching the round before it blows is drawn by `_refresh`.
@@ -1632,6 +1658,16 @@ func _animate(e: Array) -> void:
 			_refresh_tag(actor)
 			Audio.play("detonate", -2.0)
 			await _wait(0.6)
+		GridEv.HOLD_SCORED:
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.6, 0), "ZONE HELD  %d / %d" % [int(e[GridEv.F_V1]), int(e[GridEv.F_V2])], UIKit.GREEN)
+			Audio.play("reward", -8.0)
+			await _wait(0.3)
+		GridEv.HACKED:
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.6, 0), "TERMINAL TAKEN  %d / %d" % [int(e[GridEv.F_V1]), int(e[GridEv.F_V2])], UIKit.GREEN)
+			Audio.play("pickup", -6.0)
+			await _wait(0.3)
+		GridEv.WAVE_MARKED:
+			Audio.play("warn", -8.0)
 		GridEv.PULSE_MARKED:
 			_float_text(_unit_pos(actor) + Vector3(0, 2.9, 0), "THE CORE CHARGES", COL_PAD_DANGER)
 			Audio.play("warn", -6.0)
@@ -1645,8 +1681,14 @@ func _animate(e: Array) -> void:
 			await _wait(0.25)
 		GridEv.SPAWNED:
 			var by_reclaimer: bool = int(e[GridEv.F_ACTOR]) < 0
-			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.8, 0), "THE RECLAIMER ARRIVES" if by_reclaimer else "BUILT BY ITS PAD",
-				COL_PAD_DANGER if by_reclaimer else Color("c9a2ff"))
+			var words: String = "BUILT BY ITS PAD"
+			if int(e[GridEv.F_ACTOR]) == -1:
+				words = "THE RECLAIMER ARRIVES"
+			elif int(e[GridEv.F_ACTOR]) == -2:
+				words = "REINFORCEMENTS"
+			elif _state.enraged.has(int(e[GridEv.F_ACTOR])):
+				words = "CALLED TO GUARD"
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.8, 0), words, COL_PAD_DANGER if by_reclaimer else Color("c9a2ff"))
 			var drone: GridUnit = _state.unit(target)
 			if drone != null and not _views.has(target):
 				_views[target] = _build_view(drone)
@@ -2038,6 +2080,7 @@ func _refresh() -> void:
 		_marker_label("FLOODS NEXT TURN · move off", top + Vector3(0, 0.08, HEX * 0.72), COL_PAD_DANGER.lightened(0.35), 24)
 	_pylon_beams()
 	_conduit_links()
+	_objective_marks()
 	# Act 3 (025): flues that blow at the start of next round, and the Core's marked ring.
 	if CombatSim.flues_blow(_state, _state.round_number + 1):
 		for y: int in _state.height:
@@ -2168,7 +2211,7 @@ func _refresh_hud(threats: Dictionary) -> void:
 		})
 	_hud.set_crew(cards)
 	var status: Dictionary = CombatSim.objective_status(_state)
-	_hud.set_objective(String(status["text"]), String(status["type"]) == "defend" and int(status["caches"]) < int(status["caches_total"]))
+	_hud.set_objective(String(status["text"]) + _yard_line(), String(status["type"]) == "defend" and int(status["caches"]) < int(status["caches_total"]))
 	var ongoing: bool = _state.outcome == CombatState.ONGOING and not _bot
 	_hud.set_controls(ongoing and not _busy and _actions.size() > _turn_start, ongoing and not _busy)
 
@@ -2711,7 +2754,7 @@ func _flood_marker(cell: Vector2i) -> void:
 
 ## Where the Reclaimer's drones come in next round (013): a red hex, a ghost of what is
 ## coming, and what to do about it.
-func _arrival_marker(cell: Vector2i) -> void:
+func _arrival_marker(cell: Vector2i, text: String = "RECLAIMER NEXT TURN · stand here to block") -> void:
 	var at: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
 	var ghost := MeshInstance3D.new()
 	var body := BoxMesh.new()
@@ -2728,7 +2771,7 @@ func _arrival_marker(cell: Vector2i) -> void:
 	var flicker := ghost.create_tween().set_loops()
 	flicker.tween_property(ghost_material, "albedo_color:a", 0.06, 0.3)
 	flicker.tween_property(ghost_material, "albedo_color:a", 0.28, 0.3)
-	_marker_label("RECLAIMER NEXT TURN · stand here to block", at + Vector3(0, 0.08, HEX * 0.72), COL_PAD_DANGER.lightened(0.35), 24)
+	_marker_label(text, at + Vector3(0, 0.08, HEX * 0.72), COL_PAD_DANGER.lightened(0.35), 24)
 
 
 ## A red beam from every standing gate pylon to the Sorter it shields (013): the shield is
@@ -2762,6 +2805,65 @@ func _pylon_beams() -> void:
 		var hum := beam.create_tween().set_loops()
 		hum.tween_property(material, "albedo_color:a", 0.35, 0.5).set_trans(Tween.TRANS_SINE)
 		hum.tween_property(material, "albedo_color:a", 0.8, 0.5).set_trans(Tween.TRANS_SINE)
+
+
+## 028: HOLD's zone (blue rings, HOLD ZONE), HACK's terminals (consoles: blue to take, green when
+## taken), SURVIVE's next wave (the arrival ghost, WAVE NEXT TURN).
+func _objective_marks() -> void:
+	var o: Dictionary = _state.objective()
+	var cells: Array = o.get("cells", [])
+	match String(o.get("type", "")):
+		"hold":
+			for cell: Vector2i in cells:
+				_zone_ring(cell, Ink.YOURS)
+			var first: Vector2i = cells[0]
+			_marker_label("HOLD ZONE · %d / %d" % [_state.hold_score, int(o.get("need", 0))],
+				_to_world(first.x, first.y) + Vector3(0, 0.1, HEX * 0.75), Ink.YOURS.lightened(0.3), 28)
+		"hack":
+			for cell: Vector2i in cells:
+				_terminal(cell, _state.hacked.has(cell))
+	for cell: Vector2i in _state.wave_marks:
+		_mark(_threat_quads, cell, COL_THREAT)
+		_arrival_marker(cell, "WAVE NEXT TURN · stand here to block")
+
+
+func _zone_ring(cell: Vector2i, colour: Color) -> void:
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = HEX * 0.78
+	torus.outer_radius = HEX * 0.9
+	torus.ring_segments = 6
+	torus.rings = 6
+	ring.mesh = torus
+	ring.scale = Vector3(1, 0.3, 1)
+	ring.position = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y) + 0.05, 0)
+	ring.material_override = Ink.glow(colour, 0.5)
+	ring.set_meta("intent", true)
+	_marks_root.add_child(ring)
+
+
+## A hacking terminal (028): a squat console with a lit screen -- blue to take, green once taken.
+func _terminal(cell: Vector2i, taken: bool) -> void:
+	var root := Node3D.new()
+	root.position = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
+	root.set_meta("intent", true)
+	var body := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.34, 0.42, 0.26)
+	body.mesh = box
+	body.position = Vector3(0.0, 0.21, -0.18)
+	body.material_override = Ink.toon(Color("3a3d45"), "clean")
+	Ink.line(body, Ink.LINE_ACT)
+	root.add_child(body)
+	var screen := MeshInstance3D.new()
+	var face := BoxMesh.new()
+	face.size = Vector3(0.26, 0.18, 0.02)
+	screen.mesh = face
+	screen.position = Vector3(0.0, 0.3, -0.04)
+	screen.material_override = Ink.glow(Ink.GAIN if taken else Ink.YOURS, 0.8)
+	root.add_child(screen)
+	_marks_root.add_child(root)
+	_zone_ring(cell, Ink.GAIN if taken else Ink.YOURS)
 
 
 ## A red link from every conduit to each ally next to it (025): who hits 1 harder, on the board.
@@ -3075,6 +3177,13 @@ func _terrain_info(cell: Vector2i) -> void:
 		if _state.spawn_marks[ref] == cell:
 			_hud.set_info("DRONE BUILD SITE", "A pad will build a drone here. Stand on it to stop the build.")
 			return
+	var o: Dictionary = _state.objective()
+	if (o.get("cells", []) as Array).has(cell):
+		if String(o.get("type", "")) == "hold":
+			_hud.set_info("HOLD ZONE", "Start a round with one of your machines here and no enemy on the zone: the zone is held. Hold it %d times to win." % int(o.get("need", 0)))
+		else:
+			_hud.set_info("TERMINAL", "End a move here to take it%s. Take %d to win." % [" (already yours)" if _state.hacked.has(cell) else "", int(o.get("need", 0))])
+		return
 	if _state.pulse_marks.has(cell):
 		_hud.set_info("THE CORE'S RING", "The Core pulses here at the start of next round: 4 to any of your machines standing in it. Get out of the ring.")
 		return
