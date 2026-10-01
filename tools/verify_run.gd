@@ -25,6 +25,7 @@ func _initialize() -> void:
 	_test_objectives_rolled()
 	_test_legendaries()
 	_test_warlords()
+	_test_new_sites()
 	_test_levels()
 	_test_perks()
 	_test_tuning()
@@ -312,6 +313,35 @@ func _test_warlords() -> void:
 	var act_now: int = state.act
 	_check("a warlord's hoard has a legendary and keeps the act", setup.rarity(String((hoard["options"] as Array)[0])) == 4
 		and RunSim.apply(state, setup, [RunSim.PICK, 0]) and state.act == act_now)
+
+
+## 031: the refinery, the auction and the arena; signals never hand out a legendary by accident.
+func _test_new_sites() -> void:
+	var setup: RunSetup = _setup(64)
+	var state: RunState = RunSim.start(setup)
+	state.scrap = 200
+	state.cargo.append("ar_hammer")
+	var c: int = state.cargo.size() - 1
+	state.pending = {"kind": "refinery", "used": false}
+	_check("a refinery refines a common into an uncommon of the same slot", RunSim.apply(state, setup, [RunSim.REFINE, c])
+		and setup.rarity(state.cargo[c]) == 2 and String((setup.parts[state.cargo[c]] as Dictionary)["slot"]) == "arm" and state.scrap == 190)
+	_check("once a visit", not RunSim.apply(state, setup, [RunSim.REFINE, c]))
+	state.pending = {"kind": "auction", "used": false}
+	var held: int = state.cargo.size()
+	_check("an auction crate costs its price and gives an uncommon or better", RunSim.apply(state, setup, [RunSim.BID, 0])
+		and state.cargo.size() == held + 1 and setup.rarity(state.cargo[held]) >= 2 and state.scrap == 170)
+	_check("once a visit too", not RunSim.apply(state, setup, [RunSim.BID, 1]))
+	var kinds: Dictionary = {}
+	for seed_value: int in 30:
+		var st: RunState = RunSim.start(_setup(700 + seed_value))
+		for site: Dictionary in st.sites:
+			kinds[String(site["type"])] = true
+	_check("refineries, auctions and arenas appear on maps", kinds.has("refinery") and kinds.has("auction") and kinds.has("arena"))
+	var rng := SimRNG.new(5)
+	var legend: bool = false
+	for i: int in 300:
+		legend = legend or setup.rarity(RunSim._roll_at_least(setup, rng, 2)) >= 4
+	_check("an uncommon-or-better roll never gives a legendary", not legend)
 
 
 ## 027: the default crew's names, and a machine renamed by the player.

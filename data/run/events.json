@@ -4,58 +4,576 @@
     "title": "A CRASHED HAULER",
     "text": "A Combine hauler lies on its side, cargo doors sprung. Something inside still hums, and the wreck is not as settled as it looks.",
     "options": [
-      {"label": "STRIP IT", "text": "An uncommon part or better. The wreck shifts while you work: every machine takes 2.", "effects": {"part": 2, "hp": -2}},
-      {"label": "TAKE THE PLATING", "text": "+10 scrap.", "effects": {"scrap": 10}},
-      {"label": "LEAVE IT", "text": "Nothing.", "effects": {}}
+      {
+        "label": "STRIP IT",
+        "text": "An uncommon part or better. The wreck shifts while you work: every machine takes 2.",
+        "effects": {
+          "part": 2,
+          "hp": -2
+        }
+      },
+      {
+        "label": "TAKE THE PLATING",
+        "text": "+10 scrap.",
+        "effects": {
+          "scrap": 10
+        }
+      },
+      {
+        "label": "LEAVE IT",
+        "text": "Nothing.",
+        "effects": {}
+      }
     ]
   },
   "lone_rig": {
     "title": "A SPIKED RIG, ALONE",
     "text": "One of the Reclaimer's heavy rigs has thrown a track and its escort is circling back for it. It has not seen you yet.",
     "options": [
-      {"label": "BREAK IT", "text": "A fight here against an elite and its escort, for an elite's salvage.", "effects": {"fight": "elite"}},
-      {"label": "LET IT BE", "text": "Nothing.", "effects": {}}
+      {
+        "label": "BREAK IT",
+        "text": "A fight here against an elite and its escort, for an elite's salvage.",
+        "effects": {
+          "fight": "elite"
+        }
+      },
+      {
+        "label": "LET IT BE",
+        "text": "Nothing.",
+        "effects": {}
+      }
     ]
   },
   "scavengers": {
     "title": "SCAVENGERS AT A FIRE",
     "text": "Free machines from another yard, sharing a fire. They have parts to trade, and time to look at yours.",
     "options": [
-      {"label": "TRADE", "text": "Pay 12 scrap for a tuned part.", "effects": {"scrap": -12, "tuned_part": 1}},
-      {"label": "SHARE THE FIRE", "text": "Every machine is patched for 3.", "effects": {"hp": 3}},
-      {"label": "MOVE ON", "text": "Nothing.", "effects": {}}
+      {
+        "label": "TRADE",
+        "text": "Pay 12 scrap for a tuned part.",
+        "effects": {
+          "scrap": -12,
+          "tuned_part": 1
+        }
+      },
+      {
+        "label": "SHARE THE FIRE",
+        "text": "Every machine is patched for 3.",
+        "effects": {
+          "hp": 3
+        }
+      },
+      {
+        "label": "MOVE ON",
+        "text": "Nothing.",
+        "effects": {}
+      }
     ]
   },
   "relay_mast": {
     "title": "A RELAY MAST",
     "text": "A Combine relay mast, still standing. From the top you would see half the yard. Its copper would buy a lot.",
     "options": [
-      {"label": "CLIMB IT", "text": "Scout every site within two columns.", "effects": {"reveal": 2}},
-      {"label": "STRIP ITS COPPER", "text": "+12 scrap.", "effects": {"scrap": 12}}
+      {
+        "label": "CLIMB IT",
+        "text": "Scout every site within two columns.",
+        "effects": {
+          "reveal": 2
+        }
+      },
+      {
+        "label": "STRIP ITS COPPER",
+        "text": "+12 scrap.",
+        "effects": {
+          "scrap": 12
+        }
+      }
     ]
   },
   "tool_locker": {
     "title": "A SEALED TOOL LOCKER",
     "text": "A foreman's locker, welded shut and wired. Whatever is in there, someone wanted it kept.",
     "options": [
-      {"label": "FORCE IT", "text": "A rare part. The locker's charge goes off in the first machine's face: it takes 4.", "effects": {"part": 3, "hp_one": -4}},
-      {"label": "LEAVE IT", "text": "Nothing.", "effects": {}}
+      {
+        "label": "FORCE IT",
+        "text": "A rare part. The locker's charge goes off in the first machine's face: it takes 4.",
+        "effects": {
+          "part": 3,
+          "hp_one": -4
+        }
+      },
+      {
+        "label": "LEAVE IT",
+        "text": "Nothing.",
+        "effects": {}
+      }
     ]
   },
   "downed_drone": {
     "title": "A DOWNED DRONE",
     "text": "One of the Reclaimer's scouts, down in the dirt, its core still warm. Taking it will not go unnoticed.",
     "options": [
-      {"label": "TAKE ITS CORE", "text": "A tuned uncommon part. The Reclaimer takes a column now.", "effects": {"tuned_part": 2, "front": 1}},
-      {"label": "LEAVE IT", "text": "Nothing.", "effects": {}}
+      {
+        "label": "TAKE ITS CORE",
+        "text": "A tuned uncommon part. The Reclaimer takes a column now.",
+        "effects": {
+          "tuned_part": 2,
+          "front": 1
+        }
+      },
+      {
+        "label": "LEAVE IT",
+        "text": "Nothing.",
+        "effects": {}
+      }
     ]
   },
   "fuel_cache": {
     "title": "A FUEL CACHE",
     "text": "Drums of clean fuel, sealed before the Combine left. The machines run better on it, and the drums are worth something empty.",
     "options": [
-      {"label": "REFUEL", "text": "Every machine is patched for 2, and +6 scrap.", "effects": {"hp": 2, "scrap": 6}},
-      {"label": "SELL THE DRUMS", "text": "+14 scrap.", "effects": {"scrap": 14}}
+      {
+        "label": "REFUEL",
+        "text": "Every machine is patched for 2, and +6 scrap.",
+        "effects": {
+          "hp": 2,
+          "scrap": 6
+        }
+      },
+      {
+        "label": "SELL THE DRUMS",
+        "text": "+14 scrap.",
+        "effects": {
+          "scrap": 14
+        }
+      }
+    ]
+  },
+  "crane_cab": {
+    "title": "A SWINGING CRANE CAB",
+    "text": "A crane cab hangs by one cable over the road, creaking. Its controls are still lit.",
+    "options": [
+      {
+        "label": "CUT IT DOWN",
+        "text": "+16 scrap. It lands hard: one machine takes 3.",
+        "effects": {
+          "scrap": 16,
+          "hp_one": -3
+        }
+      },
+      {
+        "label": "CLIMB UP",
+        "text": "See every site within two zones.",
+        "effects": {
+          "reveal": 2
+        }
+      },
+      {
+        "label": "WALK UNDER",
+        "text": "Nothing.",
+        "effects": {}
+      }
+    ]
+  },
+  "oil_spring": {
+    "title": "AN OIL SPRING",
+    "text": "Black oil wells up out of a cracked tank, warm and clean enough to use.",
+    "options": [
+      {
+        "label": "TOP UP",
+        "text": "Every machine patches 3.",
+        "effects": {
+          "hp": 3
+        }
+      },
+      {
+        "label": "BARREL IT",
+        "text": "+12 scrap.",
+        "effects": {
+          "scrap": 12
+        }
+      }
+    ]
+  },
+  "dead_mechanic": {
+    "title": "A MECHANIC'S LAST JOB",
+    "text": "A free machine lies where its mechanic left it, half rebuilt, a part still in the vice.",
+    "options": [
+      {
+        "label": "TAKE THE PART",
+        "text": "An uncommon part or better, already tuned.",
+        "effects": {
+          "tuned_part": 2
+        }
+      },
+      {
+        "label": "BURY IT PROPERLY",
+        "text": "Every machine patches 2. It feels right.",
+        "effects": {
+          "hp": 2
+        }
+      }
+    ]
+  },
+  "spiked_patrol": {
+    "title": "A SPIKED PATROL",
+    "text": "Three spiked rigs on a slow patrol, not looking your way. Yet.",
+    "options": [
+      {
+        "label": "AMBUSH THEM",
+        "text": "A fight here, paid as an ordinary one.",
+        "effects": {
+          "fight": "skirmish"
+        }
+      },
+      {
+        "label": "WAIT THEM OUT",
+        "text": "The Reclaimer gains a zone while you wait.",
+        "effects": {
+          "front": 1
+        }
+      }
+    ]
+  },
+  "scrap_bridge": {
+    "title": "A SCRAP BRIDGE",
+    "text": "A bridge of welded car bodies over a slag channel. It groans under the first machine.",
+    "options": [
+      {
+        "label": "CROSS FAST",
+        "text": "Every machine takes 2; +8 scrap from what falls off.",
+        "effects": {
+          "hp": -2,
+          "scrap": 8
+        }
+      },
+      {
+        "label": "STRIP THE RAILS",
+        "text": "+14 scrap.",
+        "effects": {
+          "scrap": 14
+        }
+      }
+    ]
+  },
+  "signal_flare": {
+    "title": "A SIGNAL FLARE",
+    "text": "Someone fired a flare from the next yard over. It is still burning.",
+    "options": [
+      {
+        "label": "FOLLOW IT",
+        "text": "See every site within three zones.",
+        "effects": {
+          "reveal": 3
+        }
+      },
+      {
+        "label": "SALVAGE THE LAUNCHER",
+        "text": "+6 scrap.",
+        "effects": {
+          "scrap": 6
+        }
+      }
+    ]
+  },
+  "vending_cage": {
+    "title": "A TRADER'S DROP CAGE",
+    "text": "A locked cage with a coin slot and a part inside. The price is stencilled on the bars.",
+    "options": [
+      {
+        "label": "PAY 15",
+        "text": "An uncommon part or better.",
+        "effects": {
+          "scrap": -15,
+          "part": 2
+        }
+      },
+      {
+        "label": "PAY 30",
+        "text": "A rare part.",
+        "effects": {
+          "scrap": -30,
+          "part": 3
+        }
+      },
+      {
+        "label": "LEAVE IT",
+        "text": "Nothing.",
+        "effects": {}
+      }
+    ]
+  },
+  "reclaimer_scout": {
+    "title": "A RECLAIMER SCOUT",
+    "text": "A lone Reclaimer drone, nose in a heap. It has not seen you.",
+    "options": [
+      {
+        "label": "KNOCK IT OUT",
+        "text": "An elite fight here.",
+        "effects": {
+          "fight": "elite"
+        }
+      },
+      {
+        "label": "SNEAK PAST",
+        "text": "Nothing -- and it does not see you.",
+        "effects": {}
+      }
+    ]
+  },
+  "coolant_leak": {
+    "title": "A COOLANT LEAK",
+    "text": "Blue coolant sprays from a burst main. It would soak into a hot machine.",
+    "options": [
+      {
+        "label": "SOAK THE CREW",
+        "text": "Every machine patches 2; one takes the cold badly and loses 2.",
+        "effects": {
+          "hp": 2,
+          "hp_one": -4
+        }
+      },
+      {
+        "label": "CAP IT AND SELL",
+        "text": "+10 scrap.",
+        "effects": {
+          "scrap": 10
+        }
+      }
+    ]
+  },
+  "old_billboard": {
+    "title": "AN OLD COMBINE BILLBOARD",
+    "text": "\"THE MERIDIAN COMBINE: WE BUILD WHAT LASTS.\" The frame holding it up does.",
+    "options": [
+      {
+        "label": "TAKE THE FRAME",
+        "text": "A common part or better.",
+        "effects": {
+          "part": 1
+        }
+      },
+      {
+        "label": "TAKE THE STEEL",
+        "text": "+9 scrap.",
+        "effects": {
+          "scrap": 9
+        }
+      }
+    ]
+  },
+  "sinkhole": {
+    "title": "A SINKHOLE",
+    "text": "The road gives way. Something shiny glints at the bottom.",
+    "options": [
+      {
+        "label": "CLIMB DOWN",
+        "text": "A rare part. The climb costs every machine 3.",
+        "effects": {
+          "part": 3,
+          "hp": -3
+        }
+      },
+      {
+        "label": "GO AROUND",
+        "text": "The Reclaimer gains a zone.",
+        "effects": {
+          "front": 1
+        }
+      }
+    ]
+  },
+  "free_machines": {
+    "title": "FREE MACHINES",
+    "text": "Two free machines, battered, heading the other way. They have spares, and they have heard of you.",
+    "options": [
+      {
+        "label": "TRADE",
+        "text": "Pay 10 scrap: a tuned part, common or better.",
+        "effects": {
+          "scrap": -10,
+          "tuned_part": 1
+        }
+      },
+      {
+        "label": "SHARE NEWS",
+        "text": "See every site within two zones.",
+        "effects": {
+          "reveal": 2
+        }
+      },
+      {
+        "label": "WISH THEM LUCK",
+        "text": "Every machine patches 1.",
+        "effects": {
+          "hp": 1
+        }
+      }
+    ]
+  },
+  "magnet_crane": {
+    "title": "A LIVE MAGNET CRANE",
+    "text": "A magnet crane still running, dropping scrap in a heap every few minutes.",
+    "options": [
+      {
+        "label": "WAIT FOR A DROP",
+        "text": "+18 scrap. The Reclaimer gains a zone.",
+        "effects": {
+          "scrap": 18,
+          "front": 1
+        }
+      },
+      {
+        "label": "GRAB WHAT'S THERE",
+        "text": "+8 scrap.",
+        "effects": {
+          "scrap": 8
+        }
+      }
+    ]
+  },
+  "burned_garage": {
+    "title": "A BURNED-OUT GARAGE",
+    "text": "The roof is gone; the hoists are not.",
+    "options": [
+      {
+        "label": "USE THE HOISTS",
+        "text": "Every machine patches 4.",
+        "effects": {
+          "hp": 4
+        }
+      },
+      {
+        "label": "STRIP THE HOISTS",
+        "text": "+12 scrap.",
+        "effects": {
+          "scrap": 12
+        }
+      }
+    ]
+  },
+  "sentry_gun": {
+    "title": "A SENTRY GUN",
+    "text": "A Combine sentry, still tracking anything that moves, guarding a parts locker.",
+    "options": [
+      {
+        "label": "RUSH IT",
+        "text": "A rare part; one machine takes 5 getting there.",
+        "effects": {
+          "part": 3,
+          "hp_one": -5
+        }
+      },
+      {
+        "label": "SHOOT IT OUT",
+        "text": "A fight here.",
+        "effects": {
+          "fight": "skirmish"
+        }
+      },
+      {
+        "label": "BACK OFF",
+        "text": "Nothing.",
+        "effects": {}
+      }
+    ]
+  },
+  "prayer_wall": {
+    "title": "A WALL OF NAMES",
+    "text": "Machine names scratched into a container wall, hundreds of them. Someone left a toolbox at the foot of it.",
+    "options": [
+      {
+        "label": "ADD YOURS",
+        "text": "Every machine patches 2.",
+        "effects": {
+          "hp": 2
+        }
+      },
+      {
+        "label": "TAKE THE TOOLBOX",
+        "text": "A common part, already tuned.",
+        "effects": {
+          "tuned_part": 1
+        }
+      }
+    ]
+  },
+  "slag_geyser": {
+    "title": "A SLAG GEYSER",
+    "text": "A crust over molten slag. It cracks on a rhythm you could almost time.",
+    "options": [
+      {
+        "label": "TIME IT",
+        "text": "+20 scrap of cooled ingots; every machine takes 3.",
+        "effects": {
+          "scrap": 20,
+          "hp": -3
+        }
+      },
+      {
+        "label": "SKIRT IT",
+        "text": "Nothing.",
+        "effects": {}
+      }
+    ]
+  },
+  "abandoned_bay": {
+    "title": "AN ABANDONED BAY",
+    "text": "An assembly bay like yours, lights on, nobody home. A part sits ready on the lift.",
+    "options": [
+      {
+        "label": "TAKE IT",
+        "text": "An uncommon part or better.",
+        "effects": {
+          "part": 2
+        }
+      },
+      {
+        "label": "USE THE BAY",
+        "text": "Every machine patches 3.",
+        "effects": {
+          "hp": 3
+        }
+      }
+    ]
+  },
+  "rumour": {
+    "title": "A RUMOUR ON THE WIRE",
+    "text": "A free machine's broadcast, looping: the warlord here keeps its hoard close.",
+    "options": [
+      {
+        "label": "LISTEN",
+        "text": "See every site within two zones.",
+        "effects": {
+          "reveal": 2
+        }
+      },
+      {
+        "label": "TUNE IT OUT",
+        "text": "Nothing.",
+        "effects": {}
+      }
+    ]
+  },
+  "wreck_field": {
+    "title": "A FIELD OF WRECKS",
+    "text": "A whole convoy, dead in a row. Picked over, mostly.",
+    "options": [
+      {
+        "label": "PICK IT OVER AGAIN",
+        "text": "+15 scrap; the Reclaimer gains a zone.",
+        "effects": {
+          "scrap": 15,
+          "front": 1
+        }
+      },
+      {
+        "label": "TAKE ONE ENGINE",
+        "text": "A common part or better.",
+        "effects": {
+          "part": 1
+        }
+      }
     ]
   }
 }

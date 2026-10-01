@@ -46,7 +46,10 @@
     "trader": "A free trader in a container, lamps on. Parts for scrap, and scrap for your spares.",
     "tower": "A crane cab still standing. From up there the fog is thinner.",
     "signal": "Something out here is sending. Worth a look, maybe.",
-    "warlord": "A Reclaimer warlord holds this ground with its own rule. Its hoard is worth the detour."
+    "warlord": "A Reclaimer warlord holds this ground with its own rule. Its hoard is worth the detour.",
+    "refinery": "A Combine refinery with one furnace still banked. Feed it a part and something better comes out.",
+    "auction": "Free machines selling salvage they never opened. You pay first.",
+    "arena": "A ring of barriers and spiked rigs that fight for the Reclaimer's amusement. Win, and the pot is yours."
   },
   "endings": {
     "won": "The key turns in the Core. Behind the crew the Reclaimer's booms sag and go still, one district at a time, and the valley is quiet for the first time in forty years.",
