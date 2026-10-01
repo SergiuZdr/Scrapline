@@ -107,6 +107,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-01 | **Every iteration ends on `main`, pushed** (branch, then fast-forward) | PT9-1: "all the changes need to be on the main" |
 | 2026-10-01 | **Knuckles, Needle, Relay**; names are the player's (RENAME, remembered per crew) | PT9-2 |
 | 2026-10-01 | **Keepers escalate at half HP and call guards; levels go to 5** | PT9-3: late bosses "boring and easy", 230 scrap unspent |
+| 2026-10-01 | **Content order: objectives & conditions (028), weapons & legendaries (029), warlords (030), sites & events (031)** | The user liked all four directions offered; objectives first because they need no new art |
 
 ## Lessons carried over from the old codebase
 
@@ -239,3 +240,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-30 | The END TURN press plans the enemy's next round inside the action (0.1-0.2 s on a full board); the banner answers first so it reads as the enemy getting ready | Speed up `IntentAI.plan` if Act 3's bigger squads make it felt | |
 | 2026-10-01 | **026: is 56.6% over three acts right? Does the garage need a new layout** (026 fitted its text and added a cover, the layout is 008's)? | The user plays | |
 | 2026-10-01 | **027: is The Pour hard enough (5 gate losses in 110 bot runs)? Do the new bay and garage read well?** | The user plays | |
+| 2026-10-01 | **028: are HOLD, HACK and SURVIVE fun? Are the yard conditions noticeable enough?** | The user plays | |
