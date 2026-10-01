@@ -47,7 +47,10 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 026 | [Play-test 8 fixes](iterations/026-playtest-8-fixes.md) | Tags at their machines and on top, a scrap bundle, arrowed/arched attacks, a 5 s card, fitted card text, a garage cover; rares and tougher Acts 2-3 (bot 56.6%) | ✅ awaiting the play-test |
 | — | [Play-test 9](playtests/2026-10-01-playtest-9.md) | Main holds everything; names; easy late bosses and idle scrap; unclear unlocks; arms in bodies; the garage and bay need a design; too little content | ✅ |
 | 027 | [Play-test 9 fixes](iterations/027-playtest-9-fixes.md) | Names and RENAME, a new bay and garage, an UNLOCKS screen, arms seated by measurement, escalating keepers, levels to 5 (bot 53.9%) | ✅ awaiting the play-test |
-| 028 | Content (the user's pick of five) | -- | ⏭ |
+| 028 | [Objectives and yard conditions](iterations/028-objectives-and-modifiers.md) | HOLD, HACK, SURVIVE; dust storm, live wires, scrap rain, heat wave (bot 57.9%) | ✅ awaiting the play-test |
+| 029 | Weapons and legendary parts | New weapon families, a legendary tier from bosses and elites | 🔨 |
+| 030 | Warlords | A named mini-boss per act, with its own mechanic and drop | ⬜ |
+| 031 | Sites and events | Arena, refinery, convoy, auction; twenty new signal events | ⬜ |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

@@ -2,6 +2,14 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [028] New objectives and yard conditions — 2026-10-01 ([detail](iterations/028-objectives-and-modifiers.md))
+
+### Added
+- **HOLD** (keep a machine on the blue zone, no enemy on it, three rounds), **HACK** (end moves on
+  terminals) and **SURVIVE** (outlast waves that come in on the far row) fights.
+- **Yard conditions**: DUST STORM (shots reach 1 less), LIVE WIRES (sparking cables, 2 a round),
+  SCRAP RAIN (piles worth double), HEAT WAVE (your machines vent 1 less).
+
 ## [027] Play-test 9 fixes — 2026-10-01 ([detail](iterations/027-playtest-9-fixes.md))
 
 ### Changed
