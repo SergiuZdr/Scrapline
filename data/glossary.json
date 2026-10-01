@@ -504,10 +504,12 @@
       ]
     },
     "hold": {
-      "group": "THE RUN",
-      "name": "The hold",
-      "text": "Where spare parts ride. Taking salvage is always allowed; an overfull hold stops you travelling until you fit or scrap something.",
-      "forms": []
+      "group": "THE FIGHT",
+      "name": "Hold",
+      "text": "An objective: start a round with one of your machines on the blue zone and no enemy on it; do it the number of times asked (or destroy every enemy). Enemies come to contest it.",
+      "forms": [
+        "hold zone"
+      ]
     },
     "workshop": {
       "group": "THE RUN",
@@ -608,6 +610,24 @@
         "furnace flue",
         "flue",
         "flues"
+      ]
+    },
+    "hack": {
+      "group": "THE FIGHT",
+      "name": "Hack",
+      "text": "An objective: end a move on a terminal to take it for good; take the number asked (or destroy every enemy).",
+      "forms": [
+        "terminal",
+        "terminals"
+      ]
+    },
+    "survive": {
+      "group": "THE FIGHT",
+      "name": "Survive",
+      "text": "An objective: waves of drones come in on the far row, marked a round ahead (stand on a mark to block it); outlast the rounds (or destroy every enemy).",
+      "forms": [
+        "survive",
+        "waves"
       ]
     }
   }

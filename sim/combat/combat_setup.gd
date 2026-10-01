@@ -60,6 +60,11 @@ var pierce_overshoot: int = 2
 var pierce_overshoot_pct: int = 50
 ## `{ "type": "rout"|"defend"|"salvage", "rounds": int, "need": int }` -- see CombatSim.
 var objective: Dictionary = {"type": "rout"}
+## The yard's conditions this fight (028): `modifiers` ids, and what they change -- every shot and
+## lob `range_mod` longer (DUST STORM: -1), and the crew's vent `vent_mod` (HEAT WAVE: -1).
+var modifiers: PackedStringArray = []
+var range_mod: int = 0
+var vent_mod: int = 0
 ## Scrap piles on the board at the start: `[{ "x", "y", "value" }]`.
 var start_piles: Array = []
 ## Percent effectiveness, `[damage_type][armor_type]`.
@@ -95,7 +100,19 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 	setup.kinds = rules.get("enemy_kinds", {})
 	var objective: Dictionary = fight.get("objective", {"type": "rout"})
 	setup.objective = {"type": String(objective.get("type", "rout")),
-		"rounds": int(objective.get("rounds", 0)), "need": int(objective.get("need", 0))}
+		"rounds": int(objective.get("rounds", 0)), "need": int(objective.get("need", 0)),
+		"every": int(objective.get("every", 2)), "count": int(objective.get("count", 2)), "cells": []}
+	# 028: HOLD's zone and HACK's terminals.
+	for c: Variant in (objective.get("cells", []) as Array):
+		(setup.objective["cells"] as Array).append(Vector2i(int((c as Dictionary)["x"]), int((c as Dictionary)["y"])))
+	# 028: the yard's conditions, read from the combat rules' table.
+	var table: Dictionary = rules.get("modifiers", {})
+	for id: Variant in (fight.get("modifiers", []) as Array):
+		var m: Dictionary = table.get(String(id), {})
+		setup.modifiers.append(String(id))
+		setup.range_mod += int(m.get("range", 0))
+		setup.vent_mod += int(m.get("vent", 0))
+		setup.pile_value *= maxi(1, int(m.get("pile_mult", 1)))
 	for pile: Dictionary in (objective.get("piles", []) as Array):
 		setup.start_piles.append({"x": int(pile["x"]), "y": int(pile["y"]),
 			"value": int(pile.get("value", setup.pile_value))})
@@ -208,6 +225,11 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 			setup.errors.append("%s starts off the board at (%d,%d)" % [u.name, cell.x, cell.y])
 		elif setup.width > 0 and (setup.blocks[cell.y * setup.width + cell.x] == 1 or setup.pit[cell.y * setup.width + cell.x] == 1):
 			setup.errors.append("%s starts on a blocking hex or a pit at (%d,%d)" % [u.name, cell.x, cell.y])
+	# HEAT WAVE (028): the crew sheds heat slower.
+	if setup.vent_mod != 0:
+		for u: GridUnit in setup.units:
+			if u.team == GridUnit.TEAM_PLAYER and not u.objective:
+				u.vent = maxi(0, u.vent + setup.vent_mod)
 	return setup
 
 

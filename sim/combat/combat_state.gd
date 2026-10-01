@@ -40,6 +40,10 @@ var pulse_by: int = -1
 ## Keepers past half HP (027): ref -> true; and guards they called, arriving next round.
 var enraged: Dictionary = {}
 var summons: Dictionary = {}
+## 028: HOLD's score, HACK's taken terminals, SURVIVE's next wave (hexes marked a round ahead).
+var hold_score: int = 0
+var hacked: Array = []
+var wave_marks: Array = []
 ## What the player has collected this fight.
 var piles_collected: int = 0
 var scrap_collected: int = 0
@@ -184,6 +188,9 @@ func clone() -> CombatState:
 	c.pulse_marks = pulse_marks.duplicate()
 	c.pulse_by = pulse_by
 	c.enraged = enraged.duplicate()
+	c.hold_score = hold_score
+	c.hacked = hacked.duplicate()
+	c.wave_marks = wave_marks.duplicate()
 	c.summons = summons.duplicate()
 	c.piles_collected = piles_collected
 	c.scrap_collected = scrap_collected
