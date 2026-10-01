@@ -24,6 +24,7 @@ func _initialize() -> void:
 	_test_names()
 	_test_objectives_rolled()
 	_test_legendaries()
+	_test_warlords()
 	_test_levels()
 	_test_perks()
 	_test_tuning()
@@ -290,6 +291,27 @@ func _test_legendaries() -> void:
 	_check("no enemy carries a legendary or a shield caster", not on_enemies)
 	_check("no legendary is on the bench", setup.parts.keys().filter(func(id: Variant) -> bool:
 		return setup.rarity(String(id)) >= 4 and RunSim.bench_count(setup, String(id)) != 0).is_empty())
+
+
+## 030: every act has one warlord, its board is the act's, and its hoard keeps the act.
+func _test_warlords() -> void:
+	var setup: RunSetup = _setup(91)
+	var state: RunState = RunSim.start(setup)
+	var boards: Array = []
+	for act: int in 3:
+		var lords: Array = state.sites.filter(func(s: Dictionary) -> bool: return String(s["type"]) == "warlord")
+		_check("Act %d has one warlord, known from the start" % (act + 1), lords.size() == 1 and RunSim.revealed(state, int(lords[0]["id"])))
+		if lords.size() == 1:
+			var f: Dictionary = RunSim._make_fight(state, setup, int(lords[0]["id"]), "warlord")
+			boards.append(String(f["name"]))
+		if act < 2:
+			RunSim._next_act(state, setup)
+	_check("each act's warlord is its own %s" % [boards], boards == ["The Grinder's Yard", "The Magnet King's Lot", "The Twin Furnaces"])
+	var hoard: Dictionary = RunSim.hoard(state, setup, false)
+	state.pending = hoard
+	var act_now: int = state.act
+	_check("a warlord's hoard has a legendary and keeps the act", setup.rarity(String((hoard["options"] as Array)[0])) == 4
+		and RunSim.apply(state, setup, [RunSim.PICK, 0]) and state.act == act_now)
 
 
 ## 027: the default crew's names, and a machine renamed by the player.

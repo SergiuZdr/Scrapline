@@ -25,6 +25,8 @@
   "tower": {"radius": 2, "_comment": "A watchtower scouts every site within `radius` columns."},
   "reclaimer_reach": {"round": 3, "count": 2, "_comment": "A fight at a site in the column the Reclaimer takes next: `count` of its drones arrive on the crew's back row at round `round`, marked a round ahead."},
   "elite_from_column": 2,
+  "warlord_column": 5,
+  "_warlord": "030: each act has one warlord site in this column (never its only site): its board (`warlord: true`, by act), `enemies.warlord_escorts`, `rewards.warlord_scrap` and a hoard with a legendary.",
   "workshop_guaranteed_columns": [3, 6],
   "front": {
     "every": 2,
@@ -72,6 +74,7 @@
     "boss_count": 5,
     "boss_hp_bonus": 4,
     "boss_escorts": 3,
+    "warlord_escorts": 2,
     "_boss": "013: the gate is its own map (data/fights/sorting_gate.json): the Sorter, its pylons, and `boss_escorts` rolled escorts. boss_count / boss_hp_bonus apply only if no gate map exists."
   },
   "rewards": {
@@ -87,6 +90,8 @@
     ],
     "elite_min_rarity": 2,
     "cache_scrap": 6,
+    "warlord_scrap": 30,
+    "hoard_scrap": 25,
     "salvage_scrap": 8,
     "_salvage": "011: every salvage screen offers `choices` parts from different slots (the second leaning to a maker the crew builds sets from) or `salvage_scrap` scrap instead; an elite's first part comes tuned."
   },
@@ -191,7 +196,7 @@
       "name": "THE SLAG FLATS",
       "_comment": "021. Laid over the run's rules one level deep while the crew is in Act 2. `arrive` is what breaking the gate before it gives.",
       "arrive": {"repair": 6, "scrap": 15},
-      "enemies": {"count_by_column": [4, 4, 4, 4, 4, 5, 5, 5, 5], "rarity_cap_by_column": [2, 2, 2, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 4, "hp_all": 5, "boss_escorts": 4, "bonus": {"damage": 1}},
+      "enemies": {"count_by_column": [4, 4, 4, 4, 4, 5, 5, 5, 5], "rarity_cap_by_column": [2, 2, 2, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 4, "hp_all": 5, "boss_escorts": 4, "warlord_escorts": 3, "bonus": {"damage": 1}},
       "kinds": {"chance_by_column": [40, 50, 50, 60, 60, 70, 70, 80, 80], "weights": {"tracker": 20, "bomber": 20, "warden": 15, "hive": 15, "sentinel": 30}},
       "terrain": {"slag": [1, 3]},
       "rewards": {"rarity_weights": [35, 45, 20], "elite_min_rarity": 2, "choices": 3}
@@ -200,7 +205,7 @@
       "name": "THE CRUCIBLE",
       "_comment": "025. The furnace-city, the run's last act: bigger squads of rare parts that hit harder, conduits, furnace flues on every board, and the Core at its gate.",
       "arrive": {"repair": 6, "scrap": 20},
-      "enemies": {"count_by_column": [4, 4, 5, 5, 5, 5, 6, 6, 6], "rarity_cap_by_column": [3, 3, 3, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 5, "hp_all": 5, "boss_escorts": 4, "bonus": {"damage": 2}},
+      "enemies": {"count_by_column": [4, 4, 5, 5, 5, 5, 6, 6, 6], "rarity_cap_by_column": [3, 3, 3, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 5, "hp_all": 5, "boss_escorts": 4, "warlord_escorts": 3, "bonus": {"damage": 2}},
       "kinds": {"chance_by_column": [50, 50, 60, 60, 70, 70, 80, 80, 90], "weights": {"tracker": 15, "bomber": 15, "warden": 10, "hive": 10, "sentinel": 20, "conduit": 30}},
       "terrain": {"flues": [2, 4], "slag": [0, 2]},
       "rewards": {"rarity_weights": [10, 42, 42, 6], "elite_min_rarity": 3, "choices": 3}

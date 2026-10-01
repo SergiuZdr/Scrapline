@@ -21,7 +21,7 @@ const GaragePanel := preload("res://scripts/run/garage_panel.gd")
 const AssemblyPanel := preload("res://scripts/run/assembly_panel.gd")
 const TunePanel := preload("res://scripts/run/tune_panel.gd")
 
-const SITE_NAMES: Dictionary = {"start": "CAMP", "skirmish": "FIGHT", "elite": "ELITE",
+const SITE_NAMES: Dictionary = {"start": "CAMP", "skirmish": "FIGHT", "elite": "ELITE", "warlord": "WARLORD",
 	"scrapyard": "SCRAPYARD", "workshop": "WORKSHOP", "boss": "THE GATE",
 	"trader": "TRADER", "tower": "WATCHTOWER", "signal": "SIGNAL"}
 const RECLAIMER_RED := Color("ff5a3d")
@@ -551,6 +551,8 @@ func _gives(kind: String) -> String:
 	match kind:
 		"skirmish":
 			return "A fight: +%d scrap, then 1 of 3 parts or %d scrap." % [int(rewards.get("skirmish_scrap", 10)), int(rewards.get("salvage_scrap", 8))]
+		"warlord":
+			return "The act's warlord, with its own rule: +%d scrap and a hoard with a LEGENDARY part." % int(rewards.get("warlord_scrap", 30))
 		"elite":
 			return "A hard fight: +%d scrap and an uncommon or better part, already tuned." % int(rewards.get("elite_scrap", 20))
 		"scrapyard":
@@ -676,7 +678,8 @@ func _fight_panel() -> void:
 	var state: RunState = Run.state
 	var kind: String = String(state.pending["site_type"])
 	var fight: Dictionary = state.pending["fight"]
-	var titles: Dictionary = {"skirmish": "FIGHT", "elite": "ELITE FIGHT", "boss": String(_act().get("gate", "THE GATE"))}
+	var titles: Dictionary = {"skirmish": "FIGHT", "elite": "ELITE FIGHT", "boss": String(_act().get("gate", "THE GATE")),
+		"warlord": String((state.pending["fight"] as Dictionary).get("name", "THE WARLORD")).to_upper()}
 	var enemies: PackedStringArray = []
 	for spec: Dictionary in (fight["enemy"] as Array):
 		var kind_name: String = String(spec.get("kind", ""))
