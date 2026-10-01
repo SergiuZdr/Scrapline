@@ -2,6 +2,15 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [029] New weapons and legendary parts — 2026-10-01 ([detail](iterations/029-weapons-and-legendaries.md))
+
+### Added
+- **Three new weapon families**: the Slag Flamer (burns a wedge of four hexes), the Hook Harpoon
+  (drags its target toward you -- into a pit, or into your blade) and the Aegis Caster (shields an
+  ally). Ten new parts in all.
+- **Legendary parts**: the Godhammer, the Sunspear, the Crucible Heart, the Aegis Rig and the
+  Colossus Frame. Every broken gate opens the keeper's hoard, with a legendary in it.
+
 ## [028] New objectives and yard conditions — 2026-10-01 ([detail](iterations/028-objectives-and-modifiers.md))
 
 ### Added
