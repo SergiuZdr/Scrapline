@@ -589,7 +589,9 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 	state.fights_won += 1
 	if kind == "boss":
 		if state.act < act_count(setup):
-			_next_act(state, setup)
+			# 029: the keeper's hoard -- a pick with a legendary in it -- then the next act.
+			state.pending = hoard(state, setup)
+			state.log.append("The gate is broken. The keeper's hoard is open.")
 			return true
 		_end(state, RunState.WON, "The last gate is broken: the run is won.")
 		return true
@@ -616,7 +618,27 @@ static func salvage(state: RunState, setup: RunSetup, kind: String) -> Dictionar
 	return {"kind": "reward", "options": options, "scrap": int(rewards.get("salvage_scrap", 8))}
 
 
+## A broken gate's hoard (029): three parts from three slots, the first a LEGENDARY (rarity 4),
+## or scrap; picking one moves the crew on to the next act.
+static func hoard(state: RunState, setup: RunSetup) -> Dictionary:
+	var rewards: Dictionary = rules_of(state, setup).get("rewards", {})
+	var rng: SimRNG = _rng(setup, state.current, 13, state.act)
+	var options: Array = _roll_parts(setup, rng, 1, crew_makers(state, setup), rewards)
+	var legend: String = _roll_at_least(setup, rng, 4)
+	if not legend.is_empty() and not options.is_empty():
+		options[0] = legend
+	return {"kind": "reward", "options": options, "scrap": int(rewards.get("hoard_scrap", 25)), "then": "next_act"}
+
+
 static func _pick(state: RunState, setup: RunSetup, index: int) -> bool:
+	var then: String = String(state.pending.get("then", ""))
+	var picked: bool = _pick_part(state, setup, index)
+	if picked and then == "next_act":
+		_next_act(state, setup)
+	return picked
+
+
+static func _pick_part(state: RunState, setup: RunSetup, index: int) -> bool:
 	var kind: String = String(state.pending.get("kind", ""))
 	if kind != "reward" and kind != "scrapyard":
 		return false
@@ -1297,7 +1319,9 @@ static func _enemy_positions(template: Dictionary, count: int) -> Array:
 static func _roll_slot(setup: RunSetup, rng: SimRNG, slot: String, cap: int) -> String:
 	var pool: Array = []
 	for id: Variant in (setup.pools[slot] as Array):
-		if setup.rarity(String(id)) <= cap:
+		# A part marked `"enemy": false` (029: the shield caster, which an enemy could never use
+		# well) is never rolled onto an enemy.
+		if setup.rarity(String(id)) <= cap and bool((setup.parts[id] as Dictionary).get("enemy", true)):
 			pool.append(id)
 	return String(rng.pick(pool))
 
@@ -1330,7 +1354,8 @@ static func _roll_parts(setup: RunSetup, rng: SimRNG, min_rarity: int, favour: A
 		var candidates: Array = (setup.pools[slots[i]] as Array).filter(func(id: String) -> bool: return not out.has(id))
 		var pool: Array = candidates.filter(func(id: String) -> bool: return setup.rarity(id) == rarity)
 		if pool.is_empty():
-			pool = candidates
+			# Never a legendary by falling through (029): those are rolled on purpose.
+			pool = candidates.filter(func(id: String) -> bool: return setup.rarity(id) < 4)
 		if i == 1 and not favour.is_empty():
 			var theirs: Array = pool.filter(func(id: String) -> bool:
 				return favour.has(String((setup.parts[id] as Dictionary).get("maker", ""))))

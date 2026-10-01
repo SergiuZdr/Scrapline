@@ -580,7 +580,7 @@ func _socket(i: int, s: int, alive: bool) -> Control:
 	row.add_child(text)
 	var rarity: String = ""
 	if not part.is_empty():
-		rarity = "  ·  " + PartCard.RARITY_NAMES[clampi(int((Run.db.parts.get(part, {}) as Dictionary).get("rarity", 1)), 1, 3) - 1]
+		rarity = "  ·  " + PartCard.RARITY_NAMES[clampi(int((Run.db.parts.get(part, {}) as Dictionary).get("rarity", 1)), 1, 4) - 1]
 	# Play-test 8: both lines fitted to the row (`UIKit.fit`), whatever the part's name.
 	text.add_child(UIKit.fit(_label("%s  ·  %s%s" % [SOCKET_NAMES[s], PartText.name_of(Run.db.parts, part) if not part.is_empty() else "EMPTY", rarity],
 		20, PartText.rarity_colour(Run.db.parts, part) if not part.is_empty() else UIKit.RED, UIKit.font_comic()), LOADOUT_W - 220, 1, 13))

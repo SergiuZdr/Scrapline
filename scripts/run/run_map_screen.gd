@@ -946,7 +946,13 @@ func _open_garage(crew_index: int = 0) -> void:
 
 
 func _apply(action: Array) -> void:
+	var act: int = Run.state.act
 	if Run.apply(action):
+		# 029: a pick from a gate's hoard moves the crew into the next act -- a new region, so
+		# the whole yard is built again.
+		if Run.state.act != act:
+			get_tree().reload_current_scene()
+			return
 		Audio.play("ui_confirm", -12.0)
 		if int(action[0]) == RunSim.TRAVEL:
 			_hover = -1

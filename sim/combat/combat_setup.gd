@@ -268,7 +268,7 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 	u.vent = int(og.get("vent", 1)) + int(mg.get("vent", 0))
 	u.damage_bonus = int(og.get("damage", 0)) + int(mg.get("damage", 0))
 	u.heat_bonus = int(og.get("heat", 0)) + int(mg.get("heat", 0))
-	u.range_bonus = int(mg.get("range", 0))
+	u.range_bonus = int(mg.get("range", 0)) + int(og.get("range", 0))
 
 	var role_trait: Dictionary = roles.get(u.role, {})
 	u.melee_bonus = int(role_trait.get("melee_damage", 0))
@@ -394,6 +394,8 @@ static func weapon_from(arm: Dictionary) -> Dictionary:
 		"chain": int(g.get("chain", 0)),
 		"mark": bool(g.get("mark", false)),
 		"tears": bool(g.get("tears", false)),
+		# 029: a harpoon drags its target this many hexes toward the shooter.
+		"pull": int(g.get("pull", 0)),
 		# An empty socket is a weapon that was never there: it counts as torn, so every
 		# rule that skips a torn arm skips it too and nothing needs a second case.
 		"torn": arm.is_empty(),

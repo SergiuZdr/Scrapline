@@ -17,7 +17,7 @@
   },
   "_sites_013": "013: traders (buy from stock, sell from the hold), watchtowers (scout), signals (data/run/events.json).",
   "trader": {
-    "prices": [12, 20, 32],
+    "prices": [12, 20, 32, 60],
     "tuned_extra": 6,
     "buy_multiplier": 2,
     "_comment": "A trader stocks three parts (one tuned) priced by rarity (+tuned_extra if tuned), and buys parts from the hold for buy_multiplier x what breaking them down pays."
@@ -181,7 +181,8 @@
     "by_rarity": [
       3,
       6,
-      10
+      10,
+      18
     ]
   },
   "acts": [
@@ -202,7 +203,7 @@
       "enemies": {"count_by_column": [4, 4, 5, 5, 5, 5, 6, 6, 6], "rarity_cap_by_column": [3, 3, 3, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 5, "hp_all": 5, "boss_escorts": 4, "bonus": {"damage": 2}},
       "kinds": {"chance_by_column": [50, 50, 60, 60, 70, 70, 80, 80, 90], "weights": {"tracker": 15, "bomber": 15, "warden": 10, "hive": 10, "sentinel": 20, "conduit": 30}},
       "terrain": {"flues": [2, 4], "slag": [0, 2]},
-      "rewards": {"rarity_weights": [10, 45, 45], "elite_min_rarity": 3, "choices": 3}
+      "rewards": {"rarity_weights": [10, 42, 42, 6], "elite_min_rarity": 3, "choices": 3}
     }
   ]
 }

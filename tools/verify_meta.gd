@@ -47,8 +47,9 @@ func _run() -> void:
 	for slot: String in setup.pools:
 		pooled.append_array(setup.pools[slot])
 	_check("a fresh profile's pools hold none of the locked parts (%d parts)" % pooled.size(),
-		locked.all(func(p: String) -> bool: return not pooled.has(p)) and pooled.size() == 28)
-	_check("with no options a run has every part (the tests and the bot)", _pool_size(_setup(db, {})) == 40)
+		locked.all(func(p: String) -> bool: return not pooled.has(p)) and pooled.size() == _pool_size(_setup(db, {})) - locked.size())
+	var every: int = db.parts.keys().filter(func(id: Variant) -> bool: return not PartTuning.is_tuned(String(id))).size()
+	_check("with no options a run has every part (the tests and the bot) (%d)" % every, _pool_size(_setup(db, {})) == every)
 	_check("a crew or tier that is not unlocked is not given", not Meta.options(meta, [], "wall", 2).has("crew")
 		and not Meta.options(meta, [], "wall", 2).has("rules"))
 

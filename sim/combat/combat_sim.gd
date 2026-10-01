@@ -241,6 +241,16 @@ static func strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector2
 	var minimum: int = int(weapon["range_min"]) if shape == "lob" else 1
 	if dist > aim_reach(state, u, w) or dist < minimum:
 		return plan
+	# 029: a shield caster is aimed at one of its own side, not at a hex of the enemy's.
+	if shape == "shield":
+		var ally: GridUnit = state.unit_at(target.x, target.y)
+		if ally == null or ally.team != u.team or ally == u or ally.objective:
+			return plan
+		plan["legal"] = true
+		plan["tiles"] = [target] as Array[Vector2i]
+		plan["props"] = [] as Array[Dictionary]
+		plan["shield"] = {"ref": ally.ref, "amount": int(weapon["damage"]) + u.boost_damage}
+		return plan
 	var base: int = int(weapon["damage"])
 	if base > 0:
 		base += u.damage_bonus + (u.melee_bonus if shape == "melee" else 0) + u.boost_damage + conduit_boost(state, u)
@@ -254,6 +264,17 @@ static func strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector2
 			tiles.append(target)
 			_add_hit(state, u, hits, target, base, true, false)
 			_add_prop(state, props, target, base)
+		"cone":
+			# 029: the FLAMER. Aimed at a neighbour, it burns that hex and the three beyond it --
+			# every hex next to the one aimed at that is two from the shooter. No cover against fire.
+			tiles.append(target)
+			_add_hit(state, u, hits, target, base, true, false)
+			_add_prop(state, props, target, base)
+			for n: Vector2i in Hex.neighbors(target):
+				if state.inside(n) and Hex.distance(here, n) == 2:
+					tiles.append(n)
+					_add_hit(state, u, hits, n, base, false, false)
+					_add_prop(state, props, n, base)
 		"lob":
 			tiles.append(target)
 			_add_hit(state, u, hits, target, base, true, false)
@@ -811,8 +832,12 @@ static func _execute_attack(state: CombatState, u: GridUnit, w: int, target: Vec
 	var end: Vector2i = plan["end"]
 	var origin := Vector2i(u.x, u.y)
 	state.emit(GridEv.ATTACK, u.ref, -1, target.x, target.y, w, end.y * 64 + end.x)
+	if plan.has("shield"):
+		var guarded: GridUnit = state.unit(int((plan["shield"] as Dictionary)["ref"]))
+		guarded.shield = maxi(guarded.shield, int((plan["shield"] as Dictionary)["amount"]))
+		state.emit(GridEv.SHIELDED, u.ref, guarded.ref, guarded.x, guarded.y, guarded.shield)
 	var hits: Array = plan["hits"]
-	if hits.is_empty():
+	if hits.is_empty() and not plan.has("shield"):
 		state.emit(GridEv.MISSED, u.ref, -1, end.x, end.y)
 	for hit: Dictionary in hits:
 		var victim: GridUnit = state.unit(int(hit["ref"]))
@@ -828,6 +853,12 @@ static func _execute_attack(state: CombatState, u: GridUnit, w: int, target: Vec
 		if victim.alive and primary and bool(weapon["mark"]):
 			victim.marked = true
 			state.emit(GridEv.MARKED, u.ref, victim.ref, victim.x, victim.y)
+		if primary and int(weapon.get("pull", 0)) > 0 and victim.alive:
+			# 029: the harpoon drags it a hex toward the shooter -- into a pit, or into whatever
+			# stands there (a bump), the way a shove would the other way.
+			var toward: Array[int] = Hex.directions(Vector2i(victim.x, victim.y), origin)
+			if Hex.distance(Vector2i(victim.x, victim.y), origin) > 1:
+				shove(state, u.ref, victim, toward[0])
 		if primary and int(weapon["shove"]) > 0:
 			var dir: int = shove_dir(state, u, origin, victim)
 			if victim.alive:

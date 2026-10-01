@@ -310,5 +310,89 @@
         }
       }
     ]
+  },
+  {
+    "id": "mo_jumpjets",
+    "name": "Jump Jets",
+    "slot": "module",
+    "rarity": 2,
+    "maker": "vektor",
+    "model": "mo_servo",
+    "mesh": "res://art/parts/mo_servo.glb",
+    "flavour": "Two burns and a prayer.",
+    "grid": {
+      "move": 1,
+      "ability": "dash"
+    },
+    "tuning": [
+      {
+        "name": "Afterburner",
+        "grid": {
+          "move": 1
+        }
+      },
+      {
+        "name": "Light Frame",
+        "grid": {
+          "hp": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "mo_plating",
+    "name": "Hull Plating",
+    "slot": "module",
+    "rarity": 1,
+    "maker": "kessler",
+    "model": "mo_ablative",
+    "mesh": "res://art/parts/mo_ablative.glb",
+    "flavour": "Bolted on in the dark. It holds.",
+    "grid": {
+      "hp": 4
+    },
+    "tuning": [
+      {
+        "name": "Double Layer",
+        "grid": {
+          "hp": 2
+        }
+      },
+      {
+        "name": "Angled",
+        "grid": {
+          "armor": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "mo_aegis",
+    "name": "Aegis Rig",
+    "slot": "module",
+    "rarity": 4,
+    "maker": "arclight",
+    "model": "mo_capacitor",
+    "mesh": "res://art/parts/mo_capacitor.glb",
+    "flavour": "The keeper's own shield, rewired to you.",
+    "grid": {
+      "hp": 4,
+      "armor": 1,
+      "ability": "shield"
+    },
+    "tuning": [
+      {
+        "name": "Overcharged",
+        "grid": {
+          "hp": 2
+        }
+      },
+      {
+        "name": "Fast Cycle",
+        "grid": {
+          "cooldown": -1
+        }
+      }
+    ]
   }
 ]
