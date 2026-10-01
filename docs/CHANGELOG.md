@@ -2,6 +2,13 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [030] Warlords — 2026-10-01 ([detail](iterations/030-warlords.md))
+
+### Added
+- **A warlord in every act**: a named site in the middle of the map, always visible, with its own
+  rule -- the Grinder's saw ring, the Magnet King's haul, the Twin Furnaces that shield each other --
+  and a hoard with a legendary part.
+
 ## [029] New weapons and legendary parts — 2026-10-01 ([detail](iterations/029-weapons-and-legendaries.md))
 
 ### Added
