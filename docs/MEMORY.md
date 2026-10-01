@@ -104,6 +104,9 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-09-30 | **A run is three acts; breaking the Core wins it.** Act 3 (the Crucible) is `run.json` `acts[2]`: flues, conduits, +4 HP and +1 damage, rarity 3 | PT7-1 "do act 3"; bot 66.0% over three acts |
 | 2026-10-01 | **Later acts pay in rares** (Act 2 35/45/20, Act 3 10/45/45; Act 3 elites always a rare) **and fight harder** (+5 HP; Act 3 hits 2 harder; keepers armed like their act) | PT8-7: a built crew found no rares and got bored; bot 71.7% with rares alone, 56.6% with the harder acts |
 | 2026-10-01 | **Card text is fitted** (`UIKit.fit`); **tags never move more than their own height and draw over every mark** | PT8-3/4/6 |
+| 2026-10-01 | **Every iteration ends on `main`, pushed** (branch, then fast-forward) | PT9-1: "all the changes need to be on the main" |
+| 2026-10-01 | **Knuckles, Needle, Relay**; names are the player's (RENAME, remembered per crew) | PT9-2 |
+| 2026-10-01 | **Keepers escalate at half HP and call guards; levels go to 5** | PT9-3: late bosses "boring and easy", 230 scrap unspent |
 
 ## Lessons carried over from the old codebase
 
@@ -197,6 +200,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-09-30 | A transparent EMISSIVE StandardMaterial3D recompiled on every use even with a live copy held; additive with an over-bright albedo does not. Test a material fix in isolation (`mat_probe`) rather than trusting the theory |
 | 2026-09-30 | A glossary form is matched everywhere text is linked: a kind id that is also a common word ("core", "vent") links the wrong card. Pick ids no sentence uses for anything else |
 | 2026-10-01 | An automatic layout move needs a bound: "the shorter way, up or down" with no limit sent a crowded tag to the banner (PT8-3) |
+| 2026-10-01 | Measure an art complaint across every combination before fixing one model: "arms go through the body" was 78 of 100 frame/arm pairs |
 | 2026-10-01 | A transparent overlay drawn at a higher render priority than a label hides it however "no depth test" the label is: order the priorities, labels last |
 
 ## Open questions
@@ -234,3 +238,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-09-30 | **025: is 66% over three acts right? Should Act 3 bite harder than Act 2** (it loses 15.4% of the runs that reach it, Act 2 15.2%)? Is the Core a good last fight? | The user plays; a second point of Act 3 damage is the dial | |
 | 2026-09-30 | The END TURN press plans the enemy's next round inside the action (0.1-0.2 s on a full board); the banner answers first so it reads as the enemy getting ready | Speed up `IntentAI.plan` if Act 3's bigger squads make it felt | |
 | 2026-10-01 | **026: is 56.6% over three acts right? Does the garage need a new layout** (026 fitted its text and added a cover, the layout is 008's)? | The user plays | |
+| 2026-10-01 | **027: is The Pour hard enough (5 gate losses in 110 bot runs)? Do the new bay and garage read well?** | The user plays | |
