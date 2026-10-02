@@ -211,6 +211,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-02 | A measurement that cannot fail is not one: the paired part test ran an hour and could not separate parts (the bot wins single fights). Calibrate a harness against a known difference before trusting its zeros |
 | 2026-10-02 | Model aliases do not chain (a part borrowing a borrowed model has none): test every entry that resolves a reference |
 | 2026-10-03 | Behaviour every control should have belongs to one watcher of the tree (`Juice`), not to each screen: a dozen call sites had each dropped the hover style |
+| 2026-10-03 | Measure looks on a quiet machine: contrast read under 15 bot processes moved more (2.97 vs 2.84) than the change did (2.91 vs 2.91) |
 
 ## Open questions
 
@@ -256,3 +257,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-02 | **033: do the new modules feel different? 56.7% with enemies carrying them -- too hard in Act 2 (22.4% lost)?** | The user plays | |
 | 2026-10-03 | **034: are the missions the right difficulty? Should missions unlock crews and tiers too?** | The user plays | |
 | 2026-10-03 | **035: does the button feel right (bounce, sounds)? Should the board and map sites answer the cursor the same way?** | The user plays | |
+| 2026-10-03 | **036: is the printed look the comic the user means -- stronger, weaker, or balloons / speed lines / panel frames instead?** | The user looks | |
