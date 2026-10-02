@@ -53,8 +53,8 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 031 | [Sites and events](iterations/031-sites-and-events.md) | Arena, refinery, auction; twenty new signal events (bot 58.0%) | ✅ awaiting the play-test |
 | — | [Play-test 10](playtests/2026-10-02-playtest-10.md) | Rares everywhere, names on the board, a bigger battlefield, pictures at sites, an easy arena, unlock missions, the parts audit and modules, interactive controls, the garage, comic style | ✅ |
 | 032 | [Play-test 10 fixes](iterations/032-playtest-10-fixes.md) | 10 x 10 boards, names on the board, part cards at sites, a hard arena, rarer rares, the garage on one grid (bot 60.0%) | ✅ awaiting the play-test |
-| 033 | Parts audit and modules | The power of every part, measured; twelve modules with mechanics; cores that grow with rarity | 🔨 |
-| 034 | Unlock missions | Feats from fights (flawless, pit kills, warlords...) unlock parts | ⬜ |
+| 033 | [Parts audit and modules](iterations/033-parts-audit.md) | The power of every part by slot and rarity; twelve modules with mechanics; cores that grow with rarity (bot 56.7%) | ✅ awaiting the play-test |
+| 034 | [Unlock missions](iterations/034-unlock-missions.md) | Feats from fights unlock nine of the new modules; UNLOCKS shows missions and progress | ✅ awaiting the play-test |
 | 035 | The interactive pass | Every control answers the hand | ⬜ |
 | 036 | Comic style | A style frame, then the look on UI and models | ⬜ |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
