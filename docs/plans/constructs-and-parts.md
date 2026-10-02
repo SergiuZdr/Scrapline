@@ -115,3 +115,12 @@ Shapes now: melee, shot, lob, **cone** (flamer: the aimed neighbour and three be
 (aimed at an ally). A shot may **pull** (harpoon). Rarity 4 is LEGENDARY: from a gate's hoard and,
 rarely, Act 3 salvage. A part with `"model"` borrows that part's model and picture until it has its
 own (`PartTuning.model_of`); `"enemy": false` keeps a part off enemies.
+
+## Modules with mechanics (033)
+
+A core or module may carry, besides its numbers, any of `CombatSetup.EXTRA_KEYS`: weapon traits
+(`pierce` and `arc` on shots, `shove` and `tears` on melee, `mark` on all), role traits (`melee`,
+`unshovable`, `move_after_attack`), and mechanics (`thorns`, `regen`, `kill_heal`, `last_stand`).
+All go through `apply_bonus`, so perks, sets and levels could use them too. 25 modules; rarity
+buys a trait. The power of every part, by slot and rarity: [parts-power](parts-power.md).
+A borrowed model (`"model"`) must name a part with its OWN .glb: aliases do not chain.
