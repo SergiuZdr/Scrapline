@@ -26,8 +26,10 @@ signal continue_pressed
 
 const CARD_SIZE := Vector2(340, 150)
 ## HP pips (play-test 9): always this size, this many to a row.
-const PIP_SIZE := Vector2(13, 9)
-const PIPS_PER_ROW: int = 12
+## Play-test 10: 16 to a row (27 HP ran to three rows of 12 and covered the HP line); a card
+## grows by a row's height if a machine ever needs a third.
+const PIP_SIZE := Vector2(10, 8)
+const PIPS_PER_ROW: int = 16
 ## A machine not picked shrinks to a slim row (016, review point R5-2): its name, what it has
 ## left this turn, its HP. The picked one is the only full card, so the column asks for less.
 const SLIM_SIZE := Vector2(340, 94)
@@ -443,7 +445,9 @@ func _fill_card(parts: Dictionary, card: Dictionary) -> void:
 	button.disabled = not alive
 	button.modulate = Color(1, 1, 1, 1.0 if alive else 0.5)
 	var slim: bool = not selected
-	button.custom_minimum_size = SLIM_SIZE if slim else CARD_SIZE
+	var rows: int = (maxi(1, int(card["max_hp"])) + PIPS_PER_ROW - 1) / PIPS_PER_ROW
+	var extra: float = float(maxi(0, rows - 2)) * (PIP_SIZE.y + 2.0)
+	button.custom_minimum_size = (SLIM_SIZE if slim else CARD_SIZE) + Vector2(0, extra)
 	button.size = button.custom_minimum_size
 	for key: String in ["frame", "detail", "arms"]:
 		(parts[key] as Control).visible = not slim

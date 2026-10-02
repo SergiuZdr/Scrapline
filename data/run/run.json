@@ -14,12 +14,12 @@
     "trader": 8,
     "tower": 6,
     "signal": 14,
-    "refinery": 7,
-    "auction": 6,
+    "refinery": 4,
+    "auction": 4,
     "arena": 7
   },
-  "refinery": {"costs": [10, 18, 40], "_comment": "031: refining a part of rarity r costs costs[r-1] and gives a random part of rarity r+1, the same slot (a rare becomes a legendary)."},
-  "auction": {"tiers": [{"cost": 20, "min": 2, "legend_pct": 8}, {"cost": 45, "min": 3, "legend_pct": 25}], "_comment": "031: crates bought blind; `legend_pct` is the chance it holds a legendary instead."},
+  "refinery": {"costs": [15, 35, 70], "_comment": "031: refining a part of rarity r costs costs[r-1] and gives a random part of rarity r+1, the same slot (a rare becomes a legendary)."},
+  "auction": {"tiers": [{"cost": 25, "min": 2, "legend_pct": 4}, {"cost": 55, "min": 3, "legend_pct": 12}], "_comment": "031: crates bought blind; `legend_pct` is the chance it holds a legendary instead."},
   "_sites_013": "013: traders (buy from stock, sell from the hold), watchtowers (scout), signals (data/run/events.json).",
   "trader": {
     "prices": [12, 20, 32, 60],
@@ -80,7 +80,7 @@
     "boss_hp_bonus": 4,
     "boss_escorts": 3,
     "warlord_escorts": 2,
-    "arena_extra": 1,
+    "arena": {"extra": 2, "hp": 3, "damage": 1, "cap": 3, "_comment": "032 (play-test 10: the arena was not hard): `extra` machines over an elite's count, each `hp` tougher and `damage` harder, parts up to rarity `cap`."},
     "_boss": "013: the gate is its own map (data/fights/sorting_gate.json): the Sorter, its pylons, and `boss_escorts` rolled escorts. boss_count / boss_hp_bonus apply only if no gate map exists."
   },
   "rewards": {
@@ -98,6 +98,8 @@
     "cache_scrap": 6,
     "warlord_scrap": 30,
     "arena_scrap": 35,
+    "arena_min_rarity": 3,
+    "warlord_legend_pct": 35,
     "hoard_scrap": 25,
     "salvage_scrap": 8,
     "_salvage": "011: every salvage screen offers `choices` parts from different slots (the second leaning to a maker the crew builds sets from) or `salvage_scrap` scrap instead; an elite's first part comes tuned."
@@ -139,24 +141,19 @@
   "terrain": {
     "_comment": "Props and pits scattered on generated fights, in the middle rows, per fight: a random count in [min, max].",
     "barrels": [
-      1,
-      3
+      2,
+      4
     ],
     "crates": [
-      0,
-      2
+      1,
+      3
     ],
     "pits": [
       0,
       2
-    ],
-    "rows": [
-      2,
-      3,
-      4,
-      5
     ]
   },
+  "board": {"rows": 2, "cols": 2, "_comment": "032 (play-test 10: 'make the battlefield bigger'): every run board is its template plus `rows` blank rows between the sides and `cols` columns at the edges. Terrain, wires, piles and terminals go in every row but the two at each end."},
   "kinds": {
     "_comment": "Chance, per enemy and by column, that it has special rules, and which rules.",
     "chance_by_column": [0, 20, 25, 35, 45, 55, 60, 70, 80],
@@ -206,7 +203,7 @@
       "enemies": {"count_by_column": [4, 4, 4, 4, 4, 5, 5, 5, 5], "rarity_cap_by_column": [2, 2, 2, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 4, "hp_all": 5, "boss_escorts": 4, "warlord_escorts": 3, "bonus": {"damage": 1}},
       "kinds": {"chance_by_column": [40, 50, 50, 60, 60, 70, 70, 80, 80], "weights": {"tracker": 20, "bomber": 20, "warden": 15, "hive": 15, "sentinel": 30}},
       "terrain": {"slag": [1, 3]},
-      "rewards": {"rarity_weights": [35, 45, 20], "elite_min_rarity": 2, "choices": 3}
+      "rewards": {"rarity_weights": [45, 43, 12], "elite_min_rarity": 2, "choices": 3}
     },
     {
       "name": "THE CRUCIBLE",
@@ -215,7 +212,7 @@
       "enemies": {"count_by_column": [4, 4, 5, 5, 5, 5, 6, 6, 6], "rarity_cap_by_column": [3, 3, 3, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 5, "hp_all": 5, "boss_escorts": 4, "warlord_escorts": 3, "bonus": {"damage": 2}},
       "kinds": {"chance_by_column": [50, 50, 60, 60, 70, 70, 80, 80, 90], "weights": {"tracker": 15, "bomber": 15, "warden": 10, "hive": 10, "sentinel": 20, "conduit": 30}},
       "terrain": {"flues": [2, 4], "slag": [0, 2]},
-      "rewards": {"rarity_weights": [10, 42, 42, 6], "elite_min_rarity": 3, "choices": 3}
+      "rewards": {"rarity_weights": [25, 47, 25, 3], "elite_min_rarity": 2, "choices": 3, "_032": "play-test 10: most parts were rare+ by Act 3 (031: 10/42/42/6, elites always rare)"}
     }
   ]
 }

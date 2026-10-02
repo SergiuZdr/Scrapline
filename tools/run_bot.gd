@@ -54,6 +54,8 @@ func _initialize() -> void:
 	var gate_lost: Dictionary = {}
 	var last_gate_scrap: int = 0
 	var last_gate_runs: int = 0
+	## 032 (play-test 10): how many of the crew's fitted parts are rare or better at the last gate.
+	var last_gate_rares: int = 0
 	var fights: int = 0
 	var moves: int = 0
 	var boss_hp: int = 0
@@ -88,6 +90,10 @@ func _initialize() -> void:
 				if state.act == RunSim.act_count(setup):
 					last_gate_runs += 1
 					last_gate_scrap += state.scrap
+					for member: Dictionary in state.crew:
+						for part: Variant in (member["parts"] as Array):
+							if not String(part).is_empty() and setup.rarity(PartTuning.base_of(String(part))) >= 3:
+								last_gate_rares += 1
 			guard += 1
 		if state.outcome == RunState.WON:
 			won += 1
@@ -127,5 +133,6 @@ func _initialize() -> void:
 		acts.append("act %d: reached %d, lost %d, at its gate %d" % [a, int(reached_act.get(a, 0)), int(ended_act.get(a, 0)), int(gate_lost.get(a, 0))])
 	print("  by act: %s" % ", ".join(acts))
 	print("  scrap held going into the last gate: %.1f avg over %d runs" % [float(last_gate_scrap) / maxf(1.0, last_gate_runs), last_gate_runs])
+	print("  rare+ parts fitted at the last gate: %.1f avg of 15 over %d runs" % [float(last_gate_rares) / maxf(1.0, last_gate_runs), last_gate_runs])
 	print("")
 	quit(1 if errors > 0 else 0)

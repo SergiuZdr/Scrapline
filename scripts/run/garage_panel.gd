@@ -22,7 +22,7 @@ const SORTS: PackedStringArray = ["NEWEST", "RARITY", "SLOT"]
 const SLOT_ORDER: PackedStringArray = ["chassis", "core", "arm", "module"]
 const TEAM := Color("4fa8d8")
 const REST_YAW: float = 0.6
-const VIEW_SIZE := Vector2i(600, 420)
+const VIEW_SIZE := Vector2i(600, 360)
 ## Width of the lines lettered over the bay (name, sets, perks, LEVEL UP), fitted to it.
 const INFO_W: float = 560.0
 ## The layout (027, play-test 9: "the garage NEEDS a new design"): three columns over the hold --
@@ -30,6 +30,16 @@ const INFO_W: float = 560.0
 ## NUMBERS (everything the fight will read off it). Each answers one question.
 const LOADOUT_W: float = 570.0
 const NUMBERS_W: float = 600.0
+## Play-test 10 ("issues with the panels' alignment"): one grid. Three captions on one line,
+## three columns that start at COLUMN_TOP and end at COLUMN_BOTTOM, the hold under all three.
+const CAPTION_Y: float = 106.0
+const COLUMN_TOP: float = 146.0
+const COLUMN_BOTTOM: float = 690.0
+const COLUMN_X: Array = [40.0, 660.0, 1252.0]
+## NUMBERS in sections at a readable size (play-test 10: "hard to read").
+const NUM_HEAD: int = 22
+const NUM_NAME: int = 20
+const NUM_TEXT: int = 18
 
 ## The crew member on show.
 var selected: int = 0
@@ -90,7 +100,7 @@ func _ready() -> void:
 	add_child(_header)
 
 	var stage := PanelContainer.new()
-	stage.position = Vector2(40, 116)
+	stage.position = Vector2(COLUMN_X[0], COLUMN_TOP)
 	var frame := UIKit.inset(Color("12151d"), 0, 0, 0)
 	frame.set_border_width_all(3)
 	stage.add_theme_stylebox_override("panel", frame)
@@ -111,37 +121,43 @@ func _ready() -> void:
 	view.add_child(viewport)
 	_build_stage(viewport)
 
+	# Under the bay, down to the columns' common foot: the name, the level, LEVEL UP.
+	var info_top: float = COLUMN_TOP + float(VIEW_SIZE.y) + 6.0 + UIKit.SPACE_SM
 	var info_card := PanelContainer.new()
-	info_card.position = Vector2(40, 548)
-	info_card.custom_minimum_size = Vector2(float(VIEW_SIZE.x) + 6.0, 142)
+	info_card.position = Vector2(COLUMN_X[0], info_top)
+	info_card.custom_minimum_size = Vector2(float(VIEW_SIZE.x) + 6.0, COLUMN_BOTTOM - info_top)
+	info_card.size = info_card.custom_minimum_size
+	info_card.clip_contents = true
 	info_card.add_theme_stylebox_override("panel", UIKit.ink_card(UIKit.PAPER_CARD, UIKit.SPACE_MD, UIKit.SPACE_SM, 4))
 	add_child(info_card)
 	_info = VBoxContainer.new()
 	_info.mouse_filter = Control.MOUSE_FILTER_PASS
-	_info.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	_info.alignment = BoxContainer.ALIGNMENT_CENTER
+	_info.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	info_card.add_child(_info)
 
-	for caption: Array in [["LOADOUT", 664.0], ["NUMBERS", 1256.0]]:
+	for caption: Array in [["THE MACHINE", COLUMN_X[0]], ["LOADOUT", COLUMN_X[1]], ["NUMBERS", COLUMN_X[2]]]:
 		var head := UIKit.on_page(_label(String(caption[0]), 24, UIKit.PAGE_TEXT, UIKit.font_comic()), 6)
-		head.position = Vector2(float(caption[1]), 110)
+		head.position = Vector2(float(caption[1]) + 2.0, CAPTION_Y)
 		add_child(head)
 	_right = VBoxContainer.new()
-	_right.position = Vector2(660, 146)
-	_right.size = Vector2(LOADOUT_W, 540)
-	_right.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	_right.position = Vector2(COLUMN_X[1], COLUMN_TOP)
+	_right.size = Vector2(LOADOUT_W, COLUMN_BOTTOM - COLUMN_TOP)
+	_right.add_theme_constant_override("separation", 6)
 	add_child(_right)
 	var numbers := ScrollContainer.new()
-	numbers.position = Vector2(1252, 146)
-	numbers.custom_minimum_size = Vector2(NUMBERS_W + 28, 544)
+	numbers.position = Vector2(COLUMN_X[2], COLUMN_TOP)
+	numbers.custom_minimum_size = Vector2(NUMBERS_W + 28, COLUMN_BOTTOM - COLUMN_TOP)
 	numbers.size = numbers.custom_minimum_size
 	numbers.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(numbers)
 	_numbers = VBoxContainer.new()
+	_numbers.custom_minimum_size = Vector2(NUMBERS_W, COLUMN_BOTTOM - COLUMN_TOP)
 	numbers.add_child(_numbers)
 
 	_bottom = VBoxContainer.new()
-	_bottom.position = Vector2(40, 700)
-	_bottom.size = Vector2(1840, 360)
+	_bottom.position = Vector2(40, COLUMN_BOTTOM + UIKit.SPACE_MD)
+	_bottom.size = Vector2(1840, 1080.0 - COLUMN_BOTTOM - UIKit.SPACE_MD - 16.0)
 	_bottom.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	add_child(_bottom)
 
@@ -554,7 +570,7 @@ func _build_parts() -> void:
 func _socket(i: int, s: int, alive: bool) -> Control:
 	var part: String = String((Run.state.crew[i]["parts"] as Array)[s])
 	var button := Button.new()
-	button.custom_minimum_size = Vector2(LOADOUT_W, 102)
+	button.custom_minimum_size = Vector2(LOADOUT_W, (COLUMN_BOTTOM - COLUMN_TOP - 6.0 * 4.0) / 5.0)
 	button.focus_mode = Control.FOCUS_NONE
 	button.disabled = not alive
 	_sockets.append([button, i, s])
@@ -585,7 +601,7 @@ func _socket(i: int, s: int, alive: bool) -> Control:
 	text.add_child(UIKit.fit(_label("%s  ·  %s%s" % [SOCKET_NAMES[s], PartText.name_of(Run.db.parts, part) if not part.is_empty() else "EMPTY", rarity],
 		20, PartText.rarity_colour(Run.db.parts, part) if not part.is_empty() else UIKit.RED, UIKit.font_comic()), LOADOUT_W - 220, 1, 13))
 	text.add_child(UIKit.fit(_label(PartText.summary(Run.db.parts, part, Run.db.combat_abilities) if not part.is_empty()
-		else "Drag a %s here from the hold." % RunSetup.socket_slot(s), UIKit.SIZE_LABEL, UIKit.TEXT_DIM), LOADOUT_W - 220, 2, 10))
+		else "Drag %s %s here from the hold." % ["an" if RunSetup.socket_slot(s) == "arm" else "a", RunSetup.socket_slot(s)], UIKit.SIZE_LABEL, UIKit.TEXT_DIM), LOADOUT_W - 220, 2, 10))
 	if not part.is_empty():
 		row.add_child(_maker_tag(i, part))
 	button.mouse_entered.connect(_focus_socket.bind(s))
@@ -602,7 +618,9 @@ func _socket(i: int, s: int, alive: bool) -> Control:
 
 # --- STATS --------------------------------------------------------------------
 
-## Every number of the machine, read off the unit the sim would field.
+## Every number of the machine, read off the unit the sim would field. Play-test 10 ("hard to
+## read"): in sections -- STATS, WEAPONS, ABILITIES, then role, perks and sets -- each name in
+## the comic face and each rule in full ink at NUM_TEXT, never a dim paragraph.
 func _build_stats() -> void:
 	var member: Dictionary = Run.state.crew[selected]
 	var u: GridUnit = RunSim.preview_machine(Run.setup, member)
@@ -610,14 +628,17 @@ func _build_stats() -> void:
 	# On a paper card (016): ink text needs paper under it.
 	var sheet := PanelContainer.new()
 	sheet.add_theme_stylebox_override("panel", UIKit.card(UIKit.SURFACE, 0, UIKit.SPACE_LG, UIKit.SPACE_MD))
+	sheet.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_numbers.add_child(sheet)
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", UIKit.SPACE_XS)
 	sheet.add_child(body)
+	var width: int = int(NUMBERS_W) - 44
+	var words: Dictionary = Run.db.glossary
+
 	var grid := GridContainer.new()
 	grid.columns = 1
-	grid.add_theme_constant_override("h_separation", UIKit.SPACE_XL)
-	grid.add_theme_constant_override("v_separation", UIKit.SPACE_XS)
+	grid.add_theme_constant_override("v_separation", 2)
 	body.add_child(grid)
 	var armor_types: Array = rules.get("armor_types", [])
 	var damage_types: Array = rules.get("damage_types", [])
@@ -626,30 +647,67 @@ func _build_stats() -> void:
 	_stat(grid, "HEAT CAP", u.heat_cap, 10, "%d" % u.heat_cap)
 	_stat(grid, "VENT", u.vent, 4, "%d a turn" % u.vent)
 	_stat(grid, "ARMOUR", u.armor, 3, "%d · %s" % [u.armor, String(armor_types[u.armor_type]) if u.armor_type < armor_types.size() else ""])
-	_stat(grid, "DAMAGE BONUS", u.damage_bonus, 4, "+%d · %s" % [u.damage_bonus, String(damage_types[u.damage_type]) if u.damage_type < damage_types.size() else ""])
+	_stat(grid, "DAMAGE", u.damage_bonus, 4, "+%d · %s" % [u.damage_bonus, String(damage_types[u.damage_type]) if u.damage_type < damage_types.size() else ""])
 
-	# The lines below are rich text: every glossary word in them can be tapped (012).
-	var words: Dictionary = Run.db.glossary
-	body.add_child(Glossary.label("ROLE  ·  %s%s" % [u.role.to_upper(), _role_note(u)], UIKit.SIZE_BODY, UIKit.TEXT, words, int(NUMBERS_W) - 40,
-		UIKit.font_strong()))
+	if u.weapons.any(func(w: Dictionary) -> bool: return not bool(w["empty"])):
+		_section(body, "WEAPONS")
 	for w: Dictionary in u.weapons:
 		if bool(w["empty"]):
 			continue
 		var shape: String = String(w["shape"])
 		var reach: String = "melee" if shape == "melee" else ("lob %d-%d" % [int(w["range_min"]), int(w["range"])] if shape == "lob" else "shot %d" % int(w["range"]))
+		if shape == "cone":
+			reach = "flame cone"
+		elif shape == "shield":
+			reach = "shields an ally %d" % int(w["range"])
 		var dmg: int = int(w["damage"]) + u.damage_bonus + (u.melee_bonus if shape == "melee" else 0)
-		body.add_child(Glossary.label("%s  ·  %s  ·  %d damage  ·  +%d heat" % [String(w["name"]).to_upper(), reach, dmg,
-			CombatSim.attack_heat(u, w)], UIKit.SIZE_BODY, UIKit.TEXT, words, int(NUMBERS_W) - 40, UIKit.font_strong()))
+		var bits: PackedStringArray = [reach, "%d damage" % dmg, "+%d heat" % CombatSim.attack_heat(u, w)]
+		for key: String in ["pierce", "chain"]:
+			if int(w.get(key, 0)) > 0:
+				bits.append("%s %d" % [key, int(w[key])])
+		for key: String in ["splash", "shove"]:
+			if int(w.get(key, 0)) > 0:
+				bits.append(key)
+		body.add_child(UIKit.fit(_label(String(w["name"]).to_upper(), NUM_NAME, UIKit.INK, UIKit.font_comic()), width, 1, 14))
+		body.add_child(Glossary.label("  ·  ".join(bits), NUM_TEXT, UIKit.TEXT, words, width, UIKit.font_strong()))
+
+	if not u.abilities.is_empty():
+		_section(body, "ABILITIES")
 	for ability: Dictionary in u.abilities:
-		body.add_child(Glossary.label("%s  ·  %s  ·  cooldown %d:  %s" % [String(ability["name"]).to_upper(),
-			"free" if bool(ability["free"]) else "uses the action", int(ability["cooldown"]), String(ability.get("text", ""))],
-			UIKit.SIZE_LABEL, UIKit.TEXT_DIM, words, int(NUMBERS_W) - 40))
-	for id: Variant in (member.get("perks", []) as Array):
+		var head := HBoxContainer.new()
+		head.add_theme_constant_override("separation", UIKit.SPACE_SM)
+		body.add_child(head)
+		head.add_child(_label(String(ability["name"]).to_upper(), NUM_NAME, UIKit.INK, UIKit.font_comic()))
+		head.add_child(_label("%s  ·  COOLDOWN %d" % ["FREE" if bool(ability["free"]) else "USES THE ACTION", int(ability["cooldown"])],
+			UIKit.SIZE_LABEL, Ink.RUST, UIKit.font_comic()))
+		body.add_child(Glossary.label(String(ability.get("text", "")), NUM_TEXT, UIKit.TEXT, words, width))
+
+	_section(body, "ROLE")
+	body.add_child(Glossary.label("%s%s" % [u.role.capitalize(), _role_note(u)], NUM_TEXT, UIKit.TEXT, words, width, UIKit.font_strong()))
+	var perks: Array = member.get("perks", [])
+	if not perks.is_empty():
+		_section(body, "PERKS")
+	for id: Variant in perks:
 		var perk: Dictionary = Run.db.perks.get(String(id), {})
-		body.add_child(Glossary.label("PERK  ·  %s  ·  %s" % [String(perk.get("name", id)).to_upper(), String(perk.get("text", ""))],
-			UIKit.SIZE_LABEL, UIKit.GREEN, words, int(NUMBERS_W) - 40))
-	for line_text: String in PartText.set_lines(Run.db.parts, Run.db.makers, member["parts"]):
-		body.add_child(Glossary.label("SET  ·  " + line_text, UIKit.SIZE_LABEL, UIKit.GREEN, words, int(NUMBERS_W) - 40))
+		body.add_child(Glossary.label("%s  ·  %s" % [String(perk.get("name", id)).to_upper(), String(perk.get("text", ""))],
+			NUM_TEXT, UIKit.INK_GREEN, words, width))
+	var sets: PackedStringArray = PartText.set_lines(Run.db.parts, Run.db.makers, member["parts"])
+	if not sets.is_empty():
+		_section(body, "SETS")
+	for line_text: String in sets:
+		body.add_child(Glossary.label(line_text, NUM_TEXT, UIKit.INK_GREEN, words, width))
+
+
+## A section's heading on the NUMBERS sheet, with an ink rule under it.
+func _section(body: VBoxContainer, title: String) -> void:
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, UIKit.SPACE_XS)
+	body.add_child(gap)
+	body.add_child(_label(title, NUM_HEAD, UIKit.INK, UIKit.font_comic()))
+	var rule := ColorRect.new()
+	rule.color = UIKit.INK
+	rule.custom_minimum_size = Vector2(0, 2)
+	body.add_child(rule)
 
 
 ## Who made a part, and how many of that maker's parts the machine carries: three pips that
@@ -698,9 +756,9 @@ func _role_note(u: GridUnit) -> String:
 func _stat(grid: GridContainer, name: String, value: int, top: int, text: String) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", UIKit.SPACE_SM)
-	row.custom_minimum_size = Vector2(NUMBERS_W - 50, 34)
-	var label := _label(name, UIKit.SIZE_BODY, UIKit.TEXT_DIM, UIKit.font_strong())
-	label.custom_minimum_size = Vector2(150, 0)
+	row.custom_minimum_size = Vector2(NUMBERS_W - 50, 30)
+	var label := _label(name, NUM_TEXT, UIKit.TEXT, UIKit.font_comic())
+	label.custom_minimum_size = Vector2(130, 0)
 	row.add_child(label)
 	var bar := ProgressBar.new()
 	bar.show_percentage = false
@@ -714,7 +772,7 @@ func _stat(grid: GridContainer, name: String, value: int, top: int, text: String
 	bar.add_theme_stylebox_override("background", well)
 	bar.add_theme_stylebox_override("fill", UIKit.plain(Ink.YOURS, 0))
 	row.add_child(bar)
-	row.add_child(_label(text, UIKit.SIZE_BODY, UIKit.TEXT, UIKit.font_numbers()))
+	row.add_child(_label(text, NUM_TEXT, UIKit.TEXT, UIKit.font_numbers()))
 	grid.add_child(row)
 
 
