@@ -34,9 +34,10 @@ const BUILT := Color("a070e0")
 
 # --- Line weights, in pixels at 1080 lines. Three, and only three: a line that varies
 # from object to object is the fastest way for ink to look cheap (the plan's one risk).
-const LINE_WORLD: float = 1.6   ## Ground, scenery, terrain.
-const LINE_MACHINE: float = 2.2 ## Machines: the silhouettes the player reads.
-const LINE_ACT: float = 3.0     ## Things you can act on: drums, piles, pylons, crates.
+## 036, comic style: heavier ink (was 1.6 / 2.2 / 3.0) -- a comic draws its figures in a bold line.
+const LINE_WORLD: float = 2.0   ## Ground, scenery, terrain.
+const LINE_MACHINE: float = 3.0 ## Machines: the silhouettes the player reads.
+const LINE_ACT: float = 3.6     ## Things you can act on: drums, piles, pylons, crates.
 
 ## A part's livery in ink, indexed exactly like `PartMaterials.LIVERY`, so a part keeps its
 ## colour identity (a Brute's frame is the same "yellow" it always was, now flat mustard).
@@ -371,6 +372,37 @@ static func dress_scenery(node: Node, dim: float = 0.45) -> void:
 				m = toon(Color(grey, grey, grey).lerp(NIGHT, dim), "matte")
 			mesh.set_surface_override_material(s, m)
 		line(mesh, LINE_WORLD * 0.8, INK)
+
+
+const PRINT := preload("res://scripts/presentation/ink_print.gdshader")
+
+
+## 036, comic style: the 3D world printed on paper (`ink_print.gdshader`) -- a full-screen pass
+## on a CanvasLayer UNDER the screen's HUD (`layer` below the HUD's), so it prints the world and
+## never the interface. `-- --look plain` turns it off, for comparing frames.
+static func print_pass(parent: Node, layer: int = 0) -> CanvasLayer:
+	var canvas := CanvasLayer.new()
+	canvas.layer = layer
+	parent.add_child(canvas)
+	if OS.get_cmdline_user_args().has("--look") and OS.get_cmdline_user_args()[OS.get_cmdline_user_args().find("--look") + 1] == "plain":
+		return canvas
+	var rect := ColorRect.new()
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var m := ShaderMaterial.new()
+	m.shader = PRINT
+	var noise := NoiseTexture2D.new()
+	noise.width = 512
+	noise.height = 512
+	noise.seamless = true
+	var fn := FastNoiseLite.new()
+	fn.frequency = 0.35
+	fn.fractal_octaves = 2
+	noise.noise = fn
+	m.set_shader_parameter("paper", noise)
+	rect.material = m
+	canvas.add_child(rect)
+	return canvas
 
 
 ## The ink world's environment (016): a flat night ambient (the shadow band is albedo times
