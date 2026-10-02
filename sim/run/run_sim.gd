@@ -420,7 +420,7 @@ static func move_preview(state: RunState, setup: RunSetup, to: int) -> Dictionar
 	if FIGHT_TYPES.has(kind):
 		var rules: Dictionary = rules_of(state, setup).get("enemies", {})
 		var counts: Array = rules.get("count_by_column", [3])
-		enemies = int(counts[mini(int(site["col"]), counts.size() - 1)])
+		enemies = int(counts[mini(int(site["col"]), counts.size() - 1)]) + int((setup.rules.get("board", {}) as Dictionary).get("enemies", 0))
 		if kind == "elite" or kind == "arena":
 			enemies += int(rules.get("elite_extra", 1)) + (int((rules.get("arena", {}) as Dictionary).get("extra", 0)) if kind == "arena" else 0)
 		elif kind == "boss":
@@ -1167,7 +1167,8 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 	var enemies_rules: Dictionary = rules_of(state, setup).get("enemies", {})
 	var counts: Array = enemies_rules.get("count_by_column", [3])
 	var caps: Array = enemies_rules.get("rarity_cap_by_column", [3])
-	var count: int = int(counts[mini(col, counts.size() - 1)])
+	# 032: the bigger board (`board.enemies`) holds this many more.
+	var count: int = int(counts[mini(col, counts.size() - 1)]) + int(board.get("enemies", 0))
 	var cap: int = int(caps[mini(col, caps.size() - 1)])
 	var hp_bonus: int = 0
 	# Play-test 10 ("the arena did not feel hard"): `enemies.arena` -- `extra` machines over an
