@@ -66,6 +66,7 @@ func _initialize() -> void:
 	_test_objectives_028()
 	_test_weapons_029()
 	_test_warlords_030()
+	_test_modules_033()
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
 			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core",
 		"warlord_grinder", "warlord_magnet", "warlord_twins"]:
@@ -412,6 +413,74 @@ func _test_warlords_030() -> void:
 	t.unit(11).alive = false
 	var alone: int = CombatSim.damage_to(t, t.unit(0), t.unit(10), 6, false)
 	_check("a twin takes 2 less while its twin stands (%d), and not after (%d)" % [both, alone], alone == both + 2)
+
+
+## 033: modules (and cores) with mechanics -- play-test 10, "too little variety, modules above all".
+func _test_modules_033() -> void:
+	var n: Vector2i = Hex.neighbor(C, 0)
+	var spiked: Array = HAMMER.duplicate()
+	spiked[4] = "mo_spikes"
+	var thorn: CombatState = _fight(_rows(), [_unit(HAMMER, C, 30)], [_unit(spiked, n, 30)])
+	_place(thorn, 0, C)
+	_place(thorn, 10, n)
+	var before: int = thorn.unit(0).hp
+	_attack(thorn, 0, 0, n)
+	_check("thorns: a melee blow on Spiked Plating costs the attacker 1 (%d -> %d)" % [before, thorn.unit(0).hp], thorn.unit(0).hp == before - 1)
+
+	var drone: Array = HAMMER.duplicate()
+	drone[4] = "mo_repair"
+	var fix: CombatState = _fight(_rows(), [_unit(drone, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	fix.unit(0).hp = 10
+	fix.intents.clear()
+	var since: int = fix.events.size()
+	CombatSim.apply(fix, [CombatSim.ACT_END, 0, 0, 0])
+	_check("regen: a Repair Drone patches 1 HP at the start of a round (%d)" % fix.unit(0).hp,
+		fix.unit(0).hp == 11 and _count(fix, since, GridEv.REPAIRED) == 1)
+
+	var leech: Array = HAMMER.duplicate()
+	leech[4] = "mo_leech"
+	var eat: CombatState = _fight(_rows(), [_unit(leech, C, 30)], [_unit(HAMMER, n, 1), _unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(eat, 0, C)
+	_place(eat, 10, n)
+	eat.unit(0).hp = 10
+	_attack(eat, 0, 0, n)
+	_check("kill heal: a Scrap Leech's kill patches it 3 (%d)" % eat.unit(0).hp, not eat.unit(10).alive and eat.unit(0).hp == 13)
+
+	var phoenix: Array = HAMMER.duplicate()
+	phoenix[4] = "mo_phoenix"
+	var stand: CombatState = _fight(_rows(), [_unit(phoenix, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	var p: GridUnit = stand.unit(0)
+	CombatSim.hurt(stand, 10, p, 99)
+	var held: bool = p.alive and p.hp == 1
+	CombatSim.hurt(stand, 10, p, 99)
+	_check("last stand: the Phoenix Cell holds the first wreck at 1 HP, and only the first", held and not p.alive)
+	var copy: CombatState = _fight(_rows(), [_unit(phoenix, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	copy.unit(0).stood = true
+	_check("and a dry run carries the spent stand (clone)", copy.clone().unit(0).stood)
+
+	var gun: Array = ["ch_strider", "co_dynamo", "ar_lance", "ar_hammer", "mo_feeder"]
+	var built: CombatState = _fight(_rows(), [_unit(gun, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	_check("Belt Feeder: +1 pierce on shots (lance %d), none on melee (%d)" % [int(built.unit(0).weapons[0]["pierce"]), int(built.unit(0).weapons[1]["pierce"])],
+		int(built.unit(0).weapons[0]["pierce"]) == 2 and int(built.unit(0).weapons[1]["pierce"]) == 0)
+	gun[4] = "mo_arcrelay"
+	built = _fight(_rows(), [_unit(gun, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	_check("Arc Relay: a shot that never arced arcs once", int(built.unit(0).weapons[0]["chain"]) == 1)
+	gun[4] = "mo_spotter"
+	built = _fight(_rows(), [_unit(gun, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	_check("Spotter Uplink: every weapon marks", bool(built.unit(0).weapons[0]["mark"]) and bool(built.unit(0).weapons[1]["mark"]))
+	gun[4] = "mo_ram"
+	built = _fight(_rows(), [_unit(gun, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	_check("Hydraulic Ram: melee shoves, +1 melee", int(built.unit(0).weapons[1]["shove"]) == 1 and built.unit(0).melee_bonus >= 1)
+	gun[1] = "co_mag"
+	gun[4] = "mo_plating"
+	built = _fight(_rows(), [_unit(gun, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	_check("the Mag Core (rare) lends its shots +1 pierce", int(built.unit(0).weapons[0]["pierce"]) == 2)
+	var bad: Array = []
+	for id: Variant in _db.parts.keys():
+		var part: Dictionary = _db.parts[id]
+		if String(part.get("slot", "")) in ["module", "core"] and PartText.summary(_db.parts, String(id), _db.combat_abilities).strip_edges().is_empty():
+			bad.append(id)
+	_check("every module and core says what it does %s" % [bad], bad.is_empty())
 
 
 # --- Fixtures ---------------------------------------------------------------

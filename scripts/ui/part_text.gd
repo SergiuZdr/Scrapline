@@ -72,6 +72,13 @@ static func summary(parts: Dictionary, id: String, abilities: Dictionary = {}) -
 			if int(g.get("heat", 0)) > 0:
 				bits.append("+%d heat" % int(g.get("heat", 0)))
 			bits.append("vent %d" % int(g.get("vent", 1)))
+			# 033: what a core does beyond its numbers (pierce, arcs, hp...).
+			var more: Dictionary = {}
+			for key: Variant in g.keys():
+				if not ["damage", "heat", "vent", "ability"].has(String(key)):
+					more[key] = g[key]
+			if not more.is_empty():
+				bits.append(bonus_text(more))
 		"module":
 			var own: Dictionary = {}
 			for key: Variant in g.keys():
@@ -137,7 +144,8 @@ static func tune_line(parts: Dictionary, id: String) -> String:
 
 ## The order a bonus block is read out in: what it survives, how it moves, what it hits.
 const BONUS_ORDER: PackedStringArray = ["hp", "armor", "move", "damage", "melee", "range", "range_min", "pierce",
-	"chain", "shove", "tears", "heat", "heat_cap", "vent", "cooldown", "unshovable", "move_after_attack"]
+	"chain", "arc", "mark", "shove", "tears", "heat", "heat_cap", "vent", "cooldown", "unshovable", "move_after_attack",
+	"thorns", "regen", "kill_heal", "last_stand"]
 
 
 ## A bonus block -- a tuning, a perk, a set -- in words: "+1 damage, -1 heat per attack".
@@ -167,13 +175,17 @@ static func bonus_text(grid: Dictionary) -> String:
 			"range_min":
 				bits.append("lobs %d hex closer" % absi(n))
 			"pierce":
-				bits.append("%s pierce" % _signed(n))
+				bits.append("%s pierce on shots" % _signed(n))
 			"chain":
 				bits.append("%s chain jump" % _signed(n))
+			"arc":
+				bits.append("shots arc to %d more" % n)
+			"mark":
+				bits.append("every hit marks")
 			"shove":
-				bits.append("shoves")
+				bits.append("melee shoves")
 			"tears":
-				bits.append("tears arms off")
+				bits.append("melee tears arms off")
 			"heat":
 				bits.append("%s heat per attack" % _signed(n))
 			"heat_cap":
@@ -186,6 +198,14 @@ static func bonus_text(grid: Dictionary) -> String:
 				bits.append("cannot be shoved")
 			"move_after_attack":
 				bits.append("moves after attacking")
+			"thorns":
+				bits.append("melee attackers take %d" % n)
+			"regen":
+				bits.append("repairs %d HP a round" % n)
+			"kill_heal":
+				bits.append("+%d HP per kill" % n)
+			"last_stand":
+				bits.append("survives its first wreck at 1 HP")
 	return ", ".join(bits)
 
 

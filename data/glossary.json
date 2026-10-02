@@ -666,6 +666,32 @@
         "legendary",
         "legendaries"
       ]
+    },
+    "thorns": {
+      "group": "YOUR MACHINES",
+      "name": "Thorns",
+      "text": "A machine that hits this one in melee takes this much back (Spiked Plating). Enemies can carry them too: check a target before you punch it.",
+      "forms": [
+        "thorns",
+        "melee attackers take"
+      ]
+    },
+    "repairs": {
+      "group": "YOUR MACHINES",
+      "name": "Repairs",
+      "text": "Gets HP back at the start of every round, never past its maximum (the Repair Drone, the Phoenix Cell).",
+      "forms": [
+        "repairs"
+      ]
+    },
+    "last_stand": {
+      "group": "YOUR MACHINES",
+      "name": "Last stand",
+      "text": "The first blow that would wreck it in a fight leaves it at 1 HP instead. Once a fight (the Phoenix Cell).",
+      "forms": [
+        "survives its first wreck",
+        "last stand"
+      ]
     }
   }
 }
