@@ -51,6 +51,12 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 029 | [Weapons and legendary parts](iterations/029-weapons-and-legendaries.md) | Flamer, harpoon, shield caster; ten parts and five legendaries; the keeper's hoard (bot 64.5%) | ✅ awaiting the play-test |
 | 030 | [Warlords](iterations/030-warlords.md) | The Grinder, the Magnet King, the Twin Furnaces: a detour per act with a legendary (bot 63.8%) | ✅ awaiting the play-test |
 | 031 | [Sites and events](iterations/031-sites-and-events.md) | Arena, refinery, auction; twenty new signal events (bot 58.0%) | ✅ awaiting the play-test |
+| — | [Play-test 10](playtests/2026-10-02-playtest-10.md) | Rares everywhere, names on the board, a bigger battlefield, pictures at sites, an easy arena, unlock missions, the parts audit and modules, interactive controls, the garage, comic style | ✅ |
+| 032 | [Play-test 10 fixes](iterations/032-playtest-10-fixes.md) | 10 x 10 boards, names on the board, part cards at sites, a hard arena, rarer rares, the garage on one grid (bot 60.0%) | ✅ awaiting the play-test |
+| 033 | Parts audit and modules | The power of every part, measured; twelve modules with mechanics; cores that grow with rarity | 🔨 |
+| 034 | Unlock missions | Feats from fights (flawless, pit kills, warlords...) unlock parts | ⬜ |
+| 035 | The interactive pass | Every control answers the hand | ⬜ |
+| 036 | Comic style | A style frame, then the look on UI and models | ⬜ |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
