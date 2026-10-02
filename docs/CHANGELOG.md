@@ -2,6 +2,12 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [035] The interactive pass — 2026-10-03 ([detail](iterations/035-interactive.md))
+
+### Changed
+- **Every button answers the hand**: it lifts under the cursor, squashes when pressed, springs back,
+  clicks -- and a button that cannot be used shakes "no" instead of doing nothing.
+
 ## [034] Unlock missions — 2026-10-03 ([detail](iterations/034-unlock-missions.md))
 
 ### Added

@@ -55,7 +55,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 032 | [Play-test 10 fixes](iterations/032-playtest-10-fixes.md) | 10 x 10 boards, names on the board, part cards at sites, a hard arena, rarer rares, the garage on one grid (bot 60.0%) | ✅ awaiting the play-test |
 | 033 | [Parts audit and modules](iterations/033-parts-audit.md) | The power of every part by slot and rarity; twelve modules with mechanics; cores that grow with rarity (bot 56.7%) | ✅ awaiting the play-test |
 | 034 | [Unlock missions](iterations/034-unlock-missions.md) | Feats from fights unlock nine of the new modules; UNLOCKS shows missions and progress | ✅ awaiting the play-test |
-| 035 | The interactive pass | Every control answers the hand | ⬜ |
+| 035 | [The interactive pass](iterations/035-interactive.md) | A Juice autoload: every button lifts, squashes, clicks, and says no when disabled | ✅ awaiting the play-test |
 | 036 | Comic style | A style frame, then the look on UI and models | ⬜ |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
