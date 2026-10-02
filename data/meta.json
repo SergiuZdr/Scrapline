@@ -1,43 +1,372 @@
 {
   "_comment": "022: what carries between runs. Unlocks only -- nothing here makes a machine's numbers bigger. `locked` parts start out of every pool; `unlocks` is read top to bottom and each entry is earned when EVERY number in its `when` is reached (lifetime: runs played, fights won, the furthest act reached, runs won). Not in the content hash: a run saves the options it started with.",
-  "locked": ["ch_dredge", "ar_maul", "co_ember", "mo_reactive", "ch_reaper", "co_mag", "mo_capacitor", "ar_railgun", "ch_citadel", "co_tesla", "mo_targeting", "mo_overclock"],
+  "locked": [
+    "ch_dredge",
+    "ar_maul",
+    "co_ember",
+    "mo_reactive",
+    "ch_reaper",
+    "co_mag",
+    "mo_capacitor",
+    "ar_railgun",
+    "ch_citadel",
+    "co_tesla",
+    "mo_targeting",
+    "mo_overclock",
+    "mo_repair",
+    "mo_ram",
+    "mo_gyro",
+    "mo_feeder",
+    "mo_stride",
+    "mo_spotter",
+    "mo_arcrelay",
+    "mo_leech",
+    "mo_phoenix"
+  ],
   "crews": {
-    "salvagers": {"name": "THE SALVAGERS", "text": "A brawler, a hauler and a scout: a bit of everything."},
-    "wall": {"name": "THE WALL", "text": "Two anchors and a marksman: slow, plated, and it shoots from behind itself.",
+    "salvagers": {
+      "name": "THE SALVAGERS",
+      "text": "A brawler, a hauler and a scout: a bit of everything."
+    },
+    "wall": {
+      "name": "THE WALL",
+      "text": "Two anchors and a marksman: slow, plated, and it shoots from behind itself.",
       "crew": [
-        {"name": "Slab", "parts": ["ch_bulwark", "co_arc", "ar_hammer", "ar_pulse", "mo_ablative"]},
-        {"name": "Winch", "parts": ["ch_hauler", "co_furnace", "ar_ripper", "ar_scatter", "mo_governor"]},
-        {"name": "Longshot", "parts": ["ch_lancer", "co_dynamo", "ar_lance", "ar_scanner", "mo_scavenger"]}
-      ]},
-    "runners": {"name": "THE RUNNERS", "text": "Three light frames: first to every pile, last to be hit, nothing to spare.",
+        {
+          "name": "Slab",
+          "parts": [
+            "ch_bulwark",
+            "co_arc",
+            "ar_hammer",
+            "ar_pulse",
+            "mo_ablative"
+          ]
+        },
+        {
+          "name": "Winch",
+          "parts": [
+            "ch_hauler",
+            "co_furnace",
+            "ar_ripper",
+            "ar_scatter",
+            "mo_governor"
+          ]
+        },
+        {
+          "name": "Longshot",
+          "parts": [
+            "ch_lancer",
+            "co_dynamo",
+            "ar_lance",
+            "ar_scanner",
+            "mo_scavenger"
+          ]
+        }
+      ]
+    },
+    "runners": {
+      "name": "THE RUNNERS",
+      "text": "Three light frames: first to every pile, last to be hit, nothing to spare.",
       "crew": [
-        {"name": "Dash", "parts": ["ch_skirmisher", "co_dynamo", "ar_saw", "ar_scatter", "mo_governor"]},
-        {"name": "Magpie", "parts": ["ch_courier", "co_arc", "ar_pulse", "ar_lance", "mo_scavenger"]},
-        {"name": "Wick", "parts": ["ch_strider", "co_slug", "ar_scanner", "ar_ripper", "mo_ablative"]}
-      ]}
+        {
+          "name": "Dash",
+          "parts": [
+            "ch_skirmisher",
+            "co_dynamo",
+            "ar_saw",
+            "ar_scatter",
+            "mo_governor"
+          ]
+        },
+        {
+          "name": "Magpie",
+          "parts": [
+            "ch_courier",
+            "co_arc",
+            "ar_pulse",
+            "ar_lance",
+            "mo_scavenger"
+          ]
+        },
+        {
+          "name": "Wick",
+          "parts": [
+            "ch_strider",
+            "co_slug",
+            "ar_scanner",
+            "ar_ripper",
+            "mo_ablative"
+          ]
+        }
+      ]
+    }
   },
   "tiers": [
-    {"name": "YARD HAND", "text": "The yard as it is."},
-    {"name": "FOREMAN", "text": "Every enemy carries 2 more HP.", "rules": {"enemies": {"hp_all": 2}}},
-    {"name": "RECLAIMED", "text": "2 more HP and 1 more damage on every enemy; the Reclaimer bites for 3.",
-      "rules": {"enemies": {"hp_all": 2, "bonus": {"damage": 1}}, "front": {"damage": 3}}}
+    {
+      "name": "YARD HAND",
+      "text": "The yard as it is."
+    },
+    {
+      "name": "FOREMAN",
+      "text": "Every enemy carries 2 more HP.",
+      "rules": {
+        "enemies": {
+          "hp_all": 2
+        }
+      }
+    },
+    {
+      "name": "RECLAIMED",
+      "text": "2 more HP and 1 more damage on every enemy; the Reclaimer bites for 3.",
+      "rules": {
+        "enemies": {
+          "hp_all": 2,
+          "bonus": {
+            "damage": 1
+          }
+        },
+        "front": {
+          "damage": 3
+        }
+      }
+    }
   ],
   "unlocks": [
-    {"id": "u01", "kind": "part", "what": "ar_maul", "when": {"runs": 1}, "text": "Play a run"},
-    {"id": "u02", "kind": "part", "what": "co_ember", "when": {"fights": 4}, "text": "Win 4 fights"},
-    {"id": "u03", "kind": "part", "what": "ch_dredge", "when": {"runs": 2}, "text": "Play 2 runs"},
-    {"id": "u04", "kind": "part", "what": "mo_reactive", "when": {"fights": 9}, "text": "Win 9 fights"},
-    {"id": "u05", "kind": "crew", "what": "wall", "when": {"runs": 3}, "text": "Play 3 runs"},
-    {"id": "u06", "kind": "part", "what": "ch_reaper", "when": {"fights": 15}, "text": "Win 15 fights"},
-    {"id": "u07", "kind": "part", "what": "co_mag", "when": {"act": 2}, "text": "Reach the Slag Flats"},
-    {"id": "u08", "kind": "part", "what": "mo_capacitor", "when": {"runs": 5}, "text": "Play 5 runs"},
-    {"id": "u09", "kind": "crew", "what": "runners", "when": {"act": 2, "runs": 4}, "text": "Reach the Slag Flats and play 4 runs"},
-    {"id": "u10", "kind": "part", "what": "ar_railgun", "when": {"fights": 24}, "text": "Win 24 fights"},
-    {"id": "u11", "kind": "part", "what": "ch_citadel", "when": {"runs": 7}, "text": "Play 7 runs"},
-    {"id": "u12", "kind": "part", "what": "co_tesla", "when": {"fights": 34}, "text": "Win 34 fights"},
-    {"id": "u13", "kind": "tier", "what": 1, "when": {"wins": 1}, "text": "Win a run"},
-    {"id": "u14", "kind": "part", "what": "mo_targeting", "when": {"runs": 9}, "text": "Play 9 runs"},
-    {"id": "u15", "kind": "part", "what": "mo_overclock", "when": {"fights": 46}, "text": "Win 46 fights"},
-    {"id": "u16", "kind": "tier", "what": 2, "when": {"wins": 2}, "text": "Win 2 runs"}
-  ]
+    {
+      "id": "u01",
+      "kind": "part",
+      "what": "ar_maul",
+      "when": {
+        "runs": 1
+      },
+      "text": "Play a run"
+    },
+    {
+      "id": "u02",
+      "kind": "part",
+      "what": "co_ember",
+      "when": {
+        "fights": 4
+      },
+      "text": "Win 4 fights"
+    },
+    {
+      "id": "u03",
+      "kind": "part",
+      "what": "ch_dredge",
+      "when": {
+        "runs": 2
+      },
+      "text": "Play 2 runs"
+    },
+    {
+      "id": "u04",
+      "kind": "part",
+      "what": "mo_reactive",
+      "when": {
+        "fights": 9
+      },
+      "text": "Win 9 fights"
+    },
+    {
+      "id": "u05",
+      "kind": "crew",
+      "what": "wall",
+      "when": {
+        "runs": 3
+      },
+      "text": "Play 3 runs"
+    },
+    {
+      "id": "u06",
+      "kind": "part",
+      "what": "ch_reaper",
+      "when": {
+        "fights": 15
+      },
+      "text": "Win 15 fights"
+    },
+    {
+      "id": "u07",
+      "kind": "part",
+      "what": "co_mag",
+      "when": {
+        "act": 2
+      },
+      "text": "Reach the Slag Flats"
+    },
+    {
+      "id": "u08",
+      "kind": "part",
+      "what": "mo_capacitor",
+      "when": {
+        "runs": 5
+      },
+      "text": "Play 5 runs"
+    },
+    {
+      "id": "u09",
+      "kind": "crew",
+      "what": "runners",
+      "when": {
+        "act": 2,
+        "runs": 4
+      },
+      "text": "Reach the Slag Flats and play 4 runs"
+    },
+    {
+      "id": "u10",
+      "kind": "part",
+      "what": "ar_railgun",
+      "when": {
+        "fights": 24
+      },
+      "text": "Win 24 fights"
+    },
+    {
+      "id": "u11",
+      "kind": "part",
+      "what": "ch_citadel",
+      "when": {
+        "runs": 7
+      },
+      "text": "Play 7 runs"
+    },
+    {
+      "id": "u12",
+      "kind": "part",
+      "what": "co_tesla",
+      "when": {
+        "fights": 34
+      },
+      "text": "Win 34 fights"
+    },
+    {
+      "id": "u13",
+      "kind": "tier",
+      "what": 1,
+      "when": {
+        "wins": 1
+      },
+      "text": "Win a run"
+    },
+    {
+      "id": "u14",
+      "kind": "part",
+      "what": "mo_targeting",
+      "when": {
+        "runs": 9
+      },
+      "text": "Play 9 runs"
+    },
+    {
+      "id": "u15",
+      "kind": "part",
+      "what": "mo_overclock",
+      "when": {
+        "fights": 46
+      },
+      "text": "Win 46 fights"
+    },
+    {
+      "id": "u16",
+      "kind": "tier",
+      "what": 2,
+      "when": {
+        "wins": 2
+      },
+      "text": "Win 2 runs"
+    },
+    {
+      "id": "u17",
+      "kind": "part",
+      "what": "mo_repair",
+      "when": {
+        "flawless": 1
+      },
+      "text": "Win a fight without a scratch",
+      "mission": true
+    },
+    {
+      "id": "u18",
+      "kind": "part",
+      "what": "mo_ram",
+      "when": {
+        "bumps": 8
+      },
+      "text": "Shove enemies into things 8 times",
+      "mission": true
+    },
+    {
+      "id": "u19",
+      "kind": "part",
+      "what": "mo_gyro",
+      "when": {
+        "pit_kills": 2
+      },
+      "text": "Drop 2 enemies into pits",
+      "mission": true
+    },
+    {
+      "id": "u20",
+      "kind": "part",
+      "what": "mo_feeder",
+      "when": {
+        "multi_kill": 1
+      },
+      "text": "Destroy two machines with one attack",
+      "mission": true
+    },
+    {
+      "id": "u21",
+      "kind": "part",
+      "what": "mo_stride",
+      "when": {
+        "hold_wins": 2
+      },
+      "text": "Win 2 HOLD fights",
+      "mission": true
+    },
+    {
+      "id": "u22",
+      "kind": "part",
+      "what": "mo_spotter",
+      "when": {
+        "hack_wins": 2
+      },
+      "text": "Win 2 HACK fights",
+      "mission": true
+    },
+    {
+      "id": "u23",
+      "kind": "part",
+      "what": "mo_arcrelay",
+      "when": {
+        "defend_wins": 3
+      },
+      "text": "Win 3 DEFEND fights",
+      "mission": true
+    },
+    {
+      "id": "u24",
+      "kind": "part",
+      "what": "mo_leech",
+      "when": {
+        "close_calls": 2
+      },
+      "text": "Win 2 fights with a machine on 2 HP or less",
+      "mission": true
+    },
+    {
+      "id": "u25",
+      "kind": "part",
+      "what": "mo_phoenix",
+      "when": {
+        "warlords": 3
+      },
+      "text": "Beat 3 warlords",
+      "mission": true
+    }
+  ],
+  "_034": "Missions (034, play-test 10: 'unlocks need diverse missions'): a `when` may name any feat RunSim.tally_feats counts (kills, multi_kill, pit_kills, bumps, tears, flawless, close_calls, <objective>_wins, elites, arenas, warlords, gates). `mission: true` marks them for the UNLOCKS screen."
 }

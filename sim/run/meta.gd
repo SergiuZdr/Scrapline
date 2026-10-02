@@ -7,13 +7,17 @@ extends RefCounted
 ## whatever unlocks later.
 
 ## Lifetime stats after a finished run: `{ runs, fights, act, wins }`.
+## 034: plus every feat the run tallied (kills, flawless, warlords...), added up -- an unlock
+## mission is an ordinary condition on these.
 static func stats_after(stats: Dictionary, state: RunState) -> Dictionary:
-	return {
-		"runs": int(stats.get("runs", 0)) + 1,
-		"fights": int(stats.get("fights", 0)) + state.fights_won,
-		"act": maxi(int(stats.get("act", 1)), state.act),
-		"wins": int(stats.get("wins", 0)) + (1 if state.outcome == RunState.WON else 0),
-	}
+	var out: Dictionary = stats.duplicate()
+	out["runs"] = int(stats.get("runs", 0)) + 1
+	out["fights"] = int(stats.get("fights", 0)) + state.fights_won
+	out["act"] = maxi(int(stats.get("act", 1)), state.act)
+	out["wins"] = int(stats.get("wins", 0)) + (1 if state.outcome == RunState.WON else 0)
+	for key: Variant in state.feats:
+		out[key] = int(stats.get(key, 0)) + int(state.feats[key])
+	return out
 
 
 ## The ids of every unlock these stats have earned, in table order.

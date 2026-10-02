@@ -36,11 +36,11 @@ func _ready() -> void:
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", UIKit.ink_card(UIKit.PAPER_CARD, UIKit.SPACE_XL, UIKit.SPACE_LG, 8))
-	card.position = Vector2(200, 60)
-	card.custom_minimum_size = Vector2(1520, 960)
+	card.position = Vector2(200, 24)
+	card.custom_minimum_size = Vector2(1520, 1030)
 	add_child(card)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	box.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	card.add_child(box)
 
 	var head := HBoxContainer.new()
@@ -57,19 +57,28 @@ func _ready() -> void:
 	box.add_child(UIKit.fit(_label("Runs leave these behind. Each is earned at the END of a run, when its numbers are reached; a new run then has it. Parts join the salvage, scrapyards and traders; crews and tiers are chosen at NEW RUN.",
 		UIKit.SIZE_BODY, UIKit.INK_DIM, UIKit.font_strong()), 1440, 2, 12))
 
-	# Two columns, filled down the left first.
+	# 034: three columns -- milestones (runs, fights, acts) down the first two, MISSIONS (feats
+	# in fights) in the third, each under its own heading.
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	box.add_child(columns)
-	var left := VBoxContainer.new()
-	var right := VBoxContainer.new()
-	for col: VBoxContainer in [left, right]:
+	var cols: Array[VBoxContainer] = []
+	for c: int in 3:
+		var col := VBoxContainer.new()
 		col.add_theme_constant_override("separation", UIKit.SPACE_XS)
 		columns.add_child(col)
-	var half: int = (entries.size() + 1) / 2
+		cols.append(col)
+	var milestones: Array = entries.filter(func(e: Dictionary) -> bool: return not bool(e.get("mission", false)))
+	var missions: Array = entries.filter(func(e: Dictionary) -> bool: return bool(e.get("mission", false)))
+	cols[0].add_child(_label("MILESTONES", 24, UIKit.INK, UIKit.font_comic()))
+	cols[1].add_child(_label(" ", 24, UIKit.INK, UIKit.font_comic()))
+	cols[2].add_child(_label("MISSIONS  ·  do it in a fight", 24, UIKit.INK, UIKit.font_comic()))
+	var half: int = (milestones.size() + 1) / 2
 	var next_id: String = String(Meta.next_unlock(_held, _meta).get("id", ""))
-	for i: int in entries.size():
-		(left if i < half else right).add_child(_row(entries[i], String(entries[i]["id"]) == next_id))
+	for i: int in milestones.size():
+		cols[0 if i < half else 1].add_child(_row(milestones[i], String(milestones[i]["id"]) == next_id))
+	for entry: Dictionary in missions:
+		cols[2].add_child(_row(entry, false))
 
 	var close := Button.new()
 	close.text = "CLOSE"
@@ -100,12 +109,12 @@ func _row(entry: Dictionary, is_next: bool) -> Control:
 		style.band_width = 9.0
 		style.band = Ink.GAIN if fresh else Ink.ACTION
 	row.add_theme_stylebox_override("panel", style)
-	row.custom_minimum_size = Vector2(720, 86)
+	row.custom_minimum_size = Vector2(476, 76)
 	var line := HBoxContainer.new()
 	line.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	row.add_child(line)
 	var picture := TextureRect.new()
-	picture.custom_minimum_size = Vector2(64, 64)
+	picture.custom_minimum_size = Vector2(58, 58)
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	if String(entry.get("kind", "")) == "part":
@@ -116,8 +125,8 @@ func _row(entry: Dictionary, is_next: bool) -> Control:
 	text.add_theme_constant_override("separation", 0)
 	line.add_child(text)
 	var status: String = "NEW  ·  " if fresh else ("" if held else ("NEXT  ·  " if is_next else ""))
-	text.add_child(UIKit.fit(_label(status + _gives(entry), 22, UIKit.INK if held else UIKit.INK_DIM, UIKit.font_comic()), 470, 1, 14))
-	text.add_child(UIKit.fit(_label(String(entry.get("text", "")), UIKit.SIZE_LABEL, UIKit.INK_DIM, UIKit.font_strong()), 470, 1, 11))
+	text.add_child(UIKit.fit(_label(status + _gives(entry), 20, UIKit.INK if held else UIKit.INK_DIM, UIKit.font_comic()), 270, 1, 12))
+	text.add_child(UIKit.fit(_label(String(entry.get("text", "")), UIKit.SIZE_LABEL, UIKit.INK_DIM, UIKit.font_strong()), 270, 2, 11))
 	var right := VBoxContainer.new()
 	right.alignment = BoxContainer.ALIGNMENT_CENTER
 	line.add_child(right)
@@ -127,7 +136,7 @@ func _row(entry: Dictionary, is_next: bool) -> Control:
 		var p: Array = Meta.progress(_stats, entry)
 		right.add_child(_label("%d / %d" % [int(p[0]), int(p[1])], 20, UIKit.INK, UIKit.font_comic()))
 		var bar := ProgressBar.new()
-		bar.custom_minimum_size = Vector2(120, 12)
+		bar.custom_minimum_size = Vector2(96, 12)
 		bar.show_percentage = false
 		bar.max_value = float(p[1])
 		bar.value = float(p[0])
