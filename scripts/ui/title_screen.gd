@@ -17,6 +17,8 @@ func _ready() -> void:
 	var stage := TitleStage.new()
 	add_child(stage)
 	stage.build(Run.db, Run.db.run_rules.get("starting_crew", []))
+	# 036: the yard printed on paper, under the menu (layer -1: the menu's controls are layer 0).
+	Ink.print_pass(self, -1)
 	var shade := TextureRect.new()
 	var fade := GradientTexture2D.new()
 	fade.fill_from = Vector2(0, 0)

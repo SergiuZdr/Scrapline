@@ -59,6 +59,8 @@ func _ready() -> void:
 		Run.new_run()
 	_yard = YardView.new()
 	add_child(_yard)
+	# 036: the yard printed on paper, under the map's controls (layer -1).
+	Ink.print_pass(self, -1)
 	_yard.build(Run.state, int((Run.setup.rules.get("region", {}) as Dictionary).get("columns", 9)),
 		int((Run.setup.rules.get("front", {}) as Dictionary).get("every", 2)), Run.db)
 	# Every part model starts loading now, so the garage never waits for one.
