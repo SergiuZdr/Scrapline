@@ -210,6 +210,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-02 | The rarity OFFERED is not the rarity FITTED: the first cut moved the bot's late crews from 6.8 to 6.7 rare parts. Measure the outcome (the bot reports rare+ fitted at the last gate) |
 | 2026-10-02 | A measurement that cannot fail is not one: the paired part test ran an hour and could not separate parts (the bot wins single fights). Calibrate a harness against a known difference before trusting its zeros |
 | 2026-10-02 | Model aliases do not chain (a part borrowing a borrowed model has none): test every entry that resolves a reference |
+| 2026-10-03 | Behaviour every control should have belongs to one watcher of the tree (`Juice`), not to each screen: a dozen call sites had each dropped the hover style |
 
 ## Open questions
 
@@ -254,3 +255,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-02 | **032: is the 10 x 10 board right (and on a phone)? Do defend fights feel fair now? Is the arena hard enough?** | The user plays | |
 | 2026-10-02 | **033: do the new modules feel different? 56.7% with enemies carrying them -- too hard in Act 2 (22.4% lost)?** | The user plays | |
 | 2026-10-03 | **034: are the missions the right difficulty? Should missions unlock crews and tiers too?** | The user plays | |
+| 2026-10-03 | **035: does the button feel right (bounce, sounds)? Should the board and map sites answer the cursor the same way?** | The user plays | |
