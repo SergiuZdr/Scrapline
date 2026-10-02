@@ -213,3 +213,12 @@ Levels go to 5 (65 and 95 scrap) so late scrap has somewhere to go (027).
   25% legendary). Once a visit.
 - Signals: 20 more events, built from the existing effects. "Uncommon or better" never gives a
   legendary any more; only the auction, hoards and the refinery do.
+
+## Play-test 10 (032): the board and the economy
+
+Run boards are padded by `board` (2 rows between the sides, a column each edge: 10 x 10); an act may
+add `board.enemies` (Acts 2-3: +1). Rarity, by act, of what salvage offers: Act 1 60/30/10, Act 2
+55/38/7, Act 3 35/48/15/2. The refinery costs 15/35/70 and the auction 25/55 (4%/12% legendary),
+each at weight 4. A gate's hoard holds a legendary; a warlord's a rare, legendary 35%. The arena:
+an elite's count +2, +3 HP and +1 damage each, parts to rare, salvage from a rare. The bot reports
+rare+ parts fitted at the last gate: 5.5 of 15 (031: 6.8).
