@@ -70,6 +70,14 @@ var carries_scrap: bool = true
 ## screen can show the level (its kit on the model). No rule reads it.
 var level: int = 0
 var move_after_attack: bool = false
+## 033 (modules with mechanics): a melee attacker takes `thorns`; `regen` HP back at the start
+## of every round; `kill_heal` HP back for every kill; `last_stand` -- the first blow that would
+## wreck it in a fight leaves it at 1 HP instead (`stood` once spent).
+var thorns: int = 0
+var regen: int = 0
+var kill_heal: int = 0
+var last_stand: bool = false
+var stood: bool = false
 
 ## False once destroyed. A destroyed unit stays on its tile as a wreck that blocks.
 var alive: bool = true
@@ -138,4 +146,9 @@ func copy() -> GridUnit:
 	u.alive = alive
 	u.moved = moved
 	u.acted = acted
+	u.thorns = thorns
+	u.regen = regen
+	u.kill_heal = kill_heal
+	u.last_stand = last_stand
+	u.stood = stood
 	return u

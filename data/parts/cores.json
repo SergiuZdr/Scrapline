@@ -11,9 +11,8 @@
     "mesh": "res://art/parts/co_slug.glb",
     "flavour": "Mass, and the will to move it.",
     "grid": {
-      "damage": 0,
-      "heat": 0,
-      "vent": 1
+      "vent": 1,
+      "hp": 2
     },
     "tuning": [
       {
@@ -29,7 +28,8 @@
           "vent": 1
         }
       }
-    ]
+    ],
+    "_033": "play-test 10 audit: a core of this rarity added nothing its commons did not"
   },
   {
     "id": "co_furnace",
@@ -74,9 +74,8 @@
     "mesh": "res://art/parts/co_arc.glb",
     "flavour": "Shielding was a mistake, and this core knows it.",
     "grid": {
-      "damage": 0,
-      "heat": 0,
-      "vent": 1
+      "vent": 1,
+      "cooldown": 1
     },
     "tuning": [
       {
@@ -92,7 +91,8 @@
           "vent": 1
         }
       }
-    ]
+    ],
+    "_033": "play-test 10 audit: a core of this rarity added nothing its commons did not"
   },
   {
     "id": "co_bile",
@@ -170,9 +170,8 @@
     "mesh": "res://art/parts/co_ember.glb",
     "flavour": "Burns cool. Everything a Furnace does, for longer and less of it.",
     "grid": {
-      "damage": 0,
-      "heat": 0,
-      "vent": 2
+      "vent": 2,
+      "melee": 1
     },
     "tuning": [
       {
@@ -188,7 +187,8 @@
           "vent": 1
         }
       }
-    ]
+    ],
+    "_033": "play-test 10 audit: a core of this rarity added nothing its commons did not"
   },
   {
     "id": "co_tesla",
@@ -204,7 +204,8 @@
     "grid": {
       "damage": 1,
       "heat": 1,
-      "vent": 1
+      "vent": 1,
+      "arc": 1
     },
     "tuning": [
       {
@@ -219,7 +220,8 @@
           "vent": 1
         }
       }
-    ]
+    ],
+    "_033": "play-test 10 audit: a core of this rarity added nothing its commons did not"
   },
   {
     "id": "co_solvent",
@@ -233,9 +235,8 @@
     "mesh": "res://art/parts/co_solvent.glb",
     "flavour": "Barely warms up. Made for frames that intend to be there at the end.",
     "grid": {
-      "damage": 0,
-      "heat": 0,
-      "vent": 2
+      "vent": 2,
+      "tears": 1
     },
     "tuning": [
       {
@@ -251,7 +252,8 @@
           "vent": 1
         }
       }
-    ]
+    ],
+    "_033": "play-test 10 audit: a core of this rarity added nothing its commons did not"
   },
   {
     "id": "co_mag",
@@ -267,7 +269,8 @@
     "grid": {
       "damage": 1,
       "heat": 1,
-      "vent": 1
+      "vent": 1,
+      "pierce": 1
     },
     "tuning": [
       {
@@ -282,7 +285,8 @@
           "vent": 1
         }
       }
-    ]
+    ],
+    "_033": "play-test 10 audit: a core of this rarity added nothing its commons did not"
   },
   {
     "id": "co_null",
@@ -296,9 +300,8 @@
     "mesh": "res://art/parts/co_null.glb",
     "flavour": "Almost no output and almost no heat. A frame that never stops.",
     "grid": {
-      "damage": 0,
-      "heat": 0,
-      "vent": 2
+      "vent": 2,
+      "mark": 1
     },
     "tuning": [
       {
@@ -314,7 +317,8 @@
           "vent": 1
         }
       }
-    ]
+    ],
+    "_033": "play-test 10 audit: a core of this rarity added nothing its commons did not"
   },
   {
     "id": "co_flux",
