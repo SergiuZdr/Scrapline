@@ -226,7 +226,9 @@ static func hull_mesh(mesh: Mesh) -> ArrayMesh:
 	for s: int in mesh.get_surface_count():
 		var arrays: Array = mesh.surface_get_arrays(s)
 		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		# A surface may carry no normals at all (some generated models): every vertex then
+		# falls back to UP below, rather than the hull failing.
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
 		var sums: Dictionary = {}
 		for i: int in verts.size():
 			var k: Vector3i = Vector3i((verts[i] * 4000.0).round())
