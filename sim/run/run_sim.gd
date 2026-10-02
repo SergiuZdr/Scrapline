@@ -588,6 +588,7 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 			state.log.append("%s was wrecked. Its parts are gone." % member["name"])
 	# Scrap piles collected during the fight are banked whatever the outcome.
 	state.scrap += result.scrap_collected
+	tally_feats(state.feats, result, kind)
 
 	if state.alive_crew() == 0:
 		_end(state, RunState.LOST, "The whole crew is wrecked.")
@@ -1411,6 +1412,63 @@ static func _free_cells(rng: SimRNG, rows: Array, taken: Array, row_ids: Array, 
 		candidates.erase(pick)
 		out.append(pick)
 	return out
+
+
+## What a fight's events say the crew did (034, unlock missions). Pure counting over the stream
+## the replay produced, so the feats cannot disagree with the fight.
+static func tally_feats(feats: Dictionary, result: CombatState, kind: String) -> void:
+	var crew_hurt: bool = false
+	var kills_this_attack: int = 0
+	var attacking: bool = false
+	for e: Array in result.events:
+		var ev: int = int(e[GridEv.F_KIND])
+		var actor: int = int(e[GridEv.F_ACTOR])
+		var target: int = int(e[GridEv.F_TARGET])
+		var victim: GridUnit = result.unit(target) if target >= 0 else null
+		var enemy_hit: bool = victim != null and victim.team == GridUnit.TEAM_ENEMY
+		if ev == GridEv.ATTACK or ev == GridEv.TURN_END or ev == GridEv.ROUND_START:
+			if attacking and kills_this_attack >= 2:
+				_feat(feats, "multi_kill")
+			attacking = ev == GridEv.ATTACK and actor >= 0 and actor < 10
+			kills_this_attack = 0
+		elif ev == GridEv.DESTROYED and enemy_hit:
+			_feat(feats, "kills")
+			if attacking:
+				kills_this_attack += 1
+		elif ev == GridEv.FELL and enemy_hit:
+			_feat(feats, "pit_kills")
+		elif ev == GridEv.BUMP and enemy_hit and actor >= 0 and actor < 10:
+			_feat(feats, "bumps")
+		elif ev == GridEv.PART_TORN and enemy_hit and actor >= 0 and actor < 10:
+			_feat(feats, "tears")
+		elif ev == GridEv.DAMAGE and victim != null and victim.team == GridUnit.TEAM_PLAYER and not victim.objective:
+			crew_hurt = true
+	if attacking and kills_this_attack >= 2:
+		_feat(feats, "multi_kill")
+	if result.outcome != CombatState.WON:
+		return
+	if not crew_hurt:
+		_feat(feats, "flawless")
+	for u: GridUnit in result.units:
+		if u.team == GridUnit.TEAM_PLAYER and not u.objective and u.alive and u.hp <= 2:
+			_feat(feats, "close_calls")
+			break
+	var objective: String = String(result.objective().get("type", "rout"))
+	if objective != "rout":
+		_feat(feats, objective + "_wins")
+	match kind:
+		"elite":
+			_feat(feats, "elites")
+		"arena":
+			_feat(feats, "arenas")
+		"warlord":
+			_feat(feats, "warlords")
+		"boss":
+			_feat(feats, "gates")
+
+
+static func _feat(feats: Dictionary, key: String) -> void:
+	feats[key] = int(feats.get(key, 0)) + 1
 
 
 ## Every row but the two at each end: where terrain, wires, piles and terminals go (the

@@ -9,7 +9,7 @@ func _initialize() -> void:
 
 func _go() -> void:
 	var db: ContentDB = ContentDB.load_all()
-	var stats: Dictionary = {"runs": 4, "fights": 13, "act": 2, "wins": 0}
+	var stats: Dictionary = {"runs": 4, "fights": 13, "act": 2, "wins": 0, "flawless": 1, "bumps": 5, "hold_wins": 1, "warlords": 1}
 	var held: Array = Meta.earned(stats, db.meta)
 	var host := Control.new()
 	host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

@@ -29,7 +29,8 @@ func _run() -> void:
 	var db: ContentDB = ContentDB.load_all()
 	var meta: Dictionary = db.meta
 	var locked: Array = meta["locked"]
-	_check("twelve parts start locked, none of them in the default crew or on the bench", locked.size() == 12
+	var part_unlocks: int = (meta["unlocks"] as Array).filter(func(e: Dictionary) -> bool: return String(e["kind"]) == "part").size()
+	_check("every part unlock locks its part (%d), none in the default crew or on the bench" % locked.size(), locked.size() == part_unlocks
 		and (db.run_rules["starting_crew"] as Array).all(func(c: Dictionary) -> bool:
 			return (c["parts"] as Array).all(func(p: String) -> bool: return not locked.has(p))))
 	for entry: Dictionary in (meta["unlocks"] as Array):
@@ -77,8 +78,26 @@ func _run() -> void:
 		and String(RunSim.start(tough).crew[0]["name"]) == String((((meta["crews"] as Dictionary)["wall"] as Dictionary)["crew"] as Array)[0]["name"]))
 	_check("an unlocked tier's overlay is in the rules", int(tough.rules["enemies"]["hp_all"]) == 2
 		and int(db.run_rules["enemies"].get("hp_all", 0)) == 0)
-	_check("unlocked parts are back in the pools", (tough.pools["arm"] as Array).has("ar_maul") and (opts["locked"] as Array).is_empty()
-		and (Meta.options(meta, ["u01"], "salvagers", 0)["locked"] as Array).size() == 11)
+	var missions: Array = (meta["unlocks"] as Array).filter(func(e: Dictionary) -> bool: return bool(e.get("mission", false)))
+	_check("unlocked parts are back in the pools (only the missions' still locked)", (tough.pools["arm"] as Array).has("ar_maul")
+		and (opts["locked"] as Array).size() == missions.size()
+		and (Meta.options(meta, ["u01"], "salvagers", 0)["locked"] as Array).size() == locked.size() - 1)
+
+	# 034: missions -- feats from fights add up across runs and unlock what they name.
+	var feats_stats: Dictionary = {}
+	for run: int in 3:
+		var st := RunState.new()
+		st.feats = {"flawless": 1, "bumps": 3, "warlords": 1}
+		feats_stats = Meta.stats_after(feats_stats, st)
+	_check("feats add up across runs (%s)" % [feats_stats], int(feats_stats["flawless"]) == 3 and int(feats_stats["bumps"]) == 9
+		and int(feats_stats["warlords"]) == 3 and int(feats_stats["runs"]) == 3)
+	var got: Array = Meta.earned(feats_stats, meta)
+	_check("a mission unlocks when its count is reached (flawless -> Repair Drone, 9 bumps -> Hydraulic Ram, 3 warlords -> Phoenix Cell)",
+		got.has("u17") and got.has("u18") and got.has("u25"))
+	_check("and not before (no pit kills: no Gyro Anchor)", not got.has("u19") and Meta.progress(feats_stats, (meta["unlocks"] as Array).filter(
+		func(e: Dictionary) -> bool: return String(e["id"]) == "u19")[0]) == [0, 2])
+	_check("every mission names a part that starts locked", missions.all(func(e: Dictionary) -> bool:
+		return String(e["kind"]) == "part" and locked.has(e["what"])))
 	var state2: RunState = RunSim.start(tough)
 	var fight: Dictionary = RunSim._make_fight(state2, tough, 1, "skirmish")
 	var plain: Dictionary = RunSim._make_fight(RunSim.start(_setup(db, Meta.options(meta, seen, "wall", 0))), _setup(db, Meta.options(meta, seen, "wall", 0)), 1, "skirmish")

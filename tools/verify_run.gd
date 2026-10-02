@@ -203,6 +203,14 @@ func _test_fight_feeds_the_run() -> void:
 	_check("the run takes each machine's HP from the replayed fight",
 		(first.alive and int(state.crew[0]["hp"]) == first.hp) or (not first.alive and not bool(state.crew[0]["alive"])))
 	_check("scrap from piles is banked", state.scrap >= scrap_before + result.scrap_collected)
+	# 034: the run's feats are a count over the fight's own events.
+	var destroyed: int = 0
+	for e: Array in result.events:
+		if int(e[GridEv.F_KIND]) == GridEv.DESTROYED and result.unit(int(e[GridEv.F_TARGET])) != null \
+				and result.unit(int(e[GridEv.F_TARGET])).team == GridUnit.TEAM_ENEMY:
+			destroyed += 1
+	_check("feats: kills are the enemies the fight destroyed (%d / %d)" % [int(state.feats.get("kills", 0)), destroyed],
+		int(state.feats.get("kills", 0)) == destroyed and destroyed > 0)
 	if result.outcome == CombatState.WON:
 		_check("a won fight offers salvage", String(state.pending.get("kind", "")) == "reward")
 	else:
@@ -951,6 +959,7 @@ func _test_determinism_and_save() -> void:
 	_check("a bot run finishes", state.outcome != RunState.ONGOING)
 	var again: RunState = RunSim.replay(_setup(99), actions)
 	_check("replaying the run's actions reproduces it exactly", again.fingerprint() == state.fingerprint())
+	_check("and its feats (%s)" % [state.feats], not state.feats.is_empty() and again.feats == state.feats)
 
 	# The save format: the actions through JSON and back. JSON turns every int into a
 	# float, and a run must survive that or no save would ever load.
