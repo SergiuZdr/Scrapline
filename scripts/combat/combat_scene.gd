@@ -1220,6 +1220,9 @@ func _disc(at: Vector3, radius: float, fill: Color, rim: Color, priority: int = 
 func _set_tag(view: Dictionary, u: GridUnit) -> void:
 	var lines: PackedStringArray = ["%d/%d" % [u.hp, u.max_hp]]
 	var status: PackedStringArray = []
+	# Play-test 10: your machines carry their names on the board, as an enemy carries its kind.
+	if u.team == GridUnit.TEAM_PLAYER and not u.objective and not u.name.is_empty():
+		status.append(u.name.to_upper())
 	if not u.kind.is_empty():
 		status.append(u.kind.to_upper())
 	if u.unshovable and not u.objective:

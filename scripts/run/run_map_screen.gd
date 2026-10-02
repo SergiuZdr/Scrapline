@@ -832,19 +832,10 @@ func _trader_panel() -> void:
 			column.add_child(_label("%d SCRAP  (you have %d)" % [price, state.scrap], UIKit.SIZE_HEADING, UIKit.TEXT_FAINT, UIKit.font_strong()))
 	if not state.cargo.is_empty():
 		box.add_child(_label("SELL FROM THE HOLD  ·  the trader pays twice what breaking a part down would", UIKit.SIZE_BODY, UIKit.TEXT_DIM, UIKit.font_strong()))
-		var flow := HFlowContainer.new()
-		flow.add_theme_constant_override("h_separation", UIKit.SPACE_SM)
-		flow.add_theme_constant_override("v_separation", UIKit.SPACE_SM)
-		flow.custom_minimum_size = Vector2(1140, 0)
-		box.add_child(flow)
-		for c: int in state.cargo.size():
-			var part: String = state.cargo[c]
-			var sell := _button("%s  ·  +%d" % [PartText.name_of(Run.db.parts, part).to_upper(), RunSim.trader_offer(Run.setup, part)],
-				UIKit.choice(), UIKit.TEXT, Vector2(0, 48))
-			sell.name = "sell_%d" % c
-			sell.add_theme_font_size_override("font_size", UIKit.SIZE_LABEL)
-			sell.pressed.connect(func() -> void: _apply([RunSim.SELL, c]))
-			flow.add_child(sell)
+		# Play-test 10: the hold as pictures, so it is clear what is being sold.
+		_part_grid(box, state.cargo, Vector2(168, 178), 6, 290.0, func(c: int) -> Array:
+			return ["SELL  ·  +%d" % RunSim.trader_offer(Run.setup, String(state.cargo[c])), true, "sell_%d" % c],
+			func(c: int) -> void: _apply([RunSim.SELL, c]))
 	var leave := _button("MOVE ON", UIKit.primary(), UIKit.BG, Vector2(240, 60))
 	leave.pressed.connect(func() -> void: _apply([RunSim.LEAVE]))
 	_row(box).add_child(leave)
@@ -860,22 +851,18 @@ func _refinery_panel() -> void:
 	else:
 		box.add_child(_label("Pick a part: it becomes a random part of the NEXT rarity, the same slot (a rare becomes a legendary). Once.",
 			UIKit.SIZE_BODY, UIKit.TEXT_DIM, UIKit.font_strong()))
-		var flow := HFlowContainer.new()
-		flow.add_theme_constant_override("h_separation", UIKit.SPACE_SM)
-		flow.add_theme_constant_override("v_separation", UIKit.SPACE_SM)
-		flow.custom_minimum_size = Vector2(1140, 0)
-		box.add_child(flow)
+		# Play-test 10: the hold as part cards, the price under each -- what goes into the furnace
+		# is a picture, not a name in a list.
+		var refinable: Array = []
 		for c: int in state.cargo.size():
-			var part: String = state.cargo[c]
-			var cost: int = RunSim.refine_cost(Run.setup, part)
-			if cost < 0:
-				continue
-			var b := _button("%s  ·  %d SCRAP" % [PartText.name_of(Run.db.parts, part).to_upper(), cost],
-				UIKit.choice() if state.scrap >= cost else UIKit.secondary(), UIKit.TEXT, Vector2(0, 48))
-			b.add_theme_font_size_override("font_size", UIKit.SIZE_LABEL)
-			b.disabled = state.scrap < cost
-			b.pressed.connect(func() -> void: _apply([RunSim.REFINE, c]))
-			flow.add_child(b)
+			if RunSim.refine_cost(Run.setup, String(state.cargo[c])) >= 0:
+				refinable.append(c)
+		_part_grid(box, refinable.map(func(c: int) -> String: return String(state.cargo[c])), Vector2(204, 214), 5, 540.0,
+			func(k: int) -> Array:
+				var cost: int = RunSim.refine_cost(Run.setup, String(state.cargo[int(refinable[k])]))
+				return ["REFINE  ·  %d SCRAP" % cost if state.scrap >= cost else "%d SCRAP (you have %d)" % [cost, state.scrap],
+					state.scrap >= cost, "refine_%d" % int(refinable[k])],
+			func(k: int) -> void: _apply([RunSim.REFINE, int(refinable[k])]))
 		if state.cargo.is_empty():
 			box.add_child(_label("The hold is empty.", UIKit.SIZE_BODY, UIKit.TEXT_FAINT))
 	var leave := _button("MOVE ON", UIKit.primary(), UIKit.BG, Vector2(240, 60))
@@ -905,8 +892,10 @@ func _auction_panel() -> void:
 		int((tiers[0] as Dictionary).get("legend_pct", 0)) if tiers.size() > 0 else 0, int((tiers[1] as Dictionary).get("legend_pct", 0)) if tiers.size() > 1 else 0],
 		UIKit.SIZE_BODY, UIKit.TEXT_DIM, UIKit.font_strong()))
 	if used and not state.cargo.is_empty():
-		box.add_child(_label("Won: %s" % PartText.name_of(Run.db.parts, state.cargo[state.cargo.size() - 1]).to_upper(), UIKit.SIZE_HEADING,
-			UIKit.GREEN, UIKit.font_comic()))
+		# Play-test 10: the prize as its card -- what came out of the crate.
+		var won := _row(box)
+		won.add_child(PartCard.build(Run.db, String(state.cargo[state.cargo.size() - 1]), Vector2(300, 300), state.crew))
+		won.add_child(_label("IN THE CRATE", UIKit.SIZE_HEADING, UIKit.GREEN, UIKit.font_comic()))
 	var leave := _button("MOVE ON", UIKit.primary(), UIKit.BG, Vector2(240, 60))
 	leave.pressed.connect(func() -> void: _apply([RunSim.LEAVE]))
 	_row(box).add_child(leave)
@@ -940,6 +929,42 @@ func _signal_panel() -> void:
 			box.add_child(choice)
 		else:
 			box.add_child(_label("%s  (you have %d scrap)" % [text, state.scrap], UIKit.SIZE_BODY, UIKit.TEXT_FAINT, UIKit.font_strong()))
+
+
+## Parts as cards in a grid of `columns`, each with a caption under it from `caption(i)`:
+## `[text, can_press, node_name]`. Pressing a card that can be pressed calls `press(i)`. Taller
+## than `max_height`, the grid scrolls (play-test 10: parts at sites are pictures).
+func _part_grid(box: Control, ids: Array, card_size: Vector2, columns: int, max_height: float, caption: Callable, press: Callable) -> void:
+	var grid := GridContainer.new()
+	grid.columns = columns
+	grid.add_theme_constant_override("h_separation", UIKit.SPACE_SM)
+	grid.add_theme_constant_override("v_separation", UIKit.SPACE_SM)
+	for i: int in ids.size():
+		var column := VBoxContainer.new()
+		column.add_theme_constant_override("separation", 2)
+		grid.add_child(column)
+		var said: Array = caption.call(i)
+		var card: Button = PartCard.build(Run.db, String(ids[i]), card_size, Run.state.crew)
+		column.add_child(card)
+		if bool(said[1]):
+			card.name = String(said[2])
+			card.pressed.connect(func() -> void: press.call(i))
+		else:
+			card.modulate = Color(1, 1, 1, 0.55)
+		var under := UIKit.fit(_label(String(said[0]), UIKit.SIZE_LABEL, UIKit.TEXT if bool(said[1]) else UIKit.TEXT_FAINT, UIKit.font_comic()),
+			card_size.x, 1, 11)
+		under.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		column.add_child(under)
+	var rows: int = (ids.size() + columns - 1) / columns
+	var height: float = float(rows) * (card_size.y + 34.0)
+	if height <= max_height:
+		box.add_child(grid)
+		return
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(float(columns) * (card_size.x + UIKit.SPACE_SM) + 20.0, max_height)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.add_child(grid)
+	box.add_child(scroll)
 
 
 func _offer(text: String, cost: int, scrap: int, action: Array) -> Control:

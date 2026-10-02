@@ -23,6 +23,7 @@ func _initialize() -> void:
 	_test_acts()
 	_test_names()
 	_test_objectives_rolled()
+	_test_bigger_boards()
 	_test_legendaries()
 	_test_warlords()
 	_test_new_sites()
@@ -271,6 +272,53 @@ func _test_objectives_rolled() -> void:
 	_check("and every such fight builds %s" % [errors.slice(0, 2)], errors.is_empty())
 
 
+## 032 (play-test 10: "make the battlefield bigger"): a run board is its template plus
+## `board.rows` and `board.cols`; everything placed on it is on an open hex.
+func _test_bigger_boards() -> void:
+	var setup: RunSetup = _setup(5)
+	var board: Dictionary = setup.rules.get("board", {})
+	var tpl: Dictionary = setup.fights["crane_legs"]
+	var wide: Dictionary = RunSim.widen(tpl, board)
+	_check("a widened board is board.rows deeper and board.cols wider (%d x %d)" % [String(wide["rows"][0]).length(), (wide["rows"] as Array).size()],
+		(wide["rows"] as Array).size() == (tpl["rows"] as Array).size() + int(board.get("rows", 0))
+		and String(wide["rows"][0]).length() == String(tpl["rows"][0]).length() + int(board.get("cols", 0)))
+	_check("the template itself is untouched", int((tpl["player"][0] as Dictionary)["y"]) == 7)
+	var bad: Array = []
+	var gaps: Array = []
+	for seed_value: int in 30:
+		var s2: RunSetup = _setup(900 + seed_value)
+		var state: RunState = RunSim.start(s2)
+		for id: int in state.sites.size():
+			var kind: String = String(state.sites[id]["type"])
+			if not ["skirmish", "elite", "arena", "boss", "warlord"].has(kind):
+				continue
+			var f: Dictionary = RunSim._make_fight(state, s2, id, kind)
+			var rows: Array = f["rows"]
+			var cells: Array = []
+			for spec: Dictionary in (f["player"] as Array) + (f["enemy"] as Array):
+				cells.append(Vector2i(int(spec["x"]), int(spec["y"])))
+			var o: Dictionary = f["objective"]
+			for key: String in ["cells", "caches", "piles"]:
+				for c: Variant in (o.get(key, []) as Array):
+					cells.append(Vector2i(int((c as Dictionary)["x"]), int((c as Dictionary)["y"])))
+			for cell: Vector2i in cells:
+				if cell.y < 0 or cell.y >= rows.size() or cell.x < 0 or cell.x >= String(rows[cell.y]).length() \
+						or not [".", "w", "r"].has(String(rows[cell.y])[cell.x]) and kind != "boss" and kind != "warlord":
+					bad.append([kind, cell])
+			# The two sides start further apart than on any template (4 rows at the nearest): at
+			# least 6 rows now.
+			var top: int = 99
+			var low: int = -1
+			for spec: Dictionary in (f["player"] as Array):
+				top = mini(top, int(spec["y"]))
+			for spec: Dictionary in (f["enemy"] as Array):
+				low = maxi(low, int(spec["y"]))
+			if kind != "boss" and kind != "warlord" and top - low < 6:
+				gaps.append([kind, top, low])
+	_check("every start and objective hex is on the board and open %s" % [bad.slice(0, 3)], bad.is_empty())
+	_check("the two sides start at least 6 rows apart %s" % [gaps.slice(0, 3)], gaps.is_empty())
+
+
 ## 029: a broken gate's hoard holds a legendary; legendaries never reach enemies or the bench.
 func _test_legendaries() -> void:
 	var setup: RunSetup = _setup(77)
@@ -311,8 +359,16 @@ func _test_warlords() -> void:
 	var hoard: Dictionary = RunSim.hoard(state, setup, false)
 	state.pending = hoard
 	var act_now: int = state.act
-	_check("a warlord's hoard has a legendary and keeps the act", setup.rarity(String((hoard["options"] as Array)[0])) == 4
+	_check("a warlord's hoard has a rare or better and keeps the act", setup.rarity(String((hoard["options"] as Array)[0])) >= 3
 		and RunSim.apply(state, setup, [RunSim.PICK, 0]) and state.act == act_now)
+	# 032: a legendary only some of the time (play-test 10: rare+ everywhere by Act 3).
+	var legends: int = 0
+	for n: int in 60:
+		state.current = n % state.sites.size()
+		state.moves = n
+		if setup.rarity(String((RunSim.hoard(state, setup, false)["options"] as Array)[0])) == 4:
+			legends += 1
+	_check("a warlord's hoard holds a legendary some of the time, not always (%d of 60)" % legends, legends > 5 and legends < 45)
 
 
 ## 031: the refinery, the auction and the arena; signals never hand out a legendary by accident.
@@ -324,12 +380,12 @@ func _test_new_sites() -> void:
 	var c: int = state.cargo.size() - 1
 	state.pending = {"kind": "refinery", "used": false}
 	_check("a refinery refines a common into an uncommon of the same slot", RunSim.apply(state, setup, [RunSim.REFINE, c])
-		and setup.rarity(state.cargo[c]) == 2 and String((setup.parts[state.cargo[c]] as Dictionary)["slot"]) == "arm" and state.scrap == 190)
+		and setup.rarity(state.cargo[c]) == 2 and String((setup.parts[state.cargo[c]] as Dictionary)["slot"]) == "arm" and state.scrap == 185)
 	_check("once a visit", not RunSim.apply(state, setup, [RunSim.REFINE, c]))
 	state.pending = {"kind": "auction", "used": false}
 	var held: int = state.cargo.size()
 	_check("an auction crate costs its price and gives an uncommon or better", RunSim.apply(state, setup, [RunSim.BID, 0])
-		and state.cargo.size() == held + 1 and setup.rarity(state.cargo[held]) >= 2 and state.scrap == 170)
+		and state.cargo.size() == held + 1 and setup.rarity(state.cargo[held]) >= 2 and state.scrap == 160)
 	_check("once a visit too", not RunSim.apply(state, setup, [RunSim.BID, 1]))
 	var kinds: Dictionary = {}
 	for seed_value: int in 30:
@@ -437,9 +493,10 @@ func _test_acts() -> void:
 		for part: Variant in (RunSim.salvage(state, setup, "skirmish")["options"] as Array):
 			offered += 1
 			rares += 1 if setup.rarity(String(part)) >= 3 else 0
-	_check("Act 3's salvage leans rare (%d of %d offered)" % [rares, offered], rares * 4 >= offered)
+	# 032 (play-test 10: "most parts were rare+ by Act 3"): rares are there, but a minority.
+	_check("Act 3's salvage offers rares, as a minority (%d of %d offered)" % [rares, offered], rares > 0 and rares * 2 < offered)
 	var elite: Array = RunSim.salvage(state, setup, "elite")["options"]
-	_check("and an Act 3 elite always offers a rare", setup.rarity(PartTuning.base_of(String(elite[0]))) >= 3)
+	_check("and an Act 3 elite offers an uncommon or better", setup.rarity(PartTuning.base_of(String(elite[0]))) >= 2)
 	var apart: bool = true
 	var defends: int = 0
 	for seed_value: int in 60:

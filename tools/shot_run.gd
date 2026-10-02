@@ -7,9 +7,11 @@ extends SceneTree
 ##       --seed 7 --until reward --out shots/reward.png [--refit [--stats] [--focus S] [--perks] [--levelup N]]
 ##       [--choose] [--fill-hold] [--brief] [--tune S]   (--tune needs --until workshop; S = the socket to show)
 ##       [--force KIND]   the sites next to the camp become KIND (trader, tower, signal...)
+##       [--enter SECONDS]   with --until fight: enter the fight, photograph its board after SECONDS
 ##
 ## `--until` is a pending kind (reward, scrapyard, workshop, fight) or "moves:N".
-## Uses the real `Run` autoload, so it overwrites `user://run.json`; it clears it after.
+## Uses the real `Run` autoload; under `--script` it saves to `user://tool_run.json` and a profile
+## of its own (032), never the player's.
 
 func _initialize() -> void:
 	_go.call_deferred()
@@ -43,7 +45,8 @@ func _go() -> void:
 		# Screenshot only: pack the hold to its limit to show the full-hold salvage screen.
 		var packed: RunState = run.get("state")
 		while packed.cargo.size() < packed.hold_size:
-			packed.cargo.append(String(packed.crew[packed.cargo.size() % 3]["parts"][1 + packed.cargo.size() % 4]))
+			var part: String = String(packed.crew[packed.cargo.size() % 3]["parts"][1 + packed.cargo.size() % 4])
+			packed.cargo.append(part if not part.is_empty() else "ar_hammer")
 	# The briefing covers the map on a new run; photograph it only when asked.
 	run.set("briefed", not args.has("--brief"))
 	run.set("bay_seen", not args.has("--bay"))
@@ -117,6 +120,11 @@ func _go() -> void:
 		tuner.call("_rebuild")
 		for i: int in 20:
 			await process_frame
+	if args.has("--enter"):
+		# 032: walk into the pending fight and photograph the board once the opening card is
+		# gone (`--until fight --enter`).
+		change_scene_to_file("res://scenes/combat.tscn")
+		await create_timer(_arg(args, "--enter", "8").to_float()).timeout
 	var image: Image = root.get_texture().get_image()
 	DirAccess.make_dir_recursive_absolute(out.get_base_dir())
 	print("shot: %s (%s)" % [out, error_string(image.save_png(out))])
