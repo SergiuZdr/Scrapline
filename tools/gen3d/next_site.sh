@@ -23,7 +23,13 @@ work=$(mktemp -d)
 up=$(curl -sS -m 120 -H "Authorization: Bearer $HF_TOKEN" -F "files=@art/concepts/$kind.png" "$B/gradio_api/upload")
 remote=$(python3 -c "import json,sys; print(json.loads(sys.argv[1])[0])" "$up") || { echo "$kind: upload failed"; exit 1; }
 # TRELLIS generates from the background-removed image, so that step's output feeds the next.
-pre=$(python3 $Q $B $work/pre "[[\"start_session\", []], [\"preprocess_image\", [{\"path\": \"$remote\", \"meta\": {\"_type\": \"gradio.FileData\"}}]]]" 2>&1 | grep -o '"path": "[^"]*"' | head -1 | sed 's/"path": "//; s/"$//')
+# Twice: a step the Space drops times out (gradio_queue.py STEP_LIMIT), and a second try
+# usually goes through.
+for attempt in 1 2; do
+  pre=$(STEP_LIMIT=180 python3 $Q $B $work/pre "[[\"start_session\", []], [\"preprocess_image\", [{\"path\": \"$remote\", \"meta\": {\"_type\": \"gradio.FileData\"}}]]]" 2>&1 | grep -o '"path": "[^"]*"' | head -1 | sed 's/"path": "//; s/"$//')
+  [ -n "$pre" ] && break
+  echo "$kind: preprocess did not finish (try $attempt of 2)"
+done
 [ -z "$pre" ] && { echo "$kind: preprocess failed"; exit 1; }
 log=$(python3 $Q $B $work "[[\"start_session\", []], [\"generate_and_extract_glb\", [{\"path\": \"$pre\", \"meta\": {\"_type\": \"gradio.FileData\"}}, [], null, 0, 7.5, 12, 3.0, 12, \"stochastic\", 0.95, 1024]]]" 2>&1)
 if echo "$log" | grep -q "quota"; then
