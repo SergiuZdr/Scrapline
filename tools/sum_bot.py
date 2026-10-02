@@ -4,7 +4,7 @@ files = sorted(glob.glob(sys.argv[1]))
 runs = won = illegal = 0
 fights = 0.0
 reasons = collections.Counter(); reached = collections.Counter(); lost = collections.Counter(); gate = collections.Counter()
-scrap_sum = 0.0; scrap_runs = 0
+scrap_sum = 0.0; scrap_runs = 0; rare_sum = 0.0; rare_runs = 0
 for f in files:
     t = open(f).read()
     m = re.search(r"=== (\d+) bot runs", t)
@@ -16,9 +16,12 @@ for f in files:
     for c, r in re.findall(r"^\s+(\d+)  (.+)$", t, re.M): reasons[r] += int(c)
     for a, rch, l, g in re.findall(r"act (\d+): reached (\d+), lost (\d+)(?:, at its gate (\d+))?", t):
         reached[a] += int(rch); lost[a] += int(l); gate[a] += int(g or 0)
+    m2 = re.search(r"rare\+ parts fitted at the last gate: ([\d.]+) avg of 15 over (\d+)", t)
+    if m2: rare_sum += float(m2.group(1)) * int(m2.group(2)); rare_runs += int(m2.group(2))
     m = re.search(r"last gate: ([\d.]+) avg over (\d+)", t)
     if m: scrap_sum += float(m.group(1)) * int(m.group(2)); scrap_runs += int(m.group(2))
 print(f"runs {runs} won {won} ({100*won/max(1,runs):.1f}%) illegal {illegal} fights/run {fights/max(1,runs):.1f}")
 for r, c in reasons.most_common(): print("  ", c, r)
 for a in sorted(reached): print(f"  act {a}: reached {reached[a]}, lost {lost[a]} ({100*lost[a]/max(1,reached[a]):.1f}%), at its gate {gate[a]}")
 if scrap_runs: print(f"  scrap going into the last gate: {scrap_sum/scrap_runs:.1f} avg over {scrap_runs} runs")
+if rare_runs: print(f"  rare+ parts fitted at the last gate: {rare_sum/rare_runs:.1f} of 15 avg over {rare_runs} runs")

@@ -422,7 +422,7 @@ static func move_preview(state: RunState, setup: RunSetup, to: int) -> Dictionar
 		var counts: Array = rules.get("count_by_column", [3])
 		enemies = int(counts[mini(int(site["col"]), counts.size() - 1)])
 		if kind == "elite" or kind == "arena":
-			enemies += int(rules.get("elite_extra", 1)) + (int(rules.get("arena_extra", 1)) if kind == "arena" else 0)
+			enemies += int(rules.get("elite_extra", 1)) + (int((rules.get("arena", {}) as Dictionary).get("extra", 0)) if kind == "arena" else 0)
 		elif kind == "boss":
 			enemies = 1 + int(rules.get("boss_escorts", 3))
 		elif kind == "warlord":
@@ -632,7 +632,10 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 static func salvage(state: RunState, setup: RunSetup, kind: String) -> Dictionary:
 	# Play-test 8: the act's own rewards -- later acts lean rare, or a built crew finds nothing.
 	var rewards: Dictionary = rules_of(state, setup).get("rewards", {})
-	var min_rarity: int = int(rewards.get("elite_min_rarity", 2)) if kind == "elite" or kind == "arena" else 1
+	var min_rarity: int = int(rewards.get("elite_min_rarity", 2)) if kind == "elite" else 1
+	# Play-test 10: the arena is the hard fight, and its first part is at least `arena_min_rarity`.
+	if kind == "arena":
+		min_rarity = int(rewards.get("arena_min_rarity", 3))
 	var rng: SimRNG = _rng(setup, state.current, 5, state.act)
 	var options: Array = _roll_parts(setup, rng, min_rarity, crew_makers(state, setup), rewards)
 	if kind == "elite" and not options.is_empty() and PartTuning.can_tune(setup.parts, String(options[0])):
@@ -646,7 +649,13 @@ static func hoard(state: RunState, setup: RunSetup, then_next_act: bool = true) 
 	var rewards: Dictionary = rules_of(state, setup).get("rewards", {})
 	var rng: SimRNG = _rng(setup, state.current, 13, state.act)
 	var options: Array = _roll_parts(setup, rng, 1, crew_makers(state, setup), rewards)
-	var legend: String = _roll_at_least(setup, rng, 4)
+	# Play-test 10 ("most parts were rare+ by Act 3"): a gate's hoard holds a legendary; a
+	# warlord's holds a rare, and a legendary only `warlord_legend_pct` of the time.
+	var legend: String = ""
+	if then_next_act or rng.chance_percent(int(rewards.get("warlord_legend_pct", 35))):
+		legend = _roll_at_least(setup, rng, 4)
+	else:
+		legend = _roll_at_least(setup, rng, 3)
 	if not legend.is_empty() and not options.is_empty():
 		options[0] = legend
 	var out: Dictionary = {"kind": "reward", "options": options, "scrap": int(rewards.get("hoard_scrap", 25))}
@@ -1148,11 +1157,12 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 		elif not bool(map.get("tutorial", false)):
 			ids.append(id)
 	ids.sort()
-	var template: Dictionary = setup.fights[ids[rng.range_int(0, ids.size() - 1)]]
+	var board: Dictionary = setup.rules.get("board", {})
+	var template: Dictionary = widen(setup.fights[ids[rng.range_int(0, ids.size() - 1)]], board)
 	if kind == "boss" and not gate.is_empty():
-		return _make_gate_fight(state, setup, site_id, setup.fights[gate], rng)
+		return _make_gate_fight(state, setup, site_id, widen(setup.fights[gate], board), rng)
 	if kind == "warlord" and not warlord.is_empty():
-		return _make_gate_fight(state, setup, site_id, setup.fights[warlord], rng, "warlord_escorts")
+		return _make_gate_fight(state, setup, site_id, widen(setup.fights[warlord], board), rng, "warlord_escorts")
 	var col: int = int(state.sites[site_id]["col"])
 	var enemies_rules: Dictionary = rules_of(state, setup).get("enemies", {})
 	var counts: Array = enemies_rules.get("count_by_column", [3])
@@ -1160,9 +1170,13 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 	var count: int = int(counts[mini(col, counts.size() - 1)])
 	var cap: int = int(caps[mini(col, caps.size() - 1)])
 	var hp_bonus: int = 0
+	# Play-test 10 ("the arena did not feel hard"): `enemies.arena` -- `extra` machines over an
+	# elite's, every one `hp` tougher and `damage` harder, on parts up to rarity `cap`.
+	var arena: Dictionary = (enemies_rules.get("arena", {}) as Dictionary) if kind == "arena" else {}
 	if kind == "elite" or kind == "arena":
-		count += int(enemies_rules.get("elite_extra", 1)) + (int(enemies_rules.get("arena_extra", 1)) if kind == "arena" else 0)
+		count += int(enemies_rules.get("elite_extra", 1)) + int(arena.get("extra", 0))
 		hp_bonus = int(enemies_rules.get("elite_hp_bonus", 3))
+		cap = maxi(cap, int(arena.get("cap", cap)))
 	elif kind == "boss":
 		count = int(enemies_rules.get("boss_count", 5))
 		hp_bonus = int(enemies_rules.get("boss_hp_bonus", 4))
@@ -1200,8 +1214,12 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 		# An act may arm every rolled enemy (021: `enemies.bonus`, the block levels use).
 		if enemies_rules.has("bonus"):
 			spec["bonus"] = (enemies_rules["bonus"] as Dictionary).duplicate()
-		# An act may toughen every rolled enemy (021: `enemies.hp_all`).
-		var hp_all: int = int(enemies_rules.get("hp_all", 0))
+		if int(arena.get("damage", 0)) > 0:
+			var armed: Dictionary = spec.get("bonus", {})
+			armed["damage"] = int(armed.get("damage", 0)) + int(arena["damage"])
+			spec["bonus"] = armed
+		# An act may toughen every rolled enemy (021: `enemies.hp_all`); so does the arena.
+		var hp_all: int = int(enemies_rules.get("hp_all", 0)) + int(arena.get("hp", 0))
 		if hp_all > 0:
 			var base_c: Dictionary = (setup.parts[parts[0]] as Dictionary).get("grid", {})
 			var base_m: Dictionary = (setup.parts[parts[4]] as Dictionary).get("grid", {})
@@ -1241,7 +1259,7 @@ static func _roll_modifier(state: RunState, setup: RunSetup, rng: SimRNG, fight:
 			for c: Variant in (o.get(key, []) as Array):
 				taken.append(Vector2i(int((c as Dictionary)["x"]), int((c as Dictionary)["y"])))
 		var span: Array = rules.get("wires", [2, 4])
-		for cell: Vector2i in _free_cells(rng, rows, taken, [2, 3, 4, 5], rng.range_int(int(span[0]), int(span[1]))):
+		for cell: Vector2i in _free_cells(rng, rows, taken, middle_rows(rows), rng.range_int(int(span[0]), int(span[1]))):
 			var row: String = String(rows[cell.y])
 			rows[cell.y] = row.substr(0, cell.x) + "w" + row.substr(cell.x + 1)
 
@@ -1300,7 +1318,7 @@ static func _scatter_terrain(terrain: Dictionary, rng: SimRNG, template: Diction
 			continue
 		var span: Array = terrain.get(pair[0], [0, 0])
 		var count: int = rng.range_int(int(span[0]), int(span[1]))
-		for cell: Vector2i in _free_cells(rng, rows, taken, terrain.get("rows", [2, 3, 4, 5]), count):
+		for cell: Vector2i in _free_cells(rng, rows, taken, middle_rows(rows), count):
 			var row: String = String(rows[cell.y])
 			rows[cell.y] = row.substr(0, cell.x) + String(pair[1]) + row.substr(cell.x + 1)
 			taken.append(cell)
@@ -1342,13 +1360,13 @@ static func _roll_objective(setup: RunSetup, rng: SimRNG, template: Dictionary, 
 			return {"type": "defend", "rounds": int(o.get("defend_rounds", 4)), "caches": caches}
 		"salvage":
 			var piles: Array = []
-			for cell: Vector2i in _free_cells(rng, rows, taken, [2, 3, 4, 5], int(o.get("salvage_piles", 4))):
+			for cell: Vector2i in _free_cells(rng, rows, taken, middle_rows(rows), int(o.get("salvage_piles", 4))):
 				piles.append({"x": cell.x, "y": cell.y})
 				taken.append(cell)
 			return {"type": "salvage", "need": mini(int(o.get("salvage_need", 3)), piles.size()), "piles": piles}
 		"hold":
 			# 028: three hexes in the middle of the board -- a centre and two open neighbours.
-			for centre: Vector2i in _free_cells(rng, rows, taken, [3, 4], 6):
+			for centre: Vector2i in _free_cells(rng, rows, taken, [rows.size() / 2 - 1, rows.size() / 2], 6):
 				var zone: Array = [centre]
 				for n: Vector2i in Hex.neighbors(centre):
 					if zone.size() >= 3:
@@ -1360,7 +1378,7 @@ static func _roll_objective(setup: RunSetup, rng: SimRNG, template: Dictionary, 
 					return {"type": "hold", "need": int(o.get("hold_need", 3)), "cells": zone.map(func(c: Vector2i) -> Dictionary: return {"x": c.x, "y": c.y})}
 		"hack":
 			var terminals: Array = []
-			for cell: Vector2i in _free_cells(rng, rows, taken, [2, 3, 4, 5], int(o.get("hack_terminals", 4)), 2):
+			for cell: Vector2i in _free_cells(rng, rows, taken, middle_rows(rows), int(o.get("hack_terminals", 4)), 2):
 				terminals.append({"x": cell.x, "y": cell.y})
 				taken.append(cell)
 			return {"type": "hack", "need": mini(int(o.get("hack_need", 3)), terminals.size()), "cells": terminals}
@@ -1390,6 +1408,47 @@ static func _free_cells(rng: SimRNG, rows: Array, taken: Array, row_ids: Array, 
 		var pick: Vector2i = pool[rng.range_int(0, pool.size() - 1)]
 		candidates.erase(pick)
 		out.append(pick)
+	return out
+
+
+## Every row but the two at each end: where terrain, wires, piles and terminals go (the
+## starts are at the ends). Worked out from the board, which play-test 10 made bigger.
+static func middle_rows(rows: Array) -> Array:
+	var out: Array = []
+	for y: int in range(2, rows.size() - 2):
+		out.append(y)
+	return out
+
+
+## Play-test 10 ("make the battlefield bigger, so they are not past the middle before I do
+## anything"): a run board is its template padded by `run.json` `board` -- `rows` blank rows
+## between the two sides (inserted at the middle, kept even so odd-r hex rows keep their
+## parity) and `cols` columns split between the edges. Every start moves with its hex.
+static func widen(template: Dictionary, board: Dictionary) -> Dictionary:
+	var add_rows: int = int(board.get("rows", 0))
+	add_rows -= add_rows % 2
+	var add_cols: int = int(board.get("cols", 0))
+	if add_rows <= 0 and add_cols <= 0:
+		return template
+	var left: int = add_cols / 2
+	var right: int = add_cols - left
+	var rows: Array = template["rows"]
+	var cut: int = rows.size() / 2
+	var out_rows: Array = []
+	var blank: String = ".".repeat(String(rows[0]).length() + add_cols)
+	for y: int in rows.size():
+		if y == cut:
+			for n: int in add_rows:
+				out_rows.append(blank)
+		out_rows.append(".".repeat(left) + String(rows[y]) + ".".repeat(right))
+	var out: Dictionary = template.duplicate(true)
+	out["rows"] = out_rows
+	for side: String in ["player", "enemy"]:
+		for spec: Variant in (out.get(side, []) as Array):
+			var d: Dictionary = spec
+			d["x"] = int(d["x"]) + left
+			if int(d["y"]) >= cut:
+				d["y"] = int(d["y"]) + add_rows
 	return out
 
 
