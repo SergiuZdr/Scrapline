@@ -39,3 +39,11 @@ adds power.
 - The old `ProfileStore`/command pattern is adapted for this (see
   [salvage-audit.md](salvage-audit.md)). All writes go through commands, so saving
   cannot silently drop a change.
+
+## Missions (034)
+
+Unlocks may ask for FEATS as well as runs, fights, acts and wins: `RunSim.tally_feats` counts, from
+each fight's events, `kills`, `multi_kill`, `pit_kills`, `bumps`, `tears`, `flawless`,
+`close_calls`, `<objective>_wins`, `elites`, `arenas`, `warlords`, `gates`; `Meta.stats_after` adds
+them up across runs. Nine missions (`mission: true` in `data/meta.json`) open 033's uncommon-and-up
+modules; UNLOCKS shows MILESTONES and MISSIONS in their own columns.

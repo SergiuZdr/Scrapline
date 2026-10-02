@@ -2,6 +2,13 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [034] Unlock missions — 2026-10-03 ([detail](iterations/034-unlock-missions.md))
+
+### Added
+- **Missions**: nine unlocks earned by doing something in a fight -- a flawless win, two kills with
+  one attack, enemies dropped into pits, HOLD / HACK / DEFEND wins, beating the warlords -- each
+  opening one of the new modules. The UNLOCKS screen lists them with their progress.
+
 ## [033] Parts: the power audit and modules with mechanics — 2026-10-02 ([detail](iterations/033-parts-audit.md))
 
 ### Added
