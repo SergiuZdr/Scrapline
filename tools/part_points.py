@@ -91,7 +91,9 @@ def main():
     parts = load()
     measured = {}
     if "--measured" in sys.argv:
-        measured = json.load(open(sys.argv[sys.argv.index("--measured") + 1]))["parts"]
+        # A file, or a glob of the split runs (`shots/033/power33/p_*.json`).
+        for f in sorted(glob.glob(sys.argv[sys.argv.index("--measured") + 1])):
+            measured.update(json.load(open(f))["parts"])
     md = "--md" in sys.argv
     rows = []
     for pid, p in parts.items():
