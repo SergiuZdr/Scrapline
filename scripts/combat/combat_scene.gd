@@ -171,9 +171,12 @@ func _ready() -> void:
 		_fight_id = String(_db.tutorial.get("fight", "shakedown"))
 		_seed = int(_db.tutorial.get("seed", 1))
 	_build_world()
+	# 036: the world printed on paper, under the HUD.
+	Ink.print_pass(self, 0)
 	_hud = CombatHUD.new()
 	_hud.glossary = _db.glossary
 	var layer := CanvasLayer.new()
+	layer.layer = 1
 	add_child(layer)
 	layer.add_child(_hud)
 	_hud.unit_card_pressed.connect(_select)
@@ -1193,10 +1196,19 @@ func _saw_ring(inner: float, outer: float, tip: float, teeth: int) -> ArrayMesh:
 
 ## A flat disc facing the camera (a badge's back): `fill` inside a `rim` ring -- two tinted
 ## sprites of one white disc, the rim drawn first and a little larger.
-func _disc(at: Vector3, radius: float, fill: Color, rim: Color, priority: int = 0, lift: Vector2 = Vector2.ZERO) -> Node3D:
+func _disc(at: Vector3, radius: float, fill: Color, rim: Color, priority: int = 0, lift: Vector2 = Vector2.ZERO, burst: bool = false) -> Node3D:
 	var root := Node3D.new()
 	root.position = at
-	var texture: Texture2D = Ink.texture("disc", Vector2i(96, 96), func(image: Image) -> void:
+	# 036, comic style: a number that HITS sits in a starburst, the comic's shape for impact.
+	var texture: Texture2D = Ink.texture("burst", Vector2i(96, 96), func(image: Image) -> void:
+		image.fill(Color(0, 0, 0, 0))
+		for y: int in 96:
+			for x: int in 96:
+				var v := Vector2(float(x) - 47.5, float(y) - 47.5)
+				var t: float = absf(fposmod(v.angle() / TAU * 12.0 + 0.25, 1.0) * 2.0 - 1.0)
+				var edge: float = 46.5 * (0.72 + 0.28 * t)
+				image.set_pixel(x, y, Color(1, 1, 1, clampf(edge - v.length(), 0.0, 1.0)))) if burst \
+		else Ink.texture("disc", Vector2i(96, 96), func(image: Image) -> void:
 		image.fill(Color(0, 0, 0, 0))
 		for y: int in 96:
 			for x: int in 96:
@@ -2638,7 +2650,7 @@ func _badge(text: String, at: Vector3, colour: Color, scale: float, owner_ref: i
 	var parts: PackedStringArray = text.split(" ", false, 1)
 	# A total like "-12" needs a wider disc than a single figure.
 	var radius: float = 0.21 * scale * (1.0 + 0.18 * float(maxi(0, parts[0].length() - 1)))
-	var disc: Node3D = _disc(at, radius, Ink.INK, colour, 4, lift)
+	var disc: Node3D = _disc(at, radius * 1.25, Ink.INK, colour, 4, lift, true)
 	nodes.append(disc)
 	var label := Label3D.new()
 	label.text = parts[0]

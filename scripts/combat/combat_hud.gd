@@ -41,6 +41,7 @@ const BAR_WIDTH: float = 1150.0
 const PANEL_WIDTH: int = 360
 
 var _banner: Label
+var _banner_box: PanelContainer
 var _cards: Dictionary = {}
 var _card_column: VBoxContainer
 var _objective_plate: PanelContainer
@@ -75,13 +76,21 @@ func _ready() -> void:
 	# Every anchored child is added FIRST and anchored after: a preset applied to a node
 	# outside the tree computes its offsets against a zero-size parent, which is what put
 	# the banner half off the top-left corner in the first render.
-	_banner = _label("", 40, UIKit.PAPER, UIKit.font_comic())
+	# 036, comic style: the round is lettered in a CAPTION BOX -- paper, an ink border and a hard
+	# shadow, the box a comic opens a panel with -- not loose letters on the board.
+	var holder := CenterContainer.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(holder)
+	holder.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	holder.offset_top = UIKit.SPACE_SM
+	holder.offset_bottom = UIKit.SPACE_SM + 52
+	_banner_box = PanelContainer.new()
+	_banner_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_banner_box.add_theme_stylebox_override("panel", UIKit.ink_card(UIKit.PAPER, UIKit.SPACE_LG, 0, 5))
+	holder.add_child(_banner_box)
+	_banner = _label("", 30, UIKit.INK, UIKit.font_comic())
 	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_banner.add_theme_constant_override("outline_size", 14)
-	_banner.add_theme_color_override("font_outline_color", UIKit.INK)
-	add_child(_banner)
-	_banner.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_banner.offset_top = UIKit.SPACE_MD
+	_banner_box.add_child(_banner)
 
 	_card_column = VBoxContainer.new()
 	_card_column.position = Vector2(UIKit.SPACE_XL, 96)
@@ -308,8 +317,11 @@ func control_for(kind: String) -> Control:
 
 func set_banner(text: String, colour: Color = UIKit.PAPER) -> void:
 	_banner.text = text
-	# The banner is lettered on the board, so it keeps paper for everything but danger.
-	_banner.add_theme_color_override("font_color", Ink.DANGER if colour == UIKit.RED else UIKit.PAPER)
+	# Ink on paper; danger is a red caption with paper lettering.
+	var danger: bool = colour == UIKit.RED
+	_banner_box.add_theme_stylebox_override("panel", UIKit.ink_card(Ink.DANGER if danger else UIKit.PAPER, UIKit.SPACE_LG, 0, 5))
+	_banner.add_theme_color_override("font_color", UIKit.PAPER if danger else UIKit.INK)
+	_banner_box.visible = not text.is_empty()
 
 
 func set_info(title: String, body: String) -> void:
