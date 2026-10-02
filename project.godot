@@ -21,6 +21,7 @@ Audio="*res://scripts/autoload/audio.gd"
 DevShot="*res://scripts/autoload/dev_shot.gd"
 Run="*res://scripts/autoload/run_session.gd"
 Profile="*res://scripts/autoload/profile.gd"
+Juice="*res://scripts/autoload/juice.gd"
 
 [debug]
 

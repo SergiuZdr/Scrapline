@@ -71,6 +71,9 @@ func _build_bank() -> void:
 	_bank["detonate"] = _sweep(0.22, 900.0, 1700.0, 0.8)
 	_bank["ui_confirm"] = _sweep(0.09, 620.0, 980.0, 0.35)
 	_bank["ui_deny"] = _sweep(0.14, 420.0, 240.0, 0.35)
+	# 035, the interactive pass: a soft tick under the cursor, a short clack on a press.
+	_bank["ui_hover"] = _sweep(0.03, 1200.0, 1350.0, 0.12)
+	_bank["ui_click"] = _noise_burst(0.045, 0.32, 3000.0, 0.5)
 	_bank["cycle"] = _sweep(0.18, 340.0, 520.0, 0.3)
 	# A machine levelling up (play-test 4): a wrench ratchets three times, then a major
 	# chord climbs an octave. The one sound in the garage that should feel like a reward.
