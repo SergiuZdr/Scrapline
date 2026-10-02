@@ -8,10 +8,23 @@ extends Node
 ## ran, and evaporated at the next launch, because nothing had told the save it happened.
 
 var _path: String = SaveFile.SAVE_PATH
+const TOOL_PATH: String = "user://tool_profile.json"
 var _data: Dictionary = {}
 
 
 func _ready() -> void:
+	# Play-test 10: a tool (`--script`) gets a profile of its own, every hint already seen, so a
+	# screenshot or a test can never bank a bot's run into the player's unlocks.
+	if OS.get_cmdline_args().has("--script"):
+		_path = TOOL_PATH
+		_load()
+		if not tutorial_done():
+			_data["tutorial_done"] = true
+			var tutorial: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/tutorial.json"))
+			if tutorial is Dictionary:
+				_data["seen_tips"] = ((tutorial as Dictionary).get("hints", {}) as Dictionary).keys()
+			_save()
+		return
 	_load()
 
 
