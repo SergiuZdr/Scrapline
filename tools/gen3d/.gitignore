@@ -1,2 +1,4 @@
 TripoSR/
 __pycache__/
+# 020: the uncleaned TRELLIS outputs, kept so a site can be cleaned again without spending GPU.
+raw/

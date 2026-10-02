@@ -44,7 +44,10 @@ _(in progress -- a site lands whenever `tools/gen3d/next_site.sh` finds allowanc
 | skirmish | 2026-10-01 | 12,000 (22,612) | a wreck behind a tyre barricade |
 | elite | 2026-10-01 | 12,000 (28,354) | spiked bunker, turret, skull signs |
 | scrapyard | 2026-10-01 | 12,000 (24,117) | a heap of pipes and gears under a lattice crane |
-| tower, signal, boss, Reclaimer | -- | | the sixth run of 2026-10-01 was refused |
+| tower | 2026-10-02 | 11,999 (14,237) | the user's run; lattice, cabin, searchlight, 5.2 m tall |
+| signal | 2026-10-02 | 12,000 (32,098) | a crashed robot under a radio mast (the first try hung: see below) |
+| boss (the gate) | 2026-10-02 | 12,000 (42,094) | first try came out white with no shutter; a darker concept; TRELLIS still grew a mound out of its slab, greyed into a dark apron (`--grey-white`). **To redo** with our own mask |
+| Reclaimer | 2026-10-02 | 3,500 (33,453) | a dozen copies make its wall: shredders forward (+X), darkened, its red beacons on top |
 
 - **The free allowance is bigger than the plan assumed**: six TRELLIS runs went through on
   2026-10-01 (about 26 s of GPU each). The sixth was refused with "120s requested vs. 166s
@@ -55,6 +58,28 @@ _(in progress -- a site lands whenever `tools/gen3d/next_site.sh` finds allowanc
   camp have one) now turn by their id (215 +- 35 degrees) and vary their size (0.92-1.04).
   A second model per kind (a second concept) is the real fix if it still reads as repeated.
 - verify_run_ui 48 and verify_onboarding 39 pass with the generated sites on the map.
+
+### 2026-10-02
+- **The Reclaimer is a line of harvesters** (`YardView._build_reclaimer`): the kit's crane rigs
+  are replaced by copies of `art/sites/reclaimer.glb`, turned so the shredders face +X (the way
+  it advances), jittered in angle and size, textured toon darkened to near black, outlined in the
+  Reclaimer's dark red, a red beacon on each. The blade and its red teeth stay as the exact line
+  of the front. Cleaned to 3,500 triangles: twelve copies cost 42,000.
+- **A step can hang**: TRELLIS's background removal once never sent its result, and the stream's
+  heartbeats kept the socket open for ten minutes. `gradio_queue.py` now gives each step
+  `STEP_LIMIT` seconds; `next_site.sh` tries that step twice. The retry went through.
+- **The raw TRELLIS output is kept** (`tools/gen3d/raw/<kind>.glb`, gitignored): a site can be
+  cleaned again for free (the Reclaimer at 3,500, the gate's grey apron, without GPU).
+- **The gate went wrong twice.** Its first concept (pale concrete on white) came out white with
+  no shutter. A darker concept (`art/concepts/boss.png`: rusted pylons, red lamps, a red shutter,
+  a conveyor) came out right above and grew a white mound out of the slab below -- TRELLIS's
+  background removal had kept part of the white floor. Deleting the white faces left holes the
+  ink line showed through; recolouring them dark concrete (`clean_generated.py --grey-white`)
+  turned the mound into an apron, which still hides half the shutter. **Fix for tomorrow**:
+  `tools/gen3d/cut_background.py` cuts the concept's background ourselves (flood fill from the
+  corners) and `next_site.sh` uploads the cut image, whose alpha TRELLIS uses as the mask.
+- The day's allowance: the user's run plus four (signal, gate, Reclaimer, gate again); the sixth
+  was refused at 177 s left.
 
 ## Decisions, lessons, open questions
 
