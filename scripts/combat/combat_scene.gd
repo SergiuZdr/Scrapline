@@ -1661,6 +1661,20 @@ func _animate(e: Array) -> void:
 			_refresh_tag(actor)
 			Audio.play("detonate", -2.0)
 			await _wait(0.6)
+		GridEv.REPAIRED:
+			# 033: a repair drone or a kill patches a machine.
+			_float_text(_unit_pos(actor) + Vector3(0, 2.3, 0), "+%d HP" % int(e[GridEv.F_V1]), UIKit.GREEN)
+			_refresh_tag(actor)
+			Audio.play("pickup", -10.0)
+			await _wait(0.15)
+		GridEv.LAST_STAND:
+			# 033: the Phoenix Cell -- the blow that should have wrecked it did not.
+			var stand_at: Vector3 = _unit_pos(actor) + Vector3(0, 0.6, 0)
+			_vfx.burst(stand_at, Color("ffb060"), 3.0)
+			_letters(stand_at + Vector3(0, 2.4, 0), "HOLDS!", Ink.ACTION, 110, 0.06)
+			_refresh_tag(actor)
+			Audio.play("reward", -4.0)
+			await _wait(0.45)
 		GridEv.HAULED:
 			_float_text(_unit_pos(actor) + Vector3(0, 2.6, 0), "HAUL!", COL_PAD_DANGER)
 			_vfx.burst(_unit_pos(actor) + Vector3(0, 0.4, 0), Color("c9a2ff"), 5.0)

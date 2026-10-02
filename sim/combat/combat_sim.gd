@@ -881,6 +881,12 @@ static func _execute_attack(state: CombatState, u: GridUnit, w: int, target: Vec
 				throw_wreck(state, u.ref, victim, dir)
 	for prop: Dictionary in (plan.get("props", []) as Array):
 		damage_prop(state, u.ref, prop["cell"], int(prop["damage"]))
+	# 033, thorns: a melee blow on a machine that carries them costs the attacker.
+	if String(weapon["shape"]) == "melee":
+		for hit: Dictionary in hits:
+			var struck: GridUnit = state.unit(int(hit["ref"]))
+			if struck != null and struck.thorns > 0 and u.alive and struck.team != u.team:
+				hurt(state, struck.ref, u, struck.thorns)
 	u.boost_damage = 0
 	# Heat is the PLAYER's resource. Enemies ignore it: an enemy that sometimes cannot
 	# fire would be one more hidden state to read off the board every turn.
@@ -903,17 +909,35 @@ static func _would_tear(state: CombatState, target: GridUnit, weapon: Dictionary
 static func hurt(state: CombatState, actor: int, target: GridUnit, dmg: int) -> void:
 	target.hp = maxi(0, target.hp - dmg)
 	state.emit(GridEv.DAMAGE, actor, target.ref, target.x, target.y, dmg, target.hp)
+	# 033, the Phoenix Cell: the first blow that would wreck it leaves it at 1 HP.
+	if target.hp <= 0 and target.last_stand and not target.stood:
+		target.stood = true
+		target.hp = 1
+		state.emit(GridEv.LAST_STAND, target.ref, -1, target.x, target.y, 1)
 	if target.hp > 0:
 		_maybe_enrage(state, target)
 		return
 	target.alive = false
 	state.emit(GridEv.DESTROYED, actor, target.ref, target.x, target.y)
+	# 033: a machine with `kill_heal` patches itself on every kill it makes.
+	var killer: GridUnit = state.unit(actor) if actor >= 0 else null
+	if killer != null and killer.alive and killer.kill_heal > 0 and killer.team != target.team and not target.objective:
+		repair(state, killer, killer.kill_heal)
 	var cell := Vector2i(target.x, target.y)
 	if not target.objective and target.carries_scrap:
 		state.piles[cell] = int(state.piles.get(cell, 0)) + state.setup.pile_value
 		state.emit(GridEv.PILE_DROPPED, actor, target.ref, cell.x, cell.y, state.setup.pile_value)
 	if target.kind == "bomber":
 		explode(state, target.ref, cell, int((state.setup.kinds.get("bomber", {}) as Dictionary).get("blast", 4)))
+
+
+## Gives `u` up to `amount` HP back, never past its maximum (033).
+static func repair(state: CombatState, u: GridUnit, amount: int) -> void:
+	var gain: int = mini(amount, u.max_hp - u.hp)
+	if gain <= 0:
+		return
+	u.hp += gain
+	state.emit(GridEv.REPAIRED, u.ref, -1, u.x, u.y, gain, u.hp)
 
 
 ## A kind's rules for this unit (027): its kind's numbers, with its `enraged` block laid over them
@@ -1184,6 +1208,11 @@ static func _begin_round(state: CombatState) -> void:
 		elif u.heat > 0:
 			u.heat = maxi(0, u.heat - u.vent)
 			state.emit(GridEv.HEAT, u.ref, -1, u.x, u.y, u.heat, u.heat_cap)
+
+	# 033: a repair drone patches its machine at the start of every round.
+	for u: GridUnit in state.units:
+		if u.alive and not u.objective and u.regen > 0 and u.hp < u.max_hp:
+			repair(state, u, u.regen)
 
 	_round_hazards(state)
 	_hold(state)

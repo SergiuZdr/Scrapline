@@ -12,7 +12,8 @@
     "mesh": "res://art/parts/mo_governor.glb",
     "flavour": "Never seizes. Never spikes either. The safe hands.",
     "grid": {
-      "heat_cap": 2
+      "heat_cap": 2,
+      "vent": 1
     },
     "tuning": [
       {
@@ -228,7 +229,8 @@
     "mesh": "res://art/parts/mo_targeting.glb",
     "flavour": "Extends the reach of whatever arms the frame is carrying.",
     "grid": {
-      "range": 1
+      "range": 1,
+      "damage": 1
     },
     "tuning": [
       {
@@ -244,7 +246,8 @@
           "heat_cap": 2
         }
       }
-    ]
+    ],
+    "_033": "play-test 10 audit: +1 range alone was the weakest module in the game at rare"
   },
   {
     "id": "mo_overclock",
@@ -390,7 +393,345 @@
       {
         "name": "Fast Cycle",
         "grid": {
-          "cooldown": -1
+          "cooldown": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "mo_spikes",
+    "name": "Spiked Plating",
+    "slot": "module",
+    "rarity": 1,
+    "maker": "kessler",
+    "model": "mo_plating",
+    "mesh": "res://art/parts/mo_plating.glb",
+    "flavour": "Welded rebar, points out. Hug it and bleed.",
+    "grid": {
+      "hp": 2,
+      "thorns": 1
+    },
+    "tuning": [
+      {
+        "name": "Longer Spikes",
+        "grid": {
+          "thorns": 1
+        }
+      },
+      {
+        "name": "Thicker Plate",
+        "grid": {
+          "hp": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "mo_fins",
+    "name": "Heat Fins",
+    "slot": "module",
+    "rarity": 1,
+    "maker": "cinder",
+    "model": "mo_coolant",
+    "mesh": "res://art/parts/mo_coolant.glb",
+    "flavour": "A radiator off a furnace door, bolted to the back.",
+    "grid": {
+      "heat_cap": 2,
+      "vent": 1
+    },
+    "tuning": [
+      {
+        "name": "Wide Fins",
+        "grid": {
+          "vent": 1
+        }
+      },
+      {
+        "name": "Deep Sink",
+        "grid": {
+          "heat_cap": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "mo_hooks",
+    "name": "Gripping Hooks",
+    "slot": "module",
+    "rarity": 1,
+    "maker": "kessler",
+    "model": "mo_ablative",
+    "mesh": "res://art/parts/mo_ablative.glb",
+    "flavour": "Hooks on the knuckles. Whatever it grabs, it keeps.",
+    "grid": {
+      "hp": 1,
+      "tears": 1
+    },
+    "tuning": [
+      {
+        "name": "Barbed",
+        "grid": {
+          "melee": 1
+        }
+      },
+      {
+        "name": "Braced",
+        "grid": {
+          "hp": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "mo_repair",
+    "name": "Repair Drone",
+    "slot": "module",
+    "rarity": 2,
+    "maker": "arclight",
+    "model": "mo_capacitor",
+    "mesh": "res://art/parts/mo_capacitor.glb",
+    "flavour": "A little welder on a stalk that never stops working.",
+    "grid": {
+      "regen": 1
+    },
+    "tuning": [
+      {
+        "name": "Second Arm",
+        "grid": {
+          "hp": 2
+        }
+      },
+      {
+        "name": "Cool Torch",
+        "grid": {
+          "vent": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "mo_gyro",
+    "name": "Gyro Anchor",
+    "slot": "module",
+    "rarity": 2,
+    "maker": "kessler",
+    "model": "mo_reactive",
+    "mesh": "res://art/parts/mo_reactive.glb",
+    "flavour": "A flywheel the size of a door. It does not get moved.",
+    "grid": {
+      "unshovable": 1,
+      "hp": 3
+    },
+    "tuning": [
+      {
+        "name": "Heavier Wheel",
+        "grid": {
+          "hp": 2
+        }
+      },
+      {
+        "name": "Braced Arms",
+        "grid": {
+          "melee": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "mo_feeder",
+    "name": "Belt Feeder",
+    "slot": "module",
+    "rarity": 2,
+    "maker": "vektor",
+    "model": "mo_targeting",
+    "mesh": "res://art/parts/mo_targeting.glb",
+    "flavour": "Hardened rounds on a belt: they go through the first thing.",
+    "grid": {
+      "pierce": 1
+    },
+    "tuning": [
+      {
+        "name": "Hot Rounds",
+        "grid": {
+          "damage": 1,
+          "heat": 1
+        }
+      },
+      {
+        "name": "Long Belt",
+        "grid": {
+          "heat_cap": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "mo_ram",
+    "name": "Hydraulic Ram",
+    "slot": "module",
+    "rarity": 2,
+    "maker": "kessler",
+    "model": "mo_servo",
+    "mesh": "res://art/parts/mo_servo.glb",
+    "flavour": "A press cylinder behind every punch.",
+    "grid": {
+      "melee": 1,
+      "shove": 1
+    },
+    "tuning": [
+      {
+        "name": "Bigger Bore",
+        "grid": {
+          "melee": 1
+        }
+      },
+      {
+        "name": "Braced",
+        "grid": {
+          "hp": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "mo_stride",
+    "name": "Sprint Pistons",
+    "slot": "module",
+    "rarity": 2,
+    "maker": "vektor",
+    "model": "mo_jumpjets",
+    "mesh": "res://art/parts/mo_jumpjets.glb",
+    "flavour": "Fire, then go. The legs never stop.",
+    "grid": {
+      "move_after_attack": 1,
+      "hp": 1
+    },
+    "tuning": [
+      {
+        "name": "Long Stroke",
+        "grid": {
+          "move": 1
+        }
+      },
+      {
+        "name": "Plated",
+        "grid": {
+          "hp": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "mo_leech",
+    "name": "Scrap Leech",
+    "slot": "module",
+    "rarity": 3,
+    "maker": "cinder",
+    "model": "mo_scavenger",
+    "mesh": "res://art/parts/mo_scavenger.glb",
+    "flavour": "It eats what it kills, and it is never full.",
+    "grid": {
+      "kill_heal": 3,
+      "damage": 1,
+      "heat": 1
+    },
+    "tuning": [
+      {
+        "name": "Bigger Maw",
+        "grid": {
+          "kill_heal": 1
+        }
+      },
+      {
+        "name": "Lined",
+        "grid": {
+          "hp": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "mo_arcrelay",
+    "name": "Arc Relay",
+    "slot": "module",
+    "rarity": 3,
+    "maker": "arclight",
+    "model": "mo_coolant",
+    "mesh": "res://art/parts/mo_coolant.glb",
+    "flavour": "Every shot jumps to the next thing standing near it.",
+    "grid": {
+      "arc": 1,
+      "vent": 1
+    },
+    "tuning": [
+      {
+        "name": "Clean Gap",
+        "grid": {
+          "vent": 1
+        }
+      },
+      {
+        "name": "Hot Arc",
+        "grid": {
+          "damage": 1,
+          "heat": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "mo_spotter",
+    "name": "Spotter Uplink",
+    "slot": "module",
+    "rarity": 3,
+    "maker": "vektor",
+    "model": "mo_targeting",
+    "mesh": "res://art/parts/mo_targeting.glb",
+    "flavour": "Everything it hits is painted for the others.",
+    "grid": {
+      "mark": 1,
+      "range": 1
+    },
+    "tuning": [
+      {
+        "name": "Plated Mast",
+        "grid": {
+          "hp": 2
+        }
+      },
+      {
+        "name": "Light Mast",
+        "grid": {
+          "move": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "mo_phoenix",
+    "name": "Phoenix Cell",
+    "slot": "module",
+    "rarity": 4,
+    "maker": "cinder",
+    "model": "mo_overclock",
+    "mesh": "res://art/parts/mo_overclock.glb",
+    "flavour": "A furnace heart that will not go out. Once.",
+    "grid": {
+      "last_stand": true,
+      "regen": 1,
+      "hp": 2
+    },
+    "tuning": [
+      {
+        "name": "Banked Fire",
+        "grid": {
+          "hp": 2
+        }
+      },
+      {
+        "name": "Bright Fire",
+        "grid": {
+          "regen": 1
         }
       }
     ]

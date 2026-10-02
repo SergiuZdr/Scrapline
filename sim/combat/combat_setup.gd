@@ -280,6 +280,18 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 		var arm: Dictionary = _part(parts, u.part_ids[index], "arm", u.name, errors)
 		u.weapons.append(weapon_from(arm))
 
+	# 033: what a core or module does beyond the plain numbers above -- traits on the weapons
+	# (pierce, arc, mark, shove, tears), the role traits (melee, unshovable, move_after_attack),
+	# and the mechanics (thorns, regen, kill_heal, last_stand) -- through apply_bonus, the one
+	# place a block of these means the same thing wherever it comes from.
+	var extra: Dictionary = {}
+	for g: Dictionary in [og, mg]:
+		for key: String in EXTRA_KEYS:
+			if g.has(key):
+				var v: Variant = g[key]
+				extra[key] = int(extra.get(key, 0)) + (int(v) if not (v is bool) else (1 if v else 0))
+	apply_bonus(u, extra)
+
 	u.kind = String(spec.get("kind", ""))
 	u.level = int(spec.get("level", 0))
 	# Abilities: the chassis's, then the module's. Only the player's machines use them --
@@ -295,8 +307,8 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 			ability["id"] = id
 			ability["wait"] = 0
 			u.abilities.append(ability)
-		# A tuned frame or module can cut its abilities' cooldown (`cooldown` in its grid).
-		apply_bonus(u, {"cooldown": int(cg.get("cooldown", 0)) + int(mg.get("cooldown", 0))})
+		# A tuned frame, core or module can cut its abilities' cooldown (`cooldown` in its grid).
+		apply_bonus(u, {"cooldown": int(cg.get("cooldown", 0)) + int(og.get("cooldown", 0)) + int(mg.get("cooldown", 0))})
 		# Sets: parts from one maker add up (011). Player machines only -- see makers.json.
 		for entry: Dictionary in sets_of(u.part_ids, parts, rules_makers):
 			for tier: Variant in (entry["active"] as Array):
@@ -314,6 +326,11 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 ## (melee damage), `cooldown` (every ability ready that many rounds sooner, never below 1),
 ## `chain` (more jumps on a weapon that already arcs), and the flags `unshovable` and
 ## `move_after_attack`. One function, so a number means the same thing wherever it comes from.
+## The keys a core or module may carry beyond its plain numbers (033), read through apply_bonus.
+const EXTRA_KEYS: PackedStringArray = ["melee", "unshovable", "move_after_attack", "chain", "pierce", "arc", "mark",
+	"shove", "tears", "thorns", "regen", "kill_heal", "last_stand"]
+
+
 static func apply_bonus(u: GridUnit, grid: Dictionary) -> void:
 	if grid.is_empty():
 		return
@@ -334,6 +351,27 @@ static func apply_bonus(u: GridUnit, grid: Dictionary) -> void:
 	for weapon: Dictionary in u.weapons:
 		if chain != 0 and int(weapon["chain"]) > 0:
 			weapon["chain"] = int(weapon["chain"]) + chain
+	# 033: traits a core or module lends the weapons. `pierce` and `arc` (chain jumps, even on a
+	# shot that never arced) on shots; `shove` and `tears` on melee; `mark` on everything.
+	for weapon: Dictionary in u.weapons:
+		if bool(weapon.get("empty", false)):
+			continue
+		var shape: String = String(weapon["shape"])
+		if shape == "shot":
+			weapon["pierce"] = int(weapon["pierce"]) + int(grid.get("pierce", 0))
+			weapon["chain"] = int(weapon["chain"]) + int(grid.get("arc", 0))
+		if shape == "melee":
+			if int(grid.get("shove", 0)) > 0:
+				weapon["shove"] = maxi(1, int(weapon["shove"]))
+			if int(grid.get("tears", 0)) > 0:
+				weapon["tears"] = true
+		if int(grid.get("mark", 0)) > 0 and shape != "shield":
+			weapon["mark"] = true
+	u.thorns += int(grid.get("thorns", 0))
+	u.regen += int(grid.get("regen", 0))
+	u.kill_heal += int(grid.get("kill_heal", 0))
+	if int(grid.get("last_stand", 0)) > 0:
+		u.last_stand = true
 	var cut: int = int(grid.get("cooldown", 0))
 	for ability: Dictionary in u.abilities:
 		if cut != 0:
