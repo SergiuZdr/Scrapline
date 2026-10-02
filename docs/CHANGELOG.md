@@ -2,6 +2,21 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [033] Parts: the power audit and modules with mechanics — 2026-10-02 ([detail](iterations/033-parts-audit.md))
+
+### Added
+- **Twelve new modules** with new rules: thorns, a repair drone, a scrap leech that heals on kills,
+  a Phoenix Cell that survives its first wreck, and modules that lend weapons pierce, arcs, marks,
+  shoves or tearing.
+- **The parts analysis** ([parts-power](plans/parts-power.md)): every part's power by slot and rarity.
+
+### Changed
+- **Rare cores do something**: the Tesla Core arcs every shot, the Mag Core pierces; uncommon cores
+  each carry a trait. The Targeting Suite, Heat Governor, Flamer and Shield Caster are stronger.
+
+### Fixed
+- The Aegis Rig's "Fast Cycle" tuning made its shield slower.
+
 ## [032] Play-test 10 fixes — 2026-10-02 ([detail](iterations/032-playtest-10-fixes.md))
 
 ### Changed
