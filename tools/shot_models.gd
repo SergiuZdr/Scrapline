@@ -7,6 +7,7 @@ extends SceneTree
 ##   godot --path . --resolution 1600x900 --script res://tools/shot_models.gd -- \
 ##       --out shots/models [--parts ch_brute,co_slug,ar_saw,ar_hammer,mo_scavenger]
 ##   godot ... -- --out shots/sites --site workshop     # a map landmark, kit against generated
+##   godot ... -- --out shots/sites --site workshop --bare   # the generated one alone, no labels
 ##
 ## Writes `<out>_near.png` (garage distance, three-quarter) and `<out>_far.png` (the board's
 ## own camera pitch and distance, where a machine is 60-80 px tall and only big shapes read).
@@ -92,7 +93,11 @@ func _run() -> void:
 ## generated one (`Models.site`), both dressed by `Ink.dress_prop` in the site's livery.
 func _sites(world: Node3D, kind: String, out: String) -> void:
 	var livery: Color = YardView.SITE_LIVERY.get(kind, Ink.STEEL)
+	# `--bare` (020): the generated model alone, centred, no labels -- for a sheet of sites.
+	var bare: bool = OS.get_cmdline_user_args().has("--bare")
 	for i: int in 2:
+		if bare and i == 0:
+			continue
 		var piece: Node3D
 		if i == 0:
 			piece = Surfaces.kit("service_gantry", 0.12)
@@ -106,8 +111,10 @@ func _sites(world: Node3D, kind: String, out: String) -> void:
 			Ink.dress_prop(piece, livery)
 		else:
 			Ink.dress_set_piece(piece, livery)
-		piece.position = Vector3((float(i) - 0.5) * 3.6, 0.0, 0.0)
+		piece.position = Vector3(0.0 if bare else (float(i) - 0.5) * 3.6, 0.0, 0.0)
 		world.add_child(piece)
+		if bare:
+			continue
 		var tag := Label3D.new()
 		tag.text = "SHIPPED" if i == 0 else "NEW (017)"
 		tag.font = UIKit.font_display()
