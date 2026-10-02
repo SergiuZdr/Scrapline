@@ -73,6 +73,9 @@ def args():
     p.add_argument("--keep-texture", action="store_true",
                    help="keep the model's geometry and UV texture (a TRELLIS model): no remesh, no zones")
     p.add_argument("--posterize", type=int, default=0, help="with --keep-texture: flat colours in the texture")
+    p.add_argument("--grey-white", action="store_true",
+                   help="with --keep-texture: near-white grey texels become dark concrete (020: TRELLIS "
+                   "sometimes turns the ground under a model into a white mound)")
     return p.parse_args(argv)
 
 
@@ -313,6 +316,33 @@ def collapse(obj, budget, sharp):
     obj.data.set_sharp_from_angle(angle=math.radians(sharp))
 
 
+def grey_white(obj, lum_min=0.52, sat_max=0.16, concrete=(0.21, 0.21, 0.23)):
+    """Recolours the near-white, grey texels of the model's texture to dark concrete: TRELLIS
+    sometimes grows a white mound out of the ground under a model (the 020 gate). Deleting those
+    faces left holes the ink line showed through; a dark apron reads as part of the site. Only
+    for a model whose concept has no white in it. Returns the share of texels changed."""
+    import numpy as np
+    image = None
+    for slot in obj.material_slots:
+        if slot.material and slot.material.use_nodes:
+            for node in slot.material.node_tree.nodes:
+                if node.type == "TEX_IMAGE" and node.image is not None:
+                    image = node.image
+    if image is None:
+        return 0.0
+    px = np.array(image.pixels[:], dtype=np.float32).reshape(-1, 4)
+    rgb = px[:, :3]
+    lum = rgb @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
+    sat = rgb.max(1) - rgb.min(1)
+    hit = (lum > lum_min) & (sat < sat_max)
+    rgb[hit] = np.array(concrete, dtype=np.float32)
+    px[:, :3] = rgb
+    image.pixels[:] = px.reshape(-1)
+    image.update()
+    image.pack()
+    return float(hit.mean())
+
+
 def posterize(obj, colours):
     """The model's base-colour texture reduced to `colours` flat colours (k-means on the pixels,
     seeded, so a rerun gives the same file). Gradients -- TRELLIS bakes soft shading in -- would
@@ -381,6 +411,8 @@ def keep_texture(a):
     scale = seat(obj, a.size)
     before = sum(len(p.vertices) - 2 for p in obj.data.polygons)
     collapse(obj, a.budget, a.sharp)
+    if a.grey_white:
+        print("greyed %.0f%% of the texture (near-white)" % (100.0 * grey_white(obj)))
     texture = posterize(obj, a.posterize)
     after = sum(len(p.vertices) - 2 for p in obj.data.polygons)
     obj.name = os.path.splitext(os.path.basename(a.out))[0]

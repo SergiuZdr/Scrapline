@@ -205,6 +205,9 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-01 | Measure an art complaint across every combination before fixing one model: "arms go through the body" was 78 of 100 frame/arm pairs |
 | 2026-10-01 | A transparent overlay drawn at a higher render priority than a label hides it however "no depth test" the label is: order the priorities, labels last |
 | 2026-10-01 | A bot batch is ~55 s a run alone and ~5 min with 15 processes sharing the CPU: size batches at 10 runs a process, launch them detached (`nohup`), and wait on the processes, or the one-hour limit kills them silently |
+| 2026-10-02 | A tool that drives the real `Run` autoload writes the player's save and profile (a screenshot banked a bot run into the user's unlocks). Under `--script` both use files of their own, by construction |
+| 2026-10-02 | A bigger board made the game easier (67% from 58%): room is time to shoot. Space and enemy count move together |
+| 2026-10-02 | The rarity OFFERED is not the rarity FITTED: the first cut moved the bot's late crews from 6.8 to 6.7 rare parts. Measure the outcome (the bot reports rare+ fitted at the last gate) |
 
 ## Open questions
 
@@ -246,3 +249,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-01 | **029: do the flamer, harpoon and shield caster feel different? Are legendaries worth the hunt?** | The user plays | |
 | 2026-10-01 | **030: are the warlords fun? Act 3 is now the bot's easiest act (12.6% lost)** | Tighten after 031; the user plays | |
 | 2026-10-01 | **031: is Act 1 too hard with arenas (bot loses 14.7% there, was 5.3%)? Does the refinery make late crews too strong?** | The user plays | |
+| 2026-10-02 | **032: is the 10 x 10 board right (and on a phone)? Do defend fights feel fair now? Is the arena hard enough?** | The user plays | |

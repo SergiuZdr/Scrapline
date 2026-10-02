@@ -20,10 +20,18 @@ fi
 [ -z "$kind" ] && { echo "every site has a model"; exit 0; }
 [ -f art/concepts/$kind.png ] || { echo "no concept art/concepts/$kind.png"; exit 1; }
 work=$(mktemp -d)
-up=$(curl -sS -m 120 -H "Authorization: Bearer $HF_TOKEN" -F "files=@art/concepts/$kind.png" "$B/gradio_api/upload")
+# Our own mask (cut_background.py): TRELLIS's background removal once kept part of the floor.
+blender --background --python tools/gen3d/cut_background.py -- art/concepts/$kind.png $work/concept.png 2>&1 | grep -E "^cut:"
+up=$(curl -sS -m 120 -H "Authorization: Bearer $HF_TOKEN" -F "files=@$work/concept.png" "$B/gradio_api/upload")
 remote=$(python3 -c "import json,sys; print(json.loads(sys.argv[1])[0])" "$up") || { echo "$kind: upload failed"; exit 1; }
 # TRELLIS generates from the background-removed image, so that step's output feeds the next.
-pre=$(python3 $Q $B $work/pre "[[\"start_session\", []], [\"preprocess_image\", [{\"path\": \"$remote\", \"meta\": {\"_type\": \"gradio.FileData\"}}]]]" 2>&1 | grep -o '"path": "[^"]*"' | head -1 | sed 's/"path": "//; s/"$//')
+# Twice: a step the Space drops times out (gradio_queue.py STEP_LIMIT), and a second try
+# usually goes through.
+for attempt in 1 2; do
+  pre=$(STEP_LIMIT=180 python3 $Q $B $work/pre "[[\"start_session\", []], [\"preprocess_image\", [{\"path\": \"$remote\", \"meta\": {\"_type\": \"gradio.FileData\"}}]]]" 2>&1 | grep -o '"path": "[^"]*"' | head -1 | sed 's/"path": "//; s/"$//')
+  [ -n "$pre" ] && break
+  echo "$kind: preprocess did not finish (try $attempt of 2)"
+done
 [ -z "$pre" ] && { echo "$kind: preprocess failed"; exit 1; }
 log=$(python3 $Q $B $work "[[\"start_session\", []], [\"generate_and_extract_glb\", [{\"path\": \"$pre\", \"meta\": {\"_type\": \"gradio.FileData\"}}, [], null, 0, 7.5, 12, 3.0, 12, \"stochastic\", 0.95, 1024]]]" 2>&1)
 if echo "$log" | grep -q "quota"; then
@@ -31,8 +39,14 @@ if echo "$log" | grep -q "quota"; then
 fi
 glb=$(ls $work/*sample.glb 2>/dev/null | head -1)
 [ -z "$glb" ] && { echo "$kind: TRELLIS failed"; echo "$log" | tail -3 | cut -c1-300; exit 1; }
+# The uncleaned model is kept (gitignored): cleaning it again costs no GPU.
+mkdir -p tools/gen3d/raw && cp "$glb" tools/gen3d/raw/$kind.glb
 size=2.6; [ $kind = boss ] && size=4.2; [ $kind = reclaimer ] && size=5.0
+# The Reclaimer stands a dozen times along its wall: a lighter copy.
+budget=12000; [ $kind = reclaimer ] && budget=3500
+# The gate's concept has no white: TRELLIS grew a white mound out of its slab (020).
+extra=(); [ $kind = boss ] && extra=(--grey-white)
 blender --background --python tools/blender/clean_generated.py -- --keep-texture --in $glb \
-  --out art/sites/$kind.glb --size $size --budget 12000 --posterize 16 --sharp 45 2>&1 | grep -E "^kept|Error"
+  --out art/sites/$kind.glb --size $size --budget $budget --posterize 16 --sharp 45 ${extra[@]} 2>&1 | grep -E "^kept|Error"
 $GODOT --headless --path . --import 2>&1 | grep -i "error" | head -3
 echo "$kind: on the map (art/sites/$kind.glb)"

@@ -2,6 +2,22 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [032] Play-test 10 fixes — 2026-10-02 ([detail](iterations/032-playtest-10-fixes.md))
+
+### Changed
+- **A bigger battlefield**: run boards are 10 x 10 (were 8 x 8), the two sides further apart; Acts 2
+  and 3 field one more enemy.
+- **Your machines' names** over them on the board. HP squares 16 to a row.
+- **Part pictures** at the refinery, the trader's sell list and the auction.
+- **The arena is a real fight**: two more enemies than an elite, each tougher and harder-hitting;
+  its salvage starts at a rare.
+- **Rares are earned**: rarer salvage in Acts 2-3, a dearer refinery and auction, warlords' hoards
+  a legendary only sometimes.
+- **The garage on one grid**, and NUMBERS in readable sections.
+
+### Fixed
+- Screenshot and test tools could write the player's save and profile; they have their own now.
+
 ## [031] Sites and events — 2026-10-01 ([detail](iterations/031-sites-and-events.md))
 
 ### Added

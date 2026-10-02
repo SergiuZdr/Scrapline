@@ -420,7 +420,7 @@ static func move_preview(state: RunState, setup: RunSetup, to: int) -> Dictionar
 	if FIGHT_TYPES.has(kind):
 		var rules: Dictionary = rules_of(state, setup).get("enemies", {})
 		var counts: Array = rules.get("count_by_column", [3])
-		enemies = int(counts[mini(int(site["col"]), counts.size() - 1)]) + int((setup.rules.get("board", {}) as Dictionary).get("enemies", 0))
+		enemies = int(counts[mini(int(site["col"]), counts.size() - 1)]) + int((rules_of(state, setup).get("board", {}) as Dictionary).get("enemies", 0))
 		if kind == "elite" or kind == "arena":
 			enemies += int(rules.get("elite_extra", 1)) + (int((rules.get("arena", {}) as Dictionary).get("extra", 0)) if kind == "arena" else 0)
 		elif kind == "boss":
@@ -1157,7 +1157,8 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 		elif not bool(map.get("tutorial", false)):
 			ids.append(id)
 	ids.sort()
-	var board: Dictionary = setup.rules.get("board", {})
+	# The act may change the board (032: Acts 2 and 3 hold one more enemy).
+	var board: Dictionary = rules_of(state, setup).get("board", {})
 	var template: Dictionary = widen(setup.fights[ids[rng.range_int(0, ids.size() - 1)]], board)
 	if kind == "boss" and not gate.is_empty():
 		return _make_gate_fight(state, setup, site_id, widen(setup.fights[gate], board), rng)
