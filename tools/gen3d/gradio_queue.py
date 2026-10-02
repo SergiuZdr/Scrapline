@@ -26,6 +26,9 @@ import sys
 import time
 import urllib.request
 
+## Seconds a step may take, queue wait included (020: one hung for ten minutes).
+STEP_LIMIT = int(os.environ.get("STEP_LIMIT", "420"))
+
 
 def get_json(url):
     with urllib.request.urlopen(url, timeout=60) as r:
@@ -75,8 +78,13 @@ def main():
                                                "trigger_id": None, "session_hash": session})
         result = None
         stream = urllib.request.Request(base + "/gradio_api/queue/data?session_hash=" + session, headers=headers())
-        with urllib.request.urlopen(stream, timeout=1200) as r:
+        # A wall-clock limit per step (020): the stream's heartbeats keep a socket timeout from
+        # ever firing, so an event the Space dropped would otherwise be waited on forever.
+        with urllib.request.urlopen(stream, timeout=120) as r:
             for raw in r:
+                if time.time() - t > STEP_LIMIT:
+                    print("%s: TIMEOUT after %ds (the Space never finished the step)" % (api_name, STEP_LIMIT))
+                    sys.exit(3)
                 line = raw.decode().strip()
                 if not line.startswith("data:"):
                     continue
@@ -86,7 +94,7 @@ def main():
                     if kind == "log":
                         print("  log:", msg.get("log"))
                     continue
-                if kind == "process_completed":
+                if kind in ("process_completed", "unexpected_error", "close_stream", "server_stopped"):
                     result = msg
                     break
         ok = bool(result and result.get("success"))
