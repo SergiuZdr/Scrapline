@@ -117,3 +117,9 @@ primary action per screen) stay. The hub, its tabs and every F2P screen are cut.
   over the hold. No tabs: everything a machine is, at once.
 - **UNLOCKS**: from the title and the run's end; every unlock as a goal with a progress bar.
 - HP pips: fixed size, twelve to a row.
+
+## Every control answers the hand (035)
+
+The `Juice` autoload gives every BaseButton a hover lift, press squash, release bounce, sounds,
+and a "no" shake when disabled -- no screen builds this itself. A control opts out with the meta
+`no_juice`.

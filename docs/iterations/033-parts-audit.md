@@ -1,7 +1,7 @@
 # Iteration 033 — Parts: the power audit and modules with mechanics
 
-**Status:** in progress
-**Started:** 2026-10-02 · **Finished:** —
+**Status:** done -- waiting for the user to play it
+**Started:** 2026-10-02 · **Finished:** 2026-10-02
 
 (This plan was written after the first code: the audit and the new mechanics were built while
 032's bot ran. Recorded here so the order is not hidden.)
@@ -30,14 +30,46 @@ thinnest slot, all stat sticks) get parts that change how a machine plays.
 4. The analysis document; tests; bot.
 
 ## Acceptance criteria
-- [ ] Points model: the mean of every slot rises with rarity, common < uncommon < rare < legendary.
-- [ ] Measured: no rare or legendary part measures below its slot's commons.
-- [ ] verify_combat covers every new mechanic, a dry run carries them (clone), every module and core
+- [x] Points model: the mean of every slot rises with rarity, common < uncommon < rare < legendary.
+- [ ] Measured: no rare or legendary part measures below its slot's commons -- NOT MET as a test: the measurement could not separate parts (see Result).
+- [x] verify_combat covers every new mechanic, a dry run carries them (clone), every module and core
   describes itself.
-- [ ] All suites; run bot 150, 0 illegal.
+- [x] All suites; run bot 150, 0 illegal.
 
 ## Result
 
+- The analysis is [`docs/plans/parts-power.md`](../plans/parts-power.md): mean points by rarity,
+  before and after, and every part. Before: a rare core added 1.5 over a common, a rare module
+  2.0 (a rare chassis 5.2, a rare arm 3.6); the rare Targeting Suite was the weakest module. After:
+  every slot rises with every rarity (cores 3.4 / 4.9 / 7.0 / 11.0, modules 3.1 / 4.2 / 5.6 / 9.8).
+- The measurement (`tools/part_power.gd`, 40 paired trials a part, 15 processes): the reference
+  crew won every trial with every part, so it measured HP per fight only, within +-1.4, mostly
+  noise. Its loudest readings agreed with the model (Flamer -0.95, Shield Caster -0.50, Lance
+  +1.35, Coilgun +1.27) and the two weak arms were buffed (Flamer 3 damage, Shield Caster range 4,
+  no heat).
+- Mechanics: `GridUnit.thorns/regen/kill_heal/last_stand/stood` (copied in `copy()`), `REPAIRED`
+  and `LAST_STAND` events drawn on the board (+N HP, HOLDS!), `CombatSetup.EXTRA_KEYS` read from a
+  core or module through `apply_bonus` (`pierce`, `arc`, `mark`, `shove`, `tears` on the weapons).
+  Twelve new modules (25), seven cores reworked, Targeting, Governor and the Aegis tuning fixed.
+  Glossary: thorns, repairs, last stand.
+- Found while doing 034: model aliases do not chain -- Sprint Pistons and Spiked Plating pointed
+  at parts that themselves borrow a model, so no model existed. Fixed; verify_combat checks every
+  part's model now.
+- Suites: combat 288 (+12), run 175, meta 59, save 15, assembly 140, combat_input 22, run_ui 49,
+  onboarding 39. **Run bot 56.7%** (032: 60.0%), 0 illegal; lost by act 10.7 / 22.4 / 18.3%;
+  rare+ fitted at the last gate 5.7 of 15. Enemies roll the new modules and cores too.
+
 ## Decisions, lessons, open questions
+- Modules are the slot that changes HOW a machine plays; cores carry a damage type and, from
+  uncommon up, a trait. Rarity buys a trait, not only a number.
+- Lesson: a measurement that cannot fail is not one. The paired test was built, run for an hour,
+  and could not separate parts because the bot wins single fights; the run bot's losses come from
+  damage carried across fights. Calibrate a harness against a known difference (a +7 HP frame)
+  before trusting its zeros.
+- Lesson: aliases do not chain; anything that resolves a reference once must be tested for every
+  entry, not for the ones written first.
+- Open: do the new modules feel different in the hand? Is the game too hard at 56.7% now enemies
+  carry them (Act 2 lost 22.4%)?
 
 ## Next
+034: missions unlock most of the new modules.
