@@ -152,6 +152,12 @@ func _go() -> void:
 			await _frames(3)
 			var panel: Node = map.get("_garage")
 			_check("GARAGE opens the garage", panel != null)
+			# 035: every button on the map and in the garage answers the hand (the Juice autoload).
+			await create_timer(0.3).timeout
+			var plain: Array = []
+			var counted: Array = [0]
+			_juiced(root, plain, counted)
+			_check("every button on screen is juiced (%d buttons, %d not)" % [counted[0], plain.size()], counted[0] > 10 and plain.is_empty())
 			var part: String = state.cargo[0]
 			var slot: String = String((_run.get("db").parts[part] as Dictionary)["slot"])
 			var socket: int = {"chassis": 0, "core": 1, "arm": 3, "module": 4}[slot]
@@ -416,6 +422,15 @@ func _has_label(node: Node, text: String) -> bool:
 		if _has_label(child, text):
 			return true
 	return false
+
+
+func _juiced(node: Node, plain: Array, counted: Array) -> void:
+	if node is BaseButton and not node.has_meta("no_juice"):
+		counted[0] += 1
+		if not node.has_meta("juiced"):
+			plain.append(node.name)
+	for child: Node in node.get_children():
+		_juiced(child, plain, counted)
 
 
 func _check(label: String, ok: bool) -> void:
