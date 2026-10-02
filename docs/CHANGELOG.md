@@ -2,6 +2,13 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [036] Comic style, a frame — 2026-10-03 ([detail](iterations/036-comic-style.md))
+
+### Changed
+- **The world is printed on paper**: dot screens in the shadows, slightly slipped colour plates,
+  paper grain -- on the fight, the map and the title, never over the interface.
+- **Heavier ink**; damage in **starbursts**; the round in a **caption box**.
+
 ## [035] The interactive pass — 2026-10-03 ([detail](iterations/035-interactive.md))
 
 ### Changed

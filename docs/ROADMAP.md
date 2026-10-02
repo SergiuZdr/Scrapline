@@ -56,7 +56,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 033 | [Parts audit and modules](iterations/033-parts-audit.md) | The power of every part by slot and rarity; twelve modules with mechanics; cores that grow with rarity (bot 56.7%) | ✅ awaiting the play-test |
 | 034 | [Unlock missions](iterations/034-unlock-missions.md) | Feats from fights unlock nine of the new modules; UNLOCKS shows missions and progress | ✅ awaiting the play-test |
 | 035 | [The interactive pass](iterations/035-interactive.md) | A Juice autoload: every button lifts, squashes, clicks, and says no when disabled | ✅ awaiting the play-test |
-| 036 | Comic style | A style frame, then the look on UI and models | ⬜ |
+| 036 | [Comic style, a frame](iterations/036-comic-style.md) | The world printed (dots, slipped plates, grain), heavier ink, starbursts, a caption box | ✅ awaiting the user's verdict |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

@@ -148,3 +148,11 @@ the one under your hand.
 **Effects and shaders (024).** Every short-lived material goes through `Ink.hold`, no effect lights
 an OmniLight3D, and a transparent material is additive rather than emissive -- each of these
 compiled a shader mid-fight (up to 850 ms a frame here). New effects join the fight's warm-up.
+
+## The print pass (036, a frame)
+
+`Ink.print_pass(parent, layer)` puts `ink_print.gdshader` on a CanvasLayer UNDER the screen's
+interface: the 3D world is printed (a 6 px dot screen below luminance 0.3, plates 1.5 px apart,
+grain, warm highlights) and the HUD is not. On the fight, the map and the title; `-- --look plain`
+turns it off. Ink lines 2.0 / 3.0 / 3.6; totals in starbursts; the round in a caption box.
+Contrast unchanged (2.91 both ways, slag_pit). Awaiting the user's verdict before it spreads.
