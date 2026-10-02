@@ -41,6 +41,10 @@ var outcome: int = ONGOING
 ## Why the run ended, for the run-over screen.
 var end_reason: String = ""
 var fights_won: int = 0
+## What the crew has DONE in this run's fights (034): counts by feat, tallied by
+## `RunSim.tally_feats` from each fight's event stream and banked into the lifetime stats, where
+## unlock missions read them.
+var feats: Dictionary = {}
 ## Whether the crew was built from the bench at the start (play-test 4). Once only.
 var assembled: bool = false
 ## Sites a watchtower or a signal scouted (013), sorted.
