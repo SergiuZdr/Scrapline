@@ -14,6 +14,22 @@ extends RefCounted
 const VERSION: int = 1
 const PATH: String = "user://run.json"
 const TEMP_PATH: String = "user://run.tmp.json"
+## Play-test 10: a tool (`--script`) never touches the player's own run. A screenshot that
+## played a bot run to its end once wrote over a real save; tools get files of their own.
+const TOOL_PATH: String = "user://tool_run.json"
+const TOOL_TEMP_PATH: String = "user://tool_run.tmp.json"
+
+
+static func _tool() -> bool:
+	return OS.get_cmdline_args().has("--script")
+
+
+static func path() -> String:
+	return TOOL_PATH if _tool() else PATH
+
+
+static func _temp() -> String:
+	return TOOL_TEMP_PATH if _tool() else TEMP_PATH
 
 
 static func encode(seed_value: int, content_version: String, actions: Array, fight: Array, options: Dictionary = {}) -> String:
@@ -36,28 +52,28 @@ static func decode(text: String) -> Dictionary:
 
 
 static func save(seed_value: int, content_version: String, actions: Array, fight: Array, options: Dictionary = {}) -> bool:
-	var file: FileAccess = FileAccess.open(TEMP_PATH, FileAccess.WRITE)
+	var file: FileAccess = FileAccess.open(_temp(), FileAccess.WRITE)
 	if file == null:
 		return false
 	file.store_string(encode(seed_value, content_version, actions, fight, options))
 	file.close()
-	return DirAccess.rename_absolute(ProjectSettings.globalize_path(TEMP_PATH),
-		ProjectSettings.globalize_path(PATH)) == OK
+	return DirAccess.rename_absolute(ProjectSettings.globalize_path(_temp()),
+		ProjectSettings.globalize_path(path())) == OK
 
 
 static func exists() -> bool:
-	return FileAccess.file_exists(PATH)
+	return FileAccess.file_exists(path())
 
 
 static func load_saved() -> Dictionary:
 	if not exists():
 		return {}
-	return decode(FileAccess.get_file_as_string(PATH))
+	return decode(FileAccess.get_file_as_string(path()))
 
 
 static func clear() -> void:
 	if exists():
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path()))
 
 
 static func _ints(value: Variant) -> Variant:
