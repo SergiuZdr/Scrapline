@@ -600,7 +600,7 @@ func _landmark(type: String, id: int) -> Node3D:
 
 
 ## Generated sites whose front (a door, a counter, a camp's open side) must face the camera.
-const FACING_SITES: PackedStringArray = ["workshop", "trader", "start"]
+const FACING_SITES: PackedStringArray = ["workshop", "trader", "start", "boss"]
 
 
 ## The livery the landmark being built wears (016); clear while building clutter.
@@ -804,26 +804,45 @@ func _build_reclaimer() -> void:
 	teeth.position = Vector3(0.12, 0.25, 0)
 	teeth.material_override = Ink.glow(RECLAIMER_RED, 1.6)
 	_reclaimer.add_child(teeth)
+	# 020: the wall is a line of harvesters (a TRELLIS model, `art/sites/reclaimer.glb`) where
+	# one exists, shredders forward (+X, the way it advances); the kit's crane rigs otherwise.
+	var harvester: PackedScene = Models.site("reclaimer")
 	var z: float = -DEPTH * 0.5 - 5.0
 	var i: int = 0
 	while z <= DEPTH * 0.5 + 5.0:
 		var name: String = "gantry" if i % 2 == 0 else "service_gantry"
-		var rig: Node3D = Surfaces.kit(name, 0.0)
-		if rig != null:
-			for mesh: MeshInstance3D in ConstructView.meshes_of(rig):
-				mesh.material_override = dark
+		var top: float = 5.2 if name == "gantry" else 2.5
+		if harvester != null:
+			var machine: Node3D = harvester.instantiate() as Node3D
+			for mesh: MeshInstance3D in ConstructView.meshes_of(machine):
+				if mesh.mesh == null:
+					continue
+				for s: int in mesh.mesh.get_surface_count():
+					var source: BaseMaterial3D = mesh.mesh.surface_get_material(s) as BaseMaterial3D
+					mesh.set_surface_override_material(s, Ink.textured(source.albedo_texture, Color(0.5, 0.47, 0.47)) if source != null and source.albedo_texture != null else dark)
 				Ink.line(mesh, Ink.LINE_WORLD, edge)
-			rig.position = Vector3(-2.2 - float(_h(i, 3) % 100) / 100.0, 0, z)
-			rig.rotation_degrees.y = 90.0 if name == "service_gantry" else 0.0
-			rig.scale = Vector3.ONE * (0.62 if name == "gantry" else 0.75)
-			_reclaimer.add_child(rig)
+			machine.position = Vector3(-3.0 - float(_h(i, 3) % 100) / 100.0, 0, z)
+			machine.rotation_degrees.y = 90.0 + float(_h(i, 4) % 17) - 8.0
+			machine.scale = Vector3.ONE * (0.9 + float(_h(i, 5) % 15) / 100.0)
+			_reclaimer.add_child(machine)
+			top = 3.4
+		else:
+			var rig: Node3D = Surfaces.kit(name, 0.0)
+			if rig != null:
+				for mesh: MeshInstance3D in ConstructView.meshes_of(rig):
+					mesh.material_override = dark
+					Ink.line(mesh, Ink.LINE_WORLD, edge)
+				rig.position = Vector3(-2.2 - float(_h(i, 3) % 100) / 100.0, 0, z)
+				rig.rotation_degrees.y = 90.0 if name == "service_gantry" else 0.0
+				rig.scale = Vector3.ONE * (0.62 if name == "gantry" else 0.75)
+				_reclaimer.add_child(rig)
 		var beacon := MeshInstance3D.new()
 		var ball := SphereMesh.new()
 		ball.radius = 0.16
 		ball.height = 0.32
 		beacon.mesh = ball
 		beacon.material_override = Ink.glow(RECLAIMER_RED, 2.0)
-		beacon.position = Vector3(-2.2, 5.2 if name == "gantry" else 2.5, z)
+		beacon.position = Vector3(-2.6 if harvester != null else -2.2, top, z)
 		_reclaimer.add_child(beacon)
 		z += 3.4
 		i += 1
