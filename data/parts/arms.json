@@ -361,7 +361,7 @@
     "grid": {
       "shape": "cone",
       "range": 1,
-      "damage": 2,
+      "damage": 3,
       "heat": 2
     },
     "tuning": [
@@ -377,7 +377,8 @@
           "heat": -1
         }
       }
-    ]
+    ],
+    "_033": "audit: below every common arm (points 5.2, measured -0.95): 2 -> 3 damage"
   },
   {
     "id": "ar_harpoon",
@@ -424,9 +425,9 @@
     "enemy": false,
     "grid": {
       "shape": "shield",
-      "range": 3,
+      "range": 4,
       "damage": 3,
-      "heat": 1
+      "heat": 0
     },
     "tuning": [
       {
@@ -441,7 +442,8 @@
           "range": 1
         }
       }
-    ]
+    ],
+    "_033": "audit: below every common arm (points 6.0, measured -0.50): range 3 -> 4, heat 1 -> 0"
   },
   {
     "id": "ar_cleaver",
