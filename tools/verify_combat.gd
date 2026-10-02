@@ -481,6 +481,12 @@ func _test_modules_033() -> void:
 		if String(part.get("slot", "")) in ["module", "core"] and PartText.summary(_db.parts, String(id), _db.combat_abilities).strip_edges().is_empty():
 			bad.append(id)
 	_check("every module and core says what it does %s" % [bad], bad.is_empty())
+	# Aliases do not chain (Sprint Pistons once pointed at Jump Jets, itself a borrowed model).
+	var no_model: Array = []
+	for id: Variant in _db.parts.keys():
+		if not PartTuning.is_tuned(String(id)) and not ResourceLoader.exists("res://art/parts/%s.glb" % PartTuning.model_of(String(id))):
+			no_model.append(id)
+	_check("every part's model exists %s" % [no_model], no_model.is_empty())
 
 
 # --- Fixtures ---------------------------------------------------------------
