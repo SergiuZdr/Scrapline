@@ -90,11 +90,39 @@ func show_machine(parts: Array, level: int, alive: bool = true, paint: Color = C
 	# Head and shoulders, the way a crew photo is framed: the top two thirds of the machine.
 	# (Not `look_at`: the portrait may not be in the tree yet when it is filled.)
 	if framing == "full":
-		_camera.look_at_from_position(Vector3(0.0, h * 0.6, h * 2.75), Vector3(0.0, h * 0.5, 0.0))
+		_frame_whole(model)
 	else:
 		_camera.look_at_from_position(Vector3(0.0, h * 0.62, h * 2.1), Vector3(0.0, h * 0.55, 0.0))
 	modulate = Color(1, 1, 1) if alive else Color(1.0, 0.45, 0.4, 0.55)
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+
+
+## 043 (play-test 13: "the crew view does not show the entire robot if its arms are too big"):
+## the whole machine, as the camera sees it -- its bounds measured after the three-quarter turn,
+## the camera centred on them and backed off until both the height and the width fit the frame.
+func _frame_whole(model: Node3D) -> void:
+	var lo := Vector3(INF, INF, INF)
+	var hi := Vector3(-INF, -INF, -INF)
+	var stack: Array[Node] = [model]
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		stack.append_array(node.get_children())
+		if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+			var mesh := node as MeshInstance3D
+			var box: AABB = mesh.mesh.get_aabb()
+			var t: Transform3D = _pivot.transform * model.transform * _relative(mesh, model)
+			for i: int in 8:
+				var p: Vector3 = t * box.get_endpoint(i)
+				lo = lo.min(p)
+				hi = hi.max(p)
+	if lo.x == INF:
+		return
+	var centre: Vector3 = (lo + hi) * 0.5
+	var span: Vector3 = hi - lo
+	var aspect: float = float(_viewport.size.x) / maxf(1.0, float(_viewport.size.y))
+	var tan_half: float = tan(deg_to_rad(_camera.fov * 0.5))
+	var distance: float = maxf(span.y / (2.0 * tan_half), span.x / (2.0 * tan_half * aspect)) * 1.12 + span.z * 0.5
+	_camera.look_at_from_position(centre + Vector3(0.0, span.y * 0.12, distance), centre)
 
 
 ## The machine's width across x, from its meshes' bounds (framing only: a rough box is enough).
