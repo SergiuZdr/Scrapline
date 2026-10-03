@@ -1,6 +1,6 @@
 # Plan — Meta-progression (unlocks only)
 
-**Status:** built in 022 (parts, crews, two tiers; `data/meta.json`, `sim/run/meta.gd`). The codex and blueprints-as-drops are not built.
+**Status:** built in 022 (parts, crews, two tiers; `data/meta.json`, `sim/run/meta.gd`); 043 made the tiers a LADDER (below). The codex and blueprints-as-drops are not built.
 
 ## The rule
 
@@ -47,3 +47,17 @@ each fight's events, `kills`, `multi_kill`, `pit_kills`, `bumps`, `tears`, `flaw
 `close_calls`, `<objective>_wins`, `elites`, `arenas`, `warlords`, `gates`; `Meta.stats_after` adds
 them up across runs. Nine missions (`mission: true` in `data/meta.json`) open 033's uncommon-and-up
 modules; UNLOCKS shows MILESTONES and MISSIONS in their own columns.
+
+
+## The ladder (043, play-test 13)
+The user hated choosing a difficulty after NEW RUN, and wanted the tiers to be something the game
+makes you climb. So:
+- **NEW RUN starts at once** with the remembered crew and tier. The title shows them ("NEXT RUN: THE
+  SALVAGERS · FOREMAN") with **CHANGE** (the old choice screen, now opt-in, with BACK).
+- **A tier opens by winning the one below** (`wins_t<N>` per tier, counted by `Meta.stats_after`):
+  FOREMAN by any win, RECLAIMED by a win on FOREMAN.
+- **The opened tier becomes the next run's at once** (`Profile.bank_run`): the player is carried up
+  and may step down.
+- **The game's ending** is the unlock `u26` (`kind: ending`), earned only by a win on RECLAIMED;
+  the title's ladder line says what is won, open and shut, and what cuts the line.
+- Open: more rungs (the plan's ~10 stacking tiers) once the user has played this one.

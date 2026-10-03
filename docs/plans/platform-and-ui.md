@@ -123,3 +123,20 @@ primary action per screen) stay. The hub, its tabs and every F2P screen are cut.
 The `Juice` autoload gives every BaseButton a hover lift, press squash, release bounce, sounds,
 and a "no" shake when disabled -- no screen builds this itself. A control opts out with the meta
 `no_juice`.
+
+
+## The comic UI (041 -> 043)
+The user picked **option B's panels with option A's buttons**. `UIKit` hands out `InkBox` for every
+card and button: `card`/`ink_card` are pop-art (ink border 3 px on a card, 6 px on a page-sized
+panel; a hard `POP_SHADOW` red shadow; `POP_DOTS` cyan halftone -- coloured panels keep an ink
+shadow and no dots), `primary`/`secondary`/`choice`/`ink_button` are pulp (`BUTTON_WOBBLE` inked
+border, ink shadow; the primary shaded with a halftone `ramp`). `UIKit.pressed` drops the box into
+its shadow (`nudge`). `InkBox` answers to StyleBoxFlat's property names (`bg_color`,
+`border_color`, `set_border_width_all`, `shadow_offset`, `shadow_size`), so screens were unchanged.
+`UIKit.plain` and `slant` stay StyleBoxFlat (pips, bars).
+
+## The bay (043)
+Three columns on one grid (`assembly_panel.gd` `COLUMN_X`, 40 px gutters): the crew (whole-machine
+portraits), the lift, the bench (five even tabs, three part cards a row). `MachinePortrait` "full"
+framing measures the machine after its three-quarter turn and backs the camera off until height
+and width both fit.
