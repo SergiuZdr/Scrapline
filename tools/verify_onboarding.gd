@@ -110,8 +110,10 @@ func _test_hints(profile: Node) -> void:
 	root.add_child(host)
 	var shown: Control = Hints.show_once(host, "map", _db, Vector2(100, 100))
 	_check("a hint shows the first time", shown != null and host.has_node("hint_map"))
-	_check("asking again does not stack a second one", Hints.show_once(host, "map", _db, Vector2(100, 100)) == shown
-		and host.get_child_count() == 1)
+	var again: Control = Hints.show_once(host, "map", _db, Vector2(100, 100))
+	# 039: a hint is a balloon -- the panel and its tail.
+	_check("asking again does not stack a second one", again == shown
+		and host.get_child_count() == 2 and host.has_node("hint_tail_map"))
 	(shown.find_child("got_it", true, false) as Button).pressed.emit()
 	await process_frame
 	await process_frame

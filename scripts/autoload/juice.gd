@@ -14,9 +14,46 @@ const T_IN: float = 0.09
 const T_OUT: float = 0.14
 
 
+var _scene: Node = null
+
+
 func _ready() -> void:
 	get_tree().node_added.connect(_on_node_added)
 	_walk(get_tree().root)
+
+
+## 039, the comic: every change of screen is a PAGE TURNING -- a sheet of paper with an inked
+## edge sweeps off to the left, uncovering the new screen. It never takes a click (it lets them
+## through), so a test or a quick tap is never blocked.
+func _process(_delta: float) -> void:
+	var now: Node = get_tree().current_scene
+	if now == _scene:
+		return
+	var first: bool = _scene == null
+	_scene = now
+	if now == null or first or OS.get_cmdline_args().has("--headless"):
+		return
+	var layer := CanvasLayer.new()
+	layer.layer = 120
+	get_tree().root.add_child(layer)
+	var page := ColorRect.new()
+	page.color = Color("efe3c8")
+	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	page.size = get_viewport().get_visible_rect().size + Vector2(40, 40)
+	page.position = Vector2(-20, -20)
+	page.pivot_offset = Vector2(0, page.size.y * 0.5)
+	layer.add_child(page)
+	var edge := ColorRect.new()
+	edge.color = Color("14110f")
+	edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	edge.size = Vector2(10, page.size.y)
+	edge.position = Vector2(page.size.x - 10, 0)
+	page.add_child(edge)
+	var tween := page.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(page, "position:x", -page.size.x - 60.0, 0.42).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tween.tween_property(page, "rotation_degrees", -4.0, 0.42)
+	tween.chain().tween_callback(layer.queue_free)
 
 
 func _walk(node: Node) -> void:
