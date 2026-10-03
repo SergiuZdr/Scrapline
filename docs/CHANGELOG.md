@@ -2,6 +2,25 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [037] Play-test 11 fixes — 2026-10-03 ([detail](iterations/037-playtest-11-fixes.md))
+
+### Fixed
+- **Charge** stops on the hex you aim at (it ran its full range), takes a terminal it ends on, and
+  counts the Brawler's bonus; its text says exactly what it does, and it shows its damage before
+  you confirm.
+- A Focus or Overdrive shows on the weapon cards at once. Damage to pylons and crates is previewed.
+- A tag no longer climbs far above its machine; the map's portraits and HP squares fit.
+
+### Added
+- **Damage types made visible**: a chart in the glossary, each weapon's type on its card, STRONG /
+  WEAK on an aimed hit, and what a machine beats and fears in DETAILS. The Flamer and Sunspear always
+  burn, the Pulse Emitter and Coilgun are always EMP.
+- Every damage total says what it is made of ("-7 (4 + 3 blast)").
+- Every site says what it does under its name on the map; UNLOCKS marks what is new.
+
+### Changed
+- NUMBERS is DETAILS; ROLE explains the role; tuning is UPGRADE; "NOT RARER THAN YOURS" is gone.
+
 ## [036] Comic style, a frame — 2026-10-03 ([detail](iterations/036-comic-style.md))
 
 ### Changed
