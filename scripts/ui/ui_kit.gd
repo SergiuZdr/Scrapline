@@ -215,7 +215,20 @@ static func caption_title(text: String, size: int = 46, tilt: float = -2.0) -> C
 	label.add_theme_color_override("font_color", INK)
 	box.add_child(label)
 	box.rotation_degrees = tilt
-	return box
+	# A container resets its children's rotation when it lays them out, so the tilted box sits in
+	# a plain holder that only takes the box's size.
+	var holder := Control.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	holder.add_child(box)
+	box.position = Vector2(4, 6)
+	var fit: Callable = func() -> void:
+		holder.custom_minimum_size = box.get_combined_minimum_size() + Vector2(12, 14)
+		box.pivot_offset = box.size * 0.5
+	box.resized.connect(fit)
+	box.minimum_size_changed.connect(fit)
+	fit.call()
+	return holder
 
 
 static func ink_caption(margin_x: int = SPACE_MD, margin_y: int = SPACE_XS + 2) -> InkBox:
