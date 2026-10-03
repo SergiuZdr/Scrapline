@@ -586,7 +586,8 @@ static func damage_to(state: CombatState, u: GridUnit, target: GridUnit, amount:
 	var dmg: int = (amount * pct + 50) / 100
 	if shot:
 		dmg -= state.cover(target.x, target.y)
-	dmg -= target.armor + target.shield + _warden_cover(state, target) + _pylon_cover(state, target) + _twin_cover(state, target)
+	dmg -= target.armor + target.shield + _warden_cover(state, target) + _pylon_cover(state, target) + _twin_cover(state, target) \
+		+ _kind_cover(state, target)
 	if target.marked:
 		dmg += state.setup.mark_bonus
 	return maxi(state.setup.min_damage, dmg)
@@ -619,6 +620,20 @@ static func _twin_cover(state: CombatState, target: GridUnit) -> int:
 
 
 ## The Sorter (013) takes `pylon_armor` off every hit while any gate pylon stands.
+## 038 (play-test 11: "the end boss feels weaker than the warlords"): a kind with `cover_kind`
+## takes `cover_armor` less from every hit while any machine of that kind stands -- the Core is
+## shielded by its conduits, so the fight has an order to it.
+static func _kind_cover(state: CombatState, target: GridUnit) -> int:
+	var rules: Dictionary = kind_rules(state, target)
+	var shield_kind: String = String(rules.get("cover_kind", ""))
+	if shield_kind.is_empty():
+		return 0
+	for u: GridUnit in state.units:
+		if u.alive and u.kind == shield_kind and u.team == target.team:
+			return int(rules.get("cover_armor", 0))
+	return 0
+
+
 static func _pylon_cover(state: CombatState, target: GridUnit) -> int:
 	if target.kind != "sorter" or not has_pylon(state):
 		return 0

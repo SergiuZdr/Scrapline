@@ -42,6 +42,12 @@ const PANEL_WIDTH: int = 360
 
 var _banner: Label
 var _banner_box: PanelContainer
+## 038: the boss's bar -- name, HP, what it is doing -- under the round caption.
+var _boss_box: PanelContainer
+var _boss_name: Label
+var _boss_bar: ProgressBar
+var _boss_hp: Label
+var _boss_line: Label
 var _cards: Dictionary = {}
 var _card_column: VBoxContainer
 var _objective_plate: PanelContainer
@@ -200,6 +206,56 @@ func set_crew(cards: Array) -> void:
 
 ## What this fight asks for, always on screen: the play-test found a goal nobody explains
 ## is not a goal. `text` comes from `CombatSim.objective_status`.
+## 038 (play-test 11: "the bosses do not look scary"): a boss or warlord gets a bar across the top
+## -- its name in red, its HP, and the line that says what it is doing now. `name` empty hides it.
+func set_boss(name: String, hp: int, max_hp: int, line: String) -> void:
+	if _boss_box == null:
+		var holder := CenterContainer.new()
+		holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(holder)
+		holder.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+		holder.offset_top = 66
+		holder.offset_bottom = 66 + 84
+		_boss_box = PanelContainer.new()
+		_boss_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_boss_box.add_theme_stylebox_override("panel", UIKit.ink_card(UIKit.INK, UIKit.SPACE_LG, UIKit.SPACE_XS, 5))
+		holder.add_child(_boss_box)
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 2)
+		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_boss_box.add_child(col)
+		var head := HBoxContainer.new()
+		head.add_theme_constant_override("separation", UIKit.SPACE_MD)
+		col.add_child(head)
+		_boss_name = _label("", 26, Ink.DANGER, UIKit.font_comic())
+		head.add_child(_boss_name)
+		_boss_bar = ProgressBar.new()
+		_boss_bar.show_percentage = false
+		_boss_bar.custom_minimum_size = Vector2(420, 18)
+		_boss_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var well := StyleBoxFlat.new()
+		well.bg_color = Color("2a2420")
+		well.border_color = UIKit.PAPER
+		well.set_border_width_all(2)
+		var fill := StyleBoxFlat.new()
+		fill.bg_color = Ink.DANGER
+		_boss_bar.add_theme_stylebox_override("background", well)
+		_boss_bar.add_theme_stylebox_override("fill", fill)
+		head.add_child(_boss_bar)
+		_boss_hp = _label("", 22, UIKit.PAPER, UIKit.font_comic())
+		head.add_child(_boss_hp)
+		_boss_line = _label("", UIKit.SIZE_LABEL, UIKit.PAPER, UIKit.font_strong())
+		col.add_child(_boss_line)
+	_boss_box.visible = not name.is_empty()
+	if name.is_empty():
+		return
+	_boss_name.text = name.to_upper()
+	_boss_bar.max_value = max_hp
+	_boss_bar.value = hp
+	_boss_hp.text = "%d / %d" % [hp, max_hp]
+	_boss_line.text = line
+
+
 func set_objective(text: String, urgent: bool) -> void:
 	_objective_label.text = text
 	_objective_label.add_theme_color_override("font_color", UIKit.INK_RED if urgent else UIKit.INK)

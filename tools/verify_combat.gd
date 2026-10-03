@@ -68,6 +68,7 @@ func _initialize() -> void:
 	_test_warlords_030()
 	_test_modules_033()
 	_test_playtest11()
+	_test_bosses_038()
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
 			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core",
 		"warlord_grinder", "warlord_magnet", "warlord_twins"]:
@@ -520,6 +521,27 @@ func _test_playtest11() -> void:
 		return e.has("prop") and not bool(e["broken"]) and int(e["hp_lost"]) > 0))
 	var parts: Dictionary = CombatSim.damage_parts(burn, [CombatSim.ACT_ATTACK, 0, 0, n.x, n.y])
 	_check("damage_parts names the hits of an action (%s)" % [parts], parts.has(10))
+
+
+## 038: the Core is shielded while a conduit stands; the end boss's board fields both conduits.
+func _test_bosses_038() -> void:
+	var core: Dictionary = _unit(HAMMER, C, 72)
+	core["kind"] = "heart"
+	var relay: Dictionary = _unit(HAMMER, Vector2i(0, 0), 14)
+	relay["kind"] = "conduit"
+	var n: Vector2i = Hex.neighbor(C, 3)
+	var f: CombatState = _fight(_rows(), [_unit(HAMMER, n, 30)], [core, relay])
+	_place(f, 0, n)
+	var shielded: int = CombatSim.damage_to(f, f.unit(0), f.unit(10), 8, false)
+	f.unit(11).alive = false
+	var bare: int = CombatSim.damage_to(f, f.unit(0), f.unit(10), 8, false)
+	_check("the Core takes 2 less while a conduit stands (%d), not after (%d)" % [shielded, bare], bare == shielded + 2)
+	var setup: RunSetup = RunSetup.create(_db.parts, _db.tiles, _db.fights, _db.run_rules, _db.combat_rules, _db.balance.effectiveness, 3)
+	var state: RunState = RunSim.start(setup)
+	state.act = 3
+	var gate: Dictionary = RunSim._make_gate_fight(state, setup, 0, RunSim.widen(_db.fights["the_core"], _db.run_rules.get("board", {})), SimRNG.new(1))
+	var conduits: int = (gate["enemy"] as Array).filter(func(e: Dictionary) -> bool: return String(e.get("kind", "")) == "conduit").size()
+	_check("the Core's gate fields both of its conduits (%d)" % conduits, conduits == 2 and int((gate["enemy"] as Array)[0]["hp"]) == 72)
 
 
 # --- Fixtures ---------------------------------------------------------------

@@ -61,11 +61,16 @@
   },
   "pour": {
     "name": "The Pour",
-    "text": "The Slag Flats' keeper. Every other round it marks the hexes your machines stand on; a round later they flood with slag for the rest of the fight (2 damage a round to anything on them). Keep moving, and break it before the floor runs out. At half HP it BOILS OVER: it marks every round, four hexes, the slag bites for 3, and three drones come to guard it.",
-    "floods": 3,
+    "text": "The Slag Flats' keeper. Every other round it marks four hexes, the ones your machines stand on first; a round later they flood with slag for the rest of the fight (2 damage a round to anything on them). Keep moving, and break it before the floor runs out. At half HP it BOILS OVER: it marks five hexes every round, the slag bites for 3, and three drones come to guard it.",
+    "floods": 4,
     "every": 2,
     "hazard": 2,
-    "enraged": {"floods": 4, "every": 1, "hazard": 3, "summons": 3}
+    "enraged": {
+      "floods": 5,
+      "every": 1,
+      "hazard": 3,
+      "summons": 3
+    }
   },
   "conduit": {
     "name": "Conduit",
@@ -74,15 +79,22 @@
   },
   "heart": {
     "name": "The Core",
-    "text": "The Crucible's heart, bolted to the floor: it never moves and cannot be shoved. Every third round it marks every hex within 2 of it, and a round later it pulses: 4 damage to each of your machines still in the ring. Its pad builds a drone every 4 rounds. Break it and the Reclaimer stops. At half HP it ERUPTS: it pulses every other round, 3 hexes out, for 5, and calls three drones.",
-    "pulse_every": 3,
+    "text": "The Crucible's heart and the run's last boss, bolted to the floor: it never moves and cannot be shoved. While a CONDUIT stands it takes 2 less from every hit -- break them first. Every other round it marks every hex within 2 of it, and a round later it pulses: 4 damage to each of your machines still in the ring. Its pad builds a drone every 3 rounds. At half HP it ERUPTS: it pulses EVERY round, 3 hexes out, for 5, and calls three drones.",
+    "pulse_every": 2,
     "pulse_radius": 2,
     "pulse_damage": 4,
     "still": true,
     "anchored": true,
     "builds": true,
-    "every": 4,
-    "enraged": {"pulse_every": 2, "pulse_radius": 3, "pulse_damage": 5, "summons": 3}
+    "every": 3,
+    "enraged": {
+      "pulse_every": 1,
+      "pulse_radius": 3,
+      "pulse_damage": 5,
+      "summons": 3
+    },
+    "cover_kind": "conduit",
+    "cover_armor": 2
   },
   "grinder": {
     "name": "The Grinder",

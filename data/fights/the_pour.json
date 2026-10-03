@@ -8,11 +8,11 @@
   "rows": [
     "...ss...",
     "........",
-    ".l....l.",
-    "........",
+    ".l.cc.l.",
     "..b..b..",
-    "........",
-    ".r....r.",
+    "l......l",
+    "..c..c..",
+    ".r.l..r.",
     "........"
   ],
   "player": [
@@ -64,7 +64,7 @@
         "ar_pulse",
         "mo_reactive"
       ],
-      "hp": 38,
+      "hp": 52,
       "x": 3,
       "y": 1
     },
@@ -121,5 +121,6 @@
     "type": "rout"
   },
   "boss": true,
-  "max_rounds": 22
+  "max_rounds": 22,
+  "_038": "play-test 11: 52 HP, a dressed floor"
 }

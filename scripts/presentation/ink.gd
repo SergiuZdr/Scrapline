@@ -324,7 +324,9 @@ static func zone_material(zone: String, livery: Color, team: Color) -> Material:
 
 ## Dresses a machine built by `ConstructView.build_parts`: every surface by its zone and its
 ## part's livery, the level kit by the material it was given, and a line on everything.
-static func dress_machine(model: Node3D, part_ids: PackedStringArray, team: Color) -> void:
+## `paint` (038): one livery for the whole machine instead of each part's own -- a boss in
+## crimson, a warlord in gunmetal. Transparent = each part's livery.
+static func dress_machine(model: Node3D, part_ids: PackedStringArray, team: Color, paint: Color = Color(0, 0, 0, 0)) -> void:
 	var slots: Dictionary = {"part_chassis": 0, "part_core": 1, "part_arm_l": 2, "part_arm_r": 3, "part_module": 4}
 	var chassis_id: String = PartTuning.base_of(part_ids[0]) if part_ids.size() > 0 else ""
 	# The level kit is built from PartMaterials' cached zone materials: map them back.
@@ -332,18 +334,18 @@ static func dress_machine(model: Node3D, part_ids: PackedStringArray, team: Colo
 	for zone: String in ["metal", "dark"]:
 		kit[PartMaterials.for_zone(zone, team)] = zone
 	kit[PartMaterials.for_zone("paint", team, PartMaterials.livery_of(chassis_id))] = "paint"
-	_dress_node(model, "", slots, part_ids, team, kit)
+	_dress_node(model, "", slots, part_ids, team, kit, paint)
 
 
 static func _dress_node(node: Node, part_id: String, slots: Dictionary, part_ids: PackedStringArray,
-		team: Color, kit: Dictionary) -> void:
+		team: Color, kit: Dictionary, paint: Color = Color(0, 0, 0, 0)) -> void:
 	var here: String = part_id
 	if slots.has(String(node.name)):
 		var index: int = int(slots[String(node.name)])
 		here = PartTuning.base_of(part_ids[index]) if index < part_ids.size() else ""
 	if node is MeshInstance3D:
 		var mesh: MeshInstance3D = node
-		var livery: Color = livery_of(here)
+		var livery: Color = paint if paint.a > 0.0 else livery_of(here)
 		if mesh.material_override != null:
 			mesh.material_override = zone_material(String(kit.get(mesh.material_override, "metal")), livery, team)
 		elif mesh.mesh != null:
@@ -352,7 +354,7 @@ static func _dress_node(node: Node, part_id: String, slots: Dictionary, part_ids
 				mesh.set_surface_override_material(s, zone_material(zone, livery, team))
 		line(mesh, LINE_MACHINE)
 	for child: Node in node.get_children():
-		_dress_node(child, here, slots, part_ids, team, kit)
+		_dress_node(child, here, slots, part_ids, team, kit, paint)
 
 
 ## Scenery (the arena kit): pushed down into the night, a thinner line, lamps kept lit.
