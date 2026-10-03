@@ -905,6 +905,12 @@ func _test_assembly() -> void:
 	for member: Dictionary in state.crew:
 		defaults.append((member["parts"] as Array).duplicate())
 	_check("the default crew is itself a legal build", RunSim.apply(RunSim.start(setup), setup, [RunSim.ASSEMBLE, defaults]))
+	# 040: a part the profile unlocked is on the bench, once.
+	var opened: RunSetup = RunSetup.create(_db.parts, _db.tiles, _db.fights, _db.run_rules, _db.combat_rules, _db.balance.effectiveness, 12,
+		{"unlocked": ["ar_maul", "mo_repair"]})
+	_check("unlocked parts join the assembly bench, once each (maul %d, repair drone %d; elsewhere %d)" % [RunSim.bench_count(opened, "ar_maul"),
+		RunSim.bench_count(opened, "mo_repair"), RunSim.bench_count(setup, "mo_repair")],
+		RunSim.bench_count(opened, "ar_maul") == 1 and RunSim.bench_count(opened, "mo_repair") == 1 and RunSim.bench_count(setup, "mo_repair") == 0)
 	var twin: Array = [["ch_brute", "co_slug", "ar_hammer", "ar_ripper", "mo_scavenger"],
 		["ch_brute", "co_arc", "ar_pulse", "ar_scatter", "mo_ablative"],
 		["ch_courier", "co_dynamo", "ar_scanner", "ar_hammer", "mo_governor"]]

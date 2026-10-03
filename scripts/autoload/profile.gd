@@ -86,6 +86,18 @@ func unseen_unlocks() -> Array:
 	return unlocked().filter(func(id: Variant) -> bool: return not seen.has(id))
 
 
+## The last act whose arrival was told for the run with this seed (040: once a run, CONTINUE too).
+func act_told(run_key: String) -> int:
+	var told: Dictionary = _data.get("acts_told", {})
+	return int(told.get(run_key, 1))
+
+
+func tell_act(run_key: String, act: int) -> void:
+	# Only the latest run is worth keeping: a new run's seed replaces the record.
+	_data["acts_told"] = {run_key: act}
+	_save()
+
+
 ## Everything held has now been seen on the UNLOCKS screen.
 func mark_unlocks_seen() -> void:
 	_data["unlocks_seen"] = unlocked()

@@ -68,7 +68,12 @@ func _ready() -> void:
 	# in fights) in the third, each under its own heading.
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", UIKit.SPACE_LG)
-	box.add_child(columns)
+	# 040: rows say what a part does now, so the list scrolls rather than run off the card.
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(1460, 780)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	scroll.add_child(columns)
 	var cols: Array[VBoxContainer] = []
 	for c: int in 3:
 		var col := VBoxContainer.new()
@@ -116,7 +121,7 @@ func _row(entry: Dictionary, is_next: bool) -> Control:
 		style.band_width = 9.0
 		style.band = Ink.GAIN if fresh else Ink.ACTION
 	row.add_theme_stylebox_override("panel", style)
-	row.custom_minimum_size = Vector2(476, 76)
+	row.custom_minimum_size = Vector2(476, 96)
 	var line := HBoxContainer.new()
 	line.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	row.add_child(line)
@@ -134,11 +139,21 @@ func _row(entry: Dictionary, is_next: bool) -> Control:
 	var status: String = "NEW  ·  " if fresh else ("" if held else ("NEXT  ·  " if is_next else ""))
 	text.add_child(UIKit.fit(_label(status + _gives(entry), 20, UIKit.INK if held else UIKit.INK_DIM, UIKit.font_comic()), 270, 1, 12))
 	text.add_child(UIKit.fit(_label(String(entry.get("text", "")), UIKit.SIZE_LABEL, UIKit.INK_DIM, UIKit.font_strong()), 270, 2, 11))
+	# 040 (play-test 12: "impossible to see what the new parts do"): a part says what it does, in
+	# its card's words, and the row opens its card.
+	if String(entry.get("kind", "")) == "part":
+		text.add_child(UIKit.fit(_label(PartText.summary(_db.parts, String(entry["what"]), _db.combat_abilities),
+			UIKit.SIZE_LABEL, UIKit.INK, UIKit.font_strong()), 270, 2, 11))
+		row.mouse_filter = Control.MOUSE_FILTER_STOP
+		row.tooltip_text = "Click to see the part's card"
+		row.gui_input.connect(func(event: InputEvent) -> void:
+			if event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+				_show_card(String(entry["what"])))
 	var right := VBoxContainer.new()
 	right.alignment = BoxContainer.ALIGNMENT_CENTER
 	line.add_child(right)
 	if held:
-		right.add_child(_label("HELD", 22, UIKit.INK_GREEN, UIKit.font_comic()))
+		right.add_child(_label("NEW!", 34, UIKit.INK_GREEN, UIKit.font_letters()) if fresh else _label("HELD", 22, UIKit.INK_GREEN, UIKit.font_comic()))
 	else:
 		var p: Array = Meta.progress(_stats, entry)
 		right.add_child(_label("%d / %d" % [int(p[0]), int(p[1])], 20, UIKit.INK, UIKit.font_comic()))
@@ -149,6 +164,25 @@ func _row(entry: Dictionary, is_next: bool) -> Control:
 		bar.value = float(p[0])
 		right.add_child(bar)
 	return row
+
+
+## The part's full card over the screen; any click closes it.
+func _show_card(id: String) -> void:
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.6)
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(shade)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var center := CenterContainer.new()
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shade.add_child(center)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var card: Button = PartCard.build(_db, id, Vector2(380, 470))
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.add_child(card)
+	shade.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+			shade.queue_free())
 
 
 ## What an unlock gives, in words: a part (and its slot), a crew, a tier.

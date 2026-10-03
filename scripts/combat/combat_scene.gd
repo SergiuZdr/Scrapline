@@ -292,12 +292,16 @@ func _opening(objective: String) -> void:
 		for c: GridUnit in _setup.units:
 			if c.team == GridUnit.TEAM_PLAYER and not c.objective:
 				crew.append(Array(c.part_ids))
+		# 040 (play-test 12): the strip says who this is, how it fights and how it is beaten
+		# (`story.json` `bosses`), not a sentence picked off its rules text.
+		var lines: Dictionary = (_db.story.get("bosses", {}) as Dictionary).get(keeper.kind, {})
 		_hud.show_opening_strip([
-			{"caption": "MEANWHILE...", "big": "AT THE GATE" if BOSS_KINDS.has(keeper.kind) else "OFF THE ROAD", "small": _setup_name()},
+			{"caption": "AT THE GATE" if BOSS_KINDS.has(keeper.kind) else "OFF THE ROAD", "big": _setup_name().to_upper(),
+				"small": String(lines.get("where", ""))},
 			{"caption": "BOSS" if BOSS_KINDS.has(keeper.kind) else "WARLORD", "big": String(kind.get("name", keeper.name)).to_upper(),
-				"small": said.get_slice(". ", 0) + ("." if said.contains(". ") else ""), "machines": [Array(keeper.part_ids)],
+				"small": String(lines.get("how", said.get_slice(". ", 0))), "machines": [Array(keeper.part_ids)],
 				"paint": Color("6e1a14") if BOSS_KINDS.has(keeper.kind) else Color("3b3936")},
-			{"caption": "YOUR JOB", "big": "BREAK IT", "small": objective, "machines": crew},
+			{"caption": "HOW TO WIN", "big": "BREAK IT", "small": String(lines.get("beat", objective)), "machines": crew},
 		])
 	else:
 		_hud.show_opening(_setup_name(), objective)
