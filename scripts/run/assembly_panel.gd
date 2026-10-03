@@ -16,9 +16,17 @@ extends Control
 signal done
 
 const SOCKET_NAMES: PackedStringArray = ["FRAME", "CORE", "LEFT ARM", "RIGHT ARM", "MODULE"]
-const CREW_CARD := Vector2(380, 214)
-const PART_CARD := Vector2(158, 196)
-const LIFT := Vector2i(760, 560)
+## 043 (play-test 13: "problems with column spacing"): three columns on one grid -- the crew,
+## the lift, the bench -- each with its own width and a clear gutter between them.
+const CREW_CARD := Vector2(400, 236)
+const PORTRAIT := Vector2i(168, 220)
+const PART_CARD := Vector2(198, 226)
+const LIFT := Vector2i(690, 580)
+const MARGIN: float = 40.0
+const GUTTER: float = 40.0
+const COLUMN_X: Array[float] = [MARGIN, MARGIN + 400.0 + GUTTER, MARGIN + 400.0 + GUTTER + 714.0 + GUTTER]
+const BENCH_WIDTH: float = 1920.0 - MARGIN - (MARGIN + 400.0 + GUTTER + 714.0 + GUTTER)
+const COLUMN_TOP: float = 168.0
 
 ## One five-part list per machine, in socket order.
 var _draft: Array = []
@@ -57,20 +65,21 @@ func _ready() -> void:
 	line.position = Vector2(42, 80)
 	add_child(line)
 
-	for caption: Array in [["THE CREW", 40.0], ["ON THE LIFT", 440.0], ["THE BENCH", 1220.0]]:
-		var head := UIKit.on_page(_label(String(caption[0]), 26, UIKit.PAGE_TEXT, UIKit.font_comic()), 6)
-		head.position = Vector2(float(caption[1]), 118)
+	for c: int in 3:
+		var head := UIKit.on_page(_label(["THE CREW", "ON THE LIFT", "THE BENCH"][c], 28, UIKit.PAGE_TEXT, UIKit.font_comic()), 6)
+		head.position = Vector2(COLUMN_X[c], 120)
 		add_child(head)
 
 	_crew_box = VBoxContainer.new()
-	_crew_box.position = Vector2(40, 160)
+	_crew_box.position = Vector2(COLUMN_X[0], COLUMN_TOP)
 	_crew_box.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	add_child(_crew_box)
 	for i: int in _draft.size():
-		_portraits.append(MachinePortrait.new(Vector2i(150, 190), "full", true))
+		_portraits.append(MachinePortrait.new(PORTRAIT, "full", true))
 
 	var lift_panel := PanelContainer.new()
-	lift_panel.position = Vector2(440, 160)
+	lift_panel.position = Vector2(COLUMN_X[1], COLUMN_TOP)
+	lift_panel.custom_minimum_size = Vector2(714, 0)
 	lift_panel.add_theme_stylebox_override("panel", UIKit.ink_card(UIKit.PAPER_CARD, UIKit.SPACE_MD, UIKit.SPACE_SM, 6))
 	add_child(lift_panel)
 	_lift_box = VBoxContainer.new()
@@ -79,12 +88,12 @@ func _ready() -> void:
 	_lift = MachinePortrait.new(LIFT, "full", true)
 
 	_bench_box = VBoxContainer.new()
-	_bench_box.position = Vector2(1220, 160)
+	_bench_box.position = Vector2(COLUMN_X[2], COLUMN_TOP)
 	_bench_box.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	add_child(_bench_box)
 
 	var bar := HBoxContainer.new()
-	bar.position = Vector2(40, 1080 - 88)
+	bar.position = Vector2(MARGIN, 1080 - 92)
 	bar.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	add_child(bar)
 	var reset := _button("RESET", UIKit.secondary(), UIKit.TEXT, Vector2(180, 60))
@@ -152,11 +161,12 @@ func _crew_card(i: int) -> Control:
 	text.add_theme_constant_override("separation", 2)
 	row.add_child(text)
 	var unit: GridUnit = _unit(i)
-	text.add_child(UIKit.fit(_label(String(_names[i]).to_upper(), 28, UIKit.INK, UIKit.font_comic()), 190, 1, 16))
-	text.add_child(UIKit.fit(_label("%s frame  ·  %s" % [_frame_name(i), unit.role.capitalize()], UIKit.SIZE_LABEL, UIKit.INK_DIM, UIKit.font_strong()), 190, 1, 11))
+	text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	text.add_child(UIKit.fit(_label(String(_names[i]).to_upper(), 30, UIKit.INK, UIKit.font_comic()), 196, 1, 16))
+	text.add_child(UIKit.fit(_label("%s frame  ·  %s" % [_frame_name(i), unit.role.capitalize()], UIKit.SIZE_LABEL, UIKit.INK_DIM, UIKit.font_strong()), 196, 1, 11))
 	text.add_child(_label("%d HP  ·  MOVE %d" % [unit.max_hp, unit.move], UIKit.SIZE_BODY, UIKit.INK, UIKit.font_comic()))
 	for set_line: String in PartText.set_lines(Run.db.parts, Run.db.makers, _draft[i]):
-		text.add_child(UIKit.fit(_label(set_line, UIKit.SIZE_MICRO, UIKit.INK_GREEN, UIKit.font_strong()), 190, 1, 9))
+		text.add_child(UIKit.fit(_label(set_line, UIKit.SIZE_MICRO, UIKit.INK_GREEN, UIKit.font_strong()), 196, 2, 9))
 	return card
 
 
@@ -172,7 +182,7 @@ func _build_lift() -> void:
 	var name_edit := LineEdit.new()
 	name_edit.text = String(_names[i])
 	name_edit.max_length = RunSim.NAME_MAX
-	name_edit.custom_minimum_size = Vector2(380, 54)
+	name_edit.custom_minimum_size = Vector2(420, 54)
 	name_edit.add_theme_font_override("font", UIKit.font_comic())
 	name_edit.add_theme_font_size_override("font_size", 34)
 	name_edit.tooltip_text = "This machine's name -- type to change it"
@@ -190,7 +200,9 @@ func _build_lift() -> void:
 				var label: Label = card.get_child(0).get_child(1).get_child(0) as Label
 				label.text = clean.to_upper())
 	head.add_child(name_edit)
-	head.add_child(_label("RENAME", UIKit.SIZE_MICRO, UIKit.INK_DIM, UIKit.font_comic()))
+	var hint := _label("<  CLICK THE NAME TO RENAME", UIKit.SIZE_LABEL, UIKit.INK_DIM, UIKit.font_comic())
+	hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(hint)
 	_lift_box.add_child(_lift)
 	_lift.show_machine(_draft[i], 0, true)
 	var rules: Dictionary = Run.setup.combat_rules
@@ -224,7 +236,7 @@ func _build_bench() -> void:
 	tabs.add_theme_constant_override("separation", UIKit.SPACE_XS)
 	_bench_box.add_child(tabs)
 	for s: int in 5:
-		var tab := _button(SOCKET_NAMES[s], UIKit.choice() if s == _socket else UIKit.secondary(), UIKit.TEXT, Vector2(128, 48))
+		var tab := _button(SOCKET_NAMES[s], UIKit.choice() if s == _socket else UIKit.secondary(), UIKit.TEXT, Vector2((BENCH_WIDTH - 4.0 * UIKit.SPACE_XS - 12.0) / 5.0, 48))
 		tab.add_theme_font_size_override("font_size", 18)
 		tab.pressed.connect(func() -> void:
 			_socket = s
@@ -232,15 +244,15 @@ func _build_bench() -> void:
 		tabs.add_child(tab)
 	var fitted: String = String(_draft[_machine][_socket])
 	_bench_box.add_child(UIKit.on_page(UIKit.fit(_label("%s ON %s: %s" % [SOCKET_NAMES[_socket], String(_names[_machine]).to_upper(),
-		PartText.name_of(Run.db.parts, fitted)], UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_comic()), 650, 1, 12), 5))
+		PartText.name_of(Run.db.parts, fitted)], UIKit.SIZE_HEADING, UIKit.PAGE_TEXT, UIKit.font_comic()), BENCH_WIDTH - 10.0, 1, 12), 5))
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(668, 640)
+	scroll.custom_minimum_size = Vector2(BENCH_WIDTH, 700)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_bench_box.add_child(scroll)
 	var grid := GridContainer.new()
-	grid.columns = 4
-	grid.add_theme_constant_override("h_separation", UIKit.SPACE_SM)
-	grid.add_theme_constant_override("v_separation", UIKit.SPACE_SM)
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", UIKit.SPACE_MD)
+	grid.add_theme_constant_override("v_separation", UIKit.SPACE_MD)
 	scroll.add_child(grid)
 	for part: String in _options(_socket):
 		var card: Button = PartCard.build(Run.db, part, PART_CARD)

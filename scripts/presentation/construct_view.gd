@@ -21,7 +21,10 @@ const ARM_CANT: float = 0.10
 ## Arm seating (027): the share of an arm allowed inside its body's bounds, and the furthest an
 ## arm is pushed out to get there.
 const ARM_INSIDE: float = 0.06
-const ARM_PUSH_MAX: float = 0.16
+const ARM_PUSH_MAX: float = 0.22
+## 043 (play-test 13: "I don't like how big the arms are"): a weapon arm is drawn at this share
+## of its modelled size, so the frame -- not the gun -- is the machine's outline.
+const ARM_SCALE: float = 0.8
 static var _arm_push: Dictionary = {}
 
 const SOCKETS: Dictionary = {
@@ -101,11 +104,12 @@ static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_c
 			# hardpoints are never perfectly parallel anyway.
 			var outward: float = ARM_SPLAY if slot == "arm_r" else -ARM_SPLAY
 			piece.rotation = Vector3(ARM_CANT, outward, 0.0)
+			piece.scale = Vector3.ONE * ARM_SCALE
 		if slot == "arm_l":
 			# Mirrored so the pair reads as a left and a right arm rather than two
 			# identical ones pointing the same way. Applied after the rotation, because
 			# a negative scale flips the handedness of any rotation set on top of it.
-			piece.scale = Vector3(-1, 1, 1)
+			piece.scale = Vector3(-ARM_SCALE, ARM_SCALE, ARM_SCALE)
 		# The core goes through the palette like everything else. Its damage-type colour
 		# now lives on the LENS zone alone, so the housing around it can be plain metal
 		# instead of the whole reactor glowing and washing the signal out.
@@ -123,6 +127,7 @@ static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_c
 ## ARM_PUSH_MAX. Measured on the real geometry; cached per frame, arm and side.
 static func _seat_arms(root: Node3D, chassis: Node3D, chassis_id: String) -> void:
 	var body := AABB()
+	var legs: Array[AABB] = []
 	var have_body: bool = false
 	for slot: String in ["arm_l", "arm_r"]:
 		var arm: Node3D = _find_named(root, "part_" + slot)
@@ -132,6 +137,7 @@ static func _seat_arms(root: Node3D, chassis: Node3D, chassis_id: String) -> voi
 		if not _arm_push.has(key):
 			if not have_body:
 				body = _body_bounds(chassis, root)
+				legs = _leg_bounds(chassis, root)
 				have_body = true
 			var points: PackedVector3Array = _vertices(arm, root)
 			var centre: Vector3 = body.get_center()
@@ -143,7 +149,7 @@ static func _seat_arms(root: Node3D, chassis: Node3D, chassis_id: String) -> voi
 			if out.x == 0.0:
 				out.x = 1.0 if slot == "arm_r" else -1.0
 			var push: float = 0.0
-			while push < ARM_PUSH_MAX and _inside_share(points, out * push, body) > ARM_INSIDE:
+			while push < ARM_PUSH_MAX and _inside_share(points, out * push, body, legs) > ARM_INSIDE:
 				push += 0.01
 			_arm_push[key] = out * push
 		var offset: Vector3 = _arm_push[key]
@@ -158,12 +164,35 @@ static func _seat_arms(root: Node3D, chassis: Node3D, chassis_id: String) -> voi
 			arm.position += parent_xf.basis.inverse() * offset
 
 
-static func _inside_share(points: PackedVector3Array, shift: Vector3, body: AABB) -> float:
+## 043 (play-test 13: arms "go through the frame"): the legs count too -- a hammer hanging at the
+## hip went through the thigh, which the body's bounds alone never saw.
+static func _inside_share(points: PackedVector3Array, shift: Vector3, body: AABB, legs: Array[AABB] = []) -> float:
 	var inside: int = 0
 	for v: Vector3 in points:
-		if body.has_point(v + shift):
+		var p: Vector3 = v + shift
+		if body.has_point(p) or legs.any(func(box: AABB) -> bool: return box.has_point(p)):
 			inside += 1
 	return float(inside) / float(maxi(1, points.size()))
+
+
+## Each leg's bounds (its `limb_leg_*` node and everything under it), in `space`'s coordinates,
+## shrunk a little like the body's.
+static func _leg_bounds(chassis: Node3D, space: Node3D) -> Array[AABB]:
+	var out: Array[AABB] = []
+	var stack: Array[Node] = [chassis]
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		if String(node.name).begins_with("limb_leg"):
+			var points: PackedVector3Array = _vertices(node, space)
+			if not points.is_empty():
+				var box := AABB(points[0], Vector3.ZERO)
+				for v: Vector3 in points:
+					box = box.expand(v)
+				out.append(box.grow(-0.02))
+			continue
+		if not String(node.name).begins_with("part_") or node == chassis:
+			stack.append_array(node.get_children())
+	return out
 
 
 ## The share of a machine's arm geometry that sits inside its body (027, play-test 9: "arms go
@@ -174,6 +203,7 @@ static func arm_intrusion(model: Node3D) -> float:
 	if chassis == null:
 		return 0.0
 	var body: AABB = _body_bounds(chassis, model)
+	var legs: Array[AABB] = _leg_bounds(chassis, model)
 	var inside: int = 0
 	var total: int = 0
 	for slot: String in ["arm_l", "arm_r"]:
@@ -182,7 +212,7 @@ static func arm_intrusion(model: Node3D) -> float:
 			continue
 		for v: Vector3 in _vertices(arm, model):
 			total += 1
-			if body.has_point(v):
+			if body.has_point(v) or legs.any(func(box: AABB) -> bool: return box.has_point(v)):
 				inside += 1
 	return float(inside) / float(maxi(1, total))
 
