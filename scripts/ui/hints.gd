@@ -10,7 +10,7 @@ extends RefCounted
 
 
 ## Shows hint `id` on `parent` at `at` unless it was seen; returns the callout or null.
-static func show_once(parent: Control, id: String, db: ContentDB, at: Vector2, width: float = 440.0) -> Control:
+static func show_once(parent: Control, id: String, db: ContentDB, at: Vector2, width: float = 440.0, point: Variant = null) -> Control:
 	if parent.has_node("hint_" + id):
 		return parent.get_node("hint_" + id)
 	var profile: Node = parent.get_tree().root.get_node_or_null("Profile") if parent.is_inside_tree() else null
@@ -49,10 +49,21 @@ static func show_once(parent: Control, id: String, db: ContentDB, at: Vector2, w
 	ok.add_theme_stylebox_override("pressed", UIKit.pressed(ok_style))
 	for key: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		ok.add_theme_color_override(key, UIKit.TEXT)
+	# 039, the comic: a hint is a SPEECH BALLOON -- a tail from its lower edge (pointing at `point`
+	# when the caller names a spot, else down and to the left, as a balloon's tail does).
+	var tail := BalloonTail.new()
+	tail.name = "hint_tail_" + id
+	tail.panel = panel
+	tail.fill = style.fill
+	tail.max_length = 70.0
+	tail.gap = 0.0
 	ok.pressed.connect(func() -> void:
 		profile.call("mark_seen", id)
+		tail.queue_free()
 		panel.queue_free())
 	box.add_child(ok)
+	parent.add_child(tail)
 	parent.add_child(panel)
 	panel.position = at
+	tail.point_at(point if point != null else at + Vector2(70.0, 520.0))
 	return panel

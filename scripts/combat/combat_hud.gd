@@ -57,6 +57,7 @@ var _ability_bar: HBoxContainer
 var _bar_area: VBoxContainer
 var _lines_button: Button
 var _info_title: Label
+var _info_tail: BalloonTail
 ## Rich text: the words in it are glossary links (012).
 var _info_body: RichTextLabel
 ## `ContentDB.glossary`, set by the scene before the HUD enters the tree.
@@ -123,6 +124,10 @@ func _ready() -> void:
 	panel.add_theme_stylebox_override("panel", UIKit.ink_card())
 	panel.custom_minimum_size = Vector2(PANEL_WIDTH, 0)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# 039: the info panel is a SPEECH BALLOON -- its tail points at what it is talking about.
+	_info_tail = BalloonTail.new()
+	_info_tail.panel = panel
+	add_child(_info_tail)
 	add_child(panel)
 	panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
@@ -383,6 +388,12 @@ func set_banner(text: String, colour: Color = UIKit.PAPER) -> void:
 func set_info(title: String, body: String) -> void:
 	_info_title.text = title
 	_info_body.text = Glossary.linkify(body, glossary, UIKit.INK_LINK)
+
+
+## Where the info balloon's tail points, in screen pixels; null for no tail.
+func point_info_at(where: Variant) -> void:
+	if _info_tail != null:
+		_info_tail.point_at(where)
 
 
 func set_hint(text: String) -> void:
