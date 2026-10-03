@@ -107,7 +107,7 @@ static func use(state: CombatState, ref: int, i: int, target: Vector2i) -> bool:
 		"grapple":
 			_grapple(state, u, target)
 		"barricade":
-			state.props[target] = {"kind": "crate", "hp": int(ability.get("hp", state.setup.crate_hp))}
+			state.props[target] = {"kind": "crate", "hp": int(ability.get("hp", state.setup.crate_hp)), "max": int(ability.get("hp", state.setup.crate_hp))}
 			state.emit(GridEv.PROP_PLACED, u.ref, -1, target.x, target.y, 0)
 		"boost":
 			u.boost_damage += int(ability.get("damage", 2))
@@ -143,13 +143,17 @@ static func _charge(state: CombatState, u: GridUnit, target: Vector2i, ability: 
 	var dir: int = Hex.direction(here, target)
 	# Focus / Overdrive boost the next damaging action, and a charge is one.
 	# The further the run, the harder the hit: `damage` + `per_hex` for every hex run first.
-	var dmg: int = int(ability.get("damage", 3)) + u.boost_damage + u.damage_bonus
+	# Play-test 11: a slam is melee -- the Brawler's +1 counts, as it does on a melee arm.
+	var dmg: int = int(ability.get("damage", 3)) + u.boost_damage + u.damage_bonus + u.melee_bonus
 	u.heat += u.boost_heat
 	u.boost_damage = 0
 	u.boost_heat = 0
 	var cell: Vector2i = here
 	var run: Array[Vector2i] = []
-	for step: int in int(ability.get("range", 3)):
+	# Play-test 11: "up to 3 hexes" -- the run stops on the hex aimed at (a terminal, a pile), or at
+	# the first thing in the way before it; it used to run its full range whatever was picked.
+	var steps: int = mini(int(ability.get("range", 3)), maxi(1, Hex.distance(here, target)))
+	for step: int in steps:
 		var next: Vector2i = Hex.neighbor(cell, dir)
 		if not state.inside(next) or state.is_pit(next):
 			break
@@ -172,6 +176,8 @@ static func _charge(state: CombatState, u: GridUnit, target: Vector2i, ability: 
 		u.y = cell.y
 		state.emit(GridEv.MOVED, u.ref, -1, u.x, u.y, here.x, here.y)
 		CombatSim.collect_path(state, u, run)
+		# Play-test 11: a charge that ends on a terminal takes it, as any move would.
+		CombatSim.capture(state, u)
 
 
 ## Drag the unit on `target` toward `u` along the line between them, until it is adjacent

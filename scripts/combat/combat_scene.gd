@@ -1406,6 +1406,7 @@ func _declutter() -> void:
 		nodes.append_array(badges.get(int(ref), []))
 		var box := Rect2()
 		var first: bool = true
+		var tag_h: float = 0.0
 		for node: Variant in nodes:
 			var n := node as Node3D
 			if n == null or not is_instance_valid(n) or not n.visible:
@@ -1414,10 +1415,12 @@ func _declutter() -> void:
 			var r: Rect2 = _screen_box(n)
 			if r.size == Vector2.ZERO:
 				continue
+			if node == view["tag"]:
+				tag_h = r.size.y
 			box = r if first else box.merge(r)
 			first = false
 		if not first:
-			groups.append({"nodes": nodes, "box": box, "anchor": (view["tag"] as Node3D).global_position})
+			groups.append({"nodes": nodes, "box": box, "anchor": (view["tag"] as Node3D).global_position, "tag_h": tag_h})
 	groups.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		var ta: float = (a["box"] as Rect2).position.y
 		var tb: float = (b["box"] as Rect2).position.y
@@ -1431,7 +1434,9 @@ func _declutter() -> void:
 		var shift: float = down_shift if absf(down_shift) <= absf(up_shift) else up_shift
 		# Play-test 8: never further than the group's own height -- a tag that had to climb
 		# further went all the way to the banner. Past that, it stays and may overlap.
-		if absf(shift) > box.size.y + 4.0:
+		# Play-test 11: the limit is the TAG's height, not the group's -- a group counts the damage
+		# badges hanging by its machine, and a tall group let a name climb far above its machine.
+		if absf(shift) > maxf(float(group["tag_h"]), 24.0) + 4.0:
 			shift = 0.0
 		if shift != 0.0:
 			# Screen pixels per metre of world height at this group, from the camera itself.
@@ -2145,6 +2150,9 @@ func _refresh() -> void:
 		if _armed and _ability >= 0:
 			if not _pending.is_empty():
 				_mark(_hint_quads, _pending["cell"], COL_TARGET)
+				# Play-test 11: an aimed ability shows what it will do on the board, as a shot does.
+				var cell_p: Vector2i = _pending["cell"]
+				_aim_badges(CombatSim.dry_run(_state, [CombatSim.ACT_ABILITY, sel.ref, int(_pending["i"]), cell_p.x, cell_p.y]))
 			else:
 				for cell: Vector2i in CombatAbilities.targets(_state, sel, _ability):
 					_mark(_hint_quads, cell, COL_ATTACK)
@@ -2204,7 +2212,14 @@ func _preview_marks(sel: GridUnit, w: int, cell: Vector2i) -> void:
 ## sits on the enemy's own total. From the same dry run as the info panel.
 func _aim_badges(effects: Array) -> void:
 	for effect: Dictionary in effects:
-		if effect.has("prop") or int(effect.get("hp_lost", 0)) <= 0:
+		if effect.has("prop"):
+			# Play-test 11: props show what they take too (a gate pylon, a crate wall).
+			if int(effect.get("hp_lost", 0)) > 0:
+				var at: Vector2i = effect["prop"]
+				_badge("-%d%s" % [int(effect["hp_lost"]), " BREAKS" if bool(effect["broken"]) else ""],
+					_to_world(at.x, at.y) + Vector3(0, 0.05, -HEX * 0.6), Ink.ACTION, 0.85)
+			continue
+		if int(effect.get("hp_lost", 0)) <= 0:
 			continue
 		var t: GridUnit = _state.unit(int(effect["ref"]))
 		if t == null:
@@ -2266,13 +2281,15 @@ func _refresh_hud(threats: Dictionary) -> void:
 		var cell: Vector2i = _pending["cell"]
 		if bool(_pending["ability"]):
 			var ability: Dictionary = sel.abilities[int(_pending["i"])]
-			_hud.set_info(String(ability["name"]).to_upper(), _effects_text(CombatSim.dry_run(_state,
-				[CombatSim.ACT_ABILITY, sel.ref, int(_pending["i"]), cell.x, cell.y]), {}) + "\n\nTap the same hex again to confirm.")
+			var act: Array = [CombatSim.ACT_ABILITY, sel.ref, int(_pending["i"]), cell.x, cell.y]
+			_hud.set_info(String(ability["name"]).to_upper(), _effects_text(CombatSim.dry_run(_state, act), {}, act)
+				+ "\n\nTap the same hex again to confirm.")
 		else:
 			_hud.set_info("FIRE %s" % String(sel.weapons[int(_pending["i"])]["name"]).to_upper(),
 				_preview_text(CombatSim.preview_attack(_state, sel.ref, int(_pending["i"]), cell))
 				+ "\n\nTap the same target again to confirm.")
-		_hud.set_hint("Tap the yellow target again to fire  ·  tap elsewhere to cancel")
+		_hud.set_hint(("Tap the yellow hex again to use %s  ·  tap elsewhere to cancel" % String(sel.abilities[int(_pending["i"])]["name"]).to_upper())
+			if bool(_pending["ability"]) else "Tap the yellow target again to fire  ·  tap elsewhere to cancel")
 	elif sel != null and _armed and _ability >= 0:
 		var ability: Dictionary = sel.abilities[_ability]
 		_hud.set_info(String(ability["name"]).to_upper(), "%s\n\n%s  ·  cooldown %d round%s" % [String(ability["text"]),
@@ -2345,7 +2362,12 @@ func _refresh_weapon_bar(sel: GridUnit) -> void:
 
 
 func _preview_text(preview: Dictionary) -> String:
-	var text: String = _effects_text(preview.get("effects", []), preview)
+	var act: Array = []
+	var sel_p: GridUnit = _state.unit(_selected) if _selected >= 0 else null
+	if sel_p != null and not _pending.is_empty() and not bool(_pending["ability"]):
+		var at_p: Vector2i = _pending["cell"]
+		act = [CombatSim.ACT_ATTACK, sel_p.ref, int(_pending["i"]), at_p.x, at_p.y]
+	var text: String = _effects_text(preview.get("effects", []), preview, act)
 	if preview.has("shield"):
 		var guarded: GridUnit = _state.unit(int((preview["shield"] as Dictionary)["ref"]))
 		text = "%s takes %d less from every hit until your next turn." % [guarded.name, int((preview["shield"] as Dictionary)["amount"])]
@@ -2364,25 +2386,54 @@ func _preview_text(preview: Dictionary) -> String:
 
 ## What a dry run changed, as lines a player reads: every machine hurt, destroyed, dropped
 ## into a pit, moved, and every prop that breaks. Built from the REAL rules run on a copy.
-func _effects_text(effects: Array, preview: Dictionary) -> String:
+func _effects_text(effects: Array, preview: Dictionary, action: Array = []) -> String:
 	var lines: PackedStringArray = []
+	# Play-test 11: every total says what it is made of -- "-7 (4 + 3 blast)", "(arc)" -- and a
+	# hit the damage type helps or blunts says so (STRONG / WEAK).
+	var parts: Dictionary = CombatSim.damage_parts(_state, action) if not action.is_empty() else {}
+	var how: Dictionary = {}
+	for hit: Dictionary in (preview.get("hits", []) as Array):
+		var ref_h: int = int(hit["ref"])
+		var notes: PackedStringArray = []
+		if bool(hit.get("arc", false)):
+			notes.append("arc: 1 less")
+		var pct: int = int(hit.get("pct", 100))
+		if pct > 100:
+			notes.append("STRONG x%.1f" % (float(pct) / 100.0))
+		elif pct < 100:
+			notes.append("WEAK x%.1f" % (float(pct) / 100.0))
+		if not notes.is_empty():
+			how[ref_h] = notes
 	for effect: Dictionary in _nearest_first(effects):
 		if effect.has("prop"):
 			var cell: Vector2i = effect["prop"]
-			var kind: String = String((_state.props.get(cell, {"kind": "prop"}) as Dictionary)["kind"])
-			lines.append("A fuel drum EXPLODES" if kind == "barrel" else "A crate wall breaks")
+			var prop: Dictionary = _state.props.get(cell, {"kind": "prop"})
+			var kind: String = String(prop["kind"])
+			if kind == "barrel":
+				lines.append("A fuel drum EXPLODES (3 to everything next to it)")
+			elif bool(effect.get("broken", true)):
+				lines.append("A %s breaks" % ("gate pylon" if kind == "pylon" else "crate wall"))
+			else:
+				lines.append("A %s -%d → %d/%d" % ["gate pylon" if kind == "pylon" else "crate wall", int(effect.get("hp_lost", 0)),
+					int(prop.get("hp", 1)) - int(effect.get("hp_lost", 0)), int(prop.get("max", prop.get("hp", 1)))])
 			continue
 		var t: GridUnit = _state.unit(int(effect["ref"]))
 		if t == null:
 			continue
 		var who: String = t.name + (" (YOURS)" if t.team == GridUnit.TEAM_PLAYER else "")
+		var made: String = ""
+		var bits: PackedStringArray = parts.get(t.ref, PackedStringArray())
+		if bits.size() > 1 or (bits.size() == 1 and String(bits[0]).contains(" ")):
+			made = " (%s)" % " + ".join(bits)
+		if how.has(t.ref):
+			made += "  " + ", ".join(how[t.ref])
 		if bool(effect["fell"]):
 			lines.append("%s FALLS INTO THE PIT" % who)
 		elif bool(effect["killed"]):
-			lines.append("%s -%d  DESTROYED" % [who, int(effect["hp_lost"])])
+			lines.append("%s -%d%s  DESTROYED" % [who, int(effect["hp_lost"]), made])
 		elif int(effect["hp_lost"]) > 0:
 			var tear: String = "  TEARS AN ARM OFF" if (preview.get("tears", []) as Array).has(t.ref) else ""
-			lines.append("%s -%d → %d/%d%s" % [who, int(effect["hp_lost"]), t.hp - int(effect["hp_lost"]), t.max_hp, tear])
+			lines.append("%s -%d%s → %d/%d%s" % [who, int(effect["hp_lost"]), made, t.hp - int(effect["hp_lost"]), t.max_hp, tear])
 		elif effect["moved_to"] != null:
 			lines.append("%s is moved" % who)
 	if lines.is_empty():
@@ -2484,11 +2535,22 @@ func _arms_line(u: GridUnit) -> String:
 	return " / ".join(names)
 
 
+## The damage type a weapon deals, in capitals: its own (a Flamer burns), else the core's.
+func _dtype_name(u: GridUnit, w: int) -> String:
+	var types: Array = _db.combat_rules.get("damage_types", [])
+	var t: int = int((u.weapons[w] as Dictionary).get("dtype", -1))
+	if t < 0:
+		t = u.damage_type
+	return String(types[t]).to_upper() if t >= 0 and t < types.size() else "dmg"
+
+
 func _weapon_detail(u: GridUnit, w: int) -> String:
 	var weapon: Dictionary = u.weapons[w]
 	var dmg: int = int(weapon["damage"])
 	if dmg > 0:
-		dmg += u.damage_bonus + (u.melee_bonus if String(weapon["shape"]) == "melee" else 0)
+		# Play-test 11: a Focus or Overdrive shows on the card the moment it is used.
+		dmg += u.damage_bonus + (u.melee_bonus if String(weapon["shape"]) == "melee" else 0) + u.boost_damage \
+			+ CombatSim.conduit_boost(_state, u)
 	var bits: PackedStringArray = []
 	match String(weapon["shape"]):
 		"melee":
@@ -2501,7 +2563,7 @@ func _weapon_detail(u: GridUnit, w: int) -> String:
 			bits.append("shot %d" % CombatSim.weapon_reach(_state, u, w))
 		"lob":
 			bits.append("lob %d-%d" % [int(weapon["range_min"]), CombatSim.weapon_reach(_state, u, w)])
-	bits.append("%d dmg" % dmg)
+	bits.append("%d %s" % [dmg, _dtype_name(u, w)] if String(weapon["shape"]) != "shield" else "%d dmg" % dmg)
 	for key: String in ["pierce", "chain"]:
 		if int(weapon[key]) > 0:
 			bits.append("%s %d" % [key, int(weapon[key])])

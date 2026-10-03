@@ -50,7 +50,7 @@ static func start(setup: CombatSetup) -> CombatState:
 	state.emit(GridEv.FIGHT_START)
 	for prop: Dictionary in setup.start_props:
 		var cell := Vector2i(int(prop["x"]), int(prop["y"]))
-		state.props[cell] = {"kind": String(prop["kind"]), "hp": int(prop["hp"])}
+		state.props[cell] = {"kind": String(prop["kind"]), "hp": int(prop["hp"]), "max": int(prop["hp"])}
 		state.emit(GridEv.PROP_PLACED, -1, -1, cell.x, cell.y, maxi(0, GridEv.PROP_KINDS.find(String(prop["kind"]))))
 	for pile: Dictionary in setup.start_piles:
 		var cell := Vector2i(int(pile["x"]), int(pile["y"]))
@@ -230,6 +230,20 @@ static func aim_options(state: CombatState, u: GridUnit, w: int) -> Array[Vector
 ## `tiles` are the hexes the attack covers, for drawing; `end` is where a shot stopped;
 ## `hits` are the units it lands on, in the order it lands on them. Nothing is changed.
 static func strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector2i) -> Dictionary:
+	# Play-test 11: a weapon may deal its OWN damage type (`dtype`: a Flamer burns whatever core
+	# drives it). Every hit below reads `u.damage_type` through damage_to, so the plan is worked
+	# out with the weapon's type and the machine's put back -- nothing is left changed.
+	var own: int = int((u.weapons[w] as Dictionary).get("dtype", -1)) if w >= 0 and w < u.weapons.size() else -1
+	if own < 0 or own == u.damage_type:
+		return _strike_plan(state, u, w, target)
+	var kept: int = u.damage_type
+	u.damage_type = own
+	var plan: Dictionary = _strike_plan(state, u, w, target)
+	u.damage_type = kept
+	return plan
+
+
+static func _strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector2i) -> Dictionary:
 	var here := Vector2i(u.x, u.y)
 	var plan: Dictionary = {"legal": false, "aim": target, "end": target, "tiles": [], "hits": []}
 	if not u.can_fire(w) or not state.inside(target) or target == here:
@@ -427,7 +441,11 @@ static func _arc(state: CombatState, u: GridUnit, hits: Array[Dictionary], props
 		if state.props.has(cell):
 			_add_prop(state, props, cell, amount)
 		else:
+			var before_hits: int = hits.size()
 			_add_hit(state, u, hits, cell, amount, false, false)
+			# Play-test 11: the preview says an arc's hit is the arc's (a point less than the beam).
+			if hits.size() > before_hits:
+				hits[hits.size() - 1]["arc"] = true
 
 
 ## Depth-first over every route the arc could take from `from`, keeping the best in `best`
@@ -533,7 +551,17 @@ static func _add_hit(state: CombatState, u: GridUnit, hits: Array[Dictionary], c
 	var target: GridUnit = state.unit_at(cell.x, cell.y)
 	if target == null or target == u:
 		return
-	hits.append({"ref": target.ref, "damage": damage_to(state, u, target, amount, shot), "primary": primary})
+	hits.append({"ref": target.ref, "damage": damage_to(state, u, target, amount, shot), "primary": primary,
+		"pct": type_pct(state, u, target)})
+
+
+## The damage wheel for `u` hitting `target` (100 = even, 130 strong, 70 weak): what the
+## preview calls STRONG or WEAK (play-test 11: "no clear explanation of damage types").
+static func type_pct(state: CombatState, u: GridUnit, target: GridUnit) -> int:
+	var wheel: Array = state.setup.wheel
+	if u.damage_type < wheel.size() and target.armor_type < (wheel[u.damage_type] as Array).size():
+		return int(wheel[u.damage_type][target.armor_type])
+	return 100
 
 
 static func _already_hit(hits: Array[Dictionary], ref: int) -> bool:
@@ -641,8 +669,42 @@ static func preview_attack(state: CombatState, ref: int, w: int, target: Vector2
 
 ## Runs one player action on a COPY of the fight and reports what it changed, unit by unit:
 ## `[{ "ref", "hp_lost", "killed", "fell", "moved_to": Vector2i or null }]`, plus
-## `{ "prop": Vector2i, "broken": bool }` for props that broke. With explosions, chains,
+## `{ "prop": Vector2i, "broken": bool, "hp_lost": int }` for props hit (broken or standing). With explosions, chains,
 ## pits and bombers, only the real rules can say what an attack does; this is them.
+## Play-test 11: what each machine's damage in an action is MADE of, from the events of a dry run
+## -- `{ ref: ["4", "3 blast"] }` -- so a preview can say "-7 (4 + 3 blast)". A DAMAGE after an
+## EXPLOSION is a blast, after a BUMP a bump; a hit back on the attacker is thorns.
+static func damage_parts(state: CombatState, action: Array) -> Dictionary:
+	var copy: CombatState = state.clone()
+	var start: int = copy.events.size()
+	var out: Dictionary = {}
+	if not apply(copy, action):
+		return out
+	var cause: String = ""
+	var attacker: int = int(action[1]) if action.size() > 1 else -1
+	for i: int in range(start, copy.events.size()):
+		var e: Array = copy.events[i]
+		var kind: int = int(e[GridEv.F_KIND])
+		match kind:
+			GridEv.EXPLOSION:
+				cause = "blast"
+			GridEv.BUMP:
+				cause = "bump"
+			GridEv.ATTACK, GridEv.ABILITY:
+				cause = ""
+			GridEv.DAMAGE:
+				var target: int = int(e[GridEv.F_TARGET])
+				var label: String = str(int(e[GridEv.F_V1]))
+				if target == attacker and int(e[GridEv.F_ACTOR]) != attacker:
+					label += " thorns"
+				elif not cause.is_empty():
+					label += " " + cause
+				var list: PackedStringArray = out.get(target, PackedStringArray())
+				list.append(label)
+				out[target] = list
+	return out
+
+
 static func dry_run(state: CombatState, action: Array) -> Array:
 	var copy: CombatState = state.clone()
 	if not apply(copy, action):
@@ -669,9 +731,14 @@ static func diff(before: CombatState, after: CombatState) -> Array:
 			"moved_to": Vector2i(u.x, u.y) if moved else null})
 	var cells: Array = before.props.keys()
 	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
+	# Play-test 11: a prop that is hit and stands (a gate pylon at 6 HP) is reported too, with what
+	# it lost -- "everything that deals damage must show it".
 	for cell: Variant in cells:
+		var old_hp: int = int((before.props[cell] as Dictionary).get("hp", 1))
 		if not after.props.has(cell):
-			out.append({"prop": cell, "broken": true})
+			out.append({"prop": cell, "broken": true, "hp_lost": old_hp})
+		elif int((after.props[cell] as Dictionary).get("hp", 1)) < old_hp:
+			out.append({"prop": cell, "broken": false, "hp_lost": old_hp - int((after.props[cell] as Dictionary).get("hp", 1))})
 	return out
 
 

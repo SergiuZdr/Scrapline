@@ -139,7 +139,7 @@ static func tune_line(parts: Dictionary, id: String) -> String:
 	var part: Dictionary = parts.get(id, {})
 	if not part.has("base"):
 		return ""
-	return "tuned: %s (%s)" % [String(part.get("tune", "")), bonus_text(part.get("tune_grid", {}))]
+	return "upgraded: %s (%s)" % [String(part.get("tune", "")), bonus_text(part.get("tune_grid", {}))]
 
 
 ## The order a bonus block is read out in: what it survives, how it moves, what it hits.

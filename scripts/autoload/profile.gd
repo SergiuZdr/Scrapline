@@ -78,6 +78,20 @@ func unlocked() -> Array:
 	return (_data.get("unlocked", []) as Array).duplicate()
 
 
+## Play-test 11: the unlocks earned but not yet looked at on the UNLOCKS screen. A profile from
+## before this has no record: the last run's new unlocks count as unseen, the rest as seen.
+func unseen_unlocks() -> Array:
+	var seen: Array = _data.get("unlocks_seen", []) if _data.has("unlocks_seen") else \
+		unlocked().filter(func(id: Variant) -> bool: return not (_data.get("banked_new", []) as Array).has(id))
+	return unlocked().filter(func(id: Variant) -> bool: return not seen.has(id))
+
+
+## Everything held has now been seen on the UNLOCKS screen.
+func mark_unlocks_seen() -> void:
+	_data["unlocks_seen"] = unlocked()
+	_save()
+
+
 ## Counts a finished run once (`key` names it) and returns the unlock ids it newly earned.
 func bank_run(key: String, state: RunState, rules: Dictionary) -> Array:
 	if String(_data.get("banked", "")) == key:

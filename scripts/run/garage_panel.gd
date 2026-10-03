@@ -27,7 +27,7 @@ const VIEW_SIZE := Vector2i(600, 360)
 const INFO_W: float = 560.0
 ## The layout (027, play-test 9: "the garage NEEDS a new design"): three columns over the hold --
 ## THE MACHINE (the bay, then its name, level and LEVEL UP), LOADOUT (its five sockets), and
-## NUMBERS (everything the fight will read off it). Each answers one question.
+## DETAILS (everything the fight will read off it; NUMBERS until play-test 11). Each answers one question.
 const LOADOUT_W: float = 570.0
 const NUMBERS_W: float = 600.0
 ## Play-test 10 ("issues with the panels' alignment"): one grid. Three captions on one line,
@@ -136,7 +136,7 @@ func _ready() -> void:
 	_info.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	info_card.add_child(_info)
 
-	for caption: Array in [["THE MACHINE", COLUMN_X[0]], ["LOADOUT", COLUMN_X[1]], ["NUMBERS", COLUMN_X[2]]]:
+	for caption: Array in [["THE MACHINE", COLUMN_X[0]], ["LOADOUT", COLUMN_X[1]], ["DETAILS", COLUMN_X[2]]]:
 		var head := UIKit.on_page(_label(String(caption[0]), 24, UIKit.PAGE_TEXT, UIKit.font_comic()), 6)
 		head.position = Vector2(float(caption[1]) + 2.0, CAPTION_Y)
 		add_child(head)
@@ -661,7 +661,10 @@ func _build_stats() -> void:
 		elif shape == "shield":
 			reach = "shields an ally %d" % int(w["range"])
 		var dmg: int = int(w["damage"]) + u.damage_bonus + (u.melee_bonus if shape == "melee" else 0)
-		var bits: PackedStringArray = [reach, "%d damage" % dmg, "+%d heat" % CombatSim.attack_heat(u, w)]
+		var types: Array = Run.setup.combat_rules.get("damage_types", [])
+		var t: int = int(w.get("dtype", -1)) if int(w.get("dtype", -1)) >= 0 else u.damage_type
+		var kind: String = (String(types[t]).to_upper() + " ") if t >= 0 and t < types.size() and shape != "shield" else ""
+		var bits: PackedStringArray = [reach, "%d %sdamage" % [dmg, kind], "+%d heat" % CombatSim.attack_heat(u, w)]
 		for key: String in ["pierce", "chain"]:
 			if int(w.get(key, 0)) > 0:
 				bits.append("%s %d" % [key, int(w[key])])
@@ -682,8 +685,21 @@ func _build_stats() -> void:
 			UIKit.SIZE_LABEL, Ink.RUST, UIKit.font_comic()))
 		body.add_child(Glossary.label(String(ability.get("text", "")), NUM_TEXT, UIKit.TEXT, words, width))
 
+	# Play-test 11 ("why does everyone have this text?"): the ROLE is the frame's, and every frame
+	# of a role shares its trait -- say so, and say what the four roles are.
 	_section(body, "ROLE")
-	body.add_child(Glossary.label("%s%s" % [u.role.capitalize(), _role_note(u)], NUM_TEXT, UIKit.TEXT, words, width, UIKit.font_strong()))
+	var role_names: Dictionary = {"brawler": "+1 damage with melee weapons and Charge", "line": "can move after attacking",
+		"marksman": "+1 range on shots", "anchor": "cannot be shoved or dragged"}
+	body.add_child(Glossary.label("%s  ·  %s (every %s frame)" % [u.role.to_upper(), String(role_names.get(u.role, "")), u.role.capitalize()],
+		NUM_TEXT, UIKit.TEXT, words, width, UIKit.font_strong()))
+	var extra: String = _role_note(u, String(role_names.get(u.role, "")))
+	if not extra.is_empty():
+		body.add_child(Glossary.label("From its parts and perks: " + extra, NUM_TEXT, UIKit.INK_GREEN, words, width))
+	# Play-test 11: damage types, said where a player reads the machine -- what it hits hardest and
+	# softest with, and what hits IT hardest and softest.
+	_section(body, "DAMAGE TYPES")
+	for line_text: String in _type_lines(u):
+		body.add_child(Glossary.label(line_text, NUM_TEXT, UIKit.TEXT, words, width))
 	var perks: Array = member.get("perks", [])
 	if not perks.is_empty():
 		_section(body, "PERKS")
@@ -742,15 +758,52 @@ func _maker_tag(i: int, part: String) -> Control:
 	return box
 
 
-func _role_note(u: GridUnit) -> String:
+## What the machine has of the role traits BEYOND its own role's (a module or a perk can lend
+## one): "" when nothing.
+func _role_note(u: GridUnit, own: String) -> String:
 	var bits: PackedStringArray = []
-	if u.melee_bonus > 0:
-		bits.append("+%d melee damage" % u.melee_bonus)
-	if u.unshovable:
+	var melee_from_role: int = 1 if u.role == "brawler" else 0
+	if u.melee_bonus > melee_from_role:
+		bits.append("+%d melee damage" % (u.melee_bonus - melee_from_role))
+	if u.unshovable and u.role != "anchor":
 		bits.append("cannot be shoved")
-	if u.move_after_attack:
+	if u.move_after_attack and u.role != "line":
 		bits.append("can move after attacking")
-	return ("  (%s)" % ", ".join(bits)) if not bits.is_empty() else ""
+	return ", ".join(bits)
+
+
+## "DEALS EMP: strong against shielded (x1.3), weak against composite (x0.7)" and the same for
+## what hits its armour -- from the wheel the fight uses (`balance.json` effectiveness).
+func _type_lines(u: GridUnit) -> PackedStringArray:
+	var types: Array = Run.setup.combat_rules.get("damage_types", [])
+	var armours: Array = Run.setup.combat_rules.get("armor_types", [])
+	var wheel: Array = Run.setup.wheel
+	var out: PackedStringArray = []
+	if u.damage_type < wheel.size():
+		var row: Array = wheel[u.damage_type]
+		var strong: PackedStringArray = []
+		var weak: PackedStringArray = []
+		for a: int in row.size():
+			if int(row[a]) > 100:
+				strong.append("%s armour (x%.1f)" % [armours[a], float(row[a]) / 100.0])
+			elif int(row[a]) < 100:
+				weak.append("%s armour (x%.1f)" % [armours[a], float(row[a]) / 100.0])
+		out.append("DEALS %s: strong against %s, weak against %s." % [String(types[u.damage_type]).to_upper(),
+			", ".join(strong), ", ".join(weak)])
+	for w: Dictionary in u.weapons:
+		var own: int = int(w.get("dtype", -1))
+		if not bool(w["empty"]) and own >= 0 and own != u.damage_type:
+			out.append("(%s deals %s whatever the core.)" % [String(w["name"]), String(types[own]).to_upper()])
+	var harder: PackedStringArray = []
+	var softer: PackedStringArray = []
+	for t: int in wheel.size():
+		var pct: int = int((wheel[t] as Array)[u.armor_type])
+		if pct > 100:
+			harder.append(String(types[t]))
+		elif pct < 100:
+			softer.append(String(types[t]))
+	out.append("ITS %s ARMOUR: %s hits it harder, %s softer." % [String(armours[u.armor_type]).to_upper(), ", ".join(harder), ", ".join(softer)])
+	return out
 
 
 func _stat(grid: GridContainer, name: String, value: int, top: int, text: String) -> void:

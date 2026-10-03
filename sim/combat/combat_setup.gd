@@ -278,7 +278,10 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 
 	for index: int in [2, 3]:
 		var arm: Dictionary = _part(parts, u.part_ids[index], "arm", u.name, errors)
-		u.weapons.append(weapon_from(arm))
+		var weapon: Dictionary = weapon_from(arm)
+		# Play-test 11: an arm may name its own damage type (a Flamer burns), else the core's.
+		weapon["dtype"] = damage_types.find(String(arm.get("damage_type", ""))) if arm.has("damage_type") else -1
+		u.weapons.append(weapon)
 
 	# 033: what a core or module does beyond the plain numbers above -- traits on the weapons
 	# (pierce, arc, mark, shove, tears), the role traits (melee, unshovable, move_after_attack),
