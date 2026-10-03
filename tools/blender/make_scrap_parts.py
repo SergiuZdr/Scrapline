@@ -438,8 +438,13 @@ def build_module(part_id, part):
                            material="hazard" if False else "DirtyMetal",
                            bevel_width=0.012, segments=2))
 
-    style = rng.pick(["tank", "drum", "radiator", "gearbox"])
-    if style == "tank":
+    # 042: a module may name its LOOK -- a shape that says what it does (spikes, a flywheel,
+    # tesla coils, a dish...). Without one it is one of the four salvage pods, as the roster's are.
+    look = str(part.get("look", ""))
+    style = "custom" if look in MODULE_LOOKS else rng.pick(["tank", "drum", "radiator", "gearbox"])
+    if style == "custom":
+        pieces.extend(module_look(part_id, look, rng))
+    elif style == "tank":
         pieces.extend(gr.tank(part_id + "_tank", (0, 0.100, 0.020),
                               radius=rng.span(0.065, 0.085), length=rng.span(0.20, 0.26),
                               axis="x", rng=rng))
@@ -484,6 +489,100 @@ def build_module(part_id, part):
     fused = prim.join(pieces, part_id, recentre=False)
     apply_matrix([fused], game_matrix(0.0))
     return fused
+
+
+## 042: the shapes a module may name (`look` in its part entry), each built on the pod's front
+## (+Y) and top (+Z) faces. Every helper returns a list of pieces.
+MODULE_LOOKS = ["spikes", "fins", "hooks", "welder", "flywheel", "belt", "ram", "springs", "maw",
+                "coils", "dish", "furnace", "plates", "dome", "thrusters"]
+
+
+def _pieces(value):
+    return value if isinstance(value, list) else [value]
+
+
+def module_look(part_id, look, rng):
+    out = []
+    y_face = 0.13
+    top = 0.15
+    if look == "spikes":
+        for i, (x, z) in enumerate([(-0.10, 0.06), (0.0, 0.08), (0.10, 0.06), (-0.10, -0.06), (0.0, -0.04), (0.10, -0.06)]):
+            out.append(prim.cone("%s_spike_%d" % (part_id, i), 0.030, 0.0, 0.11, location=(x, y_face + 0.05, z),
+                                 rotation=gr.AXIS_ROTATION["y"], vertices=6, material="RustyMetal"))
+    elif look == "fins":
+        out += _pieces(gr.radiator(part_id + "_fins", (0, 0.06, top), size=(0.28, 0.07, 0.10), rng=rng, fins=9))
+        for x in (-0.09, 0.09):
+            out += _pieces(gr.exhaust_stack("%s_stack_%d" % (part_id, x > 0), (x, -0.05, top), height=0.12, radius=0.022, rng=rng))
+    elif look == "hooks":
+        for i, x in enumerate((-0.09, 0.0, 0.09)):
+            out.append(prim.box("%s_shank_%d" % (part_id, i), (0.03, 0.12, 0.03), location=(x, y_face + 0.04, 0.02), material="OldSteel"))
+            out.append(prim.cone("%s_hook_%d" % (part_id, i), 0.025, 0.0, 0.08, location=(x, y_face + 0.10, -0.03),
+                                 rotation=(0.6, 0.0, 0.0), vertices=6, material="RustyMetal"))
+    elif look == "welder":
+        out += _pieces(gr.tank(part_id + "_gas", (-0.08, 0.0, top + 0.02), radius=0.045, length=0.18, axis="x", rng=rng))
+        out += _pieces(gr.pipe_run(part_id + "_arm", [(0.06, 0.02, top), (0.10, 0.10, top + 0.12), (0.06, y_face + 0.08, top + 0.10)],
+                                   radius=0.018, material="OldSteel"))
+        out.append(prim.cone(part_id + "_torch", 0.026, 0.008, 0.07, location=(0.06, y_face + 0.12, top + 0.10),
+                             rotation=gr.AXIS_ROTATION["y"], vertices=8, material="DarkMetal"))
+    elif look == "flywheel":
+        out.append(prim.cylinder(part_id + "_wheel", 0.14, 0.05, location=(0, y_face + 0.01, 0.02), rotation=gr.AXIS_ROTATION["y"],
+                                 vertices=20, material="OldSteel"))
+        out += _pieces(gr.bearing(part_id + "_hub", (0, y_face + 0.05, 0.02), radius=0.05, axis="y"))
+        out += _pieces(gr.bolt_ring(part_id + "_bolts", 8, (0, y_face + 0.04, 0.02), 0.10, axis="y", bolt_radius=0.012))
+    elif look == "belt":
+        out += _pieces(gr.drum(part_id + "_box", (0.07, 0.04, top + 0.02), radius=0.07, height=0.14, axis="x", rng=rng))
+        for i in range(6):
+            out.append(prim.box("%s_round_%d" % (part_id, i), (0.035, 0.02, 0.05),
+                                location=(-0.03 - i * 0.022, y_face - 0.02 + i * 0.012, top + 0.03 - i * 0.025), material="Brass" if False else "RustyMetal"))
+    elif look == "ram":
+        out += _pieces(gr.piston(part_id + "_ram", (0, -0.02, 0.0), (0, y_face + 0.16, 0.0), rng=rng, barrel_radius=0.06, rod_radius=0.028))
+        out.append(prim.box(part_id + "_head", (0.12, 0.04, 0.12), location=(0, y_face + 0.17, 0.0), material="DarkMetal"))
+    elif look == "springs":
+        for x in (-0.08, 0.08):
+            out += _pieces(gr.coil_spring("%s_spring_%d" % (part_id, x > 0), (x, 0.02, -0.12), (x, 0.02, -0.26), turns=5, radius=0.035))
+            out.append(prim.box("%s_foot_%d" % (part_id, x > 0), (0.08, 0.10, 0.025), location=(x, 0.03, -0.28), material="DarkMetal"))
+    elif look == "maw":
+        out.append(prim.cylinder(part_id + "_mouth", 0.10, 0.06, location=(0, y_face + 0.01, 0.0), rotation=gr.AXIS_ROTATION["y"],
+                                 vertices=16, material="DarkMetal"))
+        for i in range(8):
+            a = i * math.tau / 8.0
+            out.append(prim.cone("%s_tooth_%d" % (part_id, i), 0.018, 0.0, 0.06,
+                                 location=(math.cos(a) * 0.08, y_face + 0.05, math.sin(a) * 0.08),
+                                 rotation=gr.AXIS_ROTATION["y"], vertices=5, material="OldSteel"))
+    elif look == "coils":
+        for x in (-0.08, 0.08):
+            out.append(prim.cylinder("%s_coil_%d" % (part_id, x > 0), 0.03, 0.20, location=(x, 0.02, top + 0.10), vertices=10, material="DarkMetal"))
+            for k in range(3):
+                out.append(prim.torus("%s_ring_%d_%d" % (part_id, x > 0, k), 0.045, 0.010, location=(x, 0.02, top + 0.04 + k * 0.06), material="RustyMetal"))
+            out.append(prim.sphere("%s_ball_%d" % (part_id, x > 0), 0.04, location=(x, 0.02, top + 0.22), material="OldSteel"))
+    elif look == "dish":
+        out.append(prim.cylinder(part_id + "_mast", 0.018, 0.20, location=(0.06, 0.0, top + 0.10), vertices=8, material="DarkMetal"))
+        out.append(prim.cone(part_id + "_dish", 0.13, 0.02, 0.06, location=(0.06, 0.04, top + 0.22), rotation=(-1.0, 0.0, 0.0),
+                             vertices=16, material="OldSteel"))
+    elif look == "furnace":
+        cage = prim.sphere(part_id + "_heart", 0.07, location=(0, y_face - 0.01, 0.02), material="Glass")
+        cage.data.materials.clear()
+        cage.data.materials.append(glow_material("thermal"))
+        out.append(cage)
+        for i in range(6):
+            a = i * math.tau / 6.0
+            out += _pieces(gr.strut("%s_bar_%d" % (part_id, i), (math.cos(a) * 0.09, y_face - 0.06, 0.02 + math.sin(a) * 0.09),
+                                    (math.cos(a) * 0.09, y_face + 0.06, 0.02 + math.sin(a) * 0.09), size=(0.018, 0.018), material="DarkMetal"))
+    elif look == "plates":
+        for i in range(3):
+            out.append(gr.plate("%s_plate_%d" % (part_id, i), (0.30 - i * 0.05, 0.22 - i * 0.04), (0, y_face + i * 0.025, 0.0), thickness=0.022))
+    elif look == "dome":
+        dome = prim.sphere(part_id + "_dome", 0.11, location=(0, 0.03, top), material="Glass")
+        dome.data.materials.clear()
+        dome.data.materials.append(glow_material("emp"))
+        out.append(dome)
+        out += _pieces(gr.bolt_ring(part_id + "_ring", 10, (0, 0.03, top - 0.01), 0.12, axis="z", bolt_radius=0.012))
+    elif look == "thrusters":
+        for x in (-0.08, 0.08):
+            out.append(prim.cone("%s_nozzle_%d" % (part_id, x > 0), 0.035, 0.06, 0.12, location=(x, -0.14, 0.0),
+                                 rotation=gr.AXIS_ROTATION["y"], vertices=12, material="DarkMetal"))
+            out.append(prim.torus("%s_band_%d" % (part_id, x > 0), 0.05, 0.010, location=(x, -0.10, 0.0), rotation=gr.AXIS_ROTATION["y"], material="RustyMetal"))
+    return out
 
 
 # --- Material helpers --------------------------------------------------------
