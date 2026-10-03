@@ -1,59 +1,59 @@
 {
-  "_comment": "The world's words. See docs/plans/story.md. Text only: not in the content hash.",
-  "briefing": {
-    "title": "THE KEY",
-    "lines": [
-      "Forty years ago the Meridian Combine walked out of this valley and left one machine running. The Reclaimer. A harvester the size of a district, with one order: reclaim all material.",
-      "It is still obeying. It strips the yards to bare earth and hauls everything to the Crucible, where it melts into ingots nobody will ever collect.",
-      "Last night you took the Combine's shutdown key off a dead foreman. The Reclaimer felt it go. It follows the key now.",
-      "Three free machines. Three yards. Carry the key to the Crucible before it catches you."
-    ],
-    "go": "TO THE BAY",
-    "bay": "THE ASSEMBLY BAY",
-    "bay_text": "Three frames on the lifts and a bench of basic parts. Build the crew that will carry the key."
-  },
-  "acts": [
-    {
-      "name": "THE CRANE YARDS",
-      "mission": "Reach the Sorting Gate. The Reclaimer follows the key.",
-      "gate": "THE SORTING GATE",
-      "boss": "The Sorting Gate, and the Sorter that keeps it, shielded by the gate's pylons. Through it is the next yard."
-    },
-    {
-      "name": "THE SLAG FLATS",
-      "mission": "Cross the flats to The Pour. The slag is still warm.",
-      "gate": "THE POUR",
-      "boss": "The Pour: the Slag Flats' keeper, flooding the floor under the crew. Through it is the Crucible."
-    },
-    {
-      "name": "THE CRUCIBLE",
-      "mission": "Into the furnace-city. The key goes into the Core.",
-      "gate": "THE CORE",
-      "boss": "The Core: the Crucible's heart, bolted to the floor and pulsing. Turn the key in it and the Reclaimer stops."
-    }
+ "_comment": "The world's words. See docs/plans/story.md. Text only: not in the content hash.",
+ "briefing": {
+  "title": "THE KEY",
+  "lines": [
+   "Forty years ago the Meridian Combine walked out of this valley and left one machine running. The Reclaimer. A harvester the size of a district, with one order: reclaim all material.",
+   "It is still obeying. It strips the yards to bare earth and hauls everything to the Crucible, where it melts into ingots nobody will ever collect.",
+   "Last night you took the Combine's shutdown key off a dead foreman. The Reclaimer felt it go. It follows the key now.",
+   "Three free machines. Three yards. Carry the key to the Crucible before it catches you."
   ],
-  "reclaimer": {
-    "name": "THE RECLAIMER",
-    "ground": "RECLAIMED"
+  "go": "TO THE BAY",
+  "bay": "THE ASSEMBLY BAY",
+  "bay_text": "Three frames on the lifts and a bench of basic parts. Build the crew that will carry the key."
+ },
+ "acts": [
+  {
+   "name": "THE CRANE YARDS",
+   "mission": "Reach the Sorting Gate. The Reclaimer follows the key.",
+   "gate": "THE SORTING GATE",
+   "boss": "The Sorting Gate, and the Sorter that keeps it, shielded by the gate's pylons. Through it is the next yard."
   },
-  "sites": {
-    "start": "The crew's camp. The Reclaimer's dust is already on the horizon.",
-    "skirmish": "Spiked rigs, working for the Reclaimer. Beat them for scrap and their parts.",
-    "elite": "A heavy spiked rig and its escort. One of its parts is worth having.",
-    "scrapyard": "A heap the Reclaimer has not reached. Take one part, or strip it for scrap.",
-    "workshop": "A Combine service hall with the lights still on. Repairs, rebuilds, room in the hold.",
-    "boss": "The Sorting Gate, and the Sorter that keeps it, shielded by the gate's pylons. Through it is the next yard.",
-    "trader": "A free trader in a container, lamps on. Parts for scrap, and scrap for your spares.",
-    "tower": "A crane cab still standing. From up there the fog is thinner.",
-    "signal": "Something out here is sending. Worth a look, maybe.",
-    "warlord": "A Reclaimer warlord holds this ground with its own rule. Its hoard is worth the detour.",
-    "refinery": "A Combine refinery with one furnace still banked. Feed it a part and something better comes out.",
-    "auction": "Free machines selling salvage they never opened. You pay first.",
-    "arena": "A ring of barriers and spiked rigs that fight for the Reclaimer's amusement. Win, and the pot is yours."
+  {
+   "name": "THE SLAG FLATS",
+   "mission": "Cross the flats to The Pour. The slag is still warm.",
+   "gate": "THE POUR",
+   "boss": "The Pour: the Slag Flats' keeper, flooding the floor under the crew. Through it is the Crucible."
   },
-  "endings": {
-    "won": "The key turns in the Core. Behind the crew the Reclaimer's booms sag and go still, one district at a time, and the valley is quiet for the first time in forty years.",
-    "gate_held": "The gate held. The crew had nothing left to break it with, and the Reclaimer closed in behind.",
-    "wrecked": "The Reclaimer took the crew. Somewhere in the Crucible, the key melts with them."
+  {
+   "name": "THE CRUCIBLE",
+   "mission": "Into the furnace-city. The key goes into the Core.",
+   "gate": "THE CORE",
+   "boss": "The Core: the Crucible's heart, bolted to the floor and pulsing. Turn the key in it and the Reclaimer stops."
   }
+ ],
+ "reclaimer": {
+  "name": "THE RECLAIMER",
+  "ground": "RECLAIMED"
+ },
+ "sites": {
+  "start": "The crew's camp. The Reclaimer's dust is already on the horizon.",
+  "skirmish": "Spiked rigs, working for the Reclaimer. Beat them for scrap and their parts.",
+  "elite": "A heavy spiked rig and its escort. One of its parts is worth having.",
+  "scrapyard": "A heap the Reclaimer has not reached. Take one part, or strip it for scrap.",
+  "workshop": "A Combine service hall with the lights still on. Repairs, rebuilds, part upgrades, room in the hold.",
+  "boss": "The Sorting Gate, and the Sorter that keeps it, shielded by the gate's pylons. Through it is the next yard.",
+  "trader": "A free trader in a container, lamps on. Parts for scrap, and scrap for your spares.",
+  "tower": "A crane cab still standing. From up there the fog is thinner.",
+  "signal": "Something out here is sending. Worth a look, maybe.",
+  "warlord": "A Reclaimer warlord holds this ground with its own rule. Its hoard is worth the detour.",
+  "refinery": "A Combine refinery with one furnace still banked. Feed it a part and something better comes out.",
+  "auction": "Free machines selling salvage they never opened. You pay first.",
+  "arena": "A ring of barriers and spiked rigs that fight for the Reclaimer's amusement. Win, and the pot is yours."
+ },
+ "endings": {
+  "won": "The key turns in the Core. Behind the crew the Reclaimer's booms sag and go still, one district at a time, and the valley is quiet for the first time in forty years.",
+  "gate_held": "The gate held. The crew had nothing left to break it with, and the Reclaimer closed in behind.",
+  "wrecked": "The Reclaimer took the crew. Somewhere in the Crucible, the key melts with them."
+ }
 }

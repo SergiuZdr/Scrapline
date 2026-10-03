@@ -67,6 +67,7 @@ func _initialize() -> void:
 	_test_weapons_029()
 	_test_warlords_030()
 	_test_modules_033()
+	_test_playtest11()
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
 			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core",
 		"warlord_grinder", "warlord_magnet", "warlord_twins"]:
@@ -487,6 +488,38 @@ func _test_modules_033() -> void:
 		if not PartTuning.is_tuned(String(id)) and not ResourceLoader.exists("res://art/parts/%s.glb" % PartTuning.model_of(String(id))):
 			no_model.append(id)
 	_check("every part's model exists %s" % [no_model], no_model.is_empty())
+
+
+## 037 (play-test 11): a charge takes the terminal it ends on; some weapons deal their own type;
+## a dry run reports the damage a standing prop takes.
+func _test_playtest11() -> void:
+	var term: Vector2i = _off(C, 2, -2, 0)
+	var hack: CombatState = _fight(_rows(), [_unit(HAMMER, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)],
+		{"type": "hack", "need": 1, "cells": [{"x": term.x, "y": term.y}]})
+	_place(hack, 0, C)
+	var dir_cell: Vector2i = _off(C, 3, -3, 0)
+	_check("(precondition) the charge's line runs over the terminal and on", Hex.distance(C, term) == 2 and Hex.distance(C, dir_cell) == 3)
+	_ability(hack, 0, 0, term)
+	_check("a charge that ends on a terminal takes it", _at(hack, 0) == term and (hack.hacked as Array).size() >= 1)
+
+	var flamer: Array = ["ch_brute", "co_slug", "ar_flamer", "ar_hammer", "mo_scavenger"]   # kinetic core
+	var reactive: Array = ["ch_bulwark", "co_slug", "ar_hammer", "ar_hammer", "mo_scavenger"]   # reactive armour
+	var n: Vector2i = Hex.neighbor(C, 0)
+	var burn: CombatState = _fight(_rows(), [_unit(flamer, C, 30)], [_unit(reactive, n, 30)])
+	_place(burn, 0, C)
+	_place(burn, 10, n)
+	var hit: Dictionary = (CombatSim.strike_plan(burn, burn.unit(0), 0, n)["hits"] as Array)[0]
+	_check("a Flamer on a kinetic core burns: thermal is STRONG on reactive armour (x%.1f)" % (float(int(hit["pct"])) / 100.0), int(hit["pct"]) > 100)
+	_check("and the machine's own type is put back after the plan", burn.unit(0).damage_type == 0)
+
+	var pylon_at: Vector2i = Hex.neighbor(C, 0)
+	var gate: CombatState = _fight(_rows({pylon_at: "p"}), [_unit(HAMMER, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(gate, 0, C)
+	var effects: Array = CombatSim.dry_run(gate, [CombatSim.ACT_ATTACK, 0, 1, pylon_at.x, pylon_at.y])
+	_check("a dry run reports damage to a pylon that stands (%s)" % [effects], effects.any(func(e: Dictionary) -> bool:
+		return e.has("prop") and not bool(e["broken"]) and int(e["hp_lost"]) > 0))
+	var parts: Dictionary = CombatSim.damage_parts(burn, [CombatSim.ACT_ATTACK, 0, 0, n.x, n.y])
+	_check("damage_parts names the hits of an action (%s)" % [parts], parts.has(10))
 
 
 # --- Fixtures ---------------------------------------------------------------
@@ -1207,8 +1240,8 @@ func _test_abilities() -> void:
 	_check("a brawler frame gives Charge, a Scavenger module gives Magnet",
 		String(brute.unit(0).abilities[0]["id"]) == "charge" and String(brute.unit(0).abilities[1]["id"]) == "magnet")
 	_check("charge can aim down a straight hex line", CombatAbilities.targets(brute, brute.unit(0), 0).has(target))
-	_check("charge runs 2 hexes up to the enemy, hits for 3 + 2 and shoves it", _ability(brute, 0, 0, target)
-		and Hex.distance(_at(brute, 0), target) == 1 and brute.unit(10).hp == 15 and _at(brute, 10) != target)
+	_check("charge runs 2 hexes up to the enemy, hits for 3 + 2 + 1 brawler and shoves it", _ability(brute, 0, 0, target)
+		and Hex.distance(_at(brute, 0), target) == 1 and brute.unit(10).hp == 14 and _at(brute, 10) != target)
 	_check("charge uses the action", brute.unit(0).acted)
 	_check("and then waits its cooldown", not brute.unit(0).ability_ready(0))
 
@@ -1251,7 +1284,7 @@ func _test_abilities() -> void:
 	_place(boosted, 10, _off(C, 3, -3, 0))
 	_ability(boosted, 0, 1)
 	_ability(boosted, 0, 0, _off(C, 3, -3, 0))
-	_check("overdrive boosts a charge (3 + 2 run + 2 overdrive + 1 bypass = 8)", boosted.unit(10).hp == 12)
+	_check("overdrive boosts a charge (3 + 2 run + 2 overdrive + 1 bypass + 1 brawler = 9)", boosted.unit(10).hp == 11)
 
 	# Play-test 3: a charge after a move, and a charge from next door.
 	var step_in: Vector2i = _off(C, 1, -1, 0)
@@ -1261,12 +1294,12 @@ func _test_abilities() -> void:
 	_place(late, 11, Vector2i(0, 0))
 	_check("(precondition) the brute moves first", CombatSim.apply(late, [CombatSim.ACT_MOVE, 0, step_in.x, step_in.y]) and late.unit(0).moved)
 	_check("charge can still be used after moving", CombatAbilities.usable(late, late.unit(0), 0))
-	_check("a charge from 2 away runs 1 hex and hits for 4", _ability(late, 0, 0, _off(C, 3, -3, 0)) and late.unit(10).hp == 16)
+	_check("a charge from 2 away runs 1 hex and hits for 4 + 1 brawler", _ability(late, 0, 0, _off(C, 3, -3, 0)) and late.unit(10).hp == 15)
 	var close: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, Hex.neighbor(C, 0), 20), _unit(HAMMER, Vector2i(0, 0), 20)])
 	_place(close, 0, C)
 	_place(close, 10, Hex.neighbor(C, 0))
 	_place(close, 11, Vector2i(0, 0))
-	_check("a charge into an adjacent enemy hits for the base 3", _ability(close, 0, 0, Hex.neighbor(C, 0)) and close.unit(10).hp == 17)
+	_check("a charge into an adjacent enemy hits for the base 3 + 1 brawler", _ability(close, 0, 0, Hex.neighbor(C, 0)) and close.unit(10).hp == 16)
 
 	var wall_at: Vector2i = Hex.neighbor(C, 0)
 	var shooter_at: Vector2i = Hex.neighbor(wall_at, 0)

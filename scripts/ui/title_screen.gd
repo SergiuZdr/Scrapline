@@ -96,9 +96,13 @@ func _ready() -> void:
 	var shakedown := _menu_button("TUTORIAL", false, _play_shakedown)
 	shakedown.custom_minimum_size = Vector2(164, 52)
 	extras.add_child(shakedown)
-	var goals := _menu_button("UNLOCKS", false, func() -> void:
-		UnlocksPanel.open(self, Run.db, Profile.unlocked(), Profile.stats()))
-	goals.custom_minimum_size = Vector2(164, 52)
+	# Play-test 11: what is new since the screen was last opened is counted on the button and
+	# marked NEW inside; opening it marks it seen.
+	var unseen: Array = Profile.unseen_unlocks()
+	var goals := _menu_button("UNLOCKS  ·  %d NEW" % unseen.size() if not unseen.is_empty() else "UNLOCKS", false, func() -> void:
+		UnlocksPanel.open(self, Run.db, Profile.unlocked(), Profile.stats(), Profile.unseen_unlocks())
+		Profile.mark_unlocks_seen())
+	goals.custom_minimum_size = Vector2(250 if not unseen.is_empty() else 164, 52)
 	extras.add_child(goals)
 	var words := _menu_button("GLOSSARY", false, func() -> void: Glossary.open(self, Run.db.glossary))
 	words.custom_minimum_size = Vector2(164, 52)

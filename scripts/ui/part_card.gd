@@ -83,7 +83,8 @@ static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array 
 	inner.add_child(UIKit.fit(_label(PartText.summary(parts, id, db.combat_abilities), UIKit.SIZE_MICRO, UIKit.TEXT_DIM), inner_w, 2, 10))
 	if not compare_crew.is_empty():
 		var verdict: Array = compare(parts, id, compare_crew)
-		inner.add_child(UIKit.fit(_label(String(verdict[0]), UIKit.SIZE_MICRO, verdict[1], UIKit.font_strong()), inner_w, 1, 9))
+		if not String(verdict[0]).is_empty():
+			inner.add_child(UIKit.fit(_label(String(verdict[0]), UIKit.SIZE_MICRO, verdict[1], UIKit.font_strong()), inner_w, 1, 9))
 		var completes: String = set_verdict(db, id, compare_crew)
 		if not completes.is_empty():
 			inner.add_child(UIKit.fit(_label(completes, UIKit.SIZE_MICRO, UIKit.GREEN, UIKit.font_strong()), inner_w, 1, 9))
@@ -139,7 +140,8 @@ static func compare(parts: Dictionary, id: String, crew: Array) -> Array:
 				return ["FILLS %s'S EMPTY %s" % [String(member["name"]).to_upper(), socket_names[s].to_upper()], UIKit.GREEN]
 			if rarity > int((parts.get(current, {}) as Dictionary).get("rarity", 1)):
 				return ["BEATS %s'S %s" % [String(member["name"]).to_upper(), PartText.name_of(parts, current).to_upper()], UIKit.GREEN]
-	return ["NOT RARER THAN YOURS", UIKit.TEXT_FAINT]
+	# Play-test 11: "not rarer than yours" said nothing a player could use; say nothing.
+	return ["", UIKit.TEXT_FAINT]
 
 
 static func _label(text: String, size: int, colour: Color, face: Font = null) -> Label:

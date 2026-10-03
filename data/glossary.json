@@ -2,6 +2,7 @@
   "_comment": "012. Every word the game uses, with its meaning in one or two lines. `forms` are the spellings linkify turns into links (whole words, any case); a term with no forms is in the GLOSSARY screen but never linked, because its word is too common to link safely (line, set, range...). Text only: NOT in the content hash.",
   "groups": [
     "THE FIGHT",
+    "DAMAGE TYPES",
     "WEAPONS",
     "TERRAIN",
     "ENEMIES",
@@ -59,7 +60,7 @@
       ]
     },
     "armour": {
-      "group": "THE FIGHT",
+      "group": "DAMAGE TYPES",
       "name": "Armour",
       "text": "Takes that much off every hit it suffers. A hit always does at least 1.",
       "forms": [
@@ -68,9 +69,9 @@
       ]
     },
     "damage_type": {
-      "group": "THE FIGHT",
+      "group": "DAMAGE TYPES",
       "name": "Damage and armour types",
-      "text": "The core sets the damage type: kinetic, thermal, EMP or corrosive. Each lands 30% harder on one armour type (composite, reactive, shielded, plate) and 30% softer on another.",
+      "text": "A machine's CORE sets its damage type -- kinetic, thermal, EMP or corrosive -- and a few weapons carry their own (the Flamer and Sunspear burn: thermal; the Pulse Emitter and Coilgun: EMP). Its FRAME sets its armour type -- plate, composite, reactive or shielded. Each damage type lands 30% harder on one armour (STRONG) and 30% softer on another (WEAK); the chart above shows which. An aimed hit says STRONG or WEAK in its preview.",
       "forms": [
         "kinetic",
         "thermal",
@@ -457,12 +458,14 @@
     },
     "tune": {
       "group": "YOUR MACHINES",
-      "name": "Tuning",
-      "text": "At a workshop, re-cut a part one of two ways, once. A tuned part is marked +.",
+      "name": "Upgrade",
+      "text": "At a workshop, give a part one of its two upgrades, once and for good. An upgraded part is marked +. (Different from the refinery, which turns a part into a RARER one.)",
       "forms": [
+        "upgraded",
+        "upgrades",
+        "upgrade",
         "tuned",
-        "tuning",
-        "tune"
+        "tuning"
       ]
     },
     "maker": {
@@ -499,7 +502,7 @@
     "scrap": {
       "group": "THE RUN",
       "name": "Scrap",
-      "text": "The run's only currency: from fights, piles, scrapyards and breaking parts down. It buys levels, tuning, repairs, rebuilds and room in the hold.",
+      "text": "The run's only currency: from fights, piles, scrapyards and breaking parts down. It buys levels, upgrades, repairs, rebuilds and room in the hold.",
       "forms": [
         "scrap"
       ]
@@ -515,7 +518,7 @@
     "workshop": {
       "group": "THE RUN",
       "name": "Workshop",
-      "text": "A site to patch the crew, rebuild a wreck, buy room in the hold and tune parts, for scrap.",
+      "text": "A site to patch the crew, rebuild a wreck, upgrade parts and buy room in the hold, for scrap.",
       "forms": [
         "workshop",
         "workshops"
@@ -524,7 +527,7 @@
     "elite": {
       "group": "THE RUN",
       "name": "Elite",
-      "text": "A harder fight with a veteran; its salvage includes an uncommon or better part, already tuned.",
+      "text": "A harder fight with a veteran; its salvage includes an uncommon or better part, already upgraded.",
       "forms": [
         "elite"
       ]
@@ -565,7 +568,7 @@
     "trader": {
       "group": "THE RUN",
       "name": "Trader",
-      "text": "Sells three parts for scrap (one of them tuned), and buys parts from your hold for twice what breaking them down pays.",
+      "text": "Sells three parts for scrap (one of them upgraded), and buys parts from your hold for twice what breaking them down pays.",
       "forms": [
         "trader"
       ]

@@ -89,6 +89,9 @@ func _rebuild() -> void:
 			_group = String(group)
 			_rebuild())
 		_tabs.add_child(tab)
+	# Play-test 11: the damage-type wheel as a chart, at the top of its own tab.
+	if _group == "DAMAGE TYPES":
+		_list.add_child(TypeChart.build())
 	var terms: Dictionary = glossary.get("terms", {})
 	var ids: Array = terms.keys()
 	ids.sort_custom(func(a: String, b: String) -> bool:

@@ -128,7 +128,7 @@
   },
   {
     "id": "co_dynamo",
-    "name": "Dynamo Core",
+    "name": "Flywheel Core",
     "slot": "core",
     "rarity": 1,
     "maker": "vektor",
@@ -156,7 +156,8 @@
           "vent": 1
         }
       }
-    ]
+    ],
+    "_037": "play-test 11: 'Dynamo' read as electric, but it deals kinetic damage"
   },
   {
     "id": "co_ember",

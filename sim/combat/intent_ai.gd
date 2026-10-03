@@ -201,7 +201,7 @@ static func _dry_value(state: CombatState, u: GridUnit, cell: Vector2i, w: int, 
 		for intent: Dictionary in state.intents:
 			intents[int(intent["ref"])] = true
 	for effect: Dictionary in CombatSim.diff(before, after):
-		if effect.has("prop") and u.team == GridUnit.TEAM_PLAYER \
+		if effect.has("prop") and bool(effect["broken"]) and u.team == GridUnit.TEAM_PLAYER \
 				and String((before.props.get(effect["prop"], {}) as Dictionary).get("kind", "")) == "pylon":
 			value += SCORE_PYLON
 		if not effect.has("ref"):

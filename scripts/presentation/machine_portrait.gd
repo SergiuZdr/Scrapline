@@ -84,6 +84,9 @@ func show_machine(parts: Array, level: int, alive: bool = true) -> void:
 		Ink.dress_machine(model, PackedStringArray(parts), Ink.YOURS)
 	_pivot.add_child(model)
 	var h: float = ConstructView.height_of(model)
+	# Play-test 11: a wide frame (an anchor, a big arm) was cut at the sides -- frame the larger of
+	# the machine's height and its width, so the whole silhouette fits.
+	h = maxf(h, _width_of(model) * 0.92)
 	# Head and shoulders, the way a crew photo is framed: the top two thirds of the machine.
 	# (Not `look_at`: the portrait may not be in the tree yet when it is filled.)
 	if framing == "full":
@@ -92,3 +95,31 @@ func show_machine(parts: Array, level: int, alive: bool = true) -> void:
 		_camera.look_at_from_position(Vector3(0.0, h * 0.62, h * 2.1), Vector3(0.0, h * 0.55, 0.0))
 	modulate = Color(1, 1, 1) if alive else Color(1.0, 0.45, 0.4, 0.55)
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+
+
+## The machine's width across x, from its meshes' bounds (framing only: a rough box is enough).
+func _width_of(model: Node3D) -> float:
+	var lo: float = 0.0
+	var hi: float = 0.0
+	var stack: Array[Node] = [model]
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		stack.append_array(node.get_children())
+		if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+			var mesh := node as MeshInstance3D
+			var box: AABB = mesh.mesh.get_aabb()
+			var t: Transform3D = _relative(mesh, model)
+			for i: int in 8:
+				var p: Vector3 = t * box.get_endpoint(i)
+				lo = minf(lo, p.x)
+				hi = maxf(hi, p.x)
+	return hi - lo
+
+
+func _relative(node: Node3D, root: Node3D) -> Transform3D:
+	var t: Transform3D = node.transform
+	var parent: Node = node.get_parent()
+	while parent != null and parent != root and parent is Node3D:
+		t = (parent as Node3D).transform * t
+		parent = parent.get_parent()
+	return t
