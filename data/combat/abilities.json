@@ -2,14 +2,14 @@
   "_comment": "Active abilities granted by parts (a part's grid.ability names one of these). `free` abilities do not use the machine's action. `cooldown` is in rounds, counted from the round it was used. `short` is the effect in a few words, on the ability's card in the fight (016); `text` the whole of it, effect first -- whether it is free is said by the card, not by the text.",
   "charge": {
     "name": "Charge",
-    "short": "run 3, slam, shove",
+    "short": "run up to 3, slam 3-5, shove",
     "kind": "charge",
     "cooldown": 3,
     "free": false,
     "range": 3,
     "damage": 3,
     "per_hex": 1,
-    "text": "Run up to 3 hexes in a straight line and slam into the first thing there: 3 damage, +1 for every hex run (up to 5), and a shove. Works after moving."
+    "text": "Run straight at a hex up to 3 away and slam the first machine or prop in the way: 3 damage if it is next to you, +1 for each hex run before the hit (5 at most), plus your damage bonus, a Brawler's +1 and any Focus or Overdrive -- then shove it. Nothing in the way: you stop on the hex you picked (a terminal counts). Works after moving."
   },
   "grapple": {
     "name": "Grapple",

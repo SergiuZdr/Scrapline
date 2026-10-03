@@ -123,11 +123,11 @@
     },
     "workshop": {
       "title": "WORKSHOP",
-      "text": "Patch the crew, rebuild a wreck, buy room in the hold, or TUNE a part: one of two upgrades, once per part."
+      "text": "Patch the crew, rebuild a wreck, buy room in the hold, or UPGRADE a part: one of two upgrades, once per part."
     },
     "tune": {
-      "title": "TUNING",
-      "text": "Pick a part on the left, then one of its two tunings on the right. A tuned part is marked + and cannot be tuned again."
+      "title": "UPGRADES",
+      "text": "Pick a part on the left, then one of its two upgrades on the right. An upgraded part is marked + and cannot be upgraded again."
     },
     "fight": {
       "title": "YOUR TURN",

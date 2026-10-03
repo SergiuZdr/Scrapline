@@ -34,10 +34,10 @@ func _ready() -> void:
 	add_child(floor_colour)
 	floor_colour.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(UIKit.backdrop())
-	var title := UIKit.on_page(_label("TUNE A PART", UIKit.SIZE_DISPLAY, UIKit.PAGE_TEXT, UIKit.font_display()), 10)
+	var title := UIKit.on_page(_label("UPGRADE A PART", UIKit.SIZE_DISPLAY, UIKit.PAGE_TEXT, UIKit.font_display()), 10)
 	title.position = Vector2(40, 20)
 	add_child(title)
-	var line := UIKit.on_page(_label("Re-cut a part one of two ways. Each part can be tuned once, for good; a tuned part is marked +.",
+	var line := UIKit.on_page(_label("UPGRADE a part: pick one of its two upgrades. Each part takes one upgrade, for good; an upgraded part is marked +.",
 		UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()), 5)
 	line.position = Vector2(42, 84)
 	add_child(line)
@@ -166,7 +166,7 @@ func _row(index: int, part: String, where: String) -> Control:
 	var detail: String = PartText.tune_line(parts, part) if not tunable else "%s  ·  %s" % [
 		PartText.maker_short(Run.db.makers, parts, part), PartText.slot_label(parts, part)]
 	text.add_child(_label(detail, UIKit.SIZE_LABEL, UIKit.TEXT_DIM))
-	var price := _label("%d SCRAP" % RunSim.tune_cost(Run.setup, part) if tunable else "TUNED", UIKit.SIZE_HEADING,
+	var price := _label("%d SCRAP" % RunSim.tune_cost(Run.setup, part) if tunable else "UPGRADED", UIKit.SIZE_HEADING,
 		UIKit.TEXT if tunable else UIKit.GREEN, UIKit.font_numbers())
 	price.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(price)
@@ -230,7 +230,7 @@ func _option_card(part: String, option: int, cost: int) -> Control:
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	inner.add_child(spacer)
-	inner.add_child(_label(("TUNE  ·  %d SCRAP" % cost) if affordable else ("NEEDS %d SCRAP (you have %d)" % [cost, Run.state.scrap]),
+	inner.add_child(_label(("UPGRADE  ·  %d SCRAP" % cost) if affordable else ("NEEDS %d SCRAP (you have %d)" % [cost, Run.state.scrap]),
 		22, UIKit.TEXT if affordable else UIKit.TEXT_FAINT, UIKit.font_comic()))
 	return holder
 
@@ -254,11 +254,11 @@ func _tune(option: int) -> void:
 	var part: String = _chosen_part()
 	if Run.apply([RunSim.TUNE, _tab, _chosen, option]):
 		Audio.play("level_up", -12.0)
-		_message = "Tuned: %s is now %s." % [PartText.name_of(Run.db.parts, part),
+		_message = "Upgraded: %s is now %s." % [PartText.name_of(Run.db.parts, part),
 			String((Run.db.parts.get(PartTuning.variant(part, option), {}) as Dictionary).get("tune", ""))]
 	else:
 		Audio.play("ui_deny", -10.0)
-		_message = "That cannot be tuned now."
+		_message = "That cannot be upgraded now."
 	_rebuild()
 
 

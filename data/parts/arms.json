@@ -172,7 +172,9 @@
           "range": 1
         }
       }
-    ]
+    ],
+    "damage_type": "emp",
+    "_037": "play-test 11: this arm deals its OWN damage type, whatever core drives it"
   },
   {
     "id": "ar_maul",
@@ -378,7 +380,9 @@
         }
       }
     ],
-    "_033": "audit: below every common arm (points 5.2, measured -0.95): 2 -> 3 damage"
+    "_033": "audit: below every common arm (points 5.2, measured -0.95): 2 -> 3 damage",
+    "damage_type": "thermal",
+    "_037": "play-test 11: this arm deals its OWN damage type, whatever core drives it"
   },
   {
     "id": "ar_harpoon",
@@ -507,7 +511,9 @@
           "range": 1
         }
       }
-    ]
+    ],
+    "damage_type": "emp",
+    "_037": "play-test 11: this arm deals its OWN damage type, whatever core drives it"
   },
   {
     "id": "ar_godhammer",
@@ -572,6 +578,8 @@
           "heat": -1
         }
       }
-    ]
+    ],
+    "damage_type": "thermal",
+    "_037": "play-test 11: this arm deals its OWN damage type, whatever core drives it"
   }
 ]

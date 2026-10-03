@@ -57,6 +57,13 @@ func _ready() -> void:
 	box.add_child(UIKit.fit(_label("Runs leave these behind. Each is earned at the END of a run, when its numbers are reached; a new run then has it. Parts join the salvage, scrapyards and traders; crews and tiers are chosen at NEW RUN.",
 		UIKit.SIZE_BODY, UIKit.INK_DIM, UIKit.font_strong()), 1440, 2, 12))
 
+	# Play-test 11: what is new is said first, by name, in the gain colour.
+	if not _fresh.is_empty():
+		var names: PackedStringArray = []
+		for entry: Dictionary in entries:
+			if _fresh.has(String(entry["id"])):
+				names.append(_gives(entry).get_slice("  (", 0))
+		box.add_child(UIKit.fit(_label("NEW SINCE YOU LAST LOOKED:  " + ",  ".join(names), 24, UIKit.INK_GREEN, UIKit.font_comic()), 1440, 2, 14))
 	# 034: three columns -- milestones (runs, fights, acts) down the first two, MISSIONS (feats
 	# in fights) in the third, each under its own heading.
 	var columns := HBoxContainer.new()

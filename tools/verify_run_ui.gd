@@ -246,12 +246,12 @@ func _go() -> void:
 			state.scrap = 60
 			map.call("_refresh")
 			await _frames(3)
-			var tune_button: Button = _find_button_prefix(map, "TUNE A PART")
-			_check("a workshop offers TUNE A PART", tune_button != null)
+			var tune_button: Button = _find_button_prefix(map, "UPGRADE A PART")
+			_check("a workshop offers UPGRADE A PART", tune_button != null)
 			_press(tune_button)
 			await _frames(3)
 			var tuner: Node = map.get("_tuner")
-			_check("TUNE A PART opens the tune bench", tuner != null)
+			_check("UPGRADE A PART opens the upgrade bench", tuner != null)
 			if tuner != null:
 				var socket: int = -1
 				for s: int in 5:

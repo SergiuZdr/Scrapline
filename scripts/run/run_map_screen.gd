@@ -25,6 +25,12 @@ const SITE_NAMES: Dictionary = {"start": "CAMP", "skirmish": "FIGHT", "elite": "
 	"refinery": "REFINERY", "auction": "AUCTION", "arena": "ARENA",
 	"scrapyard": "SCRAPYARD", "workshop": "WORKSHOP", "boss": "THE GATE",
 	"trader": "TRADER", "tower": "WATCHTOWER", "signal": "SIGNAL"}
+## Play-test 11 ("the buildings' names and what they do do not match"): under every unvisited site's
+## name, what it DOES, in two or three words.
+const SITE_DOES: Dictionary = {"skirmish": "fight · parts", "elite": "hard fight · better part", "warlord": "mini-boss · hoard",
+	"arena": "hardest fight · rare part", "refinery": "make a part rarer", "auction": "buy a sealed crate",
+	"scrapyard": "free part or scrap", "workshop": "repair · upgrade parts", "boss": "the act's boss",
+	"trader": "buy · sell parts", "tower": "reveal nearby sites", "signal": "an event · a choice"}
 const RECLAIMER_RED := Color("ff5a3d")
 
 var _yard: YardView
@@ -386,16 +392,18 @@ func _level_marks(level: int) -> Control:
 	return row
 
 
-## HP as a row of pips, one per point, so a glance counts it.
+## HP as pips, one per point, so a glance counts it. Play-test 11: a fixed square in rows of 16
+## (as the fight's cards), not squares that shrink until a 31 HP machine's are slivers.
 func _hp_pips(hp: int, full: int) -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 2)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var grid := GridContainer.new()
+	grid.columns = 16
+	grid.add_theme_constant_override("h_separation", 2)
+	grid.add_theme_constant_override("v_separation", 2)
+	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var low: bool = hp * 3 <= full
-	var width: float = clampf(190.0 / float(maxi(1, full)) - 2.0, 5.0, 14.0)
 	for n: int in full:
 		var pip := Panel.new()
-		pip.custom_minimum_size = Vector2(width, 12)
+		pip.custom_minimum_size = Vector2(9, 8)
 		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		# The fight's pips: your blue in an ink box, red when low.
 		var colour: Color = (Ink.DANGER if low else Ink.YOURS) if n < hp else UIKit.SURFACE
@@ -403,8 +411,8 @@ func _hp_pips(hp: int, full: int) -> Control:
 		box.border_color = UIKit.HAIRLINE
 		box.set_border_width_all(1)
 		pip.add_theme_stylebox_override("panel", box)
-		row.add_child(pip)
-	return row
+		grid.add_child(pip)
+	return grid
 
 
 # --- Refresh ------------------------------------------------------------------
@@ -458,6 +466,8 @@ func _build_site_labels() -> void:
 			name += " · DONE"
 		var reachable: bool = targets.has(id)
 		box.add_child(_centred(name, 20, UIKit.PAGE_TEXT if reachable or id == state.current else Color("9a9384")))
+		if not bool(site["visited"]) and SITE_DOES.has(String(site["type"])):
+			box.add_child(_centred(String(SITE_DOES[String(site["type"])]), UIKit.SIZE_MICRO + 2, Color("d8cfb8") if reachable else Color("8d8676")))
 		if id == state.current:
 			box.add_child(_centred("YOU ARE HERE", UIKit.SIZE_LABEL, Ink.ACTION))
 		elif reachable:
@@ -555,19 +565,19 @@ func _gives(kind: String) -> String:
 		"skirmish":
 			return "A fight: +%d scrap, then 1 of 3 parts or %d scrap." % [int(rewards.get("skirmish_scrap", 10)), int(rewards.get("salvage_scrap", 8))]
 		"arena":
-			return "A pit fight: one more enemy than an elite, +%d scrap and an uncommon or better part." % int(rewards.get("arena_scrap", 35))
+			return "The hardest fight off the road: two more enemies than an elite, each tougher. +%d scrap and a RARE or better part." % int(rewards.get("arena_scrap", 35))
 		"refinery":
 			return "Turn one part in the hold into a random part of the next rarity, for scrap."
 		"auction":
 			return "Buy a crate blind: a better part, maybe a legendary."
 		"warlord":
-			return "The act's warlord, with its own rule: +%d scrap and a hoard with a LEGENDARY part." % int(rewards.get("warlord_scrap", 30))
+			return "The act's warlord, with its own rule: +%d scrap and a hoard with a RARE part (sometimes a LEGENDARY)." % int(rewards.get("warlord_scrap", 30))
 		"elite":
-			return "A hard fight: +%d scrap and an uncommon or better part, already tuned." % int(rewards.get("elite_scrap", 20))
+			return "A hard fight: +%d scrap and an uncommon or better part, already upgraded." % int(rewards.get("elite_scrap", 20))
 		"scrapyard":
 			return "No fight: 1 of 3 parts, or %d scrap." % int(rewards.get("scrapyard_scrap", 15))
 		"workshop":
-			return "Repairs, rebuilds, room in the hold and tuning, for scrap."
+			return "Repairs, rebuilds, part UPGRADES and room in the hold, for scrap."
 		"trader":
 			return "Three parts for sale; your spares sell for twice their scrap."
 		"tower":
@@ -575,7 +585,7 @@ func _gives(kind: String) -> String:
 		"signal":
 			return "An event with a choice; each option says what it costs."
 		"boss":
-			return "The Sorting Gate: the act's last fight."
+			return "The act's boss, at its gate: the act's last fight. Its hoard holds a LEGENDARY."
 	return ""
 
 
@@ -764,7 +774,7 @@ func _workshop_panel() -> void:
 	var tunable: Array = _tunable_costs()
 	if not tunable.is_empty():
 		var cheapest: int = tunable.min()
-		var label: String = "TUNE A PART  ·  %s SCRAP" % (str(cheapest) if tunable.max() == cheapest else "%d-%d" % [cheapest, tunable.max()])
+		var label: String = "UPGRADE A PART  ·  %s SCRAP" % (str(cheapest) if tunable.max() == cheapest else "%d-%d" % [cheapest, tunable.max()])
 		if state.scrap < cheapest:
 			box.add_child(_label("%s (you have %d)" % [label, state.scrap], UIKit.SIZE_BODY, UIKit.TEXT_FAINT))
 		else:
@@ -1000,7 +1010,9 @@ func _run_over() -> void:
 	# 027: every unlock as a goal, the ones this run earned ringed as new.
 	var fresh: Array = (banked.get("new", []) as Array).map(func(e: Dictionary) -> String: return String(e["id"]))
 	var goals := _button("UNLOCKS", UIKit.secondary(), UIKit.TEXT, Vector2(200, 64))
-	goals.pressed.connect(func() -> void: UnlocksPanel.open(self, Run.db, Profile.unlocked(), Profile.stats(), fresh))
+	goals.pressed.connect(func() -> void:
+		UnlocksPanel.open(self, Run.db, Profile.unlocked(), Profile.stats(), Profile.unseen_unlocks())
+		Profile.mark_unlocks_seen())
 	row.add_child(goals)
 	var title := _button("TITLE", UIKit.secondary(), UIKit.TEXT, Vector2(200, 64))
 	title.pressed.connect(func() -> void:
