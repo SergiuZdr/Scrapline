@@ -217,6 +217,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-03 | Write the test from the PRECONDITION, not the description: Charge passed every test written from its text while running past the hex it was aimed at |
 | 2026-10-03 | On a gate board, only `keepers` authored machines are kept; the rest are rolled escorts. The Core's conduit was never in its fight |
 | 2026-10-03 | A Container resets its children's rotation and scale on every layout: a tilted caption needs a plain holder |
+| 2026-10-03 | Profile before refactoring: the code map's biggest "bridge" (CombatScene) cost ~3% of a frame; 2,600 draw calls cost the rest. Godot casts shadows from Label3D/Sprite3D by default |
 
 | 2026-10-03 | A free ZeroGPU allowance is a rolling 24 hours (~300 s; a call needs ~1.5x the 120 s it reserves): four or five TRELLIS runs a day. A refused call costs nothing -- retry on a schedule |
 | 2026-10-03 | Give TRELLIS our own mask (cut the white background ourselves) and dark or saturated concepts: its background removal kept a white floor and grew a mound out of it |
@@ -271,3 +272,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-03 | **038: is the Core hard in a good way, or only long? Is 52.7% overall too hard?** | The user plays | |
 | 2026-10-03 | **039: is the comic too much anywhere? Which of the eight should be stronger or quieter?** | The user looks | |
 | 2026-10-03 | **020: do the ten generated sites and the harvester wall look right on the map?** | The user looks | |
+| 2026-10-03 | **040: does the new story read right? The map is still ~62% of a core idle (generated set pieces)** | The user plays; next perf step | |

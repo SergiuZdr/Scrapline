@@ -59,3 +59,12 @@ them. The old `event_stream.gd`/`events.gd` pattern is kept and the vocabulary c
 
 - Desktop: macOS and Windows (Steam later).
 - Android: Compatibility renderer, test on a low-end device before 009.
+
+## What a frame costs (040)
+
+Measure with `tools/measure_draws.gd` (draw calls, objects, triangles; `--classes`, `--census`)
+and a stack `sample` of the running game. Rules since 040: labels, sprites and particles cast no
+shadows (the `Juice` watcher); a machine casts its shadow from its frame alone
+(`Ink.frame_shadow_only`); static board pieces are merged per material (`Ink.merge_static`); 60 fps
+cap, 12 in the background. The ink line's hull mesh has no LODs: dense imported models pay full
+price twice.
