@@ -246,6 +246,11 @@ func _start_fight() -> void:
 	_armed = false
 	_state = CombatSim.replay(_setup, _actions)
 	_build_board()
+	# Play-test 12: the floor does not cast shadows onto itself -- every hex was drawn again into the
+	# shadow map each frame. Machines and props still cast theirs.
+	for node: Node in _board.find_children("*", "GeometryInstance3D", true, false):
+		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	Ink.merge_static(_board)
 	_frame_camera()
 	# The objective is up before anything moves (play-test 7), on the opening card and in its plate.
 	var status: Dictionary = CombatSim.objective_status(_state)
@@ -1030,6 +1035,7 @@ func _build_view(u: GridUnit) -> Dictionary:
 		# 038: a boss in crimson, a warlord in gunmetal -- one livery, not a patchwork of parts.
 		var paint: Color = Color("6e1a14") if BOSS_KINDS.has(u.kind) else (Color("3b3936") if BIG_KINDS.has(u.kind) else Color(0, 0, 0, 0))
 		Ink.dress_machine(model, u.part_ids, colour, paint)
+		Ink.frame_shadow_only(model)
 	# The gate's keeper is bigger than anything else on the board (013).
 	model.scale = Vector3.ONE * (1.0 if u.objective else MODEL_SCALE * (1.75 if BOSS_KINDS.has(u.kind) else (1.4 if BIG_KINDS.has(u.kind) else 1.0)))
 	root.add_child(model)

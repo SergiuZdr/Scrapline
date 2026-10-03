@@ -617,6 +617,10 @@ func _generated(parent: Node3D, kind: String, yaw: float, size: float = 1.0) -> 
 	piece.rotation_degrees.y = yaw
 	piece.scale = Vector3.ONE * size
 	Ink.dress_set_piece(piece, _livery)
+	# Play-test 12: a generated set piece is tens of thousands of triangles; its shadow on the flat
+	# yard is not worth drawing them all a second time.
+	for node: Node in piece.find_children("*", "GeometryInstance3D", true, false):
+		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(piece)
 	return true
 
@@ -821,6 +825,8 @@ func _build_reclaimer() -> void:
 					var source: BaseMaterial3D = mesh.mesh.surface_get_material(s) as BaseMaterial3D
 					mesh.set_surface_override_material(s, Ink.textured(source.albedo_texture, Color(0.5, 0.47, 0.47)) if source != null and source.albedo_texture != null else dark)
 				Ink.line(mesh, Ink.LINE_WORLD, edge)
+				# Play-test 12: the wall's harvesters are the heaviest meshes in the game; no shadow.
+				mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			machine.position = Vector3(-3.0 - float(_h(i, 3) % 100) / 100.0, 0, z)
 			machine.rotation_degrees.y = 90.0 + float(_h(i, 4) % 17) - 8.0
 			machine.scale = Vector3.ONE * (0.9 + float(_h(i, 5) % 15) / 100.0)
