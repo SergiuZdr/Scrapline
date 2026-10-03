@@ -12,6 +12,16 @@ Newest first. One entry per iteration; link to the iteration file for detail.
 - `tools/gen3d/next_site.sh` makes one end to end; it cuts the concept's background itself, keeps
   the raw model, and retries a step that hangs.
 
+## [040] Play-test 12 fixes — 2026-10-03 ([detail](iterations/040-playtest-12-fixes.md))
+
+### Changed
+- **Lighter on the PC**: a fight draws 42% fewer things a frame and uses about 60% of a CPU core
+  idle (was 75-100%); the title 32% (50%); 12 frames a second in the background.
+- **The story explains the game**: the briefing, each act's arrival and each boss's strip say what
+  is happening and what to do about it.
+- **GARAGE** from every site you trade or choose at. **UNLOCKS** says what each part does and opens
+  its card. **Unlocked parts are on the assembly bench.** The strips tilt; an act is told once.
+
 ## [039] The comic, all the way — 2026-10-03 ([detail](iterations/039-comic-pages.md))
 
 ### Added

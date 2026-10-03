@@ -61,6 +61,10 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 037 | [Play-test 11 fixes](iterations/037-playtest-11-fixes.md) | Charge fixed and previewed, weapons with their own damage type and a type chart, totals with their parts, DETAILS, UPGRADE, what every site does (bot 57.3%) | ✅ awaiting the play-test |
 | 038 | [The bosses](iterations/038-bosses.md) | The Core shielded by conduits and harder, the Pour stronger, dressed boards, bigger crimson bosses, a boss bar (bot 52.7%) | ✅ awaiting the play-test |
 | 039 | [The comic, all the way](iterations/039-comic-pages.md) | Speech and thought balloons, sound-effect lettering, speed and focus lines, a panel border and page turns, caption titles, inked models, story strips | ✅ awaiting the user's look |
+| — | [Play-test 12](playtests/2026-10-03-playtest-12.md) | Resources, a story that explains, garage at sites, clear unlocks, unlocked parts in the bay, models, comic panels and buttons | ✅ |
+| 040 | [Play-test 12 fixes](iterations/040-playtest-12-fixes.md) | 42% fewer draws in a fight, the story rewritten, GARAGE at sites, unlocks that explain, the bench | ✅ awaiting the play-test |
+| 041 | Comic panels and buttons | | ⬜ |
+| 042 | A model for every part | | ⬜ |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
