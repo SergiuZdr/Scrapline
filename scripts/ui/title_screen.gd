@@ -217,7 +217,7 @@ func _choice_button(text: String, chosen: bool, on_press: Callable) -> Button:
 	button.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	if chosen:
-		var ring: StyleBoxFlat = UIKit.choice()
+		var ring: InkBox = UIKit.choice()
 		for state: String in ["normal", "hover", "focus", "pressed"]:
 			button.add_theme_stylebox_override(state, ring)
 	return button
@@ -243,7 +243,7 @@ func _menu_button(text: String, primary: bool, on_press: Callable) -> Button:
 	button.add_theme_font_override("font", UIKit.font_comic())
 	button.add_theme_font_size_override("font_size", 30 if primary else 24)
 	var ink: Color = UIKit.TEXT
-	var up: StyleBoxFlat = UIKit.primary() if primary else UIKit.secondary()
+	var up: InkBox = UIKit.primary() if primary else UIKit.secondary()
 	for state: String in ["normal", "hover", "focus"]:
 		button.add_theme_stylebox_override(state, up)
 	button.add_theme_stylebox_override("pressed", UIKit.pressed(up))

@@ -43,7 +43,7 @@ static func show_once(parent: Control, id: String, db: ContentDB, at: Vector2, w
 	ok.size_flags_horizontal = Control.SIZE_SHRINK_END
 	ok.add_theme_font_override("font", UIKit.font_comic())
 	ok.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
-	var ok_style: StyleBoxFlat = UIKit.secondary()
+	var ok_style: InkBox = UIKit.secondary()
 	for key: String in ["normal", "hover", "focus"]:
 		ok.add_theme_stylebox_override(key, ok_style)
 	ok.add_theme_stylebox_override("pressed", UIKit.pressed(ok_style))

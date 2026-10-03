@@ -80,7 +80,7 @@ static func show_card(from: Node, id: String, glossary: Dictionary) -> Control:
 	layer.add_child(catcher)
 	var card := PanelContainer.new()
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style: StyleBoxFlat = UIKit.card(UIKit.SURFACE_HIGH, UIKit.RADIUS_CARD, UIKit.SPACE_LG, UIKit.SPACE_MD)
+	var style: InkBox = UIKit.card(UIKit.SURFACE_HIGH, UIKit.RADIUS_CARD, UIKit.SPACE_LG, UIKit.SPACE_MD)
 	style.border_color = UIKit.BLUE.darkened(0.2)
 	style.set_border_width_all(2)
 	card.add_theme_stylebox_override("panel", style)

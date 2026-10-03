@@ -248,7 +248,7 @@ func _build_bench() -> void:
 		var limit: int = RunSim.bench_count(Run.setup, part)
 		if part == fitted:
 			# The fitted one: ringed in amber, the selection.
-			var ring: StyleBoxFlat = UIKit.choice()
+			var ring: InkBox = UIKit.choice()
 			ring.set_border_width_all(5)
 			for key: String in ["normal", "hover", "pressed", "focus"]:
 				card.add_theme_stylebox_override(key, ring)
@@ -359,7 +359,7 @@ func _label(text: String, font_size: int, colour: Color, face: Font = null) -> L
 	return label
 
 
-func _button(text: String, style: StyleBoxFlat, ink: Color, min_size: Vector2) -> Button:
+func _button(text: String, style: InkBox, ink: Color, min_size: Vector2) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = min_size
