@@ -17,7 +17,17 @@ const T_OUT: float = 0.14
 var _scene: Node = null
 
 
+## Play-test 12: 60 frames a second at most, and a dozen while the window is in the background --
+## a game left open behind a browser should not keep a core busy.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		Engine.max_fps = 12
+	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		Engine.max_fps = 60
+
+
 func _ready() -> void:
+	Engine.max_fps = 60
 	get_tree().node_added.connect(_on_node_added)
 	_walk(get_tree().root)
 
@@ -63,6 +73,12 @@ func _walk(node: Node) -> void:
 
 
 func _on_node_added(node: Node) -> void:
+	# Play-test 12 ("does the game use the PC's resources recklessly?"): labels, sprites and
+	# particles cast shadows by default -- every badge, tag and spark was drawn a second time into
+	# the shadow map. Nothing flat or lettered casts one.
+	if node is Label3D or node is Sprite3D or node is CPUParticles3D or node is GPUParticles3D:
+		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		return
 	if not (node is BaseButton) or node.has_meta("juiced") or node.has_meta("no_juice"):
 		return
 	var button: BaseButton = node

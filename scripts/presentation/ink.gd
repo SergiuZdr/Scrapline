@@ -254,6 +254,85 @@ static func hull_mesh(mesh: Mesh) -> ArrayMesh:
 	return out
 
 
+static func _oct_decode(e: Vector2) -> Vector3:
+	var f: Vector2 = e * 2.0 - Vector2.ONE
+	var n := Vector3(f.x, f.y, 1.0 - absf(f.x) - absf(f.y))
+	var t: float = maxf(-n.z, 0.0)
+	n.x += -t if n.x >= 0.0 else t
+	n.y += -t if n.y >= 0.0 else t
+	return n.normalized()
+
+
+## Play-test 12 (the game drew ~2,600 times a frame): the static meshes directly under `parent`
+## that share a material and a line are merged into one mesh per pair, in `parent`'s space --
+## positions, normals and the ink line's smoothed normals (UV2) all carried through each piece's
+## transform -- so a board of a hundred hexes, curbs and rubble is a handful of draws, not hundreds.
+static func merge_static(parent: Node3D) -> int:
+	var groups: Dictionary = {}
+	for child: Node in parent.get_children():
+		var m := child as MeshInstance3D
+		if m == null or m.get_child_count() > 0 or m.mesh == null or m.material_override == null or m.mesh.get_surface_count() != 1:
+			continue
+		var key: String = "%d:%d:%d" % [m.material_override.get_instance_id(),
+			m.material_overlay.get_instance_id() if m.material_overlay != null else 0, int(m.cast_shadow)]
+		if not groups.has(key):
+			groups[key] = []
+		(groups[key] as Array).append(m)
+	var merged: int = 0
+	for key: Variant in groups:
+		var list: Array = groups[key]
+		if list.size() < 2:
+			continue
+		var verts := PackedVector3Array()
+		var norms := PackedVector3Array()
+		var uv2 := PackedVector2Array()
+		var indices := PackedInt32Array()
+		var has_uv2: bool = true
+		for item: Variant in list:
+			var m: MeshInstance3D = item
+			var arrays: Array = m.mesh.surface_get_arrays(0)
+			var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
+			var e: Variant = arrays[Mesh.ARRAY_TEX_UV2]
+			if e == null:
+				has_uv2 = false
+			var idx: Variant = arrays[Mesh.ARRAY_INDEX]
+			var t: Transform3D = m.transform
+			var basis: Basis = t.basis.orthonormalized()
+			var base: int = verts.size()
+			for i: int in v.size():
+				verts.append(t * v[i])
+				norms.append((basis * n[i]).normalized() if i < n.size() else Vector3.UP)
+				if e != null:
+					uv2.append(_oct((basis * _oct_decode((e as PackedVector2Array)[i])).normalized()))
+			if idx != null:
+				for i: int in (idx as PackedInt32Array):
+					indices.append(base + i)
+			else:
+				for i: int in v.size():
+					indices.append(base + i)
+		var arrays_out: Array = []
+		arrays_out.resize(Mesh.ARRAY_MAX)
+		arrays_out[Mesh.ARRAY_VERTEX] = verts
+		arrays_out[Mesh.ARRAY_NORMAL] = norms
+		if has_uv2:
+			arrays_out[Mesh.ARRAY_TEX_UV2] = uv2
+		arrays_out[Mesh.ARRAY_INDEX] = indices
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays_out)
+		var first: MeshInstance3D = list[0]
+		var one := MeshInstance3D.new()
+		one.mesh = mesh
+		one.material_override = first.material_override
+		one.material_overlay = first.material_overlay
+		one.cast_shadow = first.cast_shadow
+		parent.add_child(one)
+		for item: Variant in list:
+			(item as MeshInstance3D).queue_free()
+		merged += list.size()
+	return merged
+
+
 static func _oct(n: Vector3) -> Vector2:
 	var d: float = absf(n.x) + absf(n.y) + absf(n.z)
 	var p := Vector2(n.x / d, n.y / d)
@@ -328,6 +407,24 @@ static func zone_material(zone: String, livery: Color, team: Color) -> Material:
 
 ## Dresses a machine built by `ConstructView.build_parts`: every surface by its zone and its
 ## part's livery, the level kit by the material it was given, and a line on everything.
+## Play-test 12: a machine casts its shadow from its frame alone -- arms, cores, modules and kit
+## drew every material zone of theirs into the shadow map again, for a shadow nobody could tell
+## apart from the frame's.
+static func frame_shadow_only(model: Node3D) -> void:
+	for node: Node in model.find_children("*", "GeometryInstance3D", true, false):
+		# The NEAREST part above it decides: arms, cores and modules hang from sockets inside the
+		# frame, so "somewhere under part_chassis" is every piece.
+		var under_frame: bool = false
+		var p: Node = node
+		while p != null and p != model:
+			if String(p.name).begins_with("part_"):
+				under_frame = String(p.name) == "part_chassis"
+				break
+			p = p.get_parent()
+		if not under_frame:
+			(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
 ## `paint` (038): one livery for the whole machine instead of each part's own -- a boss in
 ## crimson, a warlord in gunmetal. Transparent = each part's livery.
 static func dress_machine(model: Node3D, part_ids: PackedStringArray, team: Color, paint: Color = Color(0, 0, 0, 0)) -> void:
