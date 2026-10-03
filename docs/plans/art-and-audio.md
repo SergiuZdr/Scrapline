@@ -156,3 +156,12 @@ interface: the 3D world is printed (a 6 px dot screen below luminance 0.3, plate
 grain, warm highlights) and the HUD is not. On the fight, the map and the title; `-- --look plain`
 turns it off. Ink lines 2.0 / 3.0 / 3.6; totals in starbursts; the round in a caption box.
 Contrast unchanged (2.91 both ways, slag_pit). Awaiting the user's verdict before it spreads.
+
+## The comic, all the way (039)
+
+On top of 036's print pass: speech balloons (`BalloonTail`; the info panel points at its subject,
+hints have tails), thought clouds over enemies with intents, sound-effect lettering per damage type,
+speed and focus lines, a panel border (in `ink_print.gdshader`) and page turns (`Juice`), caption-box
+titles (`UIKit.caption_title`), inked models (hatching in the shade band, a rim stroke, a brush line
+in `ink_outline.gdshader`), and story strips (`ComicStrip`, `CombatHUD.show_opening_strip`).
+Every new effect is drawn once behind the opening card. Contrast 2.92.
