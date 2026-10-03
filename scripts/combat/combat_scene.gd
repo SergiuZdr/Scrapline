@@ -161,6 +161,10 @@ var _pivot: Node3D
 var _camera: Camera3D
 ## 038: how far a boss fight's view is pulled back to clear the boss bar.
 var _boss_shift: float = 0.0
+## 039: the attack being played, so its first hit can be lettered with its sound.
+var _sfx_attacker: int = -1
+var _sfx_weapon: int = -1
+var _sfx_said: bool = false
 var _zoom: float = 12.5
 var _yaw_step: int = 0
 var _vfx: BattleVFX
@@ -283,6 +287,9 @@ func _opening(objective: String) -> void:
 	_tracer(at + Vector3(0, 0.7, 0), at + Vector3(1.5, 0.6, 0), hot)
 	_float_text(at, "-1", UIKit.RED)
 	_letters(at, "BOOM!", Ink.ACTION)
+	# 039: the comic effects compile here too, behind the card.
+	_focus_lines(at)
+	_streaks(at, at + Vector3(1, 0, 0))
 	_badge("-3 KO", at, Ink.DANGER, 1.0)
 	_marker_label("warm", at, Ink.PAPER, 24)
 	_spawn_marker(-1, cell)
@@ -1323,6 +1330,27 @@ func _process(delta: float) -> void:
 		((_views[ref] as Dictionary)["rig"] as ConstructRig).update(delta)
 	_declutter()
 	_follow_selection()
+	_point_info()
+
+
+## 039: the info balloon's tail points at its subject: the hex aimed at, else the enemy tapped,
+## else the machine selected.
+func _point_info() -> void:
+	if _hud == null or _camera == null or _state == null:
+		return
+	var at: Variant = null
+	if not _pending.is_empty():
+		var cell: Vector2i = _pending["cell"]
+		at = _to_world(cell.x, cell.y) + Vector3(0, 0.4, 0)
+	else:
+		for ref: int in [_focus_enemy, _selected]:
+			if ref >= 0 and _views.has(ref) and not bool((_views[ref] as Dictionary).get("dead", false)):
+				at = ((_views[ref] as Dictionary)["root"] as Node3D).global_position + Vector3(0, 1.0, 0)
+				break
+	if at == null or _camera.is_position_behind(at):
+		_hud.point_info_at(null)
+		return
+	_hud.point_info_at(_camera.unproject_position(at))
 
 
 ## Play-test 7: "make it easier to see which robot I am controlling". The machine under your
@@ -1561,6 +1589,9 @@ func _animate(e: Array) -> void:
 		GridEv.INTENT_SET:
 			await _wait(0.03)
 		GridEv.ATTACK:
+			_sfx_attacker = actor
+			_sfx_weapon = int(e[GridEv.F_V1])
+			_sfx_said = false
 			var packed: int = int(e[GridEv.F_V2])
 			await _attack(actor, cell, int(e[GridEv.F_V1]), Vector2i(packed % 64, packed / 64))
 		GridEv.DAMAGE:
@@ -1580,7 +1611,7 @@ func _animate(e: Array) -> void:
 			if _state.piles.has(cell):
 				_spawn_pile(cell)
 		GridEv.BUMP:
-			_float_text(_unit_pos(target) + Vector3(0, 2.2, 0), "BUMP", UIKit.GOLD)
+			_letters(_unit_pos(target) + Vector3(0.3, 2.0, 0), "THUD!", UIKit.GOLD, 84, 0.12)
 			_vfx.shake(0.25)
 			Audio.play("hit_light", -8.0)
 			await _wait(0.15)
@@ -1784,6 +1815,9 @@ func _walk(ref: int, path: Array[Vector2i]) -> void:
 		if heading.length_squared() > 0.0004:
 			var yaw: float = atan2(heading.x, heading.z)
 			tween.tween_property(root, "rotation:y", root.rotation.y + wrapf(yaw - root.rotation.y, -PI, PI), 0.04)
+		var step_from: Vector3 = from
+		var step_to: Vector3 = destination
+		tween.tween_callback(func() -> void: _streaks(step_from, step_to))
 		tween.tween_property(root, "position", destination, T_STEP)
 		from = destination
 	await tween.finished
@@ -1857,6 +1891,9 @@ func _hit(attacker: int, victim: int, amount: int) -> void:
 	var u: GridUnit = _state.unit(victim)
 	var severity: float = clampf(float(amount) / maxf(1.0, float(u.max_hp) * 0.35), 0.15, 1.0)
 	_vfx.impact(root.position + Vector3(0, 0.6, 0), Color("ffb070"), severity)
+	_sfx_word(attacker, root.position)
+	if severity > 0.45:
+		_focus_lines(root.position + Vector3(0, 0.7, 0))
 	if attacker >= 0 and _views.has(attacker):
 		(view["rig"] as ConstructRig).stagger(_local_push(attacker, victim), severity)
 	# Terrain damage is labelled as terrain, so slag reads as a cause and not as a bug.
@@ -2057,6 +2094,135 @@ func _letters(at: Vector3, text: String, colour: Color, size: int = 110, tilt: f
 	tween.tween_interval(0.45)
 	tween.tween_property(label, "modulate:a", 0.0, 0.25)
 	tween.tween_callback(label.queue_free)
+
+
+## 039: a thought cloud over an enemy: a bumpy paper cloud lettered in ink, two puffs trailing
+## down to its head. Part of the intent marks (cleared with them).
+func _thought(u: GridUnit, text: String) -> void:
+	var top: float = 2.8 if BOSS_KINDS.has(u.kind) else (2.35 if BIG_KINDS.has(u.kind) else 1.75)
+	var head: Vector3 = _to_world(u.x, u.y) + Vector3(0, top, 0)
+	var cloud_at: Vector3 = head + Vector3(0, 0.62, 0)
+	var cloud: Texture2D = Ink.texture("cloud", Vector2i(192, 112), func(image: Image) -> void:
+		image.fill(Color(0, 0, 0, 0))
+		var lobes: Array = [Vector3(52, 60, 34), Vector3(96, 46, 40), Vector3(140, 60, 34), Vector3(76, 72, 30), Vector3(118, 72, 30)]
+		for y: int in 112:
+			for x: int in 192:
+				var inside: float = 0.0
+				var rim: float = 0.0
+				for lobe: Vector3 in lobes:
+					var d: float = Vector2(x - lobe.x, y - lobe.y).length()
+					inside = maxf(inside, clampf(lobe.z - 5.0 - d, 0.0, 1.0))
+					rim = maxf(rim, clampf(lobe.z - d, 0.0, 1.0))
+				if rim > 0.0:
+					image.set_pixel(x, y, Color(1, 1, 1, 1).lerp(Color(0.08, 0.07, 0.06, 1), 1.0 - inside) * Color(1, 1, 1, rim)))
+	var sprite := Sprite3D.new()
+	sprite.texture = cloud
+	sprite.pixel_size = 0.0062
+	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.no_depth_test = true
+	sprite.shaded = false
+	sprite.modulate = Ink.PAPER
+	sprite.render_priority = 7
+	sprite.position = cloud_at
+	sprite.set_meta("intent", true)
+	_marks_root.add_child(sprite)
+	for puff: Array in [[0.32, 0.09], [0.16, 0.06]]:
+		var dot: Node3D = _disc(head + Vector3(0, float(puff[0]), 0), float(puff[1]), Ink.PAPER, Ink.INK, 7)
+		dot.set_meta("intent", true)
+		_marks_root.add_child(dot)
+	var label := Label3D.new()
+	label.text = text
+	label.font = UIKit.font_comic()
+	label.font_size = 40
+	label.pixel_size = 0.005
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.outline_size = 0
+	label.modulate = Ink.DANGER.darkened(0.2)
+	label.render_priority = 8
+	label.position = cloud_at
+	label.set_meta("intent", true)
+	_marks_root.add_child(label)
+
+
+## 039: the sound a hit makes, lettered by what made it: one word per attack.
+const SFX_WORDS: Array[String] = ["KRANG!", "WHOOMPH!", "FZZT!", "HSSS!"]
+
+
+func _sfx_word(attacker: int, at: Vector3) -> void:
+	if _sfx_said or attacker < 0 or attacker != _sfx_attacker:
+		return
+	_sfx_said = true
+	var u: GridUnit = _state.unit(attacker)
+	if u == null or _sfx_weapon < 0 or _sfx_weapon >= u.weapons.size():
+		return
+	var weapon: Dictionary = u.weapons[_sfx_weapon]
+	var t: int = int(weapon.get("dtype", -1)) if int(weapon.get("dtype", -1)) >= 0 else u.damage_type
+	var word: String = "WHAM!" if String(weapon["shape"]) == "melee" and t == 0 else SFX_WORDS[clampi(t, 0, 3)]
+	_letters(at + Vector3(0.35, 1.9, 0), word, DAMAGE_COLOURS[clampi(t, 0, DAMAGE_COLOURS.size() - 1)], 92, -0.18 if attacker % 2 == 0 else 0.16)
+
+
+## 039: speed lines -- ink streaks left behind a machine that moves or charges, along its path
+## as the camera sees it.
+func _streaks(from: Vector3, to: Vector3) -> void:
+	if _camera == null:
+		return
+	var a: Vector2 = _camera.unproject_position(from)
+	var b: Vector2 = _camera.unproject_position(to)
+	if a.distance_to(b) < 2.0:
+		return
+	var texture: Texture2D = Ink.texture("streaks", Vector2i(160, 64), func(image: Image) -> void:
+		image.fill(Color(0, 0, 0, 0))
+		for line: Array in [[12, 120, 3], [24, 150, 2], [36, 110, 3], [48, 140, 2]]:
+			for x: int in int(line[1]):
+				for w: int in int(line[2]):
+					image.set_pixel(159 - x, int(line[0]) + w, Color(1, 1, 1, clampf(1.0 - float(x) / float(line[1]), 0.0, 1.0))))
+	var sprite := Sprite3D.new()
+	sprite.texture = texture
+	sprite.pixel_size = 0.006
+	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.no_depth_test = true
+	sprite.shaded = false
+	sprite.modulate = Ink.INK
+	sprite.render_priority = 2
+	sprite.position = from + Vector3(0, 0.7, 0)
+	# Screen y runs down; the sprite's rotation runs counter-clockwise in its own plane.
+	sprite.rotation.z = -(b - a).angle()
+	_marks_root.add_child(sprite)
+	var tween := create_tween()
+	tween.tween_property(sprite, "modulate:a", 0.0, 0.3)
+	tween.tween_callback(sprite.queue_free)
+
+
+## 039: focus lines -- a ring of ink spikes snapping in around a heavy hit.
+func _focus_lines(at: Vector3) -> void:
+	var texture: Texture2D = Ink.texture("focus", Vector2i(160, 160), func(image: Image) -> void:
+		image.fill(Color(0, 0, 0, 0))
+		for i: int in 28:
+			var ang: float = TAU * float(i) / 28.0 + (0.05 if i % 2 == 0 else -0.04)
+			var inner: float = 46.0 + float((i * 37) % 11)
+			for r: int in range(int(inner), 79):
+				var width: float = 2.6 * (1.0 - (float(r) - inner) / (79.0 - inner)) + 0.6
+				for w: int in range(-int(width), int(width) + 1):
+					var p := Vector2(80, 80) + Vector2(cos(ang), sin(ang)) * float(r) + Vector2(-sin(ang), cos(ang)) * float(w) * 0.5
+					if p.x >= 0 and p.y >= 0 and p.x < 160 and p.y < 160:
+						image.set_pixel(int(p.x), int(p.y), Color(1, 1, 1, 1)))
+	var sprite := Sprite3D.new()
+	sprite.texture = texture
+	sprite.pixel_size = 0.016
+	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.no_depth_test = true
+	sprite.shaded = false
+	sprite.modulate = Ink.INK
+	sprite.render_priority = 2
+	sprite.position = at
+	sprite.scale = Vector3.ONE * 0.6
+	_marks_root.add_child(sprite)
+	var tween := create_tween()
+	tween.tween_property(sprite, "scale", Vector3.ONE, 0.08).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_interval(0.12)
+	tween.tween_property(sprite, "modulate:a", 0.0, 0.18)
+	tween.tween_callback(sprite.queue_free)
 
 
 func _wait(seconds: float) -> void:
@@ -2662,6 +2828,14 @@ func _intent_marker(ref: int, threat: Dictionary, full: bool) -> void:
 	var end: Vector2i = threat["end"] if legal else threat["aim"]
 	var to: Vector3 = _to_world(end.x, end.y) + Vector3(0, 0.35, 0)
 	var colour: Color = Ink.DANGER if legal else Color(0.6, 0.6, 0.6, 0.7)
+	# 039: the enemy's plan as a THOUGHT -- a cloud over its head with its place in the volley and
+	# what it means to do, puffs trailing down to it.
+	var planned: int = 0
+	for hit: Dictionary in (threat.get("hits", []) as Array):
+		var victim_t: GridUnit = _state.unit(int(hit["ref"]))
+		if victim_t != null and victim_t.team != u.team:
+			planned += int(hit["damage"])
+	_thought(u, "%d%s" % [int(threat.get("order", 0)), ("  ·  -%d" % planned) if planned > 0 and legal else ("  ·  MISS" if not legal else "")])
 	if not legal:
 		_badge("0 MISSES", to + Vector3(0, -0.2, HEX * 0.62), colour, 0.8)
 	if not full or from.distance_to(to) < 0.01:

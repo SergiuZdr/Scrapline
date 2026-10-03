@@ -197,6 +197,27 @@ static func ink_button(fill: Color, pressed: bool = false, lean: float = 0.0) ->
 
 
 ## The narrator's caption (hints, the coach): pale yellow, ink-bordered, no shadow.
+## 039, the comic: a screen's title as a CAPTION BOX -- hand-lettered (the comic face) in ink on
+## the caption paper, a heavy border and a hard shadow, set at a slant the way a comic's caption is
+## pasted on. `tilt` in degrees.
+static func caption_title(text: String, size: int = 46, tilt: float = -2.0) -> Control:
+	var box := PanelContainer.new()
+	var style: InkBox = InkBox.new(CAPTION, SPACE_LG, 2)
+	style.border_width = 4.0
+	style.shadow = Vector2(6, 6)
+	box.add_theme_stylebox_override("panel", style)
+	box.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_override("font", font_comic())
+	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_color_override("font_color", INK)
+	box.add_child(label)
+	box.rotation_degrees = tilt
+	return box
+
+
 static func ink_caption(margin_x: int = SPACE_MD, margin_y: int = SPACE_XS + 2) -> InkBox:
 	var box := InkBox.new(CAPTION, margin_x, margin_y)
 	box.shadow = Vector2(3, 3)

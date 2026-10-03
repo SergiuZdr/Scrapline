@@ -31,7 +31,10 @@ void vertex() {
 		dir /= len;
 	}
 	float scale = max(VIEWPORT_SIZE.y / 1080.0, 0.5);
-	clip.xy += dir * width_px * scale * 2.0 / VIEWPORT_SIZE * clip.w;
+	// 039, the comic: a brush, not a technical pen -- the width swells and thins along the line
+	// (by where on the model it is, so it holds still as the machine moves).
+	float swell = 0.75 + 0.5 * (0.5 + 0.5 * sin(dot(VERTEX, vec3(7.1, 5.3, 6.7))));
+	clip.xy += dir * width_px * swell * scale * 2.0 / VIEWPORT_SIZE * clip.w;
 	POSITION = clip;
 }
 

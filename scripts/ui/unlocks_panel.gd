@@ -45,7 +45,7 @@ func _ready() -> void:
 
 	var head := HBoxContainer.new()
 	box.add_child(head)
-	head.add_child(_label("UNLOCKS", 48, UIKit.INK, UIKit.font_comic()))
+	head.add_child(UIKit.caption_title("UNLOCKS", 44))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(spacer)

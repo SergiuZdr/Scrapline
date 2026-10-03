@@ -438,7 +438,7 @@ func _rebuild() -> void:
 
 func _build_header() -> void:
 	var state: RunState = Run.state
-	_header.add_child(UIKit.on_page(_label("GARAGE", UIKit.SIZE_DISPLAY, UIKit.PAGE_TEXT, UIKit.font_display()), 10))
+	_header.add_child(UIKit.caption_title("GARAGE", 44))
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(30, 0)
 	_header.add_child(gap)
