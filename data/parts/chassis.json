@@ -378,8 +378,7 @@
     "slot": "chassis",
     "rarity": 2,
     "maker": "cinder",
-    "model": "ch_skirmisher",
-    "mesh": "res://art/parts/ch_skirmisher.glb",
+    "mesh": "res://art/parts/ch_scrapper.glb",
     "flavour": "Built from three frames that lost an argument.",
     "armor_type": "composite",
     "role": "brawler",
@@ -402,7 +401,8 @@
           "move": 1
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "ch_colossus",
@@ -410,8 +410,7 @@
     "slot": "chassis",
     "rarity": 4,
     "maker": "kessler",
-    "model": "ch_citadel",
-    "mesh": "res://art/parts/ch_citadel.glb",
+    "mesh": "res://art/parts/ch_colossus.glb",
     "flavour": "The Sorting Gate's own chassis, cut loose.",
     "armor_type": "plate",
     "role": "anchor",
@@ -434,6 +433,7 @@
           "move": 1
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   }
 ]

@@ -327,8 +327,7 @@
     "slot": "core",
     "rarity": 2,
     "maker": "vektor",
-    "model": "co_dynamo",
-    "mesh": "res://art/parts/co_dynamo.glb",
+    "mesh": "res://art/parts/co_flux.glb",
     "flavour": "Bends the shot a hair. Enough.",
     "damage_type": "emp",
     "grid": {
@@ -350,7 +349,8 @@
           "damage": 1
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "co_crucible",
@@ -358,8 +358,7 @@
     "slot": "core",
     "rarity": 4,
     "maker": "cinder",
-    "model": "co_furnace",
-    "mesh": "res://art/parts/co_furnace.glb",
+    "mesh": "res://art/parts/co_crucible.glb",
     "flavour": "Pulled out of the Core still glowing.",
     "damage_type": "thermal",
     "grid": {
@@ -380,6 +379,7 @@
           "vent": 1
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   }
 ]

@@ -324,7 +324,9 @@ WEAPON_REST_PITCH = {"gun": -0.42, "melee": -0.78}
 def build_arm(part_id, part):
     """A limb with its weapon fused on, mounted at the shoulder."""
     weapon_class = str(part.get("weapon_class", "rifle"))
-    look = WEAPON_LOOK.get(weapon_class, "rivet_gun")
+    # 042: a part may name its look outright (the Flamer a flamer, the Coilgun a gatling) when
+    # its weapon_class -- which drives the attack animation -- is shared with another arm.
+    look = str(part.get("look", WEAPON_LOOK.get(weapon_class, "rivet_gun")))
     seed = abs(hash_id(part_id))
 
     arm = registry.generate("arm", 1, seed=seed).object

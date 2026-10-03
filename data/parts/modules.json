@@ -320,8 +320,7 @@
     "slot": "module",
     "rarity": 2,
     "maker": "vektor",
-    "model": "mo_servo",
-    "mesh": "res://art/parts/mo_servo.glb",
+    "mesh": "res://art/parts/mo_jumpjets.glb",
     "flavour": "Two burns and a prayer.",
     "grid": {
       "move": 1,
@@ -340,7 +339,8 @@
           "hp": 1
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "mo_plating",
@@ -348,8 +348,7 @@
     "slot": "module",
     "rarity": 1,
     "maker": "kessler",
-    "model": "mo_ablative",
-    "mesh": "res://art/parts/mo_ablative.glb",
+    "mesh": "res://art/parts/mo_plating.glb",
     "flavour": "Bolted on in the dark. It holds.",
     "grid": {
       "hp": 4
@@ -367,7 +366,8 @@
           "armor": 1
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "mo_aegis",
@@ -375,8 +375,7 @@
     "slot": "module",
     "rarity": 4,
     "maker": "arclight",
-    "model": "mo_capacitor",
-    "mesh": "res://art/parts/mo_capacitor.glb",
+    "mesh": "res://art/parts/mo_aegis.glb",
     "flavour": "The keeper's own shield, rewired to you.",
     "grid": {
       "hp": 4,
@@ -396,7 +395,8 @@
           "cooldown": 1
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "mo_spikes",
@@ -404,8 +404,7 @@
     "slot": "module",
     "rarity": 1,
     "maker": "kessler",
-    "model": "mo_reactive",
-    "mesh": "res://art/parts/mo_reactive.glb",
+    "mesh": "res://art/parts/mo_spikes.glb",
     "flavour": "Welded rebar, points out. Hug it and bleed.",
     "grid": {
       "hp": 2,
@@ -424,7 +423,8 @@
           "hp": 2
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "mo_fins",
@@ -432,8 +432,7 @@
     "slot": "module",
     "rarity": 1,
     "maker": "cinder",
-    "model": "mo_coolant",
-    "mesh": "res://art/parts/mo_coolant.glb",
+    "mesh": "res://art/parts/mo_fins.glb",
     "flavour": "A radiator off a furnace door, bolted to the back.",
     "grid": {
       "heat_cap": 2,
@@ -452,7 +451,8 @@
           "heat_cap": 2
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "mo_hooks",
@@ -460,8 +460,7 @@
     "slot": "module",
     "rarity": 1,
     "maker": "kessler",
-    "model": "mo_ablative",
-    "mesh": "res://art/parts/mo_ablative.glb",
+    "mesh": "res://art/parts/mo_hooks.glb",
     "flavour": "Hooks on the knuckles. Whatever it grabs, it keeps.",
     "grid": {
       "hp": 1,
@@ -480,7 +479,8 @@
           "hp": 2
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "mo_repair",
@@ -488,8 +488,7 @@
     "slot": "module",
     "rarity": 2,
     "maker": "arclight",
-    "model": "mo_capacitor",
-    "mesh": "res://art/parts/mo_capacitor.glb",
+    "mesh": "res://art/parts/mo_repair.glb",
     "flavour": "A little welder on a stalk that never stops working.",
     "grid": {
       "regen": 1
@@ -507,7 +506,8 @@
           "vent": 1
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "mo_gyro",
@@ -515,8 +515,7 @@
     "slot": "module",
     "rarity": 2,
     "maker": "kessler",
-    "model": "mo_governor",
-    "mesh": "res://art/parts/mo_governor.glb",
+    "mesh": "res://art/parts/mo_gyro.glb",
     "flavour": "A flywheel the size of a door. It does not get moved.",
     "grid": {
       "unshovable": 1,
@@ -535,7 +534,8 @@
           "melee": 1
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "mo_feeder",
@@ -543,8 +543,7 @@
     "slot": "module",
     "rarity": 2,
     "maker": "vektor",
-    "model": "mo_targeting",
-    "mesh": "res://art/parts/mo_targeting.glb",
+    "mesh": "res://art/parts/mo_feeder.glb",
     "flavour": "Hardened rounds on a belt: they go through the first thing.",
     "grid": {
       "pierce": 1
@@ -563,7 +562,8 @@
           "heat_cap": 2
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "mo_ram",
@@ -571,8 +571,7 @@
     "slot": "module",
     "rarity": 2,
     "maker": "kessler",
-    "model": "mo_servo",
-    "mesh": "res://art/parts/mo_servo.glb",
+    "mesh": "res://art/parts/mo_ram.glb",
     "flavour": "A press cylinder behind every punch.",
     "grid": {
       "melee": 1,
@@ -591,7 +590,8 @@
           "hp": 2
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "mo_stride",
@@ -599,8 +599,7 @@
     "slot": "module",
     "rarity": 2,
     "maker": "vektor",
-    "model": "mo_servo",
-    "mesh": "res://art/parts/mo_servo.glb",
+    "mesh": "res://art/parts/mo_stride.glb",
     "flavour": "Fire, then go. The legs never stop.",
     "grid": {
       "move_after_attack": 1,
@@ -619,7 +618,8 @@
           "hp": 2
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "mo_leech",
@@ -627,8 +627,7 @@
     "slot": "module",
     "rarity": 3,
     "maker": "cinder",
-    "model": "mo_scavenger",
-    "mesh": "res://art/parts/mo_scavenger.glb",
+    "mesh": "res://art/parts/mo_leech.glb",
     "flavour": "It eats what it kills, and it is never full.",
     "grid": {
       "kill_heal": 3,
@@ -648,7 +647,8 @@
           "hp": 2
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "mo_arcrelay",
@@ -656,8 +656,7 @@
     "slot": "module",
     "rarity": 3,
     "maker": "arclight",
-    "model": "mo_coolant",
-    "mesh": "res://art/parts/mo_coolant.glb",
+    "mesh": "res://art/parts/mo_arcrelay.glb",
     "flavour": "Every shot jumps to the next thing standing near it.",
     "grid": {
       "arc": 1,
@@ -677,7 +676,8 @@
           "heat": 1
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "mo_spotter",
@@ -685,8 +685,7 @@
     "slot": "module",
     "rarity": 3,
     "maker": "vektor",
-    "model": "mo_targeting",
-    "mesh": "res://art/parts/mo_targeting.glb",
+    "mesh": "res://art/parts/mo_spotter.glb",
     "flavour": "Everything it hits is painted for the others.",
     "grid": {
       "mark": 1,
@@ -705,7 +704,8 @@
           "move": 1
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "mo_phoenix",
@@ -713,8 +713,7 @@
     "slot": "module",
     "rarity": 4,
     "maker": "cinder",
-    "model": "mo_overclock",
-    "mesh": "res://art/parts/mo_overclock.glb",
+    "mesh": "res://art/parts/mo_phoenix.glb",
     "flavour": "A furnace heart that will not go out. Once.",
     "grid": {
       "last_stand": true,
@@ -734,6 +733,7 @@
           "regen": 1
         }
       }
-    ]
+    ],
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   }
 ]
