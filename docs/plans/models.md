@@ -130,3 +130,10 @@ three-quarter angle above with its front toward the viewer.
 ### Licences
 FLUX.1-schnell (the concepts): Apache 2.0, outputs free to use. TripoSR: MIT (code and weights).
 TRELLIS: MIT. Hunyuan3D is excluded (its licence does not cover the EU, UK or South Korea).
+
+## Every part its own model (042)
+
+`make_scrap_parts.py --only <id>` builds one part from its own seed; never regenerate the whole
+roster (it does not reproduce the committed one). An arm may name a `look` (a weapon archetype)
+apart from its `weapon_class`; a module may name a `look` from `MODULE_LOOKS` (a shape for its
+job). After a new model: `make_ink_thumbs.gd --only <ids>`, then verify_assembly.

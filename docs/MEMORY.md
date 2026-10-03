@@ -273,3 +273,5 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-03 | **039: is the comic too much anywhere? Which of the eight should be stronger or quieter?** | The user looks | |
 | 2026-10-03 | **020: do the ten generated sites and the harvester wall look right on the map?** | The user looks | |
 | 2026-10-03 | **040: does the new story read right? The map is still ~62% of a core idle (generated set pieces)** | The user plays; next perf step | |
+| 2026-10-03 | **041: which comic direction for panels and buttons -- A pulp, B pop art, C inked panels?** | The user picks | |
+| 2026-10-03 | **042: do the 26 new models read at board distance?** | The user looks | |
