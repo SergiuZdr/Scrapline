@@ -120,6 +120,8 @@ func _go() -> void:
 		tuner.call("_rebuild")
 		for i: int in 20:
 			await process_frame
+	if args.has("--wait"):
+		await create_timer(_arg(args, "--wait", "2").to_float()).timeout
 	if args.has("--enter"):
 		# 032: walk into the pending fight and photograph the board once the opening card is
 		# gone (`--until fight --enter`).

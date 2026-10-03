@@ -650,9 +650,15 @@ func show_opening_strip(panels: Array) -> void:
 		panel.custom_minimum_size = Vector2(500, 420)
 		panel.add_theme_stylebox_override("panel", UIKit.ink_card(fills[i % fills.size()], UIKit.SPACE_LG, UIKit.SPACE_LG, 8))
 		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# A container resets rotation (039): the tilted panel sits in a plain holder.
+		var holder := Control.new()
+		holder.custom_minimum_size = panel.custom_minimum_size + Vector2(20, 30)
+		holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(holder)
+		holder.add_child(panel)
+		panel.position = Vector2(10, 15)
 		panel.rotation_degrees = float(tilts[i % tilts.size()])
 		panel.pivot_offset = Vector2(250, 210)
-		row.add_child(panel)
 		var box := VBoxContainer.new()
 		box.add_theme_constant_override("separation", UIKit.SPACE_LG)
 		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -685,10 +691,10 @@ func show_opening_strip(panels: Array) -> void:
 		small.custom_minimum_size = Vector2(450, 0)
 		box.add_child(small)
 		# Panels land one after another, like reading a strip.
-		panel.modulate.a = 0.0
-		var tween := panel.create_tween()
+		holder.modulate.a = 0.0
+		var tween := holder.create_tween()
 		tween.tween_interval(0.25 + 0.45 * float(i))
-		tween.tween_property(panel, "modulate:a", 1.0, 0.18)
+		tween.tween_property(holder, "modulate:a", 1.0, 0.18)
 
 
 func hide_opening(fade: float = 0.0) -> void:

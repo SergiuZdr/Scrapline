@@ -10,7 +10,31 @@
   ],
   "go": "TO THE BAY",
   "bay": "THE ASSEMBLY BAY",
-  "bay_text": "Three frames on the lifts and a bench of basic parts. Build the crew that will carry the key."
+  "bay_text": "Three frames on the lifts and a bench of basic parts. Build the crew that will carry the key.",
+  "panels": [
+   {
+    "caption": "THE VALLEY",
+    "big": "THE RECLAIMER",
+    "text": "The Meridian Combine left this valley forty years ago and left one machine running: a harvester the size of a district that eats every yard down to bare earth. It is the red wall on your map."
+   },
+   {
+    "caption": "THE KEY",
+    "big": "IT FOLLOWS YOU",
+    "text": "You took the Combine's shutdown key off a dead foreman. The Reclaimer felt it go. Every few of your moves it takes one more zone of the map (the gauge at the top): keep moving forward."
+   },
+   {
+    "caption": "YOUR CREW",
+    "big": "THREE FREE MACHINES",
+    "text": "A machine IS its parts: a frame, a core, two arms, a module. Arms get torn off, wrecks drop scrap. Win fights for parts, fit them in the GARAGE, repair and upgrade at WORKSHOPS.",
+    "red": true
+   },
+   {
+    "caption": "THE ROAD",
+    "big": "THREE GATES",
+    "text": "Three yards lie between you and the Crucible. Each ends at a GATE held by a boss. Pick your road site by site, break all three gates, and turn the key in the Core."
+   }
+  ],
+  "_039": "040 (play-test 12: 'random text, no useful lore'): every panel is lore AND what the player needs to know"
  },
  "acts": [
   {
@@ -23,13 +47,47 @@
    "name": "THE SLAG FLATS",
    "mission": "Cross the flats to The Pour. The slag is still warm.",
    "gate": "THE POUR",
-   "boss": "The Pour: the Slag Flats' keeper, flooding the floor under the crew. Through it is the Crucible."
+   "boss": "The Pour: the Slag Flats' keeper, flooding the floor under the crew. Through it is the Crucible.",
+   "arrival": [
+    {
+     "caption": "MEANWHILE...",
+     "big": "THE SLAG FLATS",
+     "text": "The Sorter is scrap behind you. Ahead are the cooling fields where the Reclaimer pours what it melts. The enemies here are tougher, and so is their salvage."
+    },
+    {
+     "caption": "NEW HERE",
+     "text": "SLAG burns 2 a round to anything standing in it -- never end a move there. SENTINELS are plated and anchored: they do not move, so step off their lines or shove something into them."
+    },
+    {
+     "caption": "AT THE END",
+     "big": "THE POUR",
+     "text": "The Pour floods the hexes under your machines every other round, and at half HP it floods every round. Keep moving, and break it before the floor runs out.",
+     "red": true
+    }
+   ]
   },
   {
    "name": "THE CRUCIBLE",
    "mission": "Into the furnace-city. The key goes into the Core.",
    "gate": "THE CORE",
-   "boss": "The Core: the Crucible's heart, bolted to the floor and pulsing. Turn the key in it and the Reclaimer stops."
+   "boss": "The Core: the Crucible's heart, bolted to the floor and pulsing. Turn the key in it and the Reclaimer stops.",
+   "arrival": [
+    {
+     "caption": "MEANWHILE...",
+     "big": "THE CRUCIBLE",
+     "text": "The furnace-city. Everything the Reclaimer ever took ends up here, melted into ingots nobody collects -- and this is where the key goes in."
+    },
+    {
+     "caption": "NEW HERE",
+     "text": "FURNACE FLUES blow for 3 every other round -- the board warns a round ahead. CONDUITS make every enemy next to them hit 1 harder: kill them, or pull their friends away."
+    },
+    {
+     "caption": "AT THE END",
+     "big": "THE CORE",
+     "text": "The run's last boss. Its two CONDUITS shield it (2 less from every hit): break them first. Stay out of its pulsing ring, and at half HP it pulses every round.",
+     "red": true
+    }
+   ]
   }
  ],
  "reclaimer": {
@@ -55,5 +113,37 @@
   "won": "The key turns in the Core. Behind the crew the Reclaimer's booms sag and go still, one district at a time, and the valley is quiet for the first time in forty years.",
   "gate_held": "The gate held. The crew had nothing left to break it with, and the Reclaimer closed in behind.",
   "wrecked": "The Reclaimer took the crew. Somewhere in the Crucible, the key melts with them."
+ },
+ "bosses": {
+  "sorter": {
+   "where": "The Sorting Gate: the Combine's old checkpoint out of the Crane Yards.",
+   "how": "While a gate PYLON stands it takes 3 less from every hit, and every 3 rounds it calls a drone.",
+   "beat": "Break the pylons behind it first, then the Sorter."
+  },
+  "pour": {
+   "where": "The Pour: where the Reclaimer drains its slag onto the flats.",
+   "how": "Every other round it floods the hexes your machines stand on; at half HP, every round.",
+   "beat": "Keep moving off the marked hexes and hit it hard while there is floor."
+  },
+  "heart": {
+   "where": "The Core: the Crucible's heart, and the key's lock.",
+   "how": "Shielded by its two CONDUITS (2 less a hit). It pulses its ring every other round; at half HP, every round.",
+   "beat": "Break both conduits, stay out of the ring, then break the Core."
+  },
+  "grinder": {
+   "where": "A warlord's yard off the road, ringed with saws.",
+   "how": "At the start of every round it cuts 2 off each of your machines standing next to it.",
+   "beat": "Hit it from range, or strike and step away."
+  },
+  "magnet": {
+   "where": "A warlord's lot off the road: the Magnet King's.",
+   "how": "Every other round it hauls your machines within 3 a hex toward itself -- into pits, into each other.",
+   "beat": "Stand where a haul does no harm, or stay out of its reach."
+  },
+  "twin": {
+   "where": "The Twin Furnaces: two warlords, one yard.",
+   "how": "While both stand, each takes 2 less from every hit.",
+   "beat": "Focus one until it breaks; then the other has no cover."
+  }
  }
 }

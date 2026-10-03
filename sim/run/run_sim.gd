@@ -910,14 +910,17 @@ static func can_assemble(state: RunState) -> bool:
 
 
 ## How many of a part the bench holds: every common part without limit (-1), the listed
-## extras (the defaults' uncommons) once each, anything else not at all (0).
+## extras (the defaults' uncommons) and the profile's unlocked parts once each, anything else
+## not at all (0).
 static func bench_count(setup: RunSetup, part: String) -> int:
 	var bench: Dictionary = setup.rules.get("assembly", {})
 	if part.is_empty() or not setup.parts.has(part) or PartTuning.is_tuned(part):
 		return 0
 	if setup.rarity(part) <= int(bench.get("free_rarity", 1)):
 		return -1
-	return int((bench.get("extra", {}) as Dictionary).get(part, 0))
+	# 040: a part the profile has unlocked is on the bench too, once (`Meta.options` `unlocked`).
+	var unlocked: int = 1 if (setup.options.get("unlocked", []) as Array).has(part) else 0
+	return maxi(int((bench.get("extra", {}) as Dictionary).get(part, 0)), unlocked)
 
 
 ## Builds the three machines from the bench (play-test 4: "a way to customise the starting
