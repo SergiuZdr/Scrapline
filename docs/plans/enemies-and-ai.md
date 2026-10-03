@@ -96,3 +96,10 @@ One per act, a detour in the middle of the map: the Grinder (Act 1, `aura` 2 -- 
 start), the Magnet King (Act 2, `haul_every` 2 / `haul_radius` 3 -- hauls the crew a hex closer),
 the Twin Furnaces (Act 3, `twin_armor` 2 while both stand). Each is an authored board with
 `"warlord": true` and its keepers, escorts rolled; its hoard holds a legendary.
+
+## Bosses (038)
+
+The gates' keepers: the Sorter (18 HP, pylons), the Pour (52, floods 4 every 2 rounds; boils over:
+5 every round at 3), the Core (72, shielded -2 by its two conduits via `cover_kind`, pulses every 2;
+erupts: every round, radius 3, 5). Authored machines a gate must keep are counted in `keepers`.
+Drawn 1.75x in crimson (warlords 1.4x, gunmetal) with a boss bar (`CombatHUD.set_boss`).
