@@ -36,7 +36,7 @@ func _ready() -> void:
 
 	var column := VBoxContainer.new()
 	_column = column
-	column.position = Vector2(120, 250)
+	column.position = Vector2(120, 210)
 	column.custom_minimum_size = Vector2(620, 0)
 	column.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	add_child(column)
@@ -121,8 +121,8 @@ func _ready() -> void:
 	extras.add_child(sound)
 
 	var quit := _menu_button("QUIT", false, func() -> void: get_tree().quit())
-	quit.custom_minimum_size = Vector2(220, 52)
-	column.add_child(quit)
+	quit.custom_minimum_size = Vector2(130, 52)
+	extras.add_child(quit)
 
 
 ## The first NEW RUN on a profile offers the shakedown first (play-test 1: "a tutorial at
