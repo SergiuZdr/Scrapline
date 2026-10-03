@@ -217,3 +217,11 @@ machine on it and no enemy scores; three win), HACK (terminals taken by ending a
 SURVIVE (waves on the far row, marked a round ahead). Yard conditions, one at most, never at a gate:
 DUST STORM (-1 reach), LIVE WIRES (cable hexes, 2 a round), SCRAP RAIN (double piles), HEAT WAVE
 (-1 vent). All numbers in `rules.json` `modifiers` and `run.json` `objectives` / `modifiers`.
+
+## Damage types, made visible (037)
+
+A core sets a machine's damage type; an arm may carry its own (`damage_type` on the part: Flamer and
+Sunspear thermal, Pulse Emitter and Coilgun EMP), read into `weapon["dtype"]` and used by
+`strike_plan`. The wheel is shown as a chart (`TypeChart`, the glossary's DAMAGE TYPES tab), on every
+weapon line, in DETAILS, and as STRONG / WEAK on an aimed hit. `CombatSim.damage_parts` says what a
+total is made of; `diff` reports damage to props that stand. Charge stops on the hex aimed at.
