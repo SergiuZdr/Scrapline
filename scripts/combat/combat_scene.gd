@@ -274,7 +274,28 @@ func _start_fight() -> void:
 func _opening(objective: String) -> void:
 	var headless: bool = DisplayServer.get_name() == "headless"
 	var shown_at: int = Time.get_ticks_msec()
-	_hud.show_opening(_setup_name(), objective)
+	# 039: a boss's or warlord's fight opens as a comic STRIP -- where, who, what to do.
+	var keeper: GridUnit = null
+	for u: GridUnit in _setup.units:
+		if u.team == GridUnit.TEAM_ENEMY and BIG_KINDS.has(u.kind):
+			keeper = u
+			break
+	if keeper != null:
+		var kind: Dictionary = _setup.kinds.get(keeper.kind, {})
+		var said: String = String(kind.get("text", ""))
+		var crew: Array = []
+		for c: GridUnit in _setup.units:
+			if c.team == GridUnit.TEAM_PLAYER and not c.objective:
+				crew.append(Array(c.part_ids))
+		_hud.show_opening_strip([
+			{"caption": "MEANWHILE...", "big": "AT THE GATE" if BOSS_KINDS.has(keeper.kind) else "OFF THE ROAD", "small": _setup_name()},
+			{"caption": "BOSS" if BOSS_KINDS.has(keeper.kind) else "WARLORD", "big": String(kind.get("name", keeper.name)).to_upper(),
+				"small": said.get_slice(". ", 0) + ("." if said.contains(". ") else ""), "machines": [Array(keeper.part_ids)],
+				"paint": Color("6e1a14") if BOSS_KINDS.has(keeper.kind) else Color("3b3936")},
+			{"caption": "YOUR JOB", "big": "BREAK IT", "small": objective, "machines": crew},
+		])
+	else:
+		_hud.show_opening(_setup_name(), objective)
 	var cell := Vector2i(_setup.width / 2, _setup.height / 2)
 	var at: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
 	var hot := Color("ff7a3c")

@@ -69,8 +69,8 @@ func _init(size: Vector2i = Vector2i(112, 112), frame: String = "portrait", inke
 
 
 ## Shows this machine; does nothing if it is the one already shown.
-func show_machine(parts: Array, level: int, alive: bool = true) -> void:
-	var key: String = "%s:%d:%s" % [",".join(parts), level, alive]
+func show_machine(parts: Array, level: int, alive: bool = true, paint: Color = Color(0, 0, 0, 0)) -> void:
+	var key: String = "%s:%d:%s:%s" % [",".join(parts), level, alive, paint.to_html()]
 	if key == _key:
 		return
 	_key = key
@@ -81,7 +81,7 @@ func show_machine(parts: Array, level: int, alive: bool = true) -> void:
 	# this one through CombatHUD).
 	var model: Node3D = ConstructView.build_parts(PackedStringArray(parts), null, Color("4fa8d8"), level)
 	if ink and not parts.is_empty():
-		Ink.dress_machine(model, PackedStringArray(parts), Ink.YOURS)
+		Ink.dress_machine(model, PackedStringArray(parts), Ink.YOURS, paint)
 	_pivot.add_child(model)
 	var h: float = ConstructView.height_of(model)
 	# Play-test 11: a wide frame (an anchor, a big arm) was cut at the sides -- frame the larger of
