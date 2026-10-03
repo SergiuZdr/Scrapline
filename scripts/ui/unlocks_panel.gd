@@ -125,12 +125,7 @@ func _row(entry: Dictionary, is_next: bool) -> Control:
 	var line := HBoxContainer.new()
 	line.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	row.add_child(line)
-	var picture := TextureRect.new()
-	picture.custom_minimum_size = Vector2(58, 58)
-	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	if String(entry.get("kind", "")) == "part":
-		picture.texture = PartText.thumb(String(entry["what"]))
+	var picture: Control = _picture(entry)
 	picture.modulate = Color(1, 1, 1, 1.0 if held else 0.45)
 	line.add_child(picture)
 	var text := VBoxContainer.new()
@@ -166,6 +161,57 @@ func _row(entry: Dictionary, is_next: bool) -> Control:
 	return row
 
 
+## What an unlock looks like (043, play-test 13: a crew and a tier had an empty square): a part
+## its picture; a crew its three frames side by side; a tier a numbered badge; the ending a star.
+func _picture(entry: Dictionary) -> Control:
+	var kind: String = String(entry.get("kind", ""))
+	if kind == "crew":
+		var crew: Dictionary = (_meta.get("crews", {}) as Dictionary).get(entry["what"], {})
+		var holder := Control.new()
+		holder.custom_minimum_size = Vector2(84, 64)
+		holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var specs: Array = crew.get("crew", [])
+		for i: int in specs.size():
+			var thumb := TextureRect.new()
+			thumb.texture = PartText.thumb(String(((specs[i] as Dictionary)["parts"] as Array)[0]))
+			thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			thumb.size = Vector2(44, 56)
+			thumb.position = Vector2(float(i) * 20.0, 4.0 if i == 1 else 8.0)
+			thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			holder.add_child(thumb)
+		if specs.size() == 3:
+			holder.move_child(holder.get_child(1), 2)
+		return holder
+	if kind == "tier" or kind == "ending":
+		var badge := PanelContainer.new()
+		badge.custom_minimum_size = Vector2(64, 58)
+		badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var style: InkBox = UIKit.ink_button(Ink.DANGER if kind == "tier" else Ink.ACTION)
+		style.jag = 4.0
+		style.content_margin_left = 4
+		style.content_margin_right = 4
+		badge.add_theme_stylebox_override("panel", style)
+		var mark := Label.new()
+		mark.text = ["I", "II", "III", "IV"][clampi(int(entry["what"]), 0, 3)] if kind == "tier" else "END"
+		mark.add_theme_font_override("font", UIKit.font_letters())
+		mark.add_theme_font_size_override("font_size", 30 if kind == "tier" else 24)
+		mark.add_theme_color_override("font_color", UIKit.PAPER if kind == "tier" else UIKit.INK)
+		mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		badge.add_child(mark)
+		return badge
+	var picture := TextureRect.new()
+	picture.custom_minimum_size = Vector2(58, 58)
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	if kind == "part":
+		picture.texture = PartText.thumb(String(entry["what"]))
+	return picture
+
+
 ## The part's full card over the screen; any click closes it.
 func _show_card(id: String) -> void:
 	var shade := ColorRect.new()
@@ -193,6 +239,8 @@ func _gives(entry: Dictionary) -> String:
 			return "%s  (%s)" % [String(part.get("name", entry["what"])).to_upper(), String(part.get("slot", "part"))]
 		"crew":
 			return "%s  (starting crew)" % String(((_meta.get("crews", {}) as Dictionary).get(entry["what"], {}) as Dictionary).get("name", ""))
+		"ending":
+			return "THE LINE IS CUT  (the ending)"
 		_:
 			return "%s  (harder tier)" % String(((_meta.get("tiers", []) as Array)[int(entry["what"])] as Dictionary).get("name", ""))
 

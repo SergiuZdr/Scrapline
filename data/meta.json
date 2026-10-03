@@ -273,9 +273,18 @@
       "kind": "tier",
       "what": 2,
       "when": {
-        "wins": 2
+        "wins_t1": 1
       },
-      "text": "Win 2 runs"
+      "text": "Win a run on FOREMAN"
+    },
+    {
+      "id": "u26",
+      "kind": "ending",
+      "what": "line_cut",
+      "when": {
+        "wins_t2": 1
+      },
+      "text": "Win a run on RECLAIMED: the game's true ending"
     },
     {
       "id": "u17",
@@ -368,5 +377,6 @@
       "mission": true
     }
   ],
+  "_043": "The tier LADDER (043, play-test 13): a tier opens by winning a run on the one below (`wins_t<N>`, counted by Meta.stats_after), becomes the next run's tier the moment it opens, and the game's ending (`kind: ending`) is won only on the top tier.",
   "_034": "Missions (034, play-test 10: 'unlocks need diverse missions'): a `when` may name any feat RunSim.tally_feats counts (kills, multi_kill, pit_kills, bumps, tears, flawless, close_calls, <objective>_wins, elites, arenas, warlords, gates). `mission: true` marks them for the UNLOCKS screen."
 }
