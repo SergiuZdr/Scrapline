@@ -614,6 +614,10 @@ func _show_overlay() -> void:
 	if not Run.briefed:
 		_briefing()
 		return
+	# 039: a new act arrives as a comic strip -- where the crew is, what waits at the end.
+	if state.act > 1 and int(Run.get_meta("act_told", 1)) < state.act and state.pending.is_empty():
+		_act_arrival()
+		return
 	if RunSim.can_assemble(state) and not Run.bay_seen:
 		_assembly()
 		return
@@ -688,12 +692,32 @@ func _assembly() -> void:
 ## The story, once, at the start of a run.
 func _briefing() -> void:
 	var brief: Dictionary = Run.db.story.get("briefing", {})
-	var box := _modal(String(brief.get("title", "THE KEY")), "", 1000)
-	for line: Variant in (brief.get("lines", []) as Array):
-		box.add_child(_wrap(String(line), UIKit.SIZE_HEADING, UIKit.TEXT, 900))
+	var box := _modal(String(brief.get("title", "THE KEY")), "", 1720)
+	# 039: the story is told as a comic page -- one panel a beat, each with its caption.
+	var captions: Array = ["FORTY YEARS AGO...", "EVER SINCE...", "LAST NIGHT...", "TODAY..."]
+	var panels: Array = []
+	var lines: Array = brief.get("lines", [])
+	for i: int in lines.size():
+		panels.append({"caption": String(captions[mini(i, captions.size() - 1)]), "text": String(lines[i]), "red": i == 2})
+	box.add_child(ComicStrip.build(panels, 4, Vector2(380, 330)))
 	var go := _button(String(brief.get("go", "ROLL OUT")), UIKit.primary(), UIKit.BG, Vector2(280, 64))
 	go.pressed.connect(func() -> void:
 		Run.briefed = true
+		_refresh())
+	_row(box).add_child(go)
+
+
+func _act_arrival() -> void:
+	var act: Dictionary = _act()
+	var box := _modal("ACT %d" % Run.state.act, "", 1400)
+	box.add_child(ComicStrip.build([
+		{"caption": "MEANWHILE...", "big": String(act.get("name", "")), "text": "The gate is broken. The crew is through, and the Reclaimer is still coming."},
+		{"caption": "THE ROAD", "text": String(act.get("mission", ""))},
+		{"caption": "AT THE END", "big": String(act.get("gate", "THE GATE")), "text": String(act.get("boss", "")), "red": true},
+	], 3, Vector2(420, 330)))
+	var go := _button("ON THE ROAD", UIKit.primary(), UIKit.BG, Vector2(280, 64))
+	go.pressed.connect(func() -> void:
+		Run.set_meta("act_told", Run.state.act)
 		_refresh())
 	_row(box).add_child(go)
 

@@ -409,7 +409,7 @@ func set_controls(can_undo: bool, can_end: bool) -> void:
 ## `in_run`: the fight belongs to a run, so the only way on is CONTINUE (back to the map);
 ## a practice fight offers FIGHT AGAIN and TITLE instead.
 func show_result(won: bool, body: String, in_run: bool = false) -> void:
-	_result_title.text = "YARD CLEARED" if won else ("CREW LOST" if not in_run else "RUN OVER")
+	_result_title.text = "YARD CLEARED!" if won else ("CREW LOST!" if not in_run else "RUN OVER!")
 	_result_title.add_theme_color_override("font_color", UIKit.INK_GREEN if won else UIKit.INK_RED)
 	_result_body.text = body
 	_retry.visible = not in_run
@@ -621,6 +621,76 @@ func show_opening(title: String, objective: String) -> void:
 	box.add_child(goal)
 
 
+## 039, the comic's story beat: the opening as three panels in a row, each a little askew, each
+## with its caption box -- `[{ caption, big, small }]`. Shown and hidden like the plain card.
+func show_opening_strip(panels: Array) -> void:
+	hide_opening()
+	_opening = Control.new()
+	_opening.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_opening)
+	_opening.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var shade := ColorRect.new()
+	shade.color = Color("11141c")
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_opening.add_child(shade)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var center := CenterContainer.new()
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_opening.add_child(center)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", UIKit.SPACE_XL)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.add_child(row)
+	var tilts: Array = [-3.0, 2.0, -2.0]
+	var fills: Array = [UIKit.PAPER_CARD, Ink.DANGER, UIKit.PAPER_CARD]
+	for i: int in panels.size():
+		var data: Dictionary = panels[i]
+		var panel := PanelContainer.new()
+		panel.custom_minimum_size = Vector2(500, 420)
+		panel.add_theme_stylebox_override("panel", UIKit.ink_card(fills[i % fills.size()], UIKit.SPACE_LG, UIKit.SPACE_LG, 8))
+		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.rotation_degrees = float(tilts[i % tilts.size()])
+		panel.pivot_offset = Vector2(250, 210)
+		row.add_child(panel)
+		var box := VBoxContainer.new()
+		box.add_theme_constant_override("separation", UIKit.SPACE_LG)
+		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(box)
+		box.add_child(UIKit.caption_title(String(data.get("caption", "")), 22, -1.5))
+		var red: bool = fills[i % fills.size()] == Ink.DANGER
+		# The panel's picture: the boss, or the crew -- the real machines, drawn in ink.
+		var machines: Array = data.get("machines", [])
+		if not machines.is_empty():
+			var pics := HBoxContainer.new()
+			pics.alignment = BoxContainer.ALIGNMENT_CENTER
+			pics.add_theme_constant_override("separation", UIKit.SPACE_SM)
+			pics.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			box.add_child(pics)
+			var side: int = 230 if machines.size() == 1 else 130
+			for parts: Variant in machines:
+				var portrait := MachinePortrait.new(Vector2i(side, side), "full", true)
+				pics.add_child(portrait)
+				portrait.show_machine(parts as Array, 0, true, Color(data.get("paint", Color(0, 0, 0, 0))))
+		var big := _label(String(data.get("big", "")), 54 if machines.is_empty() else 40, UIKit.PAPER if red else UIKit.INK, UIKit.font_letters())
+		big.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		big.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		big.custom_minimum_size = Vector2(450, 0)
+		big.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		big.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		box.add_child(big)
+		var small := _label(String(data.get("small", "")), 22, UIKit.PAPER if red else UIKit.INK, UIKit.font_comic())
+		small.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		small.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		small.custom_minimum_size = Vector2(450, 0)
+		box.add_child(small)
+		# Panels land one after another, like reading a strip.
+		panel.modulate.a = 0.0
+		var tween := panel.create_tween()
+		tween.tween_interval(0.25 + 0.45 * float(i))
+		tween.tween_property(panel, "modulate:a", 1.0, 0.18)
+
+
 func hide_opening(fade: float = 0.0) -> void:
 	if _opening == null or not is_instance_valid(_opening):
 		_opening = null
@@ -657,8 +727,12 @@ func _build_result() -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	panel.add_child(box)
-	_result_title = _label("", 52, UIKit.INK, UIKit.font_comic())
+	# 039: the result is a SPLASH -- the sound-effect face, big, at a slant.
+	_result_title = _label("", 72, UIKit.INK, UIKit.font_letters())
 	_result_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_result_title.add_theme_constant_override("outline_size", 10)
+	_result_title.add_theme_color_override("font_outline_color", UIKit.INK)
+	_result_title.rotation_degrees = -3.0
 	box.add_child(_result_title)
 	_result_body = _label("", UIKit.SIZE_BODY, UIKit.INK_DIM, UIKit.font_strong())
 	_result_body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
