@@ -105,10 +105,12 @@ func mark_unlocks_seen() -> void:
 
 
 ## Counts a finished run once (`key` names it) and returns the unlock ids it newly earned.
-func bank_run(key: String, state: RunState, rules: Dictionary) -> Array:
+## 043, the ladder: a tier that opens becomes the next run's tier at once -- the player is
+## carried up it without a choice screen, and may step back down from the title.
+func bank_run(key: String, state: RunState, rules: Dictionary, tier: int = 0) -> Array:
 	if String(_data.get("banked", "")) == key:
 		return _data.get("banked_new", [])
-	var after: Dictionary = Meta.stats_after(stats(), state)
+	var after: Dictionary = Meta.stats_after(stats(), state, tier)
 	var held: Array = unlocked()
 	var fresh: Array = []
 	for id: Variant in Meta.earned(after, rules):
@@ -117,6 +119,9 @@ func bank_run(key: String, state: RunState, rules: Dictionary) -> Array:
 			fresh.append(id)
 	_data["stats"] = after
 	_data["unlocked"] = held
+	for entry: Dictionary in (rules.get("unlocks", []) as Array):
+		if fresh.has(String(entry["id"])) and String(entry.get("kind", "")) == "tier":
+			_data["tier"] = maxi(int(_data.get("tier", 0)), int(entry["what"]))
 	_data["banked"] = key
 	_data["banked_new"] = fresh
 	_save()

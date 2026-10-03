@@ -66,6 +66,11 @@ func _ready() -> void:
 	if saved:
 		column.add_child(_menu_button("CONTINUE", true, _continue_run))
 	column.add_child(_menu_button("NEW RUN", not saved, _new_run))
+	# 043 (play-test 13: no click-through after NEW RUN): the next run's crew and tier are said
+	# here, and changed here, before NEW RUN -- which then starts at once.
+	var next_run: Control = _next_run_line()
+	if next_run != null:
+		column.add_child(next_run)
 	column.add_child(_menu_button("PRACTICE FIGHT", false, func() -> void:
 		get_tree().change_scene_to_file("res://scenes/combat.tscn")))
 
@@ -149,15 +154,58 @@ func _new_run() -> void:
 		_begin()))
 
 
-## Starts a run -- straight away on a profile with nothing to choose between, through the
-## crew and tier choice once something is unlocked (022).
+## Starts a run straight away with the crew and tier the title shows (043: the choice is made
+## beforehand, with CHANGE, never in the way of NEW RUN).
 func _begin() -> void:
+	_go()
+
+
+## "NEXT RUN: THE WALL · FOREMAN  [CHANGE]", and the ladder's rungs -- or null while there is
+## nothing to choose.
+func _next_run_line() -> Control:
 	var meta: Dictionary = Run.db.meta
 	var held: Array = Profile.unlocked()
 	if Meta.opened(held, meta, "crew").is_empty() and Meta.opened(held, meta, "tier").is_empty():
-		_go()
-		return
-	_choose_run()
+		return null
+	var choice: Dictionary = Profile.run_choice()
+	var crew: Dictionary = (meta["crews"] as Dictionary).get(String(choice["crew"]), (meta["crews"] as Dictionary)["salvagers"])
+	var tier: Dictionary = (meta["tiers"] as Array)[clampi(int(choice["tier"]), 0, (meta["tiers"] as Array).size() - 1)]
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	var text := Label.new()
+	text.text = "NEXT RUN:  %s  ·  %s" % [String(crew["name"]), String(tier["name"])]
+	text.add_theme_font_override("font", UIKit.font_comic())
+	text.add_theme_font_size_override("font_size", 24)
+	UIKit.on_page(text, 6)
+	row.add_child(text)
+	var change := _menu_button("CHANGE", false, _choose_run)
+	change.custom_minimum_size = Vector2(130, 44)
+	change.add_theme_font_size_override("font_size", 20)
+	row.add_child(change)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	box.add_child(row)
+	box.add_child(_ladder_line(meta, held))
+	return box
+
+
+## The tier ladder as one line: each rung won, open, or shut, and what finishes the game.
+func _ladder_line(meta: Dictionary, held: Array) -> Label:
+	var stats: Dictionary = Profile.stats()
+	var top: int = Meta.top_tier(held, meta)
+	var parts: PackedStringArray = []
+	var tiers: Array = meta.get("tiers", [])
+	for t: int in tiers.size():
+		var name: String = String((tiers[t] as Dictionary)["name"])
+		var won: bool = int(stats.get("wins_t%d" % t, 0)) > 0 or (t == 0 and int(stats.get("wins", 0)) > 0)
+		parts.append(("%s WON" if won else ("%s OPEN" if t <= top else "%s SHUT")) % name)
+	var line := Label.new()
+	line.text = "THE LADDER:  " + "  >  ".join(parts) + \
+		("   ·   THE LINE IS CUT" if Meta.finished(held, meta) else "   ·   win the top tier to cut the line")
+	line.add_theme_font_override("font", UIKit.font_strong())
+	line.add_theme_font_size_override("font_size", UIKit.SIZE_BODY)
+	UIKit.on_page(line, 5)
+	return line
 
 
 func _go() -> void:
@@ -197,7 +245,11 @@ func _choose_run() -> void:
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 12)
 	_column.add_child(gap)
-	_column.add_child(_menu_button("START", true, _go))
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	buttons.add_child(_menu_button("START", true, _go))
+	buttons.add_child(_menu_button("BACK", false, func() -> void: get_tree().reload_current_scene()))
+	_column.add_child(buttons)
 
 
 func _choice_caption(text: String) -> Label:

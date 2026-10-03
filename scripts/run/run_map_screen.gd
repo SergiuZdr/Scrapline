@@ -1068,6 +1068,8 @@ func _unlock_name(entry: Dictionary) -> String:
 			return "%s (part)" % String((Run.db.parts.get(entry["what"], {}) as Dictionary).get("name", entry["what"]))
 		"crew":
 			return "%s (starting crew)" % String(((meta.get("crews", {}) as Dictionary).get(entry["what"], {}) as Dictionary).get("name", ""))
+		"ending":
+			return "THE LINE IS CUT (the ending)"
 		_:
 			return "%s (harder tier)" % String(((meta.get("tiers", []) as Array)[int(entry["what"])] as Dictionary).get("name", ""))
 
