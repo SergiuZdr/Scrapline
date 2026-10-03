@@ -9,9 +9,9 @@
     "f..f...f",
     "..r..r..",
     ".f....f.",
-    "...ff...",
-    "........",
-    ".f....f.",
+    "c..ff..c",
+    "..b..b..",
+    ".f.cc.f.",
     "...^^...",
     "........"
   ],
@@ -66,7 +66,7 @@
       "x": 4,
       "y": 1,
       "kind": "heart",
-      "hp": 46
+      "hp": 72
     },
     {
       "name": "Conduit",
@@ -78,6 +78,19 @@
         "mo_coolant"
       ],
       "x": 3,
+      "y": 1,
+      "kind": "conduit"
+    },
+    {
+      "name": "Conduit",
+      "parts": [
+        "ch_bulwark",
+        "co_tesla",
+        "ar_pulse",
+        "ar_hammer",
+        "mo_coolant"
+      ],
+      "x": 5,
       "y": 1,
       "kind": "conduit"
     },
@@ -122,5 +135,7 @@
     "type": "rout"
   },
   "boss": true,
-  "max_rounds": 20
+  "max_rounds": 20,
+  "keepers": 3,
+  "_038": "play-test 11: the end boss -- 72 HP, two conduits that shield it (authored keepers, not rolled), a dressed floor"
 }

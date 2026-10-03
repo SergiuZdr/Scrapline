@@ -489,8 +489,8 @@ func _test_acts() -> void:
 		not boards.has("The Slag Lake") and (boards.has("The Casting Floor") or boards.has("The Ladle Line") or boards.has("The Furnace Mouths")))
 	_check("with furnace flues on the floor (%d) and conduits in the squads (%d)" % [flues, conduits], flues > 0 and conduits > 0)
 	var core: Dictionary = RunSim._make_fight(state, setup, state.sites.size() - 1, "boss")
-	_check("and its gate is the Core's, with four escorts", String((core["enemy"] as Array)[0].get("kind", "")) == "heart"
-		and (core["enemy"] as Array).size() == 5)
+	_check("and its gate is the Core's, with its two conduits and three escorts (038)", String((core["enemy"] as Array)[0].get("kind", "")) == "heart"
+		and (core["enemy"] as Array).size() == 6)
 	_check("the last act's gate is the end of the run", state.act == RunSim.act_count(setup))
 
 	# 026 (play-test 8): later acts pay in rare parts; caches stand apart.

@@ -66,7 +66,9 @@ const INK_TERRAIN: Dictionary = {
 	"flue": Color("241a17"), "wire": Color("2a2818"),
 }
 ## The gate keepers drawn bigger than anything else on the board (013, 025).
-const BIG_KINDS: Array[String] = ["sorter", "heart", "grinder", "magnet", "twin"]
+const BIG_KINDS: Array[String] = ["sorter", "heart", "pour", "grinder", "magnet", "twin"]
+## 038: the act's bosses stand bigger still than the warlords (the Pour was not even big).
+const BOSS_KINDS: Array[String] = ["sorter", "pour", "heart"]
 ## Damage-type colours for impacts, indexed like the rules' `damage_types`.
 const DAMAGE_COLOURS: Array[Color] = [Color("ffcf9a"), Color("ff7a3c"), Color("7fd4ff"), Color("b5e05a")]
 
@@ -157,6 +159,8 @@ var _pile_views: Dictionary = {}
 var _origin: Vector2 = Vector2.ZERO
 var _pivot: Node3D
 var _camera: Camera3D
+## 038: how far a boss fight's view is pulled back to clear the boss bar.
+var _boss_shift: float = 0.0
 var _zoom: float = 12.5
 var _yaw_step: int = 0
 var _vfx: BattleVFX
@@ -492,7 +496,7 @@ func _build_world() -> void:
 
 func _place_camera() -> void:
 	var pitch: float = deg_to_rad(PITCH_DEG)
-	var aim := Vector3(0.0, 0.0, AIM_NEAR)
+	var aim := Vector3(0.0, 0.0, AIM_NEAR - _boss_shift)
 	_camera.position = aim + Vector3(0.0, sin(pitch) * _zoom, cos(pitch) * _zoom)
 	_camera.look_at_from_position(_camera.position, aim, Vector3.UP)
 
@@ -501,6 +505,15 @@ func _frame_camera() -> void:
 	# Fit the board's larger side into the view, then leave the rest to the zoom control.
 	var span: float = maxf(_origin.x, _origin.y) * 2.0 + HEX * 2.0
 	_zoom = clampf(span * 1.5, ZOOM_MIN, ZOOM_MAX)
+	# 038: a boss's bar sits across the top, so a boss fight is framed a little further out and
+	# lower -- the far row (where the boss stands) clears the bar.
+	_boss_shift = 0.0
+	if _setup != null:
+		for u: GridUnit in _setup.units:
+			if u.team == GridUnit.TEAM_ENEMY and BIG_KINDS.has(u.kind):
+				_boss_shift = HEX * 0.8
+				_zoom = clampf(_zoom * 1.1, ZOOM_MIN, ZOOM_MAX * 1.1)
+				break
 	_place_camera()
 
 
@@ -986,9 +999,11 @@ func _build_view(u: GridUnit) -> Dictionary:
 	var colour: Color = COL_PLAYER if u.team == GridUnit.TEAM_PLAYER else COL_ENEMY
 	var model: Node3D = _cache_model() if u.objective else ConstructView.build_parts(u.part_ids, _db, colour, u.level)
 	if not u.objective:
-		Ink.dress_machine(model, u.part_ids, colour)
+		# 038: a boss in crimson, a warlord in gunmetal -- one livery, not a patchwork of parts.
+		var paint: Color = Color("6e1a14") if BOSS_KINDS.has(u.kind) else (Color("3b3936") if BIG_KINDS.has(u.kind) else Color(0, 0, 0, 0))
+		Ink.dress_machine(model, u.part_ids, colour, paint)
 	# The gate's keeper is bigger than anything else on the board (013).
-	model.scale = Vector3.ONE * (1.0 if u.objective else MODEL_SCALE * (1.4 if BIG_KINDS.has(u.kind) else 1.0))
+	model.scale = Vector3.ONE * (1.0 if u.objective else MODEL_SCALE * (1.75 if BOSS_KINDS.has(u.kind) else (1.4 if BIG_KINDS.has(u.kind) else 1.0)))
 	root.add_child(model)
 	var ring: MeshInstance3D = _team_ring(COL_CACHE if u.objective else colour)
 	root.add_child(ring)
@@ -1003,7 +1018,7 @@ func _build_view(u: GridUnit) -> Dictionary:
 	tag.pixel_size = 0.0045
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.no_depth_test = true
-	tag.position = Vector3(0, 2.35 if BIG_KINDS.has(u.kind) else 1.75, 0)
+	tag.position = Vector3(0, 2.8 if BOSS_KINDS.has(u.kind) else (2.35 if BIG_KINDS.has(u.kind) else 1.75), 0)
 	tag.outline_size = 18
 	tag.outline_modulate = Ink.INK
 	tag.modulate = Ink.PAPER
@@ -1236,7 +1251,8 @@ func _set_tag(view: Dictionary, u: GridUnit) -> void:
 	if u.team == GridUnit.TEAM_PLAYER and not u.objective and not u.name.is_empty():
 		status.append(u.name.to_upper())
 	if not u.kind.is_empty():
-		status.append(u.kind.to_upper())
+		# 038: a boss or warlord is named ("THE CORE"), not its kind's id ("HEART").
+		status.append(String((_state.setup.kinds.get(u.kind, {}) as Dictionary).get("name", u.kind)).to_upper() if BIG_KINDS.has(u.kind) and _state != null else u.kind.to_upper())
 	if u.unshovable and not u.objective:
 		status.append("ANCHORED")
 	if u.shield > 0:
@@ -2256,6 +2272,33 @@ func _throw_arrow(from: Vector2i, to: Vector2i) -> void:
 	_marks_root.add_child(arrow)
 
 
+## 038: the boss bar -- the first living boss or warlord on the board, its HP, and what it is
+## doing: shielded, marking, erupted.
+func _hud_boss() -> void:
+	for u: GridUnit in _state.units:
+		if not u.alive or u.team != GridUnit.TEAM_ENEMY or not BIG_KINDS.has(u.kind):
+			continue
+		var bits: PackedStringArray = []
+		var rules: Dictionary = CombatSim.kind_rules(_state, u)
+		bits.append(("BOSS" if BOSS_KINDS.has(u.kind) else "WARLORD"))
+		if _state.enraged.has(u.ref):
+			bits.append("ENRAGED")
+		var shield_kind: String = String(rules.get("cover_kind", ""))
+		var shields: int = 0
+		for other: GridUnit in _state.units:
+			if other.alive and not shield_kind.is_empty() and other.kind == shield_kind:
+				shields += 1
+		if shields > 0:
+			bits.append("SHIELDED by %d %s%s: -%d per hit" % [shields, shield_kind.to_upper(), "S" if shields > 1 else "", int(rules.get("cover_armor", 0))])
+		if u.kind == "sorter" and CombatSim.has_pylon(_state):
+			bits.append("SHIELDED by its pylons: -3 per hit")
+		if not _state.enraged.has(u.ref) and (rules.has("enraged") or (_state.setup.kinds.get(u.kind, {}) as Dictionary).has("enraged")):
+			bits.append("erupts at half HP")
+		_hud.set_boss(String((_state.setup.kinds.get(u.kind, {}) as Dictionary).get("name", u.name)), u.hp, u.max_hp, "  ·  ".join(bits))
+		return
+	_hud.set_boss("", 0, 0, "")
+
+
 func _refresh_hud(threats: Dictionary) -> void:
 	var cards: Array = []
 	for u: GridUnit in _state.units:
@@ -2272,6 +2315,7 @@ func _refresh_hud(threats: Dictionary) -> void:
 	_hud.set_crew(cards)
 	var status: Dictionary = CombatSim.objective_status(_state)
 	_hud.set_objective(String(status["text"]) + _yard_line(), String(status["type"]) == "defend" and int(status["caches"]) < int(status["caches_total"]))
+	_hud_boss()
 	var ongoing: bool = _state.outcome == CombatState.ONGOING and not _bot
 	_hud.set_controls(ongoing and not _busy and _actions.size() > _turn_start, ongoing and not _busy)
 
