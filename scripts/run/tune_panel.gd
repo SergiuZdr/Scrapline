@@ -34,7 +34,7 @@ func _ready() -> void:
 	add_child(floor_colour)
 	floor_colour.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(UIKit.backdrop())
-	var title := UIKit.on_page(_label("UPGRADE A PART", UIKit.SIZE_DISPLAY, UIKit.PAGE_TEXT, UIKit.font_display()), 10)
+	var title := UIKit.caption_title("UPGRADE A PART", 44)
 	title.position = Vector2(40, 20)
 	add_child(title)
 	var line := UIKit.on_page(_label("UPGRADE a part: pick one of its two upgrades. Each part takes one upgrade, for good; an upgraded part is marked +.",

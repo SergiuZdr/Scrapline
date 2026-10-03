@@ -83,6 +83,10 @@ static func toon(colour: Color, kind: String = "matte", stripe: float = -1.0) ->
 	m.shader = TOON
 	m.set_shader_parameter("albedo", colour)
 	m.set_shader_parameter("halftone", 0.0 if kind == "clean" or kind == "metal" else 1.0)
+	# 039: machines (clean / metal) are shaded with cross-hatching and a white rim, as inked.
+	if kind == "clean" or kind == "metal":
+		m.set_shader_parameter("hatch", 1.0)
+		m.set_shader_parameter("rim", 0.5)
 	m.set_shader_parameter("stripe", maxf(stripe, 0.0) if stripe >= 0.0 else (0.3 if kind == "metal" else 0.0))
 	_materials[key] = m
 	return m

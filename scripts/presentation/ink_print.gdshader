@@ -15,6 +15,10 @@ uniform float dot_strength = 0.6;
 uniform float dot_below = 0.3;
 uniform float grain = 0.09;
 uniform float warm = 0.06;
+// 039: the world sits in a comic PANEL -- a paper gutter round the screen's edge and a heavy ink
+// border inside it (pixels at 1080p, scaled with the screen).
+uniform float gutter_px = 10.0;
+uniform float border_px = 7.0;
 
 void fragment() {
 	vec2 uv = SCREEN_UV;
@@ -37,5 +41,12 @@ void fragment() {
 	float n = texture(paper, FRAGCOORD.xy / (512.0 * scale)).r;
 	c *= 1.0 + grain * (n - 0.5) * 2.0;
 	c = mix(c, c * vec3(1.04, 1.0, 0.9), warm * smoothstep(0.35, 0.9, l));
+	vec2 from_edge = min(FRAGCOORD.xy, 1.0 / px - FRAGCOORD.xy) / scale;
+	float edge = min(from_edge.x, from_edge.y);
+	if (edge < gutter_px) {
+		c = vec3(0.937, 0.890, 0.784) * (1.0 + grain * (n - 0.5));
+	} else if (edge < gutter_px + border_px) {
+		c = vec3(0.078, 0.067, 0.059);
+	}
 	COLOR = vec4(c, 1.0);
 }

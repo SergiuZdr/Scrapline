@@ -659,7 +659,8 @@ func _modal(title: String, subtitle: String, width: float = 1100.0) -> VBoxConta
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	panel.add_child(box)
-	box.add_child(_label(title, UIKit.SIZE_DISPLAY, UIKit.TEXT, UIKit.font_display()))
+	# 039: a site window is a comic page -- its title a caption box at a slant.
+	box.add_child(UIKit.caption_title(title))
 	if not subtitle.is_empty():
 		# Rich text: the game's words in it are glossary links (012).
 		box.add_child(Glossary.label(subtitle, UIKit.SIZE_BODY, UIKit.TEXT_DIM, Run.db.glossary, width - 100))

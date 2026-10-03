@@ -27,6 +27,11 @@ uniform float halftone = 1.0;
 uniform float dot_px = 5.0;
 // 0 = matte; > 0 = one hard specular stripe (metal).
 uniform float stripe = 0.0;
+// 039, the comic: 1 = CROSS-HATCHING in the shade band (one diagonal, then both, toward the
+// shadow) instead of a flat tone; `rim` = a white highlight stroke on the lit silhouette.
+uniform float hatch = 0.0;
+uniform float hatch_px = 6.0;
+uniform float rim = 0.0;
 
 // 0 none, 1 stipple dots, 2 diagonal hatching.
 uniform int pattern = 0;
@@ -36,6 +41,8 @@ uniform float pattern_amount = 0.0;
 
 varying vec3 world_pos;
 varying float dot_dist;
+varying float hatch_a;
+varying float hatch_b;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -68,6 +75,9 @@ void fragment() {
 	float px = dot_px * max(VIEWPORT_SIZE.y / 1080.0, 0.5);
 	vec2 g = fract(FRAGCOORD.xy / px) - 0.5;
 	dot_dist = length(g);
+	float hp = hatch_px * max(VIEWPORT_SIZE.y / 1080.0, 0.5);
+	hatch_a = fract((FRAGCOORD.x + FRAGCOORD.y) / hp);
+	hatch_b = fract((FRAGCOORD.x - FRAGCOORD.y) / hp);
 }
 
 void light() {
@@ -78,6 +88,12 @@ void light() {
 		band = 1.0;
 	} else if (l > shade_edge) {
 		band = mid_level;
+		if (hatch > 0.0) {
+			float t = 1.0 - (l - shade_edge) / max(lit_edge - shade_edge, 0.001);
+			if ((t > 0.35 && hatch_a < 0.16) || (t > 0.7 && hatch_b < 0.16)) {
+				band = 0.0;
+			}
+		}
 		if (halftone > 0.0) {
 			float t = 1.0 - (l - shade_edge) / max(lit_edge - shade_edge, 0.001);
 			if (dot_dist < t * t * 0.75 * halftone) {
@@ -87,6 +103,12 @@ void light() {
 	}
 	vec3 hue = LIGHT_COLOR / max(max(LIGHT_COLOR.r, LIGHT_COLOR.g), max(LIGHT_COLOR.b, 0.0001));
 	DIFFUSE_LIGHT += hue * band * key;
+	if (rim > 0.0 && l > shade_edge) {
+		float edge = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
+		if (edge > 0.8) {
+			SPECULAR_LIGHT += vec3(rim);
+		}
+	}
 	if (stripe > 0.0 && l > 0.0 && ATTENUATION > 0.5) {
 		vec3 h = normalize(LIGHT + VIEW);
 		if (dot(NORMAL, h) > 0.985) {
