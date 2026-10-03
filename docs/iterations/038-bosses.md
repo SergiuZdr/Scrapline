@@ -1,7 +1,7 @@
 # Iteration 038 — The bosses
 
-**Status:** in progress
-**Started:** 2026-10-03 · **Finished:** —
+**Status:** done -- waiting for the user to play it
+**Started:** 2026-10-03 · **Finished:** 2026-10-03
 
 (Written after the build, which followed straight from the diagnosis below; recorded so the order
 is not hidden.)
@@ -33,10 +33,22 @@ and the Core is the hardest fight of the run.
 ## Acceptance criteria
 - [x] verify_combat: the Core's conduit shield on and off; the Core's gate fields both conduits.
 - [x] Screenshots of the three bosses with their bars (`shots/038/bosses.png`).
-- [ ] All suites; run bot 150, 0 illegal; the bot loses more at the Act 3 gate than at Act 2's.
+- [x] All suites; run bot 150, 0 illegal; the bot loses more at the Act 3 gate than at Act 2's.
 
 ## Result
 
+- Suites: combat 296 (+2), run 177 (the Core's gate test now expects its two conduits and three
+  escorts), meta 72, save 15, assembly 140, combat_input 22, run_ui 50, onboarding 39.
+- **Run bot 52.7%** (037: 57.3%), 0 illegal; lost by act 9.3 / 20.6 / 26.9%; **lost at the gate:
+  Act 2 4 -> 7, Act 3 7 -> 10** -- the end boss is now the hardest gate, as it should be.
+
 ## Decisions, lessons, open questions
+- A boss is told apart by size, ONE livery and a bar, not only by rules: the Pour had rules and no
+  presence.
+- Lesson: an authored machine on a gate board that is not a keeper is replaced by a rolled escort --
+  name every authored machine that matters in `keepers`.
+- Open: is the Core now hard in a good way (a fight with an order: conduits, then the Core), or
+  only long? Is 52.7% overall too hard?
 
 ## Next
+The comic style, once the user picks what it should mean.
