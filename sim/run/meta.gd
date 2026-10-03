@@ -9,12 +9,16 @@ extends RefCounted
 ## Lifetime stats after a finished run: `{ runs, fights, act, wins }`.
 ## 034: plus every feat the run tallied (kills, flawless, warlords...), added up -- an unlock
 ## mission is an ordinary condition on these.
-static func stats_after(stats: Dictionary, state: RunState) -> Dictionary:
+## 043: and a win is counted per tier too (`wins_t<tier>`): the tier ladder climbs on these.
+static func stats_after(stats: Dictionary, state: RunState, tier: int = 0) -> Dictionary:
 	var out: Dictionary = stats.duplicate()
 	out["runs"] = int(stats.get("runs", 0)) + 1
 	out["fights"] = int(stats.get("fights", 0)) + state.fights_won
 	out["act"] = maxi(int(stats.get("act", 1)), state.act)
 	out["wins"] = int(stats.get("wins", 0)) + (1 if state.outcome == RunState.WON else 0)
+	if state.outcome == RunState.WON:
+		var key: String = "wins_t%d" % tier
+		out[key] = int(stats.get(key, 0)) + 1
 	for key: Variant in state.feats:
 		out[key] = int(stats.get(key, 0)) + int(state.feats[key])
 	return out
@@ -55,6 +59,19 @@ static func progress(stats: Dictionary, entry: Dictionary) -> Array:
 			worst = ratio
 			best = [have, need]
 	return best
+
+
+## The highest tier these unlocks have opened (0 when none): where the ladder stands.
+static func top_tier(unlocked: Array, rules: Dictionary) -> int:
+	var top: int = 0
+	for t: Variant in opened(unlocked, rules, "tier"):
+		top = maxi(top, int(t))
+	return top
+
+
+## Whether the game's ending is held (043): the top tier has been won.
+static func finished(unlocked: Array, rules: Dictionary) -> bool:
+	return not opened(unlocked, rules, "ending").is_empty()
 
 
 ## What `kind` of thing these unlock ids have opened: part ids, crew ids or tier numbers.

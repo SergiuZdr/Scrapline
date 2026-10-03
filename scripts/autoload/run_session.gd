@@ -40,7 +40,7 @@ func bank() -> Dictionary:
 	if not active or state.outcome == RunState.ONGOING:
 		return {}
 	var key: String = "%d:%d" % [setup.rng_seed, actions.size()]
-	var fresh: Array = Profile.bank_run(key, state, db.meta)
+	var fresh: Array = Profile.bank_run(key, state, db.meta, int(setup.options.get("tier", 0)))
 	var entries: Array = []
 	for entry: Dictionary in (db.meta.get("unlocks", []) as Array):
 		if fresh.has(String(entry["id"])):

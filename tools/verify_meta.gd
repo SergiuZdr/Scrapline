@@ -131,6 +131,28 @@ func _run() -> void:
 	_check("the chosen crew and tier are remembered", (profile.call("run_choice") as Dictionary) == {"crew": "wall", "tier": 1})
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
+	# 043, the tier ladder: a tier opens by winning the one below, and becomes the next run's.
+	var won := RunState.new()
+	won.outcome = RunState.WON
+	var ladder: Dictionary = {"runs": 30, "fights": 200, "act": 3}
+	var at_zero: Dictionary = Meta.stats_after(ladder, won, 0)
+	_check("a win on tier 0 opens FOREMAN, not RECLAIMED", Meta.earned(at_zero, meta).has("u13") and not Meta.earned(at_zero, meta).has("u16"))
+	var twice: Dictionary = Meta.stats_after(at_zero, won, 0)
+	_check("winning tier 0 again still does not open RECLAIMED", not Meta.earned(twice, meta).has("u16"))
+	var at_one: Dictionary = Meta.stats_after(at_zero, won, 1)
+	_check("a win on FOREMAN opens RECLAIMED", Meta.earned(at_one, meta).has("u16") and not Meta.earned(at_one, meta).has("u26"))
+	_check("only a win on RECLAIMED is the ending", Meta.finished(Meta.earned(Meta.stats_after(at_one, won, 2), meta), meta)
+		and not Meta.finished(Meta.earned(at_one, meta), meta))
+	profile.call("use_path", path)
+	profile.call("choose_run", "salvagers", 0)
+	var veteran := RunState.new()
+	veteran.outcome = RunState.WON
+	veteran.fights_won = 12
+	veteran.act = 3
+	profile.call("bank_run", "1:1", veteran, meta, 0)
+	_check("a tier that opens becomes the next run's tier (%s)" % [profile.call("run_choice")], int((profile.call("run_choice") as Dictionary)["tier"]) == 1)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
 	# 023: every sound a script asks for is in the bank, and the switch is kept.
 	var audio: Node = root.get_node("Audio")
 	var bank: Array = audio.call("names")
