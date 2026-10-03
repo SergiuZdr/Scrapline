@@ -2,6 +2,19 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [039] The comic, all the way — 2026-10-03 ([detail](iterations/039-comic-pages.md))
+
+### Added
+- **Speech balloons**: the info panel and every hint point at what they are about.
+- **Thought clouds** over the enemies: who fires in what order, and for how much.
+- **Sound effects lettered** on every hit by damage type; **speed lines** on moves and charges;
+  **focus lines** on heavy hits.
+- **The board in a comic panel**, and **a page turning** between screens.
+- **Caption-box titles** on every site window, the garage, the bench and UNLOCKS; the fight's result
+  as a splash.
+- **Inked models**: cross-hatching in the shade, a white rim highlight, a brush line.
+- **Story in panels**: the run's briefing, an act's arrival and a boss's entrance are comic strips.
+
 ## [038] The bosses — 2026-10-03 ([detail](iterations/038-bosses.md))
 
 ### Changed
