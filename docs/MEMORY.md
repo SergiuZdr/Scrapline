@@ -111,6 +111,10 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-01 | **A new part may borrow another's model** (`"model"`, `PartTuning.model_of`); **legendaries come from gate hoards** (and rarely Act 3) | 029: new mechanics without waiting on art; something to hunt for |
 
 | 2026-10-03 | **Every site and the Reclaimer are TRELLIS models** (020), made by `tools/gen3d/next_site.sh` on the user's free Hugging Face account | The user: "do the sites and the reclaimer", "stay free, do one or two a day" |
+| 2026-10-03 | **The UI is pop-art panels with pulp buttons** (041's B with A's buttons): `UIKit.card`/`ink_card` heavy ink, red hard shadow, cyan halftone; `primary`/`secondary`/`choice` a wobbling inked border on an ink shadow | PT13-1, the user's pick |
+| 2026-10-03 | **Difficulty is a ladder, not a menu**: NEW RUN starts at once with the remembered crew and tier; a tier opens by WINNING the one below (`wins_t<N>`) and becomes the default when it opens; the ending (`kind: ending`) is won only on the top tier. CHANGE on the title steps down or switches crew | PT13-5: "hate clicking through the difficulty", yet it should be a system the player must climb. Alternatives offered: a remembered choice alone (no push upward), per-crew ladders (more to track), an in-run "hard road" (the run decides the tier) |
+| 2026-10-03 | **Bosses and warlords keep their arms** (`keeps_arms` on the kind) | PT13-3 |
+| 2026-10-03 | **Arms are drawn at 0.8 of their model** (`ConstructView.ARM_SCALE`) and seated clear of the legs too | PT13-4: arms too big and through the frame; the models are not regenerated |
 
 ## Lessons carried over from the old codebase
 
@@ -222,6 +226,9 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-03 | A free ZeroGPU allowance is a rolling 24 hours (~300 s; a call needs ~1.5x the 120 s it reserves): four or five TRELLIS runs a day. A refused call costs nothing -- retry on a schedule |
 | 2026-10-03 | Give TRELLIS our own mask (cut the white background ourselves) and dark or saturated concepts: its background removal kept a white floor and grew a mound out of it |
 | 2026-10-03 | Squaring a near-square footprint turns a model arbitrarily: a site that must face the camera keeps the facing its concept was drawn with |
+| 2026-10-03 | A billboard `Label3D`'s `get_aabb()` is a conservative cube -- as tall as its text is wide. Measure a label from its font (`get_multiline_string_size`) |
+| 2026-10-03 | A StyleBox subclass has to EXPORT its variables or `duplicate()` returns defaults; giving it StyleBoxFlat's property names let every screen switch to it without a rewrite |
+| 2026-10-03 | Frame a model after the turn it is shown at: a width measured before the three-quarter turn cut the arms off every crew portrait |
 
 ## Open questions
 

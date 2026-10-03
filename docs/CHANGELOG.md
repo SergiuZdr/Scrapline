@@ -2,6 +2,21 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [043] Play-test 13: the comic UI, the bay, the tier ladder — 2026-10-03 ([detail](iterations/043-playtest-13.md))
+
+### Changed
+- **Every panel and button wears the look you picked**: pop-art panels (heavy ink border, a hard red
+  shadow, cyan halftone) and pulp buttons (a hand-inked border on an ink shadow; the main action
+  shaded into its corner).
+- **NEW RUN starts at once.** The title says the next run's crew and tier, with CHANGE beside it.
+- **The tiers are a ladder**: FOREMAN opens by winning a run, RECLAIMED by winning on FOREMAN, and a
+  tier becomes your next run's the moment it opens. **The game's ending is won only on RECLAIMED.**
+- **Bosses and warlords keep their arms** -- no tear can take one off, and the preview says so.
+- **The assembly bay** sits on three even columns; every picture of a machine shows all of it;
+  arms are smaller and stand clear of the legs as well as the body.
+- Tags sit at their machines again (a long tag was measured as tall as it was wide).
+- Every unlock has a picture: a crew its three frames, a tier its numeral, the ending its badge.
+
 ## [020] Sites and the Reclaimer — finished 2026-10-03 ([detail](iterations/020-sites.md))
 
 ### Changed

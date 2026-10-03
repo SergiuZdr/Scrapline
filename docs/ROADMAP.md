@@ -63,8 +63,10 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 039 | [The comic, all the way](iterations/039-comic-pages.md) | Speech and thought balloons, sound-effect lettering, speed and focus lines, a panel border and page turns, caption titles, inked models, story strips | ✅ awaiting the user's look |
 | — | [Play-test 12](playtests/2026-10-03-playtest-12.md) | Resources, a story that explains, garage at sites, clear unlocks, unlocked parts in the bay, models, comic panels and buttons | ✅ |
 | 040 | [Play-test 12 fixes](iterations/040-playtest-12-fixes.md) | 42% fewer draws in a fight, the story rewritten, GARAGE at sites, unlocks that explain, the bench | ✅ awaiting the play-test |
-| 041 | Comic panels and buttons | Three directions rendered (`shots/041/options.png`); waiting for the user to pick | ⏸ |
+| 041 | Comic panels and buttons | Three directions rendered (`shots/041/options.png`); the user picked "B with A's buttons", applied in 043 | ✅ |
 | 042 | [A model for every part](iterations/042-part-models.md) | 26 generated models; modules shaped by what they do | ✅ awaiting the user's look |
+| — | [Play-test 13](playtests/2026-10-03-playtest-13.md) | The comic UI pick, the tag, boss arms, the bay, the difficulty click-through, an unlock without a picture | ✅ |
+| 043 | [Play-test 13 fixes](iterations/043-playtest-13.md) | Pop-art panels and pulp buttons everywhere, NEW RUN at once and a tier ladder with an ending, bosses keep their arms, the bay on three columns with whole machines and smaller arms | ✅ awaiting the play-test |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
