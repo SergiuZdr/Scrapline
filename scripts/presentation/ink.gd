@@ -204,7 +204,9 @@ static func line(mesh: MeshInstance3D, width: float, colour: Color = INK) -> voi
 	var overrides: Array = []
 	for i: int in mesh.get_surface_override_material_count():
 		overrides.append(mesh.get_surface_override_material(i))
-	mesh.mesh = hull_mesh(mesh.mesh)
+	var hull: ArrayMesh = hull_mesh(mesh.mesh)
+	if hull.get_surface_count() > 0:
+		mesh.mesh = hull
 	for i: int in overrides.size():
 		mesh.set_surface_override_material(i, overrides[i])
 	mesh.material_overlay = outline(width, colour)
@@ -227,6 +229,13 @@ static func hull_mesh(mesh: Mesh) -> ArrayMesh:
 	var key: int = mesh.get_instance_id()
 	if shared and _hulls.has(key):
 		return _hulls[key]
+	# A surface can come back with no vertex array at all (a mesh still streaming in on a
+	# background thread): leave such a mesh as it is -- dropping a surface would shift every
+	# material after it.
+	for s: int in mesh.get_surface_count():
+		var probe: Array = mesh.surface_get_arrays(s)
+		if probe.is_empty() or probe[Mesh.ARRAY_VERTEX] == null:
+			return mesh as ArrayMesh if mesh is ArrayMesh else ArrayMesh.new()
 	var out := ArrayMesh.new()
 	for s: int in mesh.get_surface_count():
 		var arrays: Array = mesh.surface_get_arrays(s)
@@ -291,6 +300,8 @@ static func merge_static(parent: Node3D) -> int:
 		for item: Variant in list:
 			var m: MeshInstance3D = item
 			var arrays: Array = m.mesh.surface_get_arrays(0)
+			if arrays.is_empty() or arrays[Mesh.ARRAY_VERTEX] == null:
+				continue
 			var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 			var n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
 			var e: Variant = arrays[Mesh.ARRAY_TEX_UV2]
