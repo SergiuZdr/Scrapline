@@ -63,8 +63,8 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 039 | [The comic, all the way](iterations/039-comic-pages.md) | Speech and thought balloons, sound-effect lettering, speed and focus lines, a panel border and page turns, caption titles, inked models, story strips | ✅ awaiting the user's look |
 | — | [Play-test 12](playtests/2026-10-03-playtest-12.md) | Resources, a story that explains, garage at sites, clear unlocks, unlocked parts in the bay, models, comic panels and buttons | ✅ |
 | 040 | [Play-test 12 fixes](iterations/040-playtest-12-fixes.md) | 42% fewer draws in a fight, the story rewritten, GARAGE at sites, unlocks that explain, the bench | ✅ awaiting the play-test |
-| 041 | Comic panels and buttons | | ⬜ |
-| 042 | A model for every part | | ⬜ |
+| 041 | Comic panels and buttons | Three directions rendered (`shots/041/options.png`); waiting for the user to pick | ⏸ |
+| 042 | [A model for every part](iterations/042-part-models.md) | 26 generated models; modules shaped by what they do | ✅ awaiting the user's look |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

@@ -12,6 +12,12 @@ Newest first. One entry per iteration; link to the iteration file for detail.
 - `tools/gen3d/next_site.sh` makes one end to end; it cuts the concept's background itself, keeps
   the raw model, and retries a step that hangs.
 
+## [042] A model for every part — 2026-10-03 ([detail](iterations/042-part-models.md))
+
+### Added
+- **26 parts have their own models and pictures** -- every module, legendary and 029 part that wore
+  another's. Modules look like what they do: spikes, a flywheel, tesla coils, a sensor dish...
+
 ## [040] Play-test 12 fixes — 2026-10-03 ([detail](iterations/040-playtest-12-fixes.md))
 
 ### Changed
