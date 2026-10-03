@@ -23,7 +23,7 @@ static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array 
 	style.shadow_offset = Vector2(4, 4)
 	for key: String in ["normal", "hover", "pressed", "disabled", "focus"]:
 		button.add_theme_stylebox_override(key, style)
-	var hover: StyleBoxFlat = style.duplicate()
+	var hover: InkBox = style.duplicate()
 	hover.bg_color = UIKit.SURFACE_HIGH.lightened(0.06)
 	button.add_theme_stylebox_override("hover", hover)
 

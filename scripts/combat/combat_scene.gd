@@ -1545,7 +1545,14 @@ func _clear_shift(box: Rect2, placed: Array[Rect2], sense: float) -> float:
 func _screen_box(node: Node3D) -> Rect2:
 	var quad := AABB()
 	if node is Label3D:
-		quad = (node as Label3D).get_aabb()
+		# Play-test 13: a billboard label's AABB is a conservative CUBE as tall as the label is
+		# wide, so "KNUCKLES · HEAT 2/8" measured ~250 px tall and climbed that far. The text's
+		# own size, from the font, is the box.
+		var label := node as Label3D
+		var text_size: Vector2 = label.font.get_multiline_string_size(label.text, HORIZONTAL_ALIGNMENT_CENTER, -1, label.font_size) \
+			if label.font != null else Vector2.ZERO
+		text_size += Vector2.ONE * float(label.outline_size)
+		quad = AABB(Vector3.ZERO, Vector3(text_size.x, text_size.y, 0.0) * label.pixel_size)
 	elif node is Sprite3D:
 		quad = (node as Sprite3D).get_aabb()
 	elif node.get_child_count() > 0 and node.get_child(0) is Sprite3D:
