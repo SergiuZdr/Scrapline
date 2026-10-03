@@ -984,6 +984,10 @@ static func _execute_attack(state: CombatState, u: GridUnit, w: int, target: Vec
 static func _would_tear(state: CombatState, target: GridUnit, weapon: Dictionary, dmg: int) -> bool:
 	if target.objective or not target.has_weapon() or dmg <= 0:
 		return false
+	# 043 (play-test 13: "make it impossible to remove the arms of the boss or mini boss"): a
+	# boss or warlord fights with what it came with.
+	if bool(kind_rules(state, target).get("keeps_arms", false)):
+		return false
 	return dmg >= state.setup.tear_threshold or bool(weapon.get("tears", false))
 
 

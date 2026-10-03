@@ -1,5 +1,5 @@
 {
-  "_comment": "Enemy kinds: rules layered on top of an ordinary part-built enemy. Generated fights roll tracker/bomber/warden/hive by column (see data/run/run.json). `builds`: sets down a pad beside itself that builds a drone every `every` rounds (the hive's drone). sorter: the gate's boss (013). reclaimer: the drones that arrive in fights near the Reclaimer's line (013).",
+  "_comment": "Enemy kinds: rules layered on top of an ordinary part-built enemy. Generated fights roll tracker/bomber/warden/hive by column (see data/run/run.json). `builds`: sets down a pad beside itself that builds a drone every `every` rounds (the hive's drone). sorter: the gate's boss (013). reclaimer: the drones that arrive in fights near the Reclaimer's line (013). `keeps_arms` (043, play-test 13): bosses and warlords never lose an arm to a tear.",
   "tracker": {
     "name": "Tracker",
     "text": "Its attack locks onto a machine, not a hex. The shot follows that machine: break its line of sight, get out of range, kill it or shove it."
@@ -32,6 +32,7 @@
     "builds": true
   },
   "sorter": {
+    "keeps_arms": true,
     "name": "The Sorter",
     "text": "The Sorting Gate's keeper. While any gate pylon stands it takes 3 less from every hit: break the pylons first. Every 3 rounds it calls a drone from a pad beside it, warning a turn ahead.",
     "pylon_armor": 3,
@@ -60,6 +61,7 @@
     "anchored": true
   },
   "pour": {
+    "keeps_arms": true,
     "name": "The Pour",
     "text": "The Slag Flats' keeper. Every other round it marks four hexes, the ones your machines stand on first; a round later they flood with slag for the rest of the fight (2 damage a round to anything on them). Keep moving, and break it before the floor runs out. At half HP it BOILS OVER: it marks five hexes every round, the slag bites for 3, and three drones come to guard it.",
     "floods": 4,
@@ -78,6 +80,7 @@
     "boost": 1
   },
   "heart": {
+    "keeps_arms": true,
     "name": "The Core",
     "text": "The Crucible's heart and the run's last boss, bolted to the floor: it never moves and cannot be shoved. While a CONDUIT stands it takes 2 less from every hit -- break them first. Every other round it marks every hex within 2 of it, and a round later it pulses: 4 damage to each of your machines still in the ring. Its pad builds a drone every 3 rounds. At half HP it ERUPTS: it pulses EVERY round, 3 hexes out, for 5, and calls three drones.",
     "pulse_every": 2,
@@ -97,12 +100,14 @@
     "cover_armor": 2
   },
   "grinder": {
+    "keeps_arms": true,
     "name": "The Grinder",
     "text": "Act 1's warlord: a ring of saws. At the start of every round, 2 to each of your machines standing next to it -- the hexes around it are marked. Hit it from range, or hit it and step away.",
     "aura": 2,
     "anchored": true
   },
   "magnet": {
+    "keeps_arms": true,
     "name": "The Magnet King",
     "text": "Act 2's warlord. Every other round it hauls each of your machines within 3 a hex toward itself -- into pits, into each other -- marked the round before. Stand where a haul does you no harm, or stay out of reach.",
     "haul_every": 2,
@@ -110,6 +115,7 @@
     "anchored": true
   },
   "twin": {
+    "keeps_arms": true,
     "name": "Twin Furnace",
     "text": "Act 3's warlords come in a pair. While both stand, each takes 2 less from every hit: break one, then the other.",
     "twin_armor": 2

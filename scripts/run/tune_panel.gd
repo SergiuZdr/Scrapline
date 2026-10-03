@@ -132,7 +132,7 @@ func _row(index: int, part: String, where: String) -> Control:
 		var button := Button.new()
 		button.name = "tune_row_%d" % index
 		button.focus_mode = Control.FOCUS_NONE
-		var style: StyleBoxFlat = UIKit.choice() if chosen else UIKit.inset(UIKit.SURFACE_HIGH, UIKit.RADIUS_CARD, 0, 0)
+		var style: InkBox = UIKit.choice() if chosen else UIKit.inset(UIKit.SURFACE_HIGH, UIKit.RADIUS_CARD, 0, 0)
 		for key: String in ["normal", "hover", "pressed", "focus"]:
 			button.add_theme_stylebox_override(key, style)
 		button.pressed.connect(func() -> void:
@@ -199,8 +199,8 @@ func _option_card(part: String, option: int, cost: int) -> Control:
 		var button := Button.new()
 		button.name = "tune_option_%d" % option
 		button.focus_mode = Control.FOCUS_NONE
-		var style: StyleBoxFlat = UIKit.choice()
-		var hover: StyleBoxFlat = style.duplicate()
+		var style: InkBox = UIKit.choice()
+		var hover: InkBox = style.duplicate()
 		hover.bg_color = UIKit.SURFACE_HIGH.lightened(0.05)
 		for key: String in ["normal", "pressed", "focus"]:
 			button.add_theme_stylebox_override(key, style)
@@ -273,7 +273,7 @@ func _label(text: String, font_size: int, colour: Color, face: Font = null) -> L
 	return label
 
 
-func _button(text: String, style: StyleBoxFlat, ink: Color, min_size: Vector2) -> Button:
+func _button(text: String, style: InkBox, ink: Color, min_size: Vector2) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = min_size

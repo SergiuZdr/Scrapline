@@ -8,27 +8,60 @@ extends StyleBox
 ## `StyleBoxFlat` cannot draw this: its shadow is always blurred, and a blurred shadow under a
 ## flat ink panel is exactly the mix of two languages the style exists to avoid.
 
-var fill: Color = Color("f7efdc")
-var border: Color = Color("14110f")
-var border_width: float = 3.0
+@export var fill: Color = Color("f7efdc")
+@export var border: Color = Color("14110f")
+@export var border_width: float = 3.0
 ## The shadow's offset in pixels; zero for none.
-var shadow: Vector2 = Vector2(5, 5)
-var shadow_colour: Color = Color("14110f")
+@export var shadow: Vector2 = Vector2(5, 5)
+@export var shadow_colour: Color = Color("14110f")
 ## A band of colour down the left edge (the selection mark, an ability's blue), 0 for none.
-var band_width: float = 0.0
-var band: Color = Color("ffc43d")
+@export var band_width: float = 0.0
+@export var band: Color = Color("ffc43d")
 ## How far the panel leans: the top edge shifts right by `skew * height`.
-var skew: float = 0.0
+@export var skew: float = 0.0
 ## A halftone dot screen over the fill, in this colour (alpha = strength); clear for none.
-var dots: Color = Color(0, 0, 0, 0)
+@export var dots: Color = Color(0, 0, 0, 0)
 ## 041, comic panels (options): a hand-drawn border -- the edge wanders by up to `wobble` px; a
 ## halftone RAMP of dots growing into the bottom-right corner (`ramp`, alpha = strength); a
 ## jagged BURST edge (`jag` px spikes) for the loudest buttons; a second thin inner line
 ## (`double_line`), as an inked panel's border often has.
-var wobble: float = 0.0
-var ramp: Color = Color(0, 0, 0, 0)
-var jag: float = 0.0
-var double_line: bool = false
+@export var wobble: float = 0.0
+@export var ramp: Color = Color(0, 0, 0, 0)
+@export var jag: float = 0.0
+@export var double_line: bool = false
+## Where the whole box is drawn relative to its rect: a pressed button drops into its shadow.
+@export var nudge: Vector2 = Vector2.ZERO
+
+## 043: the names `StyleBoxFlat` uses, so every screen that tweaks a UIKit style keeps working
+## now that UIKit hands out InkBoxes (the variables above are exported so `duplicate()` copies them).
+var bg_color: Color:
+	get: return fill
+	set(value): fill = value
+var border_color: Color:
+	get: return border
+	set(value): border = value
+var shadow_offset: Vector2:
+	get: return shadow
+	set(value): shadow = value
+var shadow_color: Color:
+	get: return shadow_colour
+	set(value): shadow_colour = value
+## Zero takes the shadow away, as it does on a StyleBoxFlat.
+var shadow_size: int:
+	get: return 0 if shadow == Vector2.ZERO else 1
+	set(value):
+		if value <= 0:
+			shadow = Vector2.ZERO
+
+
+func set_border_width_all(width: int) -> void:
+	border_width = float(width)
+
+
+## Comic panels have square corners; kept so a call written for StyleBoxFlat still runs.
+func set_corner_radius_all(_radius: int) -> void:
+	pass
+
 
 static var _dot_texture: ImageTexture
 
@@ -42,6 +75,7 @@ func _init(fill_colour: Color = Color("f7efdc"), margin_x: float = 14.0, margin_
 
 
 func _draw(to_canvas_item: RID, rect: Rect2) -> void:
+	rect.position += nudge
 	if wobble > 0.0 or jag > 0.0:
 		_draw_drawn(to_canvas_item, rect)
 		return

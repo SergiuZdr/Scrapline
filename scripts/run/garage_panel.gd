@@ -574,7 +574,7 @@ func _socket(i: int, s: int, alive: bool) -> Control:
 	button.focus_mode = Control.FOCUS_NONE
 	button.disabled = not alive
 	_sockets.append([button, i, s])
-	var style: StyleBoxFlat = _socket_style(i, s)
+	var style: InkBox = _socket_style(i, s)
 	for key: String in ["normal", "pressed", "disabled", "focus"]:
 		button.add_theme_stylebox_override(key, style)
 	button.add_theme_stylebox_override("hover", _socket_style(i, s, true))
@@ -919,7 +919,7 @@ func _scrap_bin() -> Control:
 	var style := UIKit.inset(Ink.DANGER if armed else UIKit.SURFACE_SUNK, 0, UIKit.SPACE_MD, UIKit.SPACE_SM)
 	style.border_color = UIKit.HAIRLINE if armed else UIKit.RED
 	style.set_border_width_all(4)
-	var hover: StyleBoxFlat = style.duplicate()
+	var hover: InkBox = style.duplicate()
 	hover.bg_color = Ink.DANGER.lightened(0.15)
 	hover.border_color = UIKit.HAIRLINE
 	for key: String in ["normal", "pressed", "focus", "disabled"]:
@@ -1008,8 +1008,8 @@ func _perk_card(k: int, id: String) -> Button:
 	card.name = "perk_%d" % k
 	card.custom_minimum_size = Vector2(430, 200)
 	card.focus_mode = Control.FOCUS_NONE
-	var style: StyleBoxFlat = UIKit.choice()
-	var hover: StyleBoxFlat = style.duplicate()
+	var style: InkBox = UIKit.choice()
+	var hover: InkBox = style.duplicate()
 	hover.bg_color = UIKit.SURFACE_HIGH.lightened(0.05)
 	for key: String in ["normal", "pressed", "focus"]:
 		card.add_theme_stylebox_override(key, style)
@@ -1308,7 +1308,7 @@ func _restyle_sockets() -> void:
 		button.add_theme_stylebox_override("normal", _socket_style(int(entry[1]), int(entry[2])))
 
 
-func _socket_style(i: int, s: int, hover: bool = false) -> StyleBoxFlat:
+func _socket_style(i: int, s: int, hover: bool = false) -> InkBox:
 	var fits: bool = not _held.is_empty() and _fits(_held, i, s)
 	var style := UIKit.inset(UIKit.SURFACE_HIGH if fits or hover else UIKit.SURFACE, 0, UIKit.SPACE_MD, UIKit.SPACE_SM)
 	style.set_border_width_all(3)
@@ -1376,7 +1376,7 @@ func _page(text: String, font_size: int, colour: Color, face: Font = null, outli
 	return label
 
 
-func _button(text: String, style: StyleBoxFlat, ink: Color, min_size: Vector2) -> Button:
+func _button(text: String, style: InkBox, ink: Color, min_size: Vector2) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = min_size

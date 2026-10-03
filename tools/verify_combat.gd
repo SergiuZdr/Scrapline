@@ -1075,6 +1075,14 @@ func _test_tearing() -> void:
 	_check("preview says the saw will tear an arm", (CombatSim.preview_attack(state, 0, 0, n)["tears"] as Array).has(10))
 	_attack(state, 0, 0, n)
 	_check("the right arm goes first", bool(state.unit(10).weapons[GridUnit.ARM_R]["torn"]) and not bool(state.unit(10).weapons[GridUnit.ARM_L]["torn"]))
+	# 043 (play-test 13): a boss or warlord keeps its arms -- the preview agrees with the blow.
+	var big: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(LANCE, n, 40)])
+	_place(big, 0, C)
+	_place(big, 10, n)
+	big.unit(10).kind = "grinder"
+	_check("a warlord's arm cannot be torn: the preview says so", (CombatSim.preview_attack(big, 0, 0, n)["tears"] as Array).is_empty())
+	_attack(big, 0, 0, n)
+	_check("a warlord's arms stay on", not bool(big.unit(10).weapons[GridUnit.ARM_R]["torn"]) and not bool(big.unit(10).weapons[GridUnit.ARM_L]["torn"]))
 
 
 func _test_slag() -> void:

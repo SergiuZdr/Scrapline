@@ -336,7 +336,7 @@ func _crew_card(i: int) -> Control:
 	for key: String in ["normal", "focus"]:
 		card.add_theme_stylebox_override(key, style)
 	card.add_theme_stylebox_override("pressed", UIKit.pressed(style))
-	var hover: StyleBoxFlat = style.duplicate()
+	var hover: InkBox = style.duplicate()
 	hover.border_color = UIKit.AMBER_DEEP
 	hover.set_border_width_all(4)
 	card.add_theme_stylebox_override("hover", hover)
@@ -423,7 +423,7 @@ func _refresh() -> void:
 	_scrap_label.text = "SCRAP %d" % state.scrap
 	var over: bool = state.overfull()
 	_garage_button.text = "GARAGE  %d/%d" % [state.cargo.size(), state.hold_size]
-	var garage_style: StyleBoxFlat = UIKit.primary() if over else UIKit.secondary()
+	var garage_style: InkBox = UIKit.primary() if over else UIKit.secondary()
 	for key: String in ["normal", "hover", "focus"]:
 		_garage_button.add_theme_stylebox_override(key, garage_style)
 	_garage_button.add_theme_stylebox_override("pressed", UIKit.pressed(garage_style))
@@ -1129,7 +1129,7 @@ func _label(text: String, font_size: int, colour: Color, face: Font = null) -> L
 	return label
 
 
-func _button(text: String, style: StyleBoxFlat, ink: Color, min_size: Vector2) -> Button:
+func _button(text: String, style: InkBox, ink: Color, min_size: Vector2) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = min_size

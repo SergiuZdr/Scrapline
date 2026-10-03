@@ -79,7 +79,7 @@ func _rebuild() -> void:
 		tab.custom_minimum_size = Vector2(300, 56)
 		tab.add_theme_font_override("font", UIKit.font_comic())
 		tab.add_theme_font_size_override("font_size", 22)
-		var style: StyleBoxFlat = UIKit.choice() if chosen else UIKit.secondary()
+		var style: InkBox = UIKit.choice() if chosen else UIKit.secondary()
 		for key: String in ["normal", "hover", "focus"]:
 			tab.add_theme_stylebox_override(key, style)
 		tab.add_theme_stylebox_override("pressed", UIKit.pressed(style))

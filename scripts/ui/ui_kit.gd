@@ -175,24 +175,41 @@ static func _load(file: String) -> FontFile:
 	return face
 
 
-## Ink & Rust (015): a comic panel -- `fill` inside a 3 px ink border, on a hard shadow.
+## 043 (play-test 13, the user's pick of the 041 options: "B with A's buttons"). PANELS are pop
+## art -- a heavy ink border, a hard RED offset shadow and a cyan halftone screen; BUTTONS are pulp
+## -- a hand-inked wobbling border on an ink shadow, the primary shaded with a halftone ramp.
+const POP_SHADOW := Color("e0442f")
+const POP_DOTS := Color(0.184, 0.608, 0.847, 0.13)
+const BUTTON_WOBBLE: float = 1.4
+
+
+## A comic panel: `fill` inside a heavy ink border, on a hard red shadow, under halftone dots.
+## A coloured panel (red danger, a caption) keeps an ink shadow and no dots: red on red is mud.
 static func ink_card(fill: Color = PAPER_CARD, margin_x: int = SPACE_LG, margin_y: int = SPACE_MD,
 		shadow: int = 5) -> InkBox:
 	var box := InkBox.new(fill, margin_x, margin_y)
-	box.shadow = Vector2(shadow, shadow)
+	var paper: bool = fill == PAPER_CARD or fill == SURFACE or fill == PAPER
+	box.border_width = 5.0 if shadow >= 7 else 4.0
+	box.shadow = Vector2(shadow, shadow) * (1.6 if paper else 1.0)
+	if paper:
+		box.fill = Color("fff6d8")
+		box.shadow_colour = POP_SHADOW
+		box.dots = POP_DOTS
 	return box
 
 
-## A comic button. Pressed, it loses its shadow and drops into the place the shadow was.
+## A comic button (pulp): a wobbling inked border on an ink shadow. Pressed, it loses its shadow
+## and drops into the place the shadow was.
 static func ink_button(fill: Color, pressed: bool = false, lean: float = 0.0) -> InkBox:
 	var box := InkBox.new(fill, SPACE_LG, SPACE_SM)
 	box.skew = lean
+	box.border_width = 3.0
+	box.wobble = BUTTON_WOBBLE
 	if pressed:
 		box.shadow = Vector2.ZERO
-		box.content_margin_left += 3
-		box.content_margin_top += 3
+		box.nudge = Vector2(3, 3)
 	else:
-		box.shadow = Vector2(4, 4)
+		box.shadow = Vector2(5, 5)
 	return box
 
 
@@ -238,37 +255,28 @@ static func ink_caption(margin_x: int = SPACE_MD, margin_y: int = SPACE_XS + 2) 
 	return box
 
 
-## A card: the default surface for a group of related things -- paper, a heavy ink border,
-## and a hard shadow. `StyleBoxFlat` blurs its shadow by `shadow_size`, so the size is 1: an
-## offset block with a one-pixel edge, which reads as the cut-out the style wants. (`InkBox`
-## draws the same thing exactly and adds bands and halftone; this stays a `StyleBoxFlat`
-## because screens tweak its colours and borders.)
+## A card: the default surface for a group of related things -- the pop-art panel at card size:
+## paper, a heavy ink border, a hard red shadow, halftone dots (043).
 static func card(fill: Color = SURFACE, radius: int = 0,
-		margin_x: int = SPACE_LG, margin_y: int = SPACE_MD) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = fill
-	style.set_corner_radius_all(0)
-	style.content_margin_left = margin_x
-	style.content_margin_right = margin_x
-	style.content_margin_top = margin_y
-	style.content_margin_bottom = margin_y
-	style.set_border_width_all(3)
-	style.border_color = HAIRLINE
-	style.shadow_color = HAIRLINE
-	style.shadow_size = 1
-	style.shadow_offset = Vector2(5, 5)
-	style.anti_aliasing = false
+		margin_x: int = SPACE_LG, margin_y: int = SPACE_MD) -> InkBox:
+	var style := InkBox.new(fill, margin_x, margin_y)
+	# A page-sized panel (a modal, a screen) is drawn at the panel weight the user picked.
+	var page: bool = margin_x >= SPACE_XL
+	style.border_width = 6.0 if page else 3.0
+	style.shadow = Vector2(12, 12) if page else Vector2(5, 5)
+	if fill == SURFACE or fill == PAPER_CARD:
+		style.shadow_colour = POP_SHADOW
+		style.dots = POP_DOTS
 	return style
 
 
 ## A card with no shadow, for surfaces already inside another card. Nested shadows stack
 ## into mud.
 static func inset(fill: Color = SURFACE_HIGH, radius: int = 0,
-		margin_x: int = SPACE_MD, margin_y: int = SPACE_SM) -> StyleBoxFlat:
-	var style := card(fill, radius, margin_x, margin_y)
-	style.shadow_size = 0
-	style.shadow_offset = Vector2.ZERO
-	style.set_border_width_all(2)
+		margin_x: int = SPACE_MD, margin_y: int = SPACE_SM) -> InkBox:
+	var style := InkBox.new(fill, margin_x, margin_y)
+	style.border_width = 2.0
+	style.shadow = Vector2.ZERO
 	return style
 
 
@@ -287,41 +295,44 @@ static func plain(fill: Color, radius: int = 0,
 	return style
 
 
-## The primary action: amber, ink-bordered, on its shadow -- the only saturated block on a
-## screen, so the eye lands on it first.
-static func primary(fill: Color = AMBER) -> StyleBoxFlat:
-	var style := card(fill, 0, SPACE_LG, SPACE_MD)
-	style.skew = Vector2(SLANT, 0.0)
-	style.shadow_offset = Vector2(4, 4)
+## The primary action: amber, hand-inked, on its shadow, shaded into its corner with halftone --
+## the only saturated block on a screen, so the eye lands on it first.
+static func primary(fill: Color = AMBER) -> InkBox:
+	var style := _pulp(fill)
+	style.border_width = 3.5
+	style.shadow = Vector2(6, 6)
+	style.ramp = Color(INK, 0.25)
 	return style
 
 
 ## A repeated parallel action: OPEN this crate, BUY this pack. A paper card with an amber
 ## border rather than an amber block: a screen that offers three or ten instances of the SAME
 ## action has no single primary.
-static func choice(tint: Color = AMBER) -> StyleBoxFlat:
-	var style := card(SURFACE, 0, SPACE_LG, SPACE_MD)
-	style.set_border_width_all(4)
-	style.border_color = tint.darkened(0.15)
-	style.shadow_offset = Vector2(4, 4)
+static func choice(tint: Color = AMBER) -> InkBox:
+	var style := _pulp(SURFACE)
+	style.border_width = 4.0
+	style.border = tint.darkened(0.15)
 	return style
 
 
-## Everything that is not the primary action: paper, ink, a smaller shadow.
-static func secondary(fill: Color = SURFACE) -> StyleBoxFlat:
-	var style := card(fill, 0, SPACE_LG, SPACE_MD)
-	style.shadow_offset = Vector2(4, 4)
+## Everything that is not the primary action: paper, a hand-inked border, a smaller shadow.
+static func secondary(fill: Color = SURFACE) -> InkBox:
+	return _pulp(fill)
+
+
+static func _pulp(fill: Color) -> InkBox:
+	var style := InkBox.new(fill, SPACE_LG, SPACE_MD)
+	style.border_width = 3.0
+	style.wobble = BUTTON_WOBBLE
+	style.shadow = Vector2(5, 5)
 	return style
 
 
 ## The pressed state of any of the above: the shadow gone and the card dropped into its place.
-static func pressed(style: StyleBoxFlat) -> StyleBoxFlat:
-	var down: StyleBoxFlat = style.duplicate()
-	down.shadow_size = 0
-	down.expand_margin_left = -3
-	down.expand_margin_right = 3
-	down.expand_margin_top = -3
-	down.expand_margin_bottom = 3
+static func pressed(style: InkBox) -> InkBox:
+	var down: InkBox = style.duplicate()
+	down.nudge = style.shadow * 0.7
+	down.shadow = Vector2.ZERO
 	return down
 
 
@@ -485,14 +496,11 @@ static func theme() -> Theme:
 
 	# --- Button: comic lettering, ink on paper, dropping onto its shadow when pressed.
 	theme.set_font("font", "Button", font_comic())
-	var lean := Vector2(SLANT * 0.6, 0.0)
 	var normal := secondary()
 	var hover := secondary(SURFACE_HIGH)
 	var down := pressed(normal)
 	var disabled := secondary(SURFACE_SUNK)
-	disabled.shadow_offset = Vector2(2, 2)
-	for style: StyleBoxFlat in [normal, hover, down, disabled]:
-		style.skew = lean
+	disabled.shadow = Vector2(2, 2)
 	theme.set_stylebox("normal", "Button", normal)
 	theme.set_stylebox("hover", "Button", hover)
 	theme.set_stylebox("pressed", "Button", down)

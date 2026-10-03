@@ -175,7 +175,7 @@
     "tear": {
       "group": "WEAPONS",
       "name": "Tear",
-      "text": "A hit of 5 or more, or any hit from a weapon that tears, rips an arm off: that weapon is gone for the rest of the fight.",
+      "text": "A hit of 5 or more, or any hit from a weapon that tears, rips an arm off: that weapon is gone for the rest of the fight. Bosses and warlords are built too heavy: their arms never come off.",
       "forms": [
         "tear",
         "tears",
