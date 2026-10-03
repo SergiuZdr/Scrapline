@@ -356,8 +356,7 @@
     "slot": "arm",
     "rarity": 2,
     "maker": "cinder",
-    "model": "ar_scatter",
-    "mesh": "res://art/parts/ar_scatter.glb",
+    "mesh": "res://art/parts/ar_flamer.glb",
     "flavour": "Burns a wedge of yard. Everything in it agrees to move.",
     "weapon_class": "scattergun",
     "grid": {
@@ -382,7 +381,9 @@
     ],
     "_033": "audit: below every common arm (points 5.2, measured -0.95): 2 -> 3 damage",
     "damage_type": "thermal",
-    "_037": "play-test 11: this arm deals its OWN damage type, whatever core drives it"
+    "_037": "play-test 11: this arm deals its OWN damage type, whatever core drives it",
+    "look": "flamer",
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "ar_harpoon",
@@ -390,8 +391,7 @@
     "slot": "arm",
     "rarity": 1,
     "maker": "kessler",
-    "model": "ar_lance",
-    "mesh": "res://art/parts/ar_lance.glb",
+    "mesh": "res://art/parts/ar_harpoon.glb",
     "flavour": "Fired, set, reeled in. The far ones come close.",
     "weapon_class": "lance",
     "grid": {
@@ -414,7 +414,9 @@
           "range": 1
         }
       }
-    ]
+    ],
+    "look": "grapple_claw",
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "ar_shieldcaster",
@@ -422,8 +424,7 @@
     "slot": "arm",
     "rarity": 2,
     "maker": "arclight",
-    "model": "ar_scanner",
-    "mesh": "res://art/parts/ar_scanner.glb",
+    "mesh": "res://art/parts/ar_shieldcaster.glb",
     "flavour": "Puts a field on a friend. Asks nothing back.",
     "weapon_class": "scanner",
     "enemy": false,
@@ -447,7 +448,9 @@
         }
       }
     ],
-    "_033": "audit: below every common arm (points 6.0, measured -0.50): range 3 -> 4, heat 1 -> 0"
+    "_033": "audit: below every common arm (points 6.0, measured -0.50): range 3 -> 4, heat 1 -> 0",
+    "look": "sensor_mast",
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "ar_cleaver",
@@ -455,8 +458,7 @@
     "slot": "arm",
     "rarity": 1,
     "maker": "cinder",
-    "model": "ar_ripper",
-    "mesh": "res://art/parts/ar_ripper.glb",
+    "mesh": "res://art/parts/ar_cleaver.glb",
     "flavour": "A sheet of plate on a hinge. Messy. Effective.",
     "weapon_class": "ripper",
     "grid": {
@@ -478,7 +480,9 @@
           "heat": -1
         }
       }
-    ]
+    ],
+    "look": "saw_blade",
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "ar_coilgun",
@@ -486,8 +490,7 @@
     "slot": "arm",
     "rarity": 3,
     "maker": "arclight",
-    "model": "ar_pulse",
-    "mesh": "res://art/parts/ar_pulse.glb",
+    "mesh": "res://art/parts/ar_coilgun.glb",
     "flavour": "A rail that remembers it was a coil.",
     "weapon_class": "coil",
     "grid": {
@@ -513,7 +516,9 @@
       }
     ],
     "damage_type": "emp",
-    "_037": "play-test 11: this arm deals its OWN damage type, whatever core drives it"
+    "_037": "play-test 11: this arm deals its OWN damage type, whatever core drives it",
+    "look": "gatling",
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "ar_godhammer",
@@ -521,8 +526,7 @@
     "slot": "arm",
     "rarity": 4,
     "maker": "kessler",
-    "model": "ar_maul",
-    "mesh": "res://art/parts/ar_maul.glb",
+    "mesh": "res://art/parts/ar_godhammer.glb",
     "flavour": "Taken off the Sorter's arm. Nobody has lifted it twice by choice.",
     "weapon_class": "maul",
     "grid": {
@@ -546,7 +550,9 @@
           "heat": -1
         }
       }
-    ]
+    ],
+    "look": "sledge",
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   },
   {
     "id": "ar_sunspear",
@@ -554,8 +560,7 @@
     "slot": "arm",
     "rarity": 4,
     "maker": "vektor",
-    "model": "ar_railgun",
-    "mesh": "res://art/parts/ar_railgun.glb",
+    "mesh": "res://art/parts/ar_sunspear.glb",
     "flavour": "A beam the Pour used to cut its own channels.",
     "weapon_class": "railgun",
     "grid": {
@@ -580,6 +585,8 @@
       }
     ],
     "damage_type": "thermal",
-    "_037": "play-test 11: this arm deals its OWN damage type, whatever core drives it"
+    "_037": "play-test 11: this arm deals its OWN damage type, whatever core drives it",
+    "look": "rail_lance",
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
   }
 ]
