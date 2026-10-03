@@ -18,7 +18,16 @@ static func build(panels: Array, columns: int = 4, panel_size: Vector2 = Vector2
 		var red: bool = bool(data.get("red", false))
 		panel.add_theme_stylebox_override("panel", UIKit.ink_card(Ink.DANGER if red else UIKit.PAPER_CARD, UIKit.SPACE_LG, UIKit.SPACE_MD, 7))
 		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		grid.add_child(panel)
+		# A container resets rotation: each panel is tilted inside a plain holder.
+		var holder := Control.new()
+		holder.custom_minimum_size = panel_size + Vector2(16, 24)
+		holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		grid.add_child(holder)
+		holder.add_child(panel)
+		panel.position = Vector2(8, 12)
+		panel.size = panel_size
+		panel.pivot_offset = panel_size * 0.5
+		panel.rotation_degrees = [-2.5, 1.8, -1.2, 2.2][i % 4]
 		var box := VBoxContainer.new()
 		box.add_theme_constant_override("separation", UIKit.SPACE_MD)
 		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -46,8 +55,8 @@ static func build(panels: Array, columns: int = 4, panel_size: Vector2 = Vector2
 		text.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		box.add_child(text)
-		panel.modulate.a = 0.0
-		var tween := panel.create_tween()
+		holder.modulate.a = 0.0
+		var tween := holder.create_tween()
 		tween.tween_interval(0.15 + 0.35 * float(i))
-		tween.tween_property(panel, "modulate:a", 1.0, 0.18)
+		tween.tween_property(holder, "modulate:a", 1.0, 0.18)
 	return grid

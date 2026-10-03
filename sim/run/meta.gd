@@ -87,4 +87,11 @@ static func options(rules: Dictionary, unlocked: Array, crew_id: String, tier: i
 			locked.append(String(id))
 	locked.sort()
 	out["locked"] = locked
+	# 040 (play-test 12: "unlocked parts do not show in the starting-robot screen"): what this
+	# profile has unlocked joins the assembly bench, once each.
+	var earned: Array = []
+	for id: Variant in open:
+		earned.append(String(id))
+	earned.sort()
+	out["unlocked"] = earned
 	return out

@@ -615,7 +615,7 @@ func _show_overlay() -> void:
 		_briefing()
 		return
 	# 039: a new act arrives as a comic strip -- where the crew is, what waits at the end.
-	if state.act > 1 and int(Run.get_meta("act_told", 1)) < state.act and state.pending.is_empty():
+	if state.act > 1 and Profile.act_told(str(Run.setup.rng_seed)) < state.act and state.pending.is_empty():
 		_act_arrival()
 		return
 	if RunSim.can_assemble(state) and not Run.bay_seen:
@@ -645,7 +645,7 @@ func _show_overlay() -> void:
 			Hints.show_once(self, "map", Run.db, Vector2(420, 150))
 
 
-func _modal(title: String, subtitle: String, width: float = 1100.0) -> VBoxContainer:
+func _modal(title: String, subtitle: String, width: float = 1100.0, garage: bool = false) -> VBoxContainer:
 	_overlay = Control.new()
 	add_child(_overlay)
 	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -663,8 +663,20 @@ func _modal(title: String, subtitle: String, width: float = 1100.0) -> VBoxConta
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	panel.add_child(box)
-	# 039: a site window is a comic page -- its title a caption box at a slant.
-	box.add_child(UIKit.caption_title(title))
+	# 039: a site window is a comic page -- its title a caption box at a slant. 040 (play-test 12):
+	# a site you trade or choose at opens the GARAGE from its title row, to check what you have.
+	var head := HBoxContainer.new()
+	box.add_child(head)
+	head.add_child(UIKit.caption_title(title))
+	if garage and RunSim.can_refit(Run.state):
+		var gap := Control.new()
+		gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		head.add_child(gap)
+		var open := _button("GARAGE  %d/%d" % [Run.state.cargo.size(), Run.state.hold_size], UIKit.secondary(), UIKit.TEXT, Vector2(220, 56))
+		open.name = "site_garage"
+		open.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		open.pressed.connect(_open_garage.bind(0))
+		head.add_child(open)
 	if not subtitle.is_empty():
 		# Rich text: the game's words in it are glossary links (012).
 		box.add_child(Glossary.label(subtitle, UIKit.SIZE_BODY, UIKit.TEXT_DIM, Run.db.glossary, width - 100))
@@ -693,13 +705,10 @@ func _assembly() -> void:
 func _briefing() -> void:
 	var brief: Dictionary = Run.db.story.get("briefing", {})
 	var box := _modal(String(brief.get("title", "THE KEY")), "", 1720)
-	# 039: the story is told as a comic page -- one panel a beat, each with its caption.
-	var captions: Array = ["FORTY YEARS AGO...", "EVER SINCE...", "LAST NIGHT...", "TODAY..."]
-	var panels: Array = []
-	var lines: Array = brief.get("lines", [])
-	for i: int in lines.size():
-		panels.append({"caption": String(captions[mini(i, captions.size() - 1)]), "text": String(lines[i]), "red": i == 2})
-	box.add_child(ComicStrip.build(panels, 4, Vector2(380, 330)))
+	# 039: the story is told as a comic page; 040 (play-test 12: "random text, nothing useful"):
+	# each panel is the lore AND what the player needs -- the Reclaimer on the map, the key, the
+	# crew of parts, the road of three gates.
+	box.add_child(ComicStrip.build(brief.get("panels", []), 4, Vector2(380, 360)))
 	var go := _button(String(brief.get("go", "ROLL OUT")), UIKit.primary(), UIKit.BG, Vector2(280, 64))
 	go.pressed.connect(func() -> void:
 		Run.briefed = true
@@ -710,14 +719,13 @@ func _briefing() -> void:
 func _act_arrival() -> void:
 	var act: Dictionary = _act()
 	var box := _modal("ACT %d" % Run.state.act, "", 1400)
-	box.add_child(ComicStrip.build([
-		{"caption": "MEANWHILE...", "big": String(act.get("name", "")), "text": "The gate is broken. The crew is through, and the Reclaimer is still coming."},
-		{"caption": "THE ROAD", "text": String(act.get("mission", ""))},
-		{"caption": "AT THE END", "big": String(act.get("gate", "THE GATE")), "text": String(act.get("boss", "")), "red": true},
-	], 3, Vector2(420, 330)))
+	box.add_child(ComicStrip.build(act.get("arrival", [
+		{"caption": "MEANWHILE...", "big": String(act.get("name", "")), "text": String(act.get("mission", ""))},
+		{"caption": "AT THE END", "big": String(act.get("gate", "THE GATE")), "text": String(act.get("boss", "")), "red": true}]), 3, Vector2(420, 360)))
 	var go := _button("ON THE ROAD", UIKit.primary(), UIKit.BG, Vector2(280, 64))
 	go.pressed.connect(func() -> void:
-		Run.set_meta("act_told", Run.state.act)
+		# Told once a run (play-test 12: a CONTINUE told it again), remembered with the profile.
+		Profile.tell_act(str(Run.setup.rng_seed), Run.state.act)
 		_refresh())
 	_row(box).add_child(go)
 
@@ -769,7 +777,7 @@ func _pick_panel() -> void:
 	note += "  Hold: %d / %d." % [state.cargo.size(), state.hold_size]
 	if state.cargo.size() >= state.hold_size:
 		note += "  It is full: you can still take a part, then fit or scrap something in the GARAGE before moving on."
-	var box := _modal("SCRAPYARD" if scrapyard else "SALVAGE", note, 1240)
+	var box := _modal("SCRAPYARD" if scrapyard else "SALVAGE", note, 1240, true)
 	var row := _row(box)
 	var options: Array = state.pending["options"]
 	for i: int in options.size():
@@ -848,7 +856,7 @@ func _open_tuner() -> void:
 func _trader_panel() -> void:
 	var state: RunState = Run.state
 	var box := _modal("TRADER", "%s  You have %d scrap.  Hold: %d / %d." % [String((Run.db.story.get("sites", {}) as Dictionary).get("trader", "")),
-		state.scrap, state.cargo.size(), state.hold_size], 1240)
+		state.scrap, state.cargo.size(), state.hold_size], 1240, true)
 	var row := _row(box)
 	var stock: Array = state.pending.get("stock", [])
 	for i: int in stock.size():
@@ -882,7 +890,7 @@ func _trader_panel() -> void:
 func _refinery_panel() -> void:
 	var state: RunState = Run.state
 	var used: bool = bool(state.pending.get("used", false))
-	var box := _modal("REFINERY", "%s  You have %d scrap." % [_site_text("refinery"), state.scrap], 1240)
+	var box := _modal("REFINERY", "%s  You have %d scrap." % [_site_text("refinery"), state.scrap], 1240, true)
 	if used:
 		box.add_child(_label("The furnace is spent for today.", UIKit.SIZE_HEADING, UIKit.TEXT_DIM, UIKit.font_strong()))
 	else:
@@ -911,7 +919,7 @@ func _refinery_panel() -> void:
 func _auction_panel() -> void:
 	var state: RunState = Run.state
 	var used: bool = bool(state.pending.get("used", false))
-	var box := _modal("SALVAGE AUCTION", "%s  You have %d scrap." % [_site_text("auction"), state.scrap], 1000)
+	var box := _modal("SALVAGE AUCTION", "%s  You have %d scrap." % [_site_text("auction"), state.scrap], 1000, true)
 	var row := _row(box)
 	var tiers: Array = (Run.setup.rules.get("auction", {}) as Dictionary).get("tiers", [])
 	var names: PackedStringArray = ["A DENTED CRATE", "A SEALED CRATE"]
@@ -943,7 +951,7 @@ func _tower_panel() -> void:
 	var seen: int = int(Run.state.pending.get("scouted", 0))
 	var box := _modal("WATCHTOWER", "%s  From the cab you scout %s within two zones." % [
 		String((Run.db.story.get("sites", {}) as Dictionary).get("tower", "")),
-		("%d more site%s" % [seen, "" if seen == 1 else "s"]) if seen > 0 else "nothing new"], 900)
+		("%d more site%s" % [seen, "" if seen == 1 else "s"]) if seen > 0 else "nothing new"], 900, true)
 	var leave := _button("CLIMB DOWN", UIKit.primary(), UIKit.BG, Vector2(260, 60))
 	leave.pressed.connect(func() -> void: _apply([RunSim.LEAVE]))
 	_row(box).add_child(leave)
@@ -953,7 +961,7 @@ func _tower_panel() -> void:
 func _signal_panel() -> void:
 	var state: RunState = Run.state
 	var event: Dictionary = (Run.setup.rules.get("events", {}) as Dictionary).get(String(state.pending.get("event", "")), {})
-	var box := _modal(String(event.get("title", "SIGNAL")), String(event.get("text", "")), 1000)
+	var box := _modal(String(event.get("title", "SIGNAL")), String(event.get("text", "")), 1000, true)
 	var options: Array = event.get("options", [])
 	for i: int in options.size():
 		var option: Dictionary = options[i]
