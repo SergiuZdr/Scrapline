@@ -213,6 +213,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-03 | Behaviour every control should have belongs to one watcher of the tree (`Juice`), not to each screen: a dozen call sites had each dropped the hover style |
 | 2026-10-03 | Measure looks on a quiet machine: contrast read under 15 bot processes moved more (2.97 vs 2.84) than the change did (2.91 vs 2.91) |
 | 2026-10-03 | Write the test from the PRECONDITION, not the description: Charge passed every test written from its text while running past the hex it was aimed at |
+| 2026-10-03 | On a gate board, only `keepers` authored machines are kept; the rest are rolled escorts. The Core's conduit was never in its fight |
 
 ## Open questions
 
@@ -260,3 +261,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-03 | **035: does the button feel right (bounce, sounds)? Should the board and map sites answer the cursor the same way?** | The user plays | |
 | 2026-10-03 | **036: is the printed look the comic the user means -- stronger, weaker, or balloons / speed lines / panel frames instead?** | The user looks | |
 | 2026-10-03 | **037: is the damage-type chart enough, or should tags show armour? Does UPGRADE read better than TUNE?** | The user plays | |
+| 2026-10-03 | **038: is the Core hard in a good way, or only long? Is 52.7% overall too hard?** | The user plays | |

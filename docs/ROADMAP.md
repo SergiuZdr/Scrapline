@@ -59,7 +59,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 036 | [Comic style, a frame](iterations/036-comic-style.md) | The world printed (dots, slipped plates, grain), heavier ink, starbursts, a caption box | ✅ awaiting the user's verdict |
 | — | [Play-test 11](playtests/2026-10-03-playtest-11.md) | Charge and terminals, damage types, ability previews, words that match, tags, the dock, NEW unlocks, the bosses, the comic options | ✅ |
 | 037 | [Play-test 11 fixes](iterations/037-playtest-11-fixes.md) | Charge fixed and previewed, weapons with their own damage type and a type chart, totals with their parts, DETAILS, UPGRADE, what every site does (bot 57.3%) | ✅ awaiting the play-test |
-| 038 | The bosses | The Core and the Pour stronger, dressed boards, bigger crimson bosses, a boss bar | 🔨 |
+| 038 | [The bosses](iterations/038-bosses.md) | The Core shielded by conduits and harder, the Pour stronger, dressed boards, bigger crimson bosses, a boss bar (bot 52.7%) | ✅ awaiting the play-test |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

@@ -2,6 +2,17 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [038] The bosses — 2026-10-03 ([detail](iterations/038-bosses.md))
+
+### Changed
+- **The Core is the end boss**: 72 HP, shielded by two conduits until they fall, pulses every other
+  round -- and every round once it erupts. **The Pour** has 52 HP and floods more.
+- **Bosses look like bosses**: bigger, in crimson (warlords in gunmetal), named on the board, with a
+  health bar across the top that says what they are doing. Their boards are dressed.
+
+### Fixed
+- Act 2's boss was drawn at a normal machine's size; the Core's conduit was never on its board.
+
 ## [037] Play-test 11 fixes — 2026-10-03 ([detail](iterations/037-playtest-11-fixes.md))
 
 ### Fixed
