@@ -110,6 +110,8 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-01 | **Content order: objectives & conditions (028), weapons & legendaries (029), warlords (030), sites & events (031)** | The user liked all four directions offered; objectives first because they need no new art |
 | 2026-10-01 | **A new part may borrow another's model** (`"model"`, `PartTuning.model_of`); **legendaries come from gate hoards** (and rarely Act 3) | 029: new mechanics without waiting on art; something to hunt for |
 
+| 2026-10-03 | **Every site and the Reclaimer are TRELLIS models** (020), made by `tools/gen3d/next_site.sh` on the user's free Hugging Face account | The user: "do the sites and the reclaimer", "stay free, do one or two a day" |
+
 ## Lessons carried over from the old codebase
 
 The old `CLAUDE.md` holds hard-won lessons. These still apply:
@@ -216,6 +218,10 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-03 | On a gate board, only `keepers` authored machines are kept; the rest are rolled escorts. The Core's conduit was never in its fight |
 | 2026-10-03 | A Container resets its children's rotation and scale on every layout: a tilted caption needs a plain holder |
 
+| 2026-10-03 | A free ZeroGPU allowance is a rolling 24 hours (~300 s; a call needs ~1.5x the 120 s it reserves): four or five TRELLIS runs a day. A refused call costs nothing -- retry on a schedule |
+| 2026-10-03 | Give TRELLIS our own mask (cut the white background ourselves) and dark or saturated concepts: its background removal kept a white floor and grew a mound out of it |
+| 2026-10-03 | Squaring a near-square footprint turns a model arbitrarily: a site that must face the camera keeps the facing its concept was drawn with |
+
 ## Open questions
 
 All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decisions above).
@@ -264,3 +270,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-03 | **037: is the damage-type chart enough, or should tags show armour? Does UPGRADE read better than TUNE?** | The user plays | |
 | 2026-10-03 | **038: is the Core hard in a good way, or only long? Is 52.7% overall too hard?** | The user plays | |
 | 2026-10-03 | **039: is the comic too much anywhere? Which of the eight should be stronger or quieter?** | The user looks | |
+| 2026-10-03 | **020: do the ten generated sites and the harvester wall look right on the map?** | The user looks | |

@@ -73,6 +73,9 @@ def args():
     p.add_argument("--keep-texture", action="store_true",
                    help="keep the model's geometry and UV texture (a TRELLIS model): no remesh, no zones")
     p.add_argument("--posterize", type=int, default=0, help="with --keep-texture: flat colours in the texture")
+    p.add_argument("--no-square", action="store_true",
+                   help="keep the model's own facing (020: squaring turned the gate's shutter sideways; a "
+                   "TRELLIS model faces the way its concept was drawn, which the map's facing sites rely on)")
     p.add_argument("--grey-white", action="store_true",
                    help="with --keep-texture: near-white grey texels become dark concrete (020: TRELLIS "
                    "sometimes turns the ground under a model into a white mound)")
@@ -407,7 +410,11 @@ def preview(obj, prefix):
 def keep_texture(a):
     obj = load(a.source, a.up)
     tilt = level(obj)
-    turned = square_up(obj, a.yaw)
+    if a.no_square:
+        obj.data.transform(Matrix.Rotation(math.radians(a.yaw), 4, "Z"))
+        turned = a.yaw
+    else:
+        turned = square_up(obj, a.yaw)
     scale = seat(obj, a.size)
     before = sum(len(p.vertices) - 2 for p in obj.data.polygons)
     collapse(obj, a.budget, a.sharp)

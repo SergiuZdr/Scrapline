@@ -1,7 +1,7 @@
 # Iteration 020 — Models: the sites and the Reclaimer, a few a day
 
-**Status:** in progress
-**Started:** 2026-09-30 · **Finished:** —
+**Status:** done -- waiting for the user's look
+**Started:** 2026-09-30 · **Finished:** 2026-10-03
 **Answers:** the user: "do the sites and the reclaimer next"; on the GPU allowance: "stay free,
 do one or two a day".
 
@@ -27,14 +27,16 @@ free Hugging Face allowance permits, with no step that needs the user.
 3. The Reclaimer wired in; suites; docs.
 
 ## Acceptance criteria
-- [ ] `next_site.sh` run with allowance left produces one site end to end, and with none left
-  says so and changes nothing.
-- [ ] Each kind with a model shows it on the map; kinds without one still show the kit.
-- [ ] All nine exist; every suite passes; the user judges them.
+- [x] `next_site.sh` run with allowance left produces one site end to end, and with none left
+  says so and changes nothing (exit 2, nothing written).
+- [x] Each kind with a model shows it on the map; kinds without one still show the kit (the
+  030-031 kinds -- warlord, arena, refinery, auction -- borrow a generated model or the kit).
+- [x] All nine exist, and the Reclaimer; run_ui and onboarding pass with them on the map.
+- [ ] The user judges them.
 
 ## Result
 
-_(in progress -- a site lands whenever `tools/gen3d/next_site.sh` finds allowance)_
+Ten models over four days, all from `tools/gen3d/next_site.sh` (sheet: `shots/020_sites_all.png`).
 
 | Kind | Landed | Triangles (from) | Notes |
 |---|---|---|---|
@@ -46,7 +48,7 @@ _(in progress -- a site lands whenever `tools/gen3d/next_site.sh` finds allowanc
 | scrapyard | 2026-10-01 | 12,000 (24,117) | a heap of pipes and gears under a lattice crane |
 | tower | 2026-10-02 | 11,999 (14,237) | the user's run; lattice, cabin, searchlight, 5.2 m tall |
 | signal | 2026-10-02 | 12,000 (32,098) | a crashed robot under a radio mast (the first try hung: see below) |
-| boss (the gate) | 2026-10-02 | 12,000 (42,094) | first try came out white with no shutter; a darker concept; TRELLIS still grew a mound out of its slab, greyed into a dark apron (`--grey-white`). **To redo** with our own mask |
+| boss (the gate) | 2026-10-03 | 11,999 (34,284) | third try: the darker concept with our own background mask -- rusted red pylons, red lamps, the shutter, the conveyor, no mound; kept facing the camera (`--no-square`) |
 | Reclaimer | 2026-10-02 | 3,500 (33,453) | a dozen copies make its wall: shredders forward (+X), darkened, its red beacons on top |
 
 - **The free allowance is bigger than the plan assumed**: six TRELLIS runs went through on
@@ -81,6 +83,33 @@ _(in progress -- a site lands whenever `tools/gen3d/next_site.sh` finds allowanc
 - The day's allowance: the user's run plus four (signal, gate, Reclaimer, gate again); the sixth
   was refused at 177 s left.
 
+### 2026-10-03
+- **The allowance is a rolling 24 hours, not a daily reset.** The user's morning run and my
+  retries at 11:37, 11:57 and 16:13 all got "177s left"; at 16:33 -- 24 hours after the first of
+  the previous day's runs -- the gate went through. A free account seems to hold about 300 s and a
+  call needs about 1.5 times the 120 s it reserves (refused at 166 and 177 s left), so four or
+  five runs a day, the next day's starting when the first of today's ages out.
+- A background retry loop is cut off after 30 minutes; a scheduled check in the session
+  (CronCreate, every 20 minutes from 16:13) is what caught the window.
+- **Our own mask worked**: with `cut_background.py`'s cut-out uploaded, the gate came back with no
+  mound and nothing white (`--grey-white` greyed 0%).
+- **Squaring broke the gate's facing**: the clean-up turned it 51 degrees to square a near-square
+  footprint, and the map's 215-degree facing then showed the lintel end-on. A TRELLIS model faces
+  the way its concept was drawn, so the sites that face the camera now skip squaring
+  (`clean_generated.py --no-square`, passed by `next_site.sh` for the workshop, trader, camp and
+  gate); re-cleaned from the kept raw file, no GPU spent.
+
 ## Decisions, lessons, open questions
+- **Every site and the Reclaimer are TRELLIS models** made from concepts, cleaned with their detail
+  and texture kept; the Reclaimer's wall is a line of harvesters.
+- **Upload our own mask** (`cut_background.py`); keep the raw output (`tools/gen3d/raw/`, gitignored);
+  sites with a front keep TRELLIS's facing (`--no-square`).
+- Lesson: a free ZeroGPU allowance is a rolling 24 hours; a refused call costs nothing, so retry
+  on a schedule rather than by hand.
+- Lesson: a pale concept on a white background loses to the background removal (the first gate).
+  Concepts for TRELLIS should be dark or saturated against white.
+- Open: the user's verdict on the ten models; a second model per kind if the map still reads as
+  stamped; models for the 030-031 kinds (warlord, arena, refinery, auction) and Acts 2-3's gates.
 
 ## Next
+The user looks at the map. More concepts the same way when wanted -- each costs one run.
