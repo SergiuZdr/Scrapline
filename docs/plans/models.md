@@ -103,6 +103,30 @@ the shipped one. `tools/shot_models.gd` puts old and new side by side.
   the demo page can be used by hand. Its GLB goes through the same clean-up.
 - **Route B** stays open for sites: a kit piece (CC0) needs only the zoning step.
 
+## Sites and the Reclaimer, as built (018-020)
+
+**Route C with TRELLIS** made all of them: the user's free Hugging Face account (token in
+`~/.cache/huggingface/token`), one site per run of `tools/gen3d/next_site.sh [kind]`:
+
+1. the concept (`art/concepts/<kind>.png`, FLUX.1-schnell) has its white background cut by
+   `tools/gen3d/cut_background.py` -- TRELLIS uses our alpha as the mask (its own background
+   removal once kept a white floor and grew a mound out of it);
+2. TRELLIS through `tools/gen3d/gradio_queue.py` (a time limit per step, two tries at the first);
+3. the raw model is kept in `tools/gen3d/raw/<kind>.glb` (gitignored), so it can be cleaned again
+   for free;
+4. `tools/blender/clean_generated.py --keep-texture` stands it up, seats and sizes it, collapses it
+   to 12,000 triangles (the Reclaimer to 3,500: its wall is a dozen copies) and posterizes the
+   texture to 16 colours; a site that faces the camera keeps TRELLIS's facing (`--no-square`).
+
+The map (`YardView`) stands any `art/sites/<kind>.glb` on its sites, drawn with the textured toon
+ramp and the ink line (`Ink.dress_set_piece`); the Reclaimer's wall is a line of harvesters.
+
+**The allowance**: a free account holds about 300 s of ZeroGPU over a rolling 24 hours, and a call
+needs about 1.5 times the 120 s it reserves -- four or five runs a day. A refused call costs nothing.
+
+**What makes a good concept for it**: one object, dark or saturated, on plain white, drawn from a
+three-quarter angle above with its front toward the viewer.
+
 ### Licences
 FLUX.1-schnell (the concepts): Apache 2.0, outputs free to use. TripoSR: MIT (code and weights).
 TRELLIS: MIT. Hunyuan3D is excluded (its licence does not cover the EU, UK or South Korea).

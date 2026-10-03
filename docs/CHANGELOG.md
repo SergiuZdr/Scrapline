@@ -2,6 +2,16 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [020] Sites and the Reclaimer — finished 2026-10-03 ([detail](iterations/020-sites.md))
+
+### Changed
+- **Every site on the map is a model generated from its concept** (TRELLIS, on the user's free
+  Hugging Face account, four or five a day): the camp, ambush, elite bunker, scrapyard, trader,
+  watchtower, signal, workshop and the gate, with their detail and texture kept.
+- **The Reclaimer is a line of harvesters**: shredders forward, black edged in red, a beacon on each.
+- `tools/gen3d/next_site.sh` makes one end to end; it cuts the concept's background itself, keeps
+  the raw model, and retries a step that hangs.
+
 ## [039] The comic, all the way — 2026-10-03 ([detail](iterations/039-comic-pages.md))
 
 ### Added

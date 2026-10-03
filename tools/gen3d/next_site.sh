@@ -46,6 +46,9 @@ size=2.6; [ $kind = boss ] && size=4.2; [ $kind = reclaimer ] && size=5.0
 budget=12000; [ $kind = reclaimer ] && budget=3500
 # The gate's concept has no white: TRELLIS grew a white mound out of its slab (020).
 extra=(); [ $kind = boss ] && extra=(--grey-white)
+# A site whose front faces the camera on the map (YardView.FACING_SITES) keeps TRELLIS's facing:
+# squaring turned the gate's shutter sideways (020).
+case $kind in workshop|trader|start|boss) extra+=(--no-square) ;; esac
 blender --background --python tools/blender/clean_generated.py -- --keep-texture --in $glb \
   --out art/sites/$kind.glb --size $size --budget $budget --posterize 16 --sharp 45 ${extra[@]} 2>&1 | grep -E "^kept|Error"
 $GODOT --headless --path . --import 2>&1 | grep -i "error" | head -3
