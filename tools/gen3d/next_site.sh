@@ -7,7 +7,7 @@
 #
 # Needs a token in ~/.cache/huggingface/token (never printed). Exit 2 = no allowance left today.
 cd "$(dirname "$0")/../.." || exit 1
-KINDS=(trader start skirmish elite scrapyard tower signal boss reclaimer)
+KINDS=(trader start skirmish elite scrapyard tower signal boss reclaimer warlord arena refinery auction)
 GODOT=/Users/Sergiu/DevG/KingdomRebuilt/Godot.app/Contents/MacOS/Godot
 B=https://trellis-community-trellis.hf.space
 Q=tools/gen3d/gradio_queue.py
@@ -45,10 +45,12 @@ size=2.6; [ $kind = boss ] && size=4.2; [ $kind = reclaimer ] && size=5.0
 # The Reclaimer stands a dozen times along its wall: a lighter copy.
 budget=12000; [ $kind = reclaimer ] && budget=3500
 # The gate's concept has no white: TRELLIS grew a white mound out of its slab (020).
-extra=(); [ $kind = boss ] && extra=(--grey-white)
+# The gate (its slab grew a white mound once) and the auction (a white slab that glared on the map):
+# near-white grey becomes dark concrete.
+extra=(); case $kind in boss|auction) extra=(--grey-white) ;; esac
 # A site whose front faces the camera on the map (YardView.FACING_SITES) keeps TRELLIS's facing:
 # squaring turned the gate's shutter sideways (020).
-case $kind in workshop|trader|start|boss) extra+=(--no-square) ;; esac
+case $kind in workshop|trader|start|boss|warlord|refinery|auction) extra+=(--no-square) ;; esac
 blender --background --python tools/blender/clean_generated.py -- --keep-texture --in $glb \
   --out art/sites/$kind.glb --size $size --budget $budget --posterize 16 --sharp 45 ${extra[@]} 2>&1 | grep -E "^kept|Error"
 $GODOT --headless --path . --import 2>&1 | grep -i "error" | head -3

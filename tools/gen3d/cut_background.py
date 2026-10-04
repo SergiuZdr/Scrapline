@@ -32,6 +32,24 @@ while True:
     if (grown == region).all():
         break
     region = grown
+# 044: a pocket of background shut in by ropes or a fence (the warlord's crane, the arena's
+# fence panels) never touches a corner. Near-PURE white anywhere is background too -- but only in
+# patches bigger than a highlight: an opening (erode, then dilate) keeps a lit bulb or a glint on
+# the object. A pale slab (the auction's, ~0.84) stays well below the threshold.
+pure = (rgb.min(axis=2) > 0.972) & ((rgb.max(axis=2) - rgb.min(axis=2)) < 0.04)
+opened = pure.copy()
+for _ in range(3):
+    inner = opened[1:-1, 1:-1] & opened[:-2, 1:-1] & opened[2:, 1:-1] & opened[1:-1, :-2] & opened[1:-1, 2:]
+    opened = np.zeros_like(opened)
+    opened[1:-1, 1:-1] = inner
+for _ in range(3):
+    grown = opened.copy()
+    grown[1:, :] |= opened[:-1, :]
+    grown[:-1, :] |= opened[1:, :]
+    grown[:, 1:] |= opened[:, :-1]
+    grown[:, :-1] |= opened[:, 1:]
+    opened = grown & pure
+region |= opened
 alpha = np.where(region, 0.0, 1.0).astype(np.float32)
 soft = alpha.copy()
 soft[1:-1, 1:-1] = (alpha[1:-1, 1:-1] * 4 + alpha[:-2, 1:-1] + alpha[2:, 1:-1] + alpha[1:-1, :-2] + alpha[1:-1, 2:]) / 8.0

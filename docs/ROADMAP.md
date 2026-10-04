@@ -67,6 +67,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 042 | [A model for every part](iterations/042-part-models.md) | 26 generated models; modules shaped by what they do | ✅ awaiting the user's look |
 | — | [Play-test 13](playtests/2026-10-03-playtest-13.md) | The comic UI pick, the tag, boss arms, the bay, the difficulty click-through, an unlock without a picture | ✅ |
 | 043 | [Play-test 13 fixes](iterations/043-playtest-13.md) | Pop-art panels and pulp buttons everywhere, NEW RUN at once and a tier ladder with an ending, bosses keep their arms, the bay on three columns with whole machines and smaller arms | ✅ awaiting the play-test |
+| 044 | [Models for the warlord, arena, refinery, auction](iterations/044-more-sites.md) | The four 030-031 site kinds as TRELLIS models, all in one evening | ✅ awaiting the user's look |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

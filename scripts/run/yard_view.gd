@@ -533,7 +533,12 @@ func _landmark(type: String, id: int) -> Node3D:
 	var faces: bool = FACING_SITES.has(type)
 	var yaw: float = 215.0 if faces else 215.0 + float(_h(id, 5) % 70) - 35.0
 	var size: float = 1.0 if faces else 0.92 + float(_h(id, 6) % 13) / 100.0
+	if type == "warlord":
+		size = 1.3   # a mini-boss's lair stands over the sites around it, as its borrowed bunker did
 	if type != "workshop" and _generated(root, type, yaw, size):
+		if type == "warlord":
+			# 030: a named fight worth the detour -- its red lamp stays over its own model (044).
+			_lamp(root, Vector3(0.0, 1.6, 0.0), RECLAIMER_RED, 4.0)
 		_livery = Color(0, 0, 0, 0)
 		return root
 	match type:
@@ -600,7 +605,7 @@ func _landmark(type: String, id: int) -> Node3D:
 
 
 ## Generated sites whose front (a door, a counter, a camp's open side) must face the camera.
-const FACING_SITES: PackedStringArray = ["workshop", "trader", "start", "boss"]
+const FACING_SITES: PackedStringArray = ["workshop", "trader", "start", "boss", "warlord", "refinery", "auction"]
 
 
 ## The livery the landmark being built wears (016); clear while building clutter.
