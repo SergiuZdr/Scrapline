@@ -2,6 +2,13 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [044] Models for the warlord, arena, refinery and auction — 2026-10-04 ([detail](iterations/044-more-sites.md))
+
+### Changed
+- **The warlord, the arena, the refinery and the auction stand on the map as their own models**
+  (generated from concepts, like the other sites): a throne of crushed cars under a crane magnet, a
+  tyre-ringed pit, a glowing furnace, a stage under a striped awning.
+
 ## [043] Play-test 13: the comic UI, the bay, the tier ladder — 2026-10-03 ([detail](iterations/043-playtest-13.md))
 
 ### Changed

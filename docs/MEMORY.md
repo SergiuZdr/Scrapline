@@ -230,6 +230,8 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-03 | A StyleBox subclass has to EXPORT its variables or `duplicate()` returns defaults; giving it StyleBoxFlat's property names let every screen switch to it without a rewrite |
 | 2026-10-03 | Frame a model after the turn it is shown at: a width measured before the three-quarter turn cut the arms off every crew portrait |
 
+| 2026-10-04 | A background pocket enclosed by ropes or a fence never touches a corner: cut near-pure white by colour too (in patches bigger than a highlight). Paint smoke out of a concept meant for a model |
+
 ## Open questions
 
 All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decisions above).
@@ -282,3 +284,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-03 | **040: does the new story read right? The map is still ~62% of a core idle (generated set pieces)** | The user plays; next perf step | |
 | 2026-10-03 | **041: which comic direction for panels and buttons -- A pulp, B pop art, C inked panels?** | The user picks | |
 | 2026-10-03 | **042: do the 26 new models read at board distance?** | The user looks | |
+| 2026-10-04 | **044: do the warlord, arena, refinery and auction models read on the map?** | The user looks | |
