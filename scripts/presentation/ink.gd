@@ -462,7 +462,14 @@ static func _dress_node(node: Node, part_id: String, slots: Dictionary, part_ids
 			mesh.material_override = zone_material(String(kit.get(mesh.material_override, "metal")), livery, team)
 		elif mesh.mesh != null:
 			for s: int in mesh.mesh.get_surface_count():
-				var zone: String = PartMaterials.zone_of(mesh.mesh.surface_get_material(s))
+				var source: Material = mesh.mesh.surface_get_material(s)
+				# 045: a generated part brought its own painted scrap; keep it under the ramp
+				# (a boss's one livery tints it).
+				if source is BaseMaterial3D and (source as BaseMaterial3D).albedo_texture != null:
+					var tint: Color = paint.lerp(Color.WHITE, 0.45) if paint.a > 0.0 else Color.WHITE
+					mesh.set_surface_override_material(s, textured((source as BaseMaterial3D).albedo_texture, tint))
+					continue
+				var zone: String = PartMaterials.zone_of(source)
 				mesh.set_surface_override_material(s, zone_material(zone, livery, team))
 		line(mesh, LINE_MACHINE)
 	for child: Node in node.get_children():

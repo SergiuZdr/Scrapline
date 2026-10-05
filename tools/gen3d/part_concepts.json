@@ -1,0 +1,11 @@
+{
+  "_comment": "045: FLUX.1-schnell prompts for generated machine parts (tools/gen3d/part_concept.sh). Every prompt is STYLE plus the part's own line. One object, on white, three-quarter view from above: what TRELLIS rebuilds best (020). The ink and comic shading come from the game's toon ramp, so the concept is a clean 3D render with painted colours, not a drawing.",
+  "style": "3D game asset render, a single object, three-quarter view from slightly above, front toward the viewer, built from mismatched salvaged scrap metal plates in several colours (chipped yellow paint, oxide red, primer grey, rusty brown, dark gunmetal), visible bolts and welds and hydraulic pistons, chunky stylized proportions, hand-painted stylized texture, plain pure white background, no ground, no shadow, the whole object in frame",
+  "parts": {
+    "ch_brute": "a squat heavy bipedal brawler robot body WITHOUT ARMS: a wide boxy armoured torso salvaged from a mining rig, a small armoured head with one glowing cyan eye set low between the shoulders, round empty shoulder joints on both sides, two thick short legs standing apart with wide flat feet",
+    "ar_hammer": "one detached robot arm standing vertical: a round shoulder joint at the top, a thick piston forearm, ending at the bottom in a huge blocky sledgehammer head",
+    "ar_saw": "one detached robot arm standing vertical: a round shoulder joint at the top, a slim armoured forearm, ending at the bottom in a large circular buzzsaw blade with jagged teeth",
+    "co_slug": "a compact robot power core: a heavy round reactor canister in a bolted square frame with a glowing orange lens on its front",
+    "mo_scavenger": "a robot backpack module welded together from plates off three different machines, a small tank, a stubby exhaust stack and hoses"
+  }
+}
