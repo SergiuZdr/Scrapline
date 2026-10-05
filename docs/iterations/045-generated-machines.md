@@ -35,6 +35,20 @@ draws them with `-- --models gen` so the user can compare them with the scripted
 - [ ] The user looks.
 
 ## Result
+**2026-10-05 (day 1): tooling done, waiting on the GPU allowance.**
+- Built: `tools/gen3d/part_concept.sh` (FLUX prompts in `part_concepts.json`), `tools/gen3d/next_part.sh`
+  (TRELLIS, raw kept in `tools/gen3d/raw/parts/`, `--rig` reruns without GPU),
+  `tools/blender/rig_generated_part.py` (size, cut FLUX's arms off a frame, split the legs at the hips,
+  sockets, mount at the origin; spec per part in `tools/gen3d/parts/<id>.json`), `Models` `--models gen`
+  (`art/parts_gen/` first), `Ink._dress_node` keeps a textured part's texture under the ramp.
+- Smoke test: a raw TRELLIS site rigged as a stand-in chassis passed `verify_assembly.gd -- --dir
+  res://art/parts_gen` (15 passed) and drew in a fight with `--models gen` without errors; removed after.
+- Concepts (`art/concepts/machines/`): 3 chassis, 4 hammer arms, 1 saw arm before the allowance ran out.
+  **The user picked ch_brute_3** and **hammer 1 "but the head of the hammer needs to have no hole"**:
+  the hole was painted out by hand (`ar_hammer.png`). Still to come: saw, core and module concepts.
+- **FLUX draws arms on a frame however the prompt says "without arms"** (all three did): the rig cuts
+  them off below the shoulders instead (`cut_arms`).
+- **FLUX's Space spends the same ZeroGPU allowance as TRELLIS**: eight concepts, then TRELLIS was refused.
 
 ## Decisions, lessons, open questions
 
