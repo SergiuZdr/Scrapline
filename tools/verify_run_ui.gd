@@ -114,6 +114,10 @@ func _go() -> void:
 	combat = await _open("res://scenes/combat.tscn")
 	await _settle(combat)
 	_check("the fight resumes with the same actions", (combat.get("_actions") as Array).size() == progressed)
+	# The agent play-test (2026-10-05): a resumed fight stayed `_busy` with END TURN greyed, and
+	# this test did not notice -- `_settle` just ran out of frames.
+	_check("the resumed fight can be played (not busy, END TURN live)", not bool(combat.get("_busy"))
+		and not ((combat.get("_hud") as Node).get("_end_turn") as Button).disabled)
 
 	# Finish the fight with the bot, then report through CONTINUE as a player would.
 	var resumed: CombatState = combat.get("_state")

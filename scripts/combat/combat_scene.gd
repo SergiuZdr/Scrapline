@@ -269,6 +269,9 @@ func _start_fight() -> void:
 		await _play_new_events()
 	else:
 		_shown = _state.events.size()
+		# Nothing to play back on a resume, and `_play_new_events` is what clears `_busy`:
+		# without this the resumed turn could not be played at all.
+		_busy = false
 	_after_events()
 
 

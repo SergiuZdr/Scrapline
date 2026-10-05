@@ -93,9 +93,11 @@ func _on_node_added(node: Node) -> void:
 
 
 ## Scale about the middle, whatever size the container gave it.
-func _centre(button: BaseButton) -> void:
+## Untyped: the deferred call can arrive after the button was freed, and a freed object
+## fails a typed argument before `is_instance_valid` can look at it.
+func _centre(button: Variant) -> void:
 	if is_instance_valid(button):
-		button.pivot_offset = button.size * 0.5
+		(button as BaseButton).pivot_offset = (button as BaseButton).size * 0.5
 
 
 func _hover(button: BaseButton, on: bool) -> void:
@@ -144,7 +146,8 @@ func _to(button: BaseButton, s: float, seconds: float) -> void:
 
 ## One tween per button at a time: a new gesture replaces the old one instead of fighting it.
 func _tween(button: BaseButton) -> Tween:
-	var old: Variant = button.get_meta("juice_tween", null)
+	# `get_meta` with a null default still reports a missing key as an error.
+	var old: Variant = button.get_meta("juice_tween") if button.has_meta("juice_tween") else null
 	if old is Tween and (old as Tween).is_valid():
 		(old as Tween).kill()
 	var tween := button.create_tween()
