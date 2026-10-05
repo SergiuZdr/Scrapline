@@ -1166,7 +1166,8 @@ func _banner(level: int, gains: Dictionary, perk: String = "") -> void:
 		bits.append("+%d DAMAGE" % int(gains["damage"]))
 	if not perk.is_empty():
 		bits.append(perk.to_upper())
-	bits.append("NEW ARMOUR")
+	# The level kit is plating on the model, not an armour stat: say so, or it reads as a gain.
+	bits.append("NEW PLATING ON THE FRAME")
 	var line := _label("  ·  ".join(bits), 30, Ink.GAIN, UIKit.font_comic())
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	line.add_theme_color_override("font_outline_color", UIKit.HAIRLINE)
@@ -1174,7 +1175,8 @@ func _banner(level: int, gains: Dictionary, perk: String = "") -> void:
 	banner.add_child(line)
 	add_child(banner)
 	banner.size = Vector2(VIEW_SIZE.x, 200)
-	banner.position = _stage_root.position + Vector2(0, VIEW_SIZE.y * 0.62)
+	# Inside the stage: lower, its gains line ran over the machine's name card.
+	banner.position = _stage_root.position + Vector2(0, VIEW_SIZE.y - banner.size.y)
 	banner.pivot_offset = banner.size * 0.5
 	banner.modulate.a = 0.0
 	banner.scale = Vector2.ONE * 1.35
