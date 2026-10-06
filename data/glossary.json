@@ -172,6 +172,9 @@
         "shoved"
       ]
     },
+    "snare": {"group": "WEAPONS", "name": "Snare", "text": "A snared machine cannot move on its side's next move: your next turn, or the enemy's next move. It can still attack. A Snare Launcher does it.", "forms": ["snare", "snares", "snared"]},
+    "mine": {"group": "WEAPONS", "name": "Mine", "text": "A Mine Layer drops a mine on an open hex. It goes off once, for its damage, under whatever starts a round on it -- yours or theirs. Enemies walk round them; so should you.", "forms": ["mine", "mines", "mine layer"]},
+    "flail": {"group": "WEAPONS", "name": "Flail", "text": "A Chain Flail hits the hex it is aimed at and the two beside it at the same distance: an arc of three. One step sideways is not always out of it.", "forms": ["flail", "sweep"]},
     "tear": {
       "group": "WEAPONS",
       "name": "Tear",

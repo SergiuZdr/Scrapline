@@ -100,7 +100,7 @@ static func apply(state: CombatState, action: Array) -> bool:
 ## (excluding the start hex). Empty if the unit cannot move.
 static func reachable(state: CombatState, ref: int) -> Dictionary:
 	var u: GridUnit = state.unit(ref)
-	if u == null or not u.alive or u.objective or u.moved or u.team != GridUnit.TEAM_PLAYER:
+	if u == null or not u.alive or u.objective or u.moved or u.team != GridUnit.TEAM_PLAYER or u.snared:
 		return {}
 	if u.acted and not u.move_after_attack:
 		return {}
@@ -191,6 +191,11 @@ static func attack_heat(u: GridUnit, weapon: Dictionary) -> int:
 
 
 ## Effective reach of weapon `w` for `u` standing where it stands now.
+## The nearest hex a weapon can be aimed at: a lob or a mine layer has a minimum (047).
+static func min_range(weapon: Dictionary) -> int:
+	return int(weapon["range_min"]) if ["lob", "mine"].has(String(weapon["shape"])) else 1
+
+
 static func weapon_reach(state: CombatState, u: GridUnit, w: int) -> int:
 	var weapon: Dictionary = u.weapons[w]
 	if String(weapon["shape"]) == "melee":
@@ -218,7 +223,7 @@ static func aim_options(state: CombatState, u: GridUnit, w: int) -> Array[Vector
 	var here := Vector2i(u.x, u.y)
 	var weapon: Dictionary = u.weapons[w]
 	var reach: int = aim_reach(state, u, w)
-	var minimum: int = int(weapon["range_min"]) if String(weapon["shape"]) == "lob" else 1
+	var minimum: int = min_range(weapon)
 	for cell: Vector2i in Hex.within(here, reach):
 		if state.inside(cell) and Hex.distance(here, cell) >= minimum:
 			out.append(cell)
@@ -252,8 +257,18 @@ static func _strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector
 	var shape: String = String(weapon["shape"])
 	var reach: int = weapon_reach(state, u, w)
 	var dist: int = Hex.distance(here, target)
-	var minimum: int = int(weapon["range_min"]) if shape == "lob" else 1
+	var minimum: int = min_range(weapon)
 	if dist > aim_reach(state, u, w) or dist < minimum:
+		return plan
+	# 047: a mine layer sets a mine down on open ground, not on what is already there.
+	if shape == "mine":
+		if state.solid(target) or state.is_pit(target) or state.props.has(target) or state.mines.has(target):
+			return plan
+		plan["legal"] = true
+		plan["tiles"] = [target] as Array[Vector2i]
+		plan["props"] = [] as Array[Dictionary]
+		var amount: int = int(weapon["damage"]) + u.damage_bonus + u.boost_damage + conduit_boost(state, u)
+		plan["mine"] = {"cell": target, "damage": amount}
 		return plan
 	# 029: a shield caster is aimed at one of its own side, not at a hex of the enemy's.
 	if shape == "shield":
@@ -286,6 +301,18 @@ static func _strike_plan(state: CombatState, u: GridUnit, w: int, target: Vector
 			_add_prop(state, props, target, base)
 			for n: Vector2i in Hex.neighbors(target):
 				if state.inside(n) and Hex.distance(here, n) == 2:
+					tiles.append(n)
+					_add_hit(state, u, hits, n, base, false, false)
+					_add_prop(state, props, n, base)
+		"sweep":
+			# 047: the FLAIL. The hex aimed at and the two beside it at the same distance -- an
+			# arc, so one step sideways is not always out of it.
+			tiles.append(target)
+			_add_hit(state, u, hits, target, base, true, false)
+			_add_prop(state, props, target, base)
+			var d: int = Hex.distance(here, target)
+			for n: Vector2i in Hex.neighbors(target):
+				if state.inside(n) and Hex.distance(here, n) == d:
 					tiles.append(n)
 					_add_hit(state, u, hits, n, base, false, false)
 					_add_prop(state, props, n, base)
@@ -932,8 +959,12 @@ static func _execute_attack(state: CombatState, u: GridUnit, w: int, target: Vec
 		var guarded: GridUnit = state.unit(int((plan["shield"] as Dictionary)["ref"]))
 		guarded.shield = maxi(guarded.shield, int((plan["shield"] as Dictionary)["amount"]))
 		state.emit(GridEv.SHIELDED, u.ref, guarded.ref, guarded.x, guarded.y, guarded.shield)
+	if plan.has("mine"):
+		var cell: Vector2i = (plan["mine"] as Dictionary)["cell"]
+		state.mines[cell] = int((plan["mine"] as Dictionary)["damage"])
+		state.emit(GridEv.MINE_LAID, u.ref, -1, cell.x, cell.y, int(state.mines[cell]))
 	var hits: Array = plan["hits"]
-	if hits.is_empty() and not plan.has("shield"):
+	if hits.is_empty() and not plan.has("shield") and not plan.has("mine"):
 		state.emit(GridEv.MISSED, u.ref, -1, end.x, end.y)
 	for hit: Dictionary in hits:
 		var victim: GridUnit = state.unit(int(hit["ref"]))
@@ -946,6 +977,9 @@ static func _execute_attack(state: CombatState, u: GridUnit, w: int, target: Vec
 			hurt(state, u.ref, victim, dmg)
 			if victim.alive and primary and _would_tear(state, victim, weapon, dmg):
 				_tear(state, u.ref, victim)
+		if victim.alive and primary and int(weapon.get("snare", 0)) > 0 and not victim.objective:
+			victim.snared = true
+			state.emit(GridEv.SNARED, u.ref, victim.ref, victim.x, victim.y)
 		if victim.alive and primary and bool(weapon["mark"]):
 			victim.marked = true
 			state.emit(GridEv.MARKED, u.ref, victim.ref, victim.x, victim.y)
@@ -1239,6 +1273,10 @@ static func throw_wreck(state: CombatState, actor: int, target: GridUnit, dir: i
 
 static func _end_turn(state: CombatState) -> void:
 	state.emit(GridEv.TURN_END)
+	# 047: the crew's snares held for the turn just played; the volley below may set new ones.
+	for u: GridUnit in state.units:
+		if u.team == GridUnit.TEAM_PLAYER:
+			u.snared = false
 	if _fire_intents(state):
 		return
 	state.intents.clear()
@@ -1336,6 +1374,10 @@ static func _begin_round(state: CombatState) -> void:
 				intent["lock"] = locked.ref
 			state.intents.append(intent)
 			state.emit(GridEv.INTENT_SET, u.ref, int(intent.get("lock", -1)), target.x, target.y, w, order)
+	# 047: an enemy snared during the crew's turn has now missed its move.
+	for u: GridUnit in state.units:
+		if u.team == GridUnit.TEAM_ENEMY:
+			u.snared = false
 
 
 ## HOLD (028): a round that starts with a crew machine on the zone and no enemy on it scores.
@@ -1407,8 +1449,16 @@ static func _waves(state: CombatState) -> void:
 static func _round_hazards(state: CombatState) -> void:
 	_pours(state)
 	for u: GridUnit in state.units:
-		if u.alive and state.hazard(u.x, u.y) > 0:
-			hurt(state, -1, u, state.hazard(u.x, u.y))
+		if u.alive and state.ground_hazard(u.x, u.y) > 0:
+			hurt(state, -1, u, state.ground_hazard(u.x, u.y))
+	# 047: a mine goes off under whatever starts the round on it, once.
+	for u: GridUnit in state.units:
+		var cell := Vector2i(u.x, u.y)
+		if u.alive and state.mines.has(cell):
+			var dmg: int = int(state.mines[cell])
+			state.mines.erase(cell)
+			state.emit(GridEv.MINE_BLEW, -1, u.ref, cell.x, cell.y, dmg)
+			hurt(state, -1, u, dmg)
 	_flues(state)
 	_pulses(state)
 	_auras(state)

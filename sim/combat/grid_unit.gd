@@ -61,6 +61,8 @@ var overheated: bool = false
 var seized: bool = false
 ## The next hit it takes deals `mark_bonus` more, then the mark clears.
 var marked: bool = false
+## 047: hit by a snare -- it cannot move on its side's next move, then it is free.
+var snared: bool = false
 
 var unshovable: bool = false
 ## Whether destroying it leaves a scrap pile (play-test 4: not every enemy does). Decided
@@ -139,6 +141,7 @@ func copy() -> GridUnit:
 	u.overheated = overheated
 	u.seized = seized
 	u.marked = marked
+	u.snared = snared
 	u.unshovable = unshovable
 	u.carries_scrap = carries_scrap
 	u.level = level

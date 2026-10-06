@@ -437,6 +437,8 @@ static func weapon_from(arm: Dictionary) -> Dictionary:
 		"tears": bool(g.get("tears", false)),
 		# 029: a harpoon drags its target this many hexes toward the shooter.
 		"pull": int(g.get("pull", 0)),
+		# 047: a snare -- what it hits cannot move on its side's next move.
+		"snare": int(g.get("snare", 0)),
 		# An empty socket is a weapon that was never there: it counts as torn, so every
 		# rule that skips a torn arm skips it too and nothing needs a second case.
 		"torn": arm.is_empty(),
