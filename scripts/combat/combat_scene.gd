@@ -2883,6 +2883,12 @@ func _threat_summary(threats: Dictionary) -> String:
 		for hit: Dictionary in (threat["hits"] as Array):
 			names.append("%s -%d" % [_state.unit(int(hit["ref"])).name, int(hit["damage"])])
 		var outcome: String = ", ".join(names) if not names.is_empty() else "nothing"
+		# 047: a mine is not a hit now -- say where it goes and who it waits under.
+		if threat.has("mine"):
+			var cell: Vector2i = (threat["mine"] as Dictionary)["cell"]
+			var under: GridUnit = _state.unit_at(cell.x, cell.y)
+			outcome = ("a mine under %s (-%d next round unless it moves)" % [under.name, int((threat["mine"] as Dictionary)["damage"])]
+				if under != null else "a mine on an empty hex")
 		if int(threat.get("lock", -1)) >= 0:
 			outcome += "  (locked on: moving does not dodge it)"
 		if not bool(threat["legal"]):
