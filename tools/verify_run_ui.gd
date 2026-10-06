@@ -290,7 +290,7 @@ func _go() -> void:
 			_check("salvage can be left for scrap", state.scrap == scrap_now + 8 and state.pending.is_empty())
 
 			# --- 013: a trader, a watchtower and a signal, through their panels.
-			state.pending = {"kind": "trader", "stock": ["ar_hammer", "co_slug", "mo_governor:a"], "sold": []}
+			state.pending = {"kind": "trader", "stock": ["ar_ripper", "co_slug", "mo_governor:a"], "sold": []}
 			state.scrap = 100
 			map.call("_refresh")
 			await _frames(3)

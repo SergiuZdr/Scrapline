@@ -49,7 +49,7 @@ static func plan(state: CombatState, u: GridUnit, ctx: Dictionary) -> Dictionary
 	var here := Vector2i(u.x, u.y)
 	var options: Dictionary = {}
 	# A kind that is `still` (025: the Core) never leaves its hex.
-	if not u.moved and not bool((state.setup.kinds.get(u.kind, {}) as Dictionary).get("still", false)):
+	if not u.moved and not u.snared and not bool((state.setup.kinds.get(u.kind, {}) as Dictionary).get("still", false)):
 		options = CombatSim.paths_from(state, u, u.move)
 	options[here] = [] as Array[Vector2i]
 	var danger: Dictionary = ctx.get("danger", {})
@@ -137,7 +137,7 @@ static func _best_shot(state: CombatState, u: GridUnit, ctx: Dictionary) -> Arra
 			if not lob and not prop and state.unit_at(aim.x, aim.y) == null:
 				continue
 			var plan: Dictionary = CombatSim.strike_plan(state, u, w, aim)
-			if not bool(plan["legal"]) or ((plan["hits"] as Array).is_empty() and (plan["props"] as Array).is_empty()):
+			if not bool(plan["legal"]) or ((plan["hits"] as Array).is_empty() and (plan["props"] as Array).is_empty() and not plan.has("mine")):
 				continue
 			var value: int = plan_value(state, u, weapon, plan, ctx) + (SCORE_OVERHEAT if hot else 0)
 			var tie: int = mix(state.setup.rng_seed, u.ref, w * 4096 + aim.y * 64 + aim.x, state.round_number)
@@ -171,10 +171,13 @@ static func plan_value(state: CombatState, u: GridUnit, weapon: Dictionary, plan
 			value += SCORE_OBJECTIVE
 		if bool(hit["primary"]) and bool(weapon["mark"]) and not t.marked:
 			value += SCORE_MARK
+		if bool(hit["primary"]) and int(weapon.get("snare", 0)) > 0 and not t.snared and dmg < t.hp:
+			value += SCORE_MARK
 		if intents.has(t.ref):
 			value += SCORE_DISRUPT
 	if any_foe:
 		value += SCORE_HIT
+	value += _mine_value(state, u, plan)
 	# A barrel in the line is worth a look: the dry run decides whether it is worth it.
 	for prop: Dictionary in (plan.get("props", []) as Array):
 		var kind: String = String((state.props[prop["cell"]] as Dictionary)["kind"])
@@ -229,9 +232,28 @@ static func _dry_value(state: CombatState, u: GridUnit, cell: Vector2i, w: int, 
 	var weapon: Dictionary = u.weapons[w]
 	if bool(weapon["mark"]) and any_foe:
 		value += SCORE_MARK
+	if int(weapon.get("snare", 0)) > 0 and any_foe:
+		value += SCORE_MARK
+	if String(weapon["shape"]) == "mine":
+		me.x = cell.x
+		me.y = cell.y
+		value += _mine_value(before, me, CombatSim.strike_plan(before, me, w, target))
 	if u.team == GridUnit.TEAM_PLAYER and u.heat + CombatSim.attack_heat(u, weapon) >= u.heat_cap:
 		value += SCORE_OVERHEAT
 	return value
+
+
+## 047: a mine laid under a foe is valued like the hit it will be at the start of the round --
+## the AI aims mines where machines stand, and the dodge leaves the hex mined.
+static func _mine_value(state: CombatState, u: GridUnit, plan: Dictionary) -> int:
+	if not plan.has("mine"):
+		return 0
+	var cell: Vector2i = (plan["mine"] as Dictionary)["cell"]
+	var t: GridUnit = state.unit_at(cell.x, cell.y)
+	if t == null or not t.alive or t.team == u.team:
+		return 0
+	var dmg: int = int((plan["mine"] as Dictionary)["damage"])
+	return dmg * 10 + SCORE_HIT + (SCORE_KILL if dmg >= t.hp else 0) + (SCORE_OBJECTIVE if t.objective else 0)
 
 
 ## 028: what standing on `cell` does for the fight's objective. HOLD: both sides want the zone

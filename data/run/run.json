@@ -69,7 +69,7 @@
         "ch_strider",
         "co_arc",
         "ar_scanner",
-        "ar_scatter",
+        "ar_pulse",
         "mo_governor"
       ]
     }
@@ -161,7 +161,7 @@
   "board": {"rows": 2, "cols": 2, "_comment": "032 (play-test 10: 'make the battlefield bigger'): every run board is its template plus `rows` blank rows between the sides and `cols` columns at the edges. Terrain, wires, piles and terminals go in every row but the two at each end."},
   "kinds": {
     "_comment": "Chance, per enemy and by column, that it has special rules, and which rules.",
-    "chance_by_column": [0, 20, 25, 35, 45, 55, 60, 70, 80],
+    "chance_by_column": [20, 25, 30, 40, 45, 55, 60, 70, 80],
     "weights": {
       "tracker": 30,
       "bomber": 30,
@@ -172,7 +172,7 @@
   "assembly": {
     "_comment": "Play-test 4: at the start of a run the crew is built from a bench. Every part at or below free_rarity is on it without limit; the extras (the default crew's uncommons) once each. RunSim.ASSEMBLE, before the first move only.",
     "free_rarity": 1,
-    "extra": {"ar_saw": 1, "ar_lance": 1, "ch_strider": 1}
+    "extra": {"ar_hammer": 1, "ar_saw": 1, "ar_lance": 1, "ch_strider": 1}
   },
   "levels": {
     "_comment": "Play-test 3: scrap needs something to buy. In the garage a machine buys its next level for costs[level]. bonus[n] is what level n+1 adds (max HP, and that much HP now), and every level also keeps one of `perk_choices` perks (data/run/perks.json, 011). Tuned 2026-09-25: +1 damage on every level took the run bot from 85% to 94%; in 011 the level-2 damage became a perk (Hot Loads).",

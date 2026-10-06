@@ -388,7 +388,7 @@ func _test_new_sites() -> void:
 	var setup: RunSetup = _setup(64)
 	var state: RunState = RunSim.start(setup)
 	state.scrap = 200
-	state.cargo.append("ar_hammer")
+	state.cargo.append("ar_ripper")
 	var c: int = state.cargo.size() - 1
 	state.pending = {"kind": "refinery", "used": false}
 	_check("a refinery refines a common into an uncommon of the same slot", RunSim.apply(state, setup, [RunSim.REFINE, c])
@@ -620,15 +620,16 @@ func _test_tuning() -> void:
 	state.scrap = 50
 	_check("no tuning away from a workshop", not RunSim.apply(state, setup, [RunSim.TUNE, 0, 3, 0]))
 	state.pending = {"kind": "workshop"}
-	_check("tuning a common costs 6 and changes the socket", RunSim.apply(state, setup, [RunSim.TUNE, 0, 3, 0])
-		and state.scrap == 44 and String(state.crew[0]["parts"][3]) == "ar_hammer:a")
+	# 047: the hammer is uncommon now -- 10, not 6.
+	_check("tuning an uncommon costs 10 and changes the socket", RunSim.apply(state, setup, [RunSim.TUNE, 0, 3, 0])
+		and state.scrap == 40 and String(state.crew[0]["parts"][3]) == "ar_hammer:a")
 	_check("a part is tuned only once", not RunSim.apply(state, setup, [RunSim.TUNE, 0, 3, 1]))
 	_check("the option is 0 or 1", not RunSim.apply(state, setup, [RunSim.TUNE, 0, 2, 2]))
 	var unit: GridUnit = RunSim.preview_machine(setup, state.crew[0])
 	_check("the fight uses the tuned numbers (the hammer hits for 4)", int(unit.weapons[1]["damage"]) == 4)
 	state.cargo.append("ar_lance")
 	_check("a part in the hold can be tuned (an uncommon costs 10)",
-		RunSim.apply(state, setup, [RunSim.TUNE, -1, state.cargo.size() - 1, 1]) and state.cargo[-1] == "ar_lance:b" and state.scrap == 34)
+		RunSim.apply(state, setup, [RunSim.TUNE, -1, state.cargo.size() - 1, 1]) and state.cargo[-1] == "ar_lance:b" and state.scrap == 30)
 	var full: int = RunSim.max_hp(setup, state.crew[0])
 	var hp: int = int(state.crew[0]["hp"])
 	_check("a tuning that adds HP adds it now (Reinforced frame: +3)", RunSim.apply(state, setup, [RunSim.TUNE, 0, 0, 0])
@@ -915,9 +916,18 @@ func _test_assembly() -> void:
 	_check("unlocked parts join the assembly bench, once each (maul %d, repair drone %d; elsewhere %d)" % [RunSim.bench_count(opened, "ar_maul"),
 		RunSim.bench_count(opened, "mo_repair"), RunSim.bench_count(setup, "mo_repair")],
 		RunSim.bench_count(opened, "ar_maul") == 1 and RunSim.bench_count(opened, "mo_repair") == 1 and RunSim.bench_count(setup, "mo_repair") == 0)
-	var twin: Array = [["ch_brute", "co_slug", "ar_hammer", "ar_ripper", "mo_scavenger"],
-		["ch_brute", "co_arc", "ar_pulse", "ar_scatter", "mo_ablative"],
+	# 047: the shove arms are uncommon -- the bench has ONE (the hammer), the scattergun none.
+	var shoves: Array = []
+	for id: Variant in setup.pools["arm"]:
+		if int(((setup.parts[id] as Dictionary).get("grid", {}) as Dictionary).get("shove", 0)) > 0 and RunSim.bench_count(setup, String(id)) != 0:
+			shoves.append([id, RunSim.bench_count(setup, String(id))])
+	_check("the bench offers exactly one shove arm, once %s" % [shoves], shoves == [["ar_hammer", 1]])
+	var two_hammers: Array = [["ch_brute", "co_slug", "ar_hammer", "ar_ripper", "mo_scavenger"], defaults[1],
 		["ch_courier", "co_dynamo", "ar_scanner", "ar_hammer", "mo_governor"]]
+	_check("and not a second hammer", not RunSim.apply(RunSim.start(setup), setup, [RunSim.ASSEMBLE, two_hammers]))
+	var twin: Array = [["ch_brute", "co_slug", "ar_ripper", "ar_ripper", "mo_scavenger"],
+		["ch_brute", "co_arc", "ar_pulse", "ar_flail", "mo_ablative"],
+		["ch_courier", "co_dynamo", "ar_scanner", "ar_flail", "mo_governor"]]
 	_check("common parts are on the bench without limit", RunSim.apply(state, setup, [RunSim.ASSEMBLE, twin]))
 	var crew_names: Array = []
 	for spec: Dictionary in (setup.rules["starting_crew"] as Array):

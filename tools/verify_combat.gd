@@ -69,6 +69,7 @@ func _initialize() -> void:
 	_test_modules_033()
 	_test_playtest11()
 	_test_bosses_038()
+	_test_arms_047()
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
 			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core",
 		"warlord_grinder", "warlord_magnet", "warlord_twins"]:
@@ -378,6 +379,83 @@ func _test_weapons_029() -> void:
 		and not CombatSim.can_attack(guard, 0, 0, Hex.neighbor(C, 0)))
 	_attack(guard, 0, 0, ally_at)
 	_check("a shield caster shields the ally it is aimed at (%d)" % guard.unit(1).shield, guard.unit(1).shield == 3)
+
+
+## 047: the flail's arc, the snare, the mine.
+func _test_arms_047() -> void:
+	# Flail: aimed at a neighbour, it hits that hex and the two neighbours of the shooter beside it.
+	var flail: Array = ["ch_brute", "co_dynamo", "ar_flail", "ar_hammer", "mo_scavenger"]
+	var aim: Vector2i = Hex.neighbor(C, 0)
+	var arc: Array[Vector2i] = []
+	for n: Vector2i in Hex.neighbors(aim):
+		if Hex.distance(C, n) == 1:
+			arc.append(n)
+	_check("(precondition) two neighbours of the shooter sit beside the hex aimed at", arc.size() == 2)
+	var behind: Vector2i = Hex.neighbor(aim, 0)
+	var foes: Array = [_unit(HAMMER, aim, 20), _unit(HAMMER, arc[0], 20), _unit(HAMMER, arc[1], 20), _unit(HAMMER, behind, 20)]
+	var swing: CombatState = _fight(_rows(), [_unit(flail, C, 30)], foes)
+	_place(swing, 0, C)
+	_place(swing, 10, aim)
+	_place(swing, 11, arc[0])
+	_place(swing, 12, arc[1])
+	_place(swing, 13, behind)
+	var plan: Dictionary = CombatSim.strike_plan(swing, swing.unit(0), 0, aim)
+	var hit: Array = (plan["hits"] as Array).map(func(h: Dictionary) -> int: return int(h["ref"]))
+	hit.sort()
+	_check("a flail hits the arc of three and not the hex behind (%s)" % [hit], hit == [10, 11, 12])
+
+	# Snare: an enemy's snare holds a crew machine for its next turn; the crew's holds an enemy's move.
+	var snarer: Array = ["ch_hauler", "co_dynamo", "ar_snare", "ar_hammer", "mo_scavenger"]
+	var far: Vector2i = Hex.neighbor(Hex.neighbor(C, 0), 0)
+	var held: CombatState = _fight(_rows(), [_unit(HAMMER, C, 30)], [_unit(snarer, far, 30)])
+	_place(held, 0, C)
+	_place(held, 10, far)
+	held.intents = [{"ref": 10, "w": 0, "x": C.x, "y": C.y, "order": 1}]
+	var foe_hp_before: int = held.unit(0).hp
+	CombatSim.apply(held, [CombatSim.ACT_END, 0, 0, 0])
+	_check("an enemy's snare hits and holds the machine (%d -> %d)" % [foe_hp_before, held.unit(0).hp],
+		held.unit(0).hp < foe_hp_before and held.unit(0).snared and CombatSim.reachable(held, 0).is_empty())
+	_check("a snared machine cannot dash or charge either", not held.unit(0).abilities.any(func(a: Dictionary) -> bool:
+		return ["dash", "charge"].has(String(a["kind"])) and CombatAbilities.usable(held, held.unit(0), held.unit(0).abilities.find(a))))
+	held.intents.clear()
+	CombatSim.apply(held, [CombatSim.ACT_END, 0, 0, 0])
+	_check("and is free again the turn after", not held.unit(0).snared and not CombatSim.reachable(held, 0).is_empty())
+
+	var trap: CombatState = _fight(_rows(), [_unit(snarer, C, 30)], [_unit(HAMMER, far, 30)])
+	_place(trap, 0, C)
+	_place(trap, 10, far)
+	_attack(trap, 0, 0, far)
+	_check("the crew's snare holds an enemy", trap.unit(10).snared)
+	CombatSim.apply(trap, [CombatSim.ACT_END, 0, 0, 0])
+	_check("which does not move on its next move, then is free (%s)" % [_at(trap, 10)], _at(trap, 10) == far and not trap.unit(10).snared)
+
+	# Mine: laid on an open hex, it goes off once under whatever starts a round on it.
+	var layer: Array = ["ch_hauler", "co_dynamo", "ar_minelayer", "ar_hammer", "mo_scavenger"]
+	var spot: Vector2i = Hex.neighbor(Hex.neighbor(C, 3), 3)
+	var mined: CombatState = _fight(_rows(), [_unit(HAMMER, spot, 30)], [_unit(layer, C, 30)])
+	_place(mined, 0, spot)
+	_place(mined, 10, C)
+	var first: Dictionary = CombatSim.strike_plan(mined, mined.unit(10), 0, spot)
+	_check("a mine layer plans a mine on the hex", bool(first["legal"]) and first.has("mine") and (first["hits"] as Array).is_empty())
+	mined.intents = [{"ref": 10, "w": 0, "x": spot.x, "y": spot.y, "order": 1}]
+	var copy: CombatState = mined.clone()
+	var seen: Dictionary = CombatSim.incoming(mined)
+	_check("incoming counts the mine under the machine", (seen.get("units", []) as Array).any(func(e: Dictionary) -> bool: return int(e["ref"]) == 0 and int(e["hp_lost"]) > 0))
+	_check("and a dry run leaves no mine behind", mined.mines.is_empty() and copy.mines.is_empty())
+	var hp: int = mined.unit(0).hp
+	CombatSim.apply(mined, [CombatSim.ACT_END, 0, 0, 0])
+	_check("the mine goes off at the round's start (%d -> %d) and is gone" % [hp, mined.unit(0).hp],
+		mined.unit(0).hp < hp and not mined.mines.has(spot) and _count(mined, 0, GridEv.MINE_BLEW) == 1)
+	var empty: CombatState = _fight(_rows(), [_unit(HAMMER, Vector2i(0, 8), 30)], [_unit(layer, C, 30)])
+	_place(empty, 0, Vector2i(0, 8))
+	_place(empty, 10, C)
+	empty.intents = [{"ref": 10, "w": 0, "x": spot.x, "y": spot.y, "order": 1}]
+	CombatSim.apply(empty, [CombatSim.ACT_END, 0, 0, 0])
+	_check("a mine on an empty hex stays, and the AI reads it as a hazard", empty.mines.has(spot) and empty.hazard(spot.x, spot.y) > 0)
+	_check("a mine cannot be laid on a mine", not bool(CombatSim.strike_plan(empty, empty.unit(10), 0, spot)["legal"]))
+	# Replay: the same actions, the same fight.
+	var again: CombatState = CombatSim.replay(empty.setup, [[CombatSim.ACT_END, 0, 0, 0]])
+	_check("a fight with mines replays the same", again.event_hash() == CombatSim.replay(empty.setup, [[CombatSim.ACT_END, 0, 0, 0]]).event_hash())
 
 
 ## 030: the warlords' rules.

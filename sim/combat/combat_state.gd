@@ -42,6 +42,9 @@ var enraged: Dictionary = {}
 var summons: Dictionary = {}
 ## 028: HOLD's score, HACK's taken terminals, SURVIVE's next wave (hexes marked a round ahead).
 var hold_score: int = 0
+## 047: mines on the board, `{ Vector2i: damage }`. Each goes off once, on whatever starts a
+## round on it.
+var mines: Dictionary = {}
 var hacked: Array = []
 var wave_marks: Array = []
 ## What the player has collected this fight.
@@ -86,6 +89,13 @@ func range_bonus(x: int, y: int) -> int:
 
 
 func hazard(x: int, y: int) -> int:
+	# 047: a mine counts as a hazard for everything that weighs one -- the AI's steps, the
+	# board's incoming totals. It is set off by `CombatSim._round_hazards`, not as ground.
+	return maxi(ground_hazard(x, y), int(mines.get(Vector2i(x, y), 0)))
+
+
+## What the ground itself does to whatever starts a round on (x, y): slag, flooded hexes.
+func ground_hazard(x: int, y: int) -> int:
 	var base: int = setup.hazard[y * width + x]
 	# A hex The Pour flooded (021) is slag for the rest of the fight.
 	return maxi(base, int(flooded.get(Vector2i(x, y), 0)))
@@ -189,6 +199,7 @@ func clone() -> CombatState:
 	c.pulse_by = pulse_by
 	c.enraged = enraged.duplicate()
 	c.hold_score = hold_score
+	c.mines = mines.duplicate()
 	c.hacked = hacked.duplicate()
 	c.wave_marks = wave_marks.duplicate()
 	c.summons = summons.duplicate()
