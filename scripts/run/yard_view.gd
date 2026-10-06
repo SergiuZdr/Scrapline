@@ -235,6 +235,14 @@ func zoom_by(step: float) -> void:
 	_zoom_goal = clampf(_zoom_goal + step, ZOOM_MIN, ZOOM_MAX)
 
 
+## Looks toward a site off screen (046, its edge arrow): halfway between the crew and the site,
+## so both are in view.
+func look_at_site(id: int) -> void:
+	_follow = false
+	_focus_goal = (_crew_centre(_state.current) + site_world(id)) * 0.5
+	_clamp_focus()
+
+
 func recentre() -> void:
 	_follow = true
 	_focus_goal = _crew_centre(_state.current)
@@ -516,7 +524,7 @@ func _style_site(id: int, targets: Array[int]) -> void:
 		entry["smoke"] = _smoke(root)
 
 
-const _ICONS: Dictionary = {"start": "yard", "skirmish": "fight", "elite": "colossus", "warlord": "colossus", "refinery": "foundry", "auction": "store", "arena": "fight",
+const _ICONS: Dictionary = {"start": "yard", "skirmish": "fight", "elite": "colossus", "warlord": "warlord", "refinery": "foundry", "auction": "store", "arena": "fight",
 	"scrapyard": "scrap", "workshop": "foundry", "boss": "gauntlet",
 	"trader": "store", "tower": "yardview", "signal": "doctrine"}
 
