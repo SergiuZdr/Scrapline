@@ -44,6 +44,10 @@ static func summary(parts: Dictionary, id: String, abilities: Dictionary = {}) -
 				line = "flame cone · %d dmg to 4 hexes" % int(g.get("damage", 0))
 			elif shape == "shield":
 				line = "shields an ally %d · -%d per hit" % [int(g.get("range", 1)), int(g.get("damage", 0))]
+			elif shape == "sweep":
+				line = "flail · %d dmg to 3 hexes" % int(g.get("damage", 0))
+			elif shape == "mine":
+				line = "lays a mine %d-%d · %d dmg" % [int(g.get("range_min", 1)), int(g.get("range", 1)), int(g.get("damage", 0))]
 			# A cold weapon says nothing about heat: "+0 heat" is noise on a card.
 			if int(g.get("heat", 0)) > 0:
 				line += " · +%d heat" % int(g.get("heat", 0))
@@ -59,6 +63,8 @@ static func summary(parts: Dictionary, id: String, abilities: Dictionary = {}) -
 					extra.append(key)
 			if int(g.get("pull", 0)) > 0:
 				extra.append("drags")
+			if int(g.get("snare", 0)) > 0:
+				extra.append("snares")
 			if bool(g.get("mark", false)):
 				extra.append("marks")
 			if bool(g.get("tears", false)):
