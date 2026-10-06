@@ -40,6 +40,15 @@
 - The damage preview shows the final number *after* the type wheel, cover and marks, with
   the part that will take damage highlighted.
 
+- **The board fits between the bars (046)**: `_fit_board` measures the far row (with a pylon's
+  height) and the near row on screen and moves the aim / pulls back until the board sits below the
+  banner (and a boss bar) and above the hint line and ability cards (`FIT_TOP`, `FIT_BOTTOM`).
+- **Tags spread sideways too (046)**: a crowded tag group takes the shortest clear move up, down,
+  left or right (sideways up to half its width).
+- **Off-screen sites (046)**: a reachable site off screen or under the crew dock gets a named arrow
+  at the map's edge (`_edge_mark`); clicking it looks that way (`YardView.look_at_site`). Site
+  labels that would reach the controls line go above their site.
+
 ## Ink & Rust (016)
 
 - **Comic panels everywhere** (`UIKit`, `InkBox`): paper cards, a 3 px ink border, a hard offset

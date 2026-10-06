@@ -1,7 +1,7 @@
 # Iteration 046 — Agent play-test fixes
 
-**Status:** in progress
-**Started:** 2026-10-06 · **Finished:** —
+**Status:** done
+**Started:** 2026-10-06 · **Finished:** 2026-10-06
 
 ## Goal
 Everything the agent's play-through of Act 1 (2026-10-05, 10 fights through the Sorting Gate)
@@ -42,19 +42,42 @@ Difficulty (free dodging, one-shot pits) is deliberately left for a measured ite
 8. Tests for 2-4 in `verify_run.gd`; all suites; `run_bot.gd`; screenshots.
 
 ## Acceptance criteria
-- [ ] `verify_run_ui.gd`: a resumed fight is not busy and END TURN is live.
-- [ ] `verify_run.gd`: over many seeds, no reward offers a part in the hold or among the last
+- [x] `verify_run_ui.gd`: a resumed fight is not busy and END TURN is live.
+- [x] `verify_run.gd`: over many seeds, no reward offers a part in the hold or among the last
       `recent_offers`; no legendary offered twice in a run; column 1 never all fights; a workshop
       in the column before the gate; no two linked sites the same service; a frame swap keeps
       the missing HP.
-- [ ] Every other suite passes; `run_bot.gd` still plays (win rate recorded, compared with 045's).
-- [ ] Screenshots: a fight's bottom row clear of the HUD; the hold zone; the gate pylons in frame;
+- [x] Every other suite passes; `run_bot.gd` still plays (win rate recorded, compared with 045's).
+- [x] Screenshots: a fight's bottom row clear of the HUD; the hold zone; the gate pylons in frame;
       a map with an off-screen site arrow; a warlord hoard and a gate win card; the level-up banner.
 
 ## Result
-(after the work)
+Everything in scope is in. Checks:
+- `verify_run_ui` 51/51 -- the new resume check failed without the fix and passes with it.
+- `verify_run` 185/185 -- new: 4 bot runs (177 offers) with no part offered from the hold or the
+  last six and no legendary twice; 200 regions x every act with a non-fight first step, a workshop
+  before the gate and no linked repeats; a refit keeps the missing HP both ways. (A first version
+  played 40 whole bot runs and took over 9 minutes; 4 is enough to see every reward kind.) The old
+  "warlord's hoard holds a legendary some of the time" check now clears the run's seen legendaries
+  between rolls -- it measures the chance, and 046 makes each legendary once a run.
+- `verify_combat` 298, `verify_combat_input` 22, `verify_onboarding` 39, `verify_save` 15,
+  `verify_meta` 77: all pass.
+- **Bot, 150 runs: 58.0%** (038: 52.7%). Act 1 lost 11.3%, Act 2 18.8%, Act 3 19.4%; 5.0 of 15
+  rare+ parts at the last gate. The workshop before every gate and rewards that do not repeat make
+  runs a little easier -- in the direction 047 corrects.
+- Screenshots (`shots/046_*.png`): fights and the gate framed above the HUD with pylon caps; map edge
+  arrows and labels clear of the hint line; THE WARLORD'S HOARD; GATE BROKEN!; the level-up banner;
+  the upgrade header; the title framing.
+- First tries that failed: the calm first column was placed before the no-repeat pass, which then
+  rerolled it into a fight (fixed by running it last); edge arrows showed for sites visible left of
+  the crew dock (now only off screen or under the dock); the title camera first overshot and cut the
+  third machine.
 
 ## Decisions, lessons, open questions
+- Rewards avoid the hold, the last `recent_offers` and seen legendaries; a preference, not a wall.
+- Map rules and refit-keeps-missing-HP as in MEMORY.
+- Lesson: a test that waits on `_busy` must fail when it never clears.
+- Open: the user's eye on the framing, the paper hold zone and the edge arrows.
 
 ## Next
-Difficulty: dodging and pit kills, measured with `run_bot` and `balance_fights`, then the user.
+047, difficulty (the user's pick): shove arms uncommon with one on the starting bench; flail, snare launcher and mine layer; enemy traits earlier in Act 1; measured against this 58.0%.
