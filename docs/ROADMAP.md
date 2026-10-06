@@ -68,6 +68,8 @@ Iterations further ahead are sketches and get refined as we get closer.
 | — | [Play-test 13](playtests/2026-10-03-playtest-13.md) | The comic UI pick, the tag, boss arms, the bay, the difficulty click-through, an unlock without a picture | ✅ |
 | 043 | [Play-test 13 fixes](iterations/043-playtest-13.md) | Pop-art panels and pulp buttons everywhere, NEW RUN at once and a tier ladder with an ending, bosses keep their arms, the bay on three columns with whole machines and smaller arms | ✅ awaiting the play-test |
 | 044 | [Models for the warlord, arena, refinery, auction](iterations/044-more-sites.md) | The four 030-031 site kinds as TRELLIS models, all in one evening | ✅ awaiting the user's look |
+| 046 | [Agent play-test fixes](iterations/046-agent-playtest-fixes.md) | The agent played Act 1: resume soft-lock, rewards that repeat, map rules, refit HP, the board under the HUD, tags, off-screen sites, big moments (bot 58.0%) | ✅ awaiting the play-test |
+| 047 | Difficulty | Shove arms uncommon (one on the bench); flail, snare launcher, mine layer for both sides; enemy traits earlier in Act 1 | ⏭ |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

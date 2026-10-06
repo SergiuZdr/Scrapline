@@ -115,6 +115,9 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-03 | **Difficulty is a ladder, not a menu**: NEW RUN starts at once with the remembered crew and tier; a tier opens by WINNING the one below (`wins_t<N>`) and becomes the default when it opens; the ending (`kind: ending`) is won only on the top tier. CHANGE on the title steps down or switches crew | PT13-5: "hate clicking through the difficulty", yet it should be a system the player must climb. Alternatives offered: a remembered choice alone (no push upward), per-crew ladders (more to track), an in-run "hard road" (the run decides the tier) |
 | 2026-10-03 | **Bosses and warlords keep their arms** (`keeps_arms` on the kind) | PT13-3 |
 | 2026-10-03 | **Arms are drawn at 0.8 of their model** (`ConstructView.ARM_SCALE`) and seated clear of the legs too | PT13-4: arms too big and through the frame; the models are not regenerated |
+| 2026-10-06 | **Rewards never offer a part in the hold or among the last `recent_offers` (6) offered; each legendary once a run** (`RunSim.avoided`, `RunState.offered`/`legends`). A preference, not a wall: if a pool would empty it falls back, except legendaries (a rare stands in) | The agent's Act 1: Coolant Loop offered four times, the same legendary from the warlord and the gate |
+| 2026-10-06 | **Map rules: a non-fight in column 1, a workshop in the column before the gate (`workshop_guaranteed_columns` `-1`), no two linked sites the same service (`no_linked_repeat`)** | The agent's Act 1: three fights to start, two workshops back to back, no repair before the Sorter |
+| 2026-10-06 | **A refit keeps the machine's MISSING HP** (`RunSim._keep_missing`), never below 1 | A full Needle came out of the garage 14/17 on a bigger frame |
 
 ## Lessons carried over from the old codebase
 
@@ -229,8 +232,11 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-03 | A billboard `Label3D`'s `get_aabb()` is a conservative cube -- as tall as its text is wide. Measure a label from its font (`get_multiline_string_size`) |
 | 2026-10-03 | A StyleBox subclass has to EXPORT its variables or `duplicate()` returns defaults; giving it StyleBoxFlat's property names let every screen switch to it without a rewrite |
 | 2026-10-03 | Frame a model after the turn it is shown at: a width measured before the three-quarter turn cut the arms off every crew portrait |
-
 | 2026-10-04 | A background pocket enclosed by ropes or a fence never touches a corner: cut near-pure white by colour too (in patches bigger than a highlight). Paint smoke out of a concept meant for a model |
+| 2026-10-06 | **A test that waits for `_busy` to clear must FAIL when it never does.** `verify_run_ui`'s resume check settled by running out of frames and then drove the fight itself, so a resumed fight that could never be played passed for weeks. The agent found it in one CONTINUE |
+| 2026-10-06 | **An agent can play the real game**: a `--script` driver reading commands from a file (click/hex/site/press-by-label, screenshots, a text dump of the state and the sim's own queries) played Act 1 in about 250 calls. Text beat pixels; screenshots were for looks. Kept in the session scratchpad, not the repo |
+| 2026-10-06 | **Frame the board by measuring it**, not by constants: `_fit_board` projects the far row (with a pylon's height) and the near row and moves the aim until both sit between the top bars and the HUD |
+
 
 ## Open questions
 
@@ -285,3 +291,5 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-03 | **041: which comic direction for panels and buttons -- A pulp, B pop art, C inked panels?** | The user picks | |
 | 2026-10-03 | **042: do the 26 new models read at board distance?** | The user looks | |
 | 2026-10-04 | **044: do the warlord, arena, refinery and auction models read on the map?** | The user looks | |
+| 2026-10-06 | **047: Act 1 is too easy for a careful player (the agent finished it with all three machines; most rounds nothing hit) and a 3-damage shove into a pit kills a 12 HP machine** | The user: shove arms uncommon, more arm types, not pit changes. 047 | |
+| 2026-10-06 | **046: does the board framing, the paper hold zone and the edge arrows read right on the user's screen?** | The user plays | |

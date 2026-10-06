@@ -2,6 +2,33 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [046] Agent play-test fixes — 2026-10-06 ([detail](iterations/046-agent-playtest-fixes.md))
+
+### Fixed
+- **A fight resumed with CONTINUE can be played.** It used to open with END TURN greyed and
+  nothing answering a click.
+- The level-up banner no longer says NEW ARMOUR (it is new plating on the model, not armour) and no
+  longer covers the machine's name.
+
+### Changed
+- **Rewards stop repeating**: salvage, hoards, scrapyards, traders, signals and the auction never
+  offer a part already in the hold or among the last six offered, and each legendary comes up once
+  a run.
+- **The map**: the first step always has something that is not a fight; there is always a workshop
+  in the column before the gate; two linked sites are never the same service.
+- **Swapping a frame keeps what the machine was missing**: a full machine stays full.
+- **The board fits above the HUD**: the crew's own row is no longer under the hint line and ability
+  cards. The gate's pylons stand inside the frame with lit caps.
+- The **hold zone** is drawn in paper with a heavier ring and a larger label (blue is your move).
+  **Live wires** sit on a dim red floor with brighter sparks.
+- **Tags of machines side by side** spread sideways instead of stacking.
+- **A reachable site off screen** gets a named arrow at the edge of the map (click it to look);
+  labels never sit under the controls line.
+- **Big moments**: the warlord has its own icon (a crowned skull); hoards are titled THE WARLORD'S
+  HOARD / THE KEEPER'S HOARD; winning at a gate says GATE BROKEN!, at a warlord WARLORD DOWN!.
+- The upgrade screen's title no longer covers its subtitle, and says "upgrades" throughout; the title
+  screen frames the crew clear of the menu.
+
 ## [044] Models for the warlord, arena, refinery and auction — 2026-10-04 ([detail](iterations/044-more-sites.md))
 
 ### Changed

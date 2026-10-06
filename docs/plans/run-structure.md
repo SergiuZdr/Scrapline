@@ -132,6 +132,12 @@ screen has a scrap alternative** (8 after a fight, 15 at a scrapyard), so leavin
 a choice, not a skip. An elite's guaranteed part comes tuned. Each card says what it would
 beat and which set it would make ("MAKES CINDER x3 ON BRUTE").
 
+**Nothing repeats (046).** No reward (salvage, hoard, scrapyard, trader, signal, auction) offers a
+part already in the hold or among the last `rewards.recent_offers` (6) offered, and each
+legendary comes up once a run (the refinery too). It is a preference: a pool that would empty
+falls back, except that a seen legendary is replaced by a rare. A refit keeps the machine's
+missing HP, so a bigger frame never arrives damaged.
+
 ## Workshops (011): tuning
 
 Besides patching, rebuilding and hold room, a workshop **tunes** a part, fitted or in the
@@ -186,6 +192,9 @@ parts, and it is spent at workshops and traders. It resets every run.
 - Each region is built from a **hand-authored layout template** with seeded site placement
   and seeded site types, under rules such as "a workshop never sits beside the start"
   and "at least 2 routes to the boss gate".
+- **Rules (046):** column 1 always has a site that is not a fight (`first_column_calm`); a
+  workshop stands in column 3 and in the column before the gate (`workshop_guaranteed_columns`,
+  `-1` = before the gate); no two linked sites are the same service (`no_linked_repeat`).
 - The whole run comes from one **run seed**, so a seed can be shared and replayed
   offline. A daily seed is possible later with no server, as a local challenge.
 
