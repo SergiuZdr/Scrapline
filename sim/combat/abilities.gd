@@ -70,6 +70,9 @@ static func usable(state: CombatState, u: GridUnit, i: int) -> bool:
 	var ability: Dictionary = u.abilities[i]
 	if not bool(ability["free"]) and u.acted:
 		return false
+	# 047: a snared machine cannot move -- not on foot, not by a dash or a charge.
+	if u.snared and ["dash", "charge"].has(String(ability["kind"])):
+		return false
 	match String(ability["kind"]):
 		"charge":
 			# Usable after a move (play-test 3: charging INSTEAD of moving made it weak).

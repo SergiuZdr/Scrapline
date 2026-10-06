@@ -3,7 +3,7 @@
     "id": "ar_hammer",
     "name": "Breaker Hammer",
     "slot": "arm",
-    "rarity": 1,
+    "rarity": 2,
     "maker": "kessler",
     "attack": 26,
     "heat_per_attack": 2,
@@ -32,7 +32,8 @@
           "heat": -1
         }
       }
-    ]
+    ],
+    "_047": "047 (the agent play-test: shoves into pits were free in Act 1): uncommon -- a shove is a find, not a given"
   },
   {
     "id": "ar_lance",
@@ -248,7 +249,7 @@
     "id": "ar_scatter",
     "name": "Scattergun",
     "slot": "arm",
-    "rarity": 1,
+    "rarity": 2,
     "maker": "vektor",
     "attack": 18,
     "heat_per_attack": 3,
@@ -277,7 +278,8 @@
           "damage": 1
         }
       }
-    ]
+    ],
+    "_047": "047 (the agent play-test: shoves into pits were free in Act 1): uncommon -- a shove is a find, not a given"
   },
   {
     "id": "ar_mortar",
@@ -588,5 +590,103 @@
     "_037": "play-test 11: this arm deals its OWN damage type, whatever core drives it",
     "look": "rail_lance",
     "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
+  },
+  {
+    "id": "ar_flail",
+    "name": "Chain Flail",
+    "slot": "arm",
+    "rarity": 1,
+    "maker": "kessler",
+    "mesh": "res://art/parts/ar_hammer.glb",
+    "model": "ar_maul",
+    "weapon_class": "hammer",
+    "flavour": "A crane hook on a chain. It does not need to hit the one you aimed at.",
+    "grid": {
+      "shape": "sweep",
+      "range": 1,
+      "damage": 3,
+      "heat": 1
+    },
+    "tuning": [
+      {
+        "name": "Heavier Hook",
+        "grid": {
+          "damage": 1
+        }
+      },
+      {
+        "name": "Greased Chain",
+        "grid": {
+          "heat": -1
+        }
+      }
+    ],
+    "_047": "047: shape `sweep` -- the hex aimed at and the two beside it at the same distance. One step sideways is not always out of it."
+  },
+  {
+    "id": "ar_snare",
+    "name": "Snare Launcher",
+    "slot": "arm",
+    "rarity": 2,
+    "maker": "vektor",
+    "mesh": "res://art/parts/ar_harpoon.glb",
+    "model": "ar_harpoon",
+    "weapon_class": "lance",
+    "flavour": "Bolas of cable. Whatever it wraps stays where it was standing.",
+    "grid": {
+      "shape": "shot",
+      "range": 3,
+      "damage": 2,
+      "heat": 1,
+      "snare": 1
+    },
+    "tuning": [
+      {
+        "name": "Weighted Bolas",
+        "grid": {
+          "damage": 1
+        }
+      },
+      {
+        "name": "Long Barrel",
+        "grid": {
+          "range": 1
+        }
+      }
+    ],
+    "_047": "047: `snare` -- what it hits cannot move on its side's next move."
+  },
+  {
+    "id": "ar_minelayer",
+    "name": "Mine Layer",
+    "slot": "arm",
+    "rarity": 2,
+    "maker": "cinder",
+    "mesh": "res://art/parts/ar_mortar.glb",
+    "model": "ar_mortar",
+    "weapon_class": "mortar",
+    "flavour": "Lobs a charge onto the ground and waits for somebody to stand on it.",
+    "grid": {
+      "shape": "mine",
+      "range_min": 1,
+      "range": 3,
+      "damage": 4,
+      "heat": 1
+    },
+    "tuning": [
+      {
+        "name": "Bigger Charge",
+        "grid": {
+          "damage": 1
+        }
+      },
+      {
+        "name": "Long Throw",
+        "grid": {
+          "range": 1
+        }
+      }
+    ],
+    "_047": "047: shape `mine` -- a mine on an open hex; it goes off once on whatever starts a round there."
   }
 ]
