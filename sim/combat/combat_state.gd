@@ -208,6 +208,17 @@ func clone() -> CombatState:
 	return c
 
 
+## A copy with its history (play-test 14): the scene keeps one from the start of each turn, so
+## UNDO applies the turn's own actions to it instead of replaying the fight from round 1 (which
+## took over a second by round 8). `verify_combat` plays every fight on from snapshots and
+## requires the full fight's hash, so a field `clone` forgets fails there, not in someone's undo.
+func snapshot() -> CombatState:
+	var c: CombatState = clone()
+	c.events = events.duplicate()
+	c.action_count = action_count
+	return c
+
+
 ## FNV-1a over the whole event stream. Two runs of the same fight with the same actions
 ## must produce the same value, on every machine.
 func event_hash() -> String:

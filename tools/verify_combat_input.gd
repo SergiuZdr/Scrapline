@@ -79,11 +79,21 @@ func _run() -> void:
 
 	# --- Undo with the on-screen button.
 	var hud: Control = _scene.get("_hud")
+	var untouched: Node = ((_scene.get("_views") as Dictionary)[1] as Dictionary)["model"]
+	var moved_model: Node = ((_scene.get("_views") as Dictionary)[0] as Dictionary)["model"]
 	_click_control(hud.get("_undo"))
 	await _settle()
 	state = _scene.get("_state")
 	_check("UNDO button puts it back", state.unit(0).x == start.x and state.unit(0).y == start.y)
 	_check("UNDO leaves no action in the log", (_scene.get("_actions") as Array).is_empty())
+	# Play-test 14: undo used to rebuild every machine. A machine whose look did not change keeps
+	# its model -- and the one that moved is snapped back to its hex, not left where it walked.
+	var views: Dictionary = _scene.get("_views")
+	_check("UNDO keeps the models of machines it did not change (no rebuild)",
+		(views[1] as Dictionary)["model"] == untouched and (views[0] as Dictionary)["model"] == moved_model)
+	var snapped: Vector3 = ((views[0] as Dictionary)["root"] as Node3D).position
+	var home: Vector3 = _scene.call("_to_world", start.x, start.y)
+	_check("UNDO snaps the moved machine back onto its hex", Vector2(snapped.x - home.x, snapped.z - home.z).length() < 0.01)
 
 	# --- An empty hex beside a melee unit is a MOVE when unarmed.
 	_click_tile(start.x, start.y)
@@ -157,6 +167,33 @@ func _run() -> void:
 	state = _scene.get("_state")
 	_check("SPACE ends the turn and the enemy fires", state.round_number == 2 or state.outcome != CombatState.ONGOING)
 	_check("undo cannot cross into the previous turn", int(_scene.get("_turn_start")) == (_scene.get("_actions") as Array).size())
+
+	# --- Play-test 14: an undo in a later turn starts from the turn's snapshot, not round 1.
+	state = _scene.get("_state")
+	var mover: GridUnit = null
+	for u: GridUnit in state.crew(GridUnit.TEAM_PLAYER):
+		if not CombatSim.reachable(state, u.ref).is_empty():
+			mover = u
+			break
+	if state.outcome == CombatState.ONGOING and mover != null:
+		var from := Vector2i(mover.x, mover.y)
+		_click_tile(mover.x, mover.y)
+		await _settle()
+		var to: Vector2i = CombatSim.reachable(state, mover.ref).keys()[0]
+		_click_tile(to.x, to.y)
+		await _settle()
+		state = _scene.get("_state")
+		_check("(precondition) a machine moved in round 2", state.unit(mover.ref).x == to.x and state.unit(mover.ref).y == to.y)
+		var t0: int = Time.get_ticks_usec()
+		_scene.call("_undo")
+		var took: int = Time.get_ticks_usec() - t0
+		await _settle()
+		state = _scene.get("_state")
+		var fresh: CombatState = CombatSim.replay(_scene.get("_setup"), _scene.get("_actions"))
+		_check("a round-2 UNDO puts it back, and matches a full replay exactly",
+			state.unit(mover.ref).x == from.x and state.unit(mover.ref).y == from.y and fresh.event_hash() == state.event_hash())
+		print("    round-2 undo took %d ms" % (took / 1000))
+		_check("a round-2 UNDO takes under 150 ms", took < 150000)
 
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
