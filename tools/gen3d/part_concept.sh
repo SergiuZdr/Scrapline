@@ -12,6 +12,7 @@ id=$1; shift
 prompt=$(python3 -c "import json,sys; c=json.load(open('tools/gen3d/part_concepts.json')); print(c['parts'][sys.argv[1]] + ', ' + c['style'])" $id) || { echo "no prompt for $id"; exit 1; }
 mkdir -p art/concepts/machines
 for seed in $@; do
+  [ -f art/concepts/machines/${id}_$seed.png ] && continue   # a queue retry keeps what it has
   work=$(mktemp -d)
   args=$(python3 -c "import json,sys; print(json.dumps([['infer', [sys.argv[1], int(sys.argv[2]), False, 1024, 1024, 4]]]))" "$prompt" $seed)
   STEP_LIMIT=240 python3 tools/gen3d/gradio_queue.py $B $work "$args" > $work/log 2>&1
