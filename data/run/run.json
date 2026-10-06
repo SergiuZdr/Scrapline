@@ -158,6 +158,7 @@
       2
     ]
   },
+  "arena_terrain": {"_comment": "Play-test 14: cover scattered into the middle rows of a boss or warlord board (they were authored 8x8 and padded with bare rows). Same shape as `terrain`; an act may override it.", "rubble": [2, 3], "scrap": [1, 2], "crates": [1, 2], "barrels": [1, 1]},
   "board": {"rows": 2, "cols": 2, "_comment": "032 (play-test 10: 'make the battlefield bigger'): every run board is its template plus `rows` blank rows between the sides and `cols` columns at the edges. Terrain, wires, piles and terminals go in every row but the two at each end."},
   "kinds": {
     "_comment": "Chance, per enemy and by column, that it has special rules, and which rules.",

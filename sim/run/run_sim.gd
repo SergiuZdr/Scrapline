@@ -1374,6 +1374,10 @@ static func _make_gate_fight(state: RunState, setup: RunSetup, site_id: int, tem
 			escort["bonus"] = (enemies_rules["bonus"] as Dictionary).duplicate()
 		enemy.append(escort)
 	fight["enemy"] = enemy
+	# Play-test 14 ("boss and mini boss battlefields look too empty"): an authored arena padded to
+	# the run's board was mostly bare hexes. `arena_terrain` scatters cover into its middle rows,
+	# after everything else is rolled, never on a start.
+	fight["rows"] = _scatter_terrain(rules_of(state, setup).get("arena_terrain", {}), rng, template)
 	return fight
 
 
@@ -1384,10 +1388,11 @@ static func _scatter_terrain(terrain: Dictionary, rng: SimRNG, template: Diction
 	var taken: Array = []
 	for spec: Dictionary in (template.get("player", []) as Array) + (template.get("enemy", []) as Array):
 		taken.append(Vector2i(int(spec["x"]), int(spec["y"])))
-	for pair: Array in [["barrels", "b"], ["crates", "c"], ["pits", "o"], ["slag", "l"], ["flues", "f"]]:
+	for pair: Array in [["barrels", "b"], ["crates", "c"], ["pits", "o"], ["slag", "l"], ["flues", "f"],
+			["rubble", "r"], ["scrap", "s"]]:
 		# A kind of terrain an act does not name draws nothing from the dice (025: Acts 1 and 2
-		# roll exactly as they did before flues existed).
-		if pair[0] == "flues" and not terrain.has("flues"):
+		# roll exactly as they did before flues existed; play-test 14: nor before rubble and scrap).
+		if (pair[0] == "flues" or pair[0] == "rubble" or pair[0] == "scrap") and not terrain.has(pair[0]):
 			continue
 		var span: Array = terrain.get(pair[0], [0, 0])
 		var count: int = rng.range_int(int(span[0]), int(span[1]))
