@@ -660,6 +660,10 @@ func _build_stats() -> void:
 			reach = "flame cone"
 		elif shape == "shield":
 			reach = "shields an ally %d" % int(w["range"])
+		elif shape == "sweep":
+			reach = "flail (3 hexes)"
+		elif shape == "mine":
+			reach = "lays a mine %d-%d" % [int(w["range_min"]), int(w["range"])]
 		var dmg: int = int(w["damage"]) + u.damage_bonus + (u.melee_bonus if shape == "melee" else 0)
 		var types: Array = Run.setup.combat_rules.get("damage_types", [])
 		var t: int = int(w.get("dtype", -1)) if int(w.get("dtype", -1)) >= 0 else u.damage_type
@@ -668,7 +672,7 @@ func _build_stats() -> void:
 		for key: String in ["pierce", "chain"]:
 			if int(w.get(key, 0)) > 0:
 				bits.append("%s %d" % [key, int(w[key])])
-		for key: String in ["splash", "shove"]:
+		for key: String in ["splash", "shove", "snare"]:
 			if int(w.get(key, 0)) > 0:
 				bits.append(key)
 		body.add_child(UIKit.fit(_label(String(w["name"]).to_upper(), NUM_NAME, UIKit.INK, UIKit.font_comic()), width, 1, 14))
