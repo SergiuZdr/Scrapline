@@ -32,7 +32,10 @@
   "elite_from_column": 2,
   "warlord_column": 5,
   "_warlord": "030: each act has one warlord site in this column (never its only site): its board (`warlord: true`, by act), `enemies.warlord_escorts`, `rewards.warlord_scrap` and a hoard with a legendary.",
-  "workshop_guaranteed_columns": [3, 6],
+  "workshop_guaranteed_columns": [3, -1],
+  "_workshops": "A workshop in each listed column; -1 is the column before the gate (046). `no_linked_repeat`: no two linked sites are the same of these. `first_column_calm`: what one first-step site becomes when they are all fights (the first not already next to it).",
+  "no_linked_repeat": ["workshop", "trader", "scrapyard", "tower", "signal", "refinery", "auction"],
+  "first_column_calm": ["scrapyard", "trader", "signal"],
   "front": {
     "every": 2,
     "damage": 2,
@@ -102,6 +105,8 @@
     "warlord_legend_pct": 35,
     "hoard_scrap": 25,
     "salvage_scrap": 8,
+    "recent_offers": 6,
+    "_recent_offers": "046: no reward offers a part in the hold or among the last `recent_offers` parts offered, while anything else is left; a legendary comes up once a run.",
     "_salvage": "011: every salvage screen offers `choices` parts from different slots (the second leaning to a maker the crew builds sets from) or `salvage_scrap` scrap instead; an elite's first part comes tuned."
   },
   "workshop": {
