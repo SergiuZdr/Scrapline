@@ -1,0 +1,27 @@
+{
+  "id": "arms047",
+  "name": "New Arms",
+  "_comment": "047: a staged board for screenshots of the flail, the snare and the mine layer. NOT content (tools/frames, never drawn by a run).",
+  "rows": [
+    "........",
+    "........",
+    "........",
+    "........",
+    "........",
+    "........",
+    "........",
+    "........"
+  ],
+  "player": [
+    {"name": "Knuckles", "parts": ["ch_brute", "co_slug", "ar_flail", "ar_hammer", "mo_scavenger"], "x": 3, "y": 5},
+    {"name": "Needle", "parts": ["ch_hauler", "co_furnace", "ar_snare", "ar_lance", "mo_ablative"], "x": 5, "y": 7},
+    {"name": "Relay", "parts": ["ch_strider", "co_arc", "ar_scanner", "ar_minelayer", "mo_governor"], "x": 1, "y": 7}
+  ],
+  "enemy": [
+    {"name": "Brute", "parts": ["ch_brute", "co_slug", "ar_ripper", "ar_cleaver", "mo_scavenger"], "x": 3, "y": 4, "hp": 9},
+    {"name": "Scrapper", "parts": ["ch_scrapper", "co_slug", "ar_ripper", "ar_cleaver", "mo_scavenger"], "x": 4, "y": 4, "hp": 9},
+    {"name": "Courier", "parts": ["ch_courier", "co_arc", "ar_ripper", "ar_cleaver", "mo_scavenger"], "x": 2, "y": 4, "hp": 9},
+    {"name": "Sapper", "parts": ["ch_skirmisher", "co_slug", "ar_minelayer", "ar_snare", "mo_scavenger"], "x": 5, "y": 1}
+  ],
+  "objective": {"type": "rout"}
+}
