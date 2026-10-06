@@ -342,6 +342,7 @@ func _opening(objective: String) -> void:
 	_spawn_marker(-1, cell)
 	_arrival_marker(cell)
 	_flood_marker(cell)
+	_mine_marker(cell)
 	_terminal(Hex.neighbor(cell, 3) if _state.inside(Hex.neighbor(cell, 3)) else cell, false)
 	_throw_arrow(cell, Hex.neighbor(cell, 0))
 	_intent_marker_bar(at, at + Vector3(1.5, 0, 0))
@@ -1365,6 +1366,8 @@ func _set_tag(view: Dictionary, u: GridUnit) -> void:
 		status.append("ENRAGED")
 	if u.marked:
 		status.append("MARKED")
+	if u.snared:
+		status.append("SNARED")
 	if u.seized:
 		status.append("SEIZED")
 	elif u.overheated:
@@ -1777,6 +1780,23 @@ func _animate(e: Array) -> void:
 			_refresh_tag(target)
 			_float_text(_unit_pos(target) + Vector3(0, 2.4, 0), "MARKED", UIKit.GOLD)
 			await _wait(0.2)
+		GridEv.SNARED:
+			_refresh_tag(target)
+			_float_text(_unit_pos(target) + Vector3(0, 2.4, 0), "SNARED", COL_PAD_DANGER)
+			Audio.play("clang", -10.0)
+			await _wait(0.2)
+		GridEv.MINE_LAID:
+			_mine_marker(cell)
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.2, 0), "MINE", COL_PAD_DANGER)
+			Audio.play("warn", -10.0)
+			await _wait(0.12)
+		GridEv.MINE_BLEW:
+			var blast: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y) + 0.2, 0)
+			_vfx.burst(blast, Color("ff7a3c"), 1.3)
+			_vfx.fireball(blast, 0.5)
+			_letters(blast, "BOOM!", Ink.ACTION)
+			Audio.play("thump", -5.0)
+			await _wait(0.12)
 		GridEv.PART_TORN:
 			await _torn(target, int(e[GridEv.F_V1]))
 		GridEv.PILE_DROPPED:
@@ -1993,6 +2013,19 @@ func _attack(ref: int, aim: Vector2i, w: int, end: Vector2i) -> void:
 		"shield":
 			_tracer(muzzle, _to_world(aim.x, aim.y) + Vector3(0, 0.8, 0), Ink.YOURS)
 			Audio.play("shield", -8.0)
+		"sweep":
+			# 047: the flail -- one swing across the arc it covers.
+			var d: int = Hex.distance(Vector2i(u.x, u.y), aim)
+			for n: Vector2i in [aim] + Hex.neighbors(aim):
+				if _state.inside(n) and Hex.distance(Vector2i(u.x, u.y), n) == d:
+					_vfx.burst(_to_world(n.x, n.y) + Vector3(0, 0.4, 0), colour, 0.8)
+			Audio.play("clang", -7.0)
+		"mine":
+			# 047: lobbed short, it lands and sits.
+			var spot: Vector3 = _to_world(aim.x, aim.y) + Vector3(0, 0.2, 0)
+			Audio.play("lob", -9.0)
+			await _lob(muzzle, spot, colour)
+			Audio.play("clang", -9.0)
 		"lob":
 			var landing: Vector3 = _to_world(aim.x, aim.y) + Vector3(0, 0.4, 0)
 			_vfx.muzzle_flash(muzzle, landing, colour.lightened(0.5))
@@ -2447,6 +2480,9 @@ func _refresh() -> void:
 	# The Pour (021): hexes already slag, and the ones that flood next round.
 	for cell: Variant in _state.flooded:
 		_flood_marker(cell)
+	# 047: mines waiting on the board.
+	for cell: Variant in _state.mines:
+		_mine_marker(cell)
 	for cell: Vector2i in _state.pour_marks:
 		_mark(_threat_quads, cell, COL_THREAT)
 		var top: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
@@ -2909,6 +2945,10 @@ func _weapon_detail(u: GridUnit, w: int) -> String:
 			bits.append("melee")
 		"cone":
 			bits.append("flame cone")
+		"sweep":
+			bits.append("flail: 3 hexes")
+		"mine":
+			bits.append("lays a mine %d-%d" % [int(weapon["range_min"]), CombatSim.weapon_reach(_state, u, w)])
 		"shield":
 			bits.append("shield ally %d" % CombatSim.weapon_reach(_state, u, w))
 		"shot":
@@ -2924,6 +2964,8 @@ func _weapon_detail(u: GridUnit, w: int) -> String:
 			bits.append(key)
 	if int(weapon.get("pull", 0)) > 0:
 		bits.append("drags")
+	if int(weapon.get("snare", 0)) > 0:
+		bits.append("snares")
 	if bool(weapon["mark"]):
 		bits.append("marks")
 	if bool(weapon["tears"]):
@@ -3211,6 +3253,36 @@ func _spawn_marker(hive_ref: int, cell: Vector2i) -> void:
 	beam.set_meta("intent", true)
 	_marks_root.add_child(beam)
 	beam.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
+
+
+## A mine on the board (047): a squat ink disc with a lit red cap and a hatched danger ring --
+## it reads in grey (a dark disc, a pale ring) and says "do not start a round here".
+func _mine_marker(cell: Vector2i) -> void:
+	var at: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
+	var root := Node3D.new()
+	root.position = at
+	root.set_meta("intent", true)
+	var body := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = 0.2
+	disc.bottom_radius = 0.26
+	disc.height = 0.1
+	disc.radial_segments = 10
+	body.mesh = disc
+	body.position.y = 0.05
+	body.material_override = Ink.toon(Color("23201e"), "clean")
+	Ink.line(body, Ink.LINE_ACT)
+	root.add_child(body)
+	var cap := MeshInstance3D.new()
+	var dome := SphereMesh.new()
+	dome.radius = 0.08
+	dome.height = 0.08
+	cap.mesh = dome
+	cap.position.y = 0.12
+	cap.material_override = Ink.glow(COL_PAD_DANGER, 2.0)
+	root.add_child(cap)
+	_marks_root.add_child(root)
+	_zone_ring(cell, COL_PAD_DANGER, 0.8)
 
 
 ## A hex The Pour has flooded (021): a pool of slag over the tile, for the rest of the fight.
