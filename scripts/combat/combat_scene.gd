@@ -81,6 +81,11 @@ const MODEL_SCALE: float = 1.45
 ## The camera aims this far toward the near edge, so the side panels and the bottom bar
 ## sit over the apron rather than over the first row of tiles.
 const AIM_NEAR: float = 0.9
+## Where the board must fit on screen, as fractions of the view's height (046): below the round
+## banner (and a boss's bar), above the hint line and the ability cards.
+const FIT_TOP: float = 0.1
+const FIT_TOP_BOSS: float = 0.15
+const FIT_BOTTOM: float = 0.79
 
 ## How long each kind of event holds the queue, in seconds. Play-test 1 called the old
 ## timings laggy (0.13 s a tile, a pause before every strike, half a second per death):
@@ -273,6 +278,15 @@ func _start_fight() -> void:
 		# without this the resumed turn could not be played at all.
 		_busy = false
 	_after_events()
+
+
+## 046 (the agent play-test: breaking the act's gate read exactly like any other fight): the
+## keeper's kind names the win.
+func _win_headline() -> String:
+	for u: GridUnit in _setup.units:
+		if u.team == GridUnit.TEAM_ENEMY and BIG_KINDS.has(u.kind):
+			return "GATE BROKEN!" if BOSS_KINDS.has(u.kind) else "WARLORD DOWN!"
+	return ""
 
 
 ## The opening card over the board while one of every effect is drawn behind it (play-test 7).
@@ -545,16 +559,45 @@ func _frame_camera() -> void:
 	# Fit the board's larger side into the view, then leave the rest to the zoom control.
 	var span: float = maxf(_origin.x, _origin.y) * 2.0 + HEX * 2.0
 	_zoom = clampf(span * 1.5, ZOOM_MIN, ZOOM_MAX)
-	# 038: a boss's bar sits across the top, so a boss fight is framed a little further out and
-	# lower -- the far row (where the boss stands) clears the bar.
 	_boss_shift = 0.0
+	var boss: bool = false
 	if _setup != null:
 		for u: GridUnit in _setup.units:
 			if u.team == GridUnit.TEAM_ENEMY and BIG_KINDS.has(u.kind):
-				_boss_shift = HEX * 0.8
-				_zoom = clampf(_zoom * 1.1, ZOOM_MIN, ZOOM_MAX * 1.1)
-				break
+				boss = true
 	_place_camera()
+	_fit_board(boss)
+
+
+## 046 (the agent play-test: the crew's own row stood under the HUD's hint and ability cards in
+## every fight): the board is fitted by MEASURING where its near and far rows land on screen --
+## the far row (and anything tall on it, a gate pylon) below the top bars, the near row's
+## machines above the HUD -- moving the aim, then pulling back only if it cannot fit.
+func _fit_board(boss: bool) -> void:
+	if _setup == null or not is_inside_tree():
+		return
+	var view: Vector2 = get_viewport().get_visible_rect().size
+	var top_limit: float = view.y * (FIT_TOP_BOSS if boss else FIT_TOP)
+	var bottom_limit: float = view.y * FIT_BOTTOM
+	var far_z: float = _to_world(0, 0).z - HEX
+	var near_z: float = _to_world(0, _setup.height - 1).z + HEX * 0.9
+	var half_w: float = _origin.x + HEX
+	for i: int in 80:
+		_place_camera()
+		var top: float = INF
+		var bottom: float = -INF
+		for x: float in [-half_w, 0.0, half_w]:
+			# The far edge with a pylon's height on it; the near edge at the ground.
+			top = minf(top, _camera.unproject_position(Vector3(x, 1.6, far_z)).y)
+			bottom = maxf(bottom, _camera.unproject_position(Vector3(x, 0.0, near_z)).y)
+		if bottom - top > bottom_limit - top_limit and _zoom < ZOOM_MAX * 1.2:
+			_zoom = minf(_zoom * 1.03, ZOOM_MAX * 1.2)
+		elif bottom > bottom_limit + 4.0:
+			_boss_shift -= HEX * 0.05
+		elif top < top_limit - 4.0:
+			_boss_shift += HEX * 0.05
+		else:
+			break
 
 
 func _rotate(step: int) -> void:
@@ -690,8 +733,14 @@ func _dress_tile(id: String, x: int, y: int, top: float) -> void:
 			_board.add_child(pool)
 		"wire":
 			# LIVE WIRES (028): a downed cable across the hex, hazard-striped, sparking.
+			# 046: it read as dark scrap. A dim danger-red floor under it -- this hex hurts.
+			var under := MeshInstance3D.new()
+			under.mesh = _hex_mesh(HEX * 0.58, 0.02)
+			under.position = at + Vector3(0, 0.01, 0)
+			under.material_override = Ink.glow(COL_PAD_DANGER, 0.35)
+			_board.add_child(under)
 			var cable: Material = Ink.toon(Color("1d1c1a"), "clean")
-			var stripe: Material = Ink.glow(Color("ffc43d"), 0.6)
+			var stripe: Material = Ink.glow(Color("ffc43d"), 1.2)
 			for k: int in 3:
 				var seg := MeshInstance3D.new()
 				var box := BoxMesh.new()
@@ -970,6 +1019,16 @@ func _spawn_prop(cell: Vector2i, kind: String) -> void:
 			band.position.y = 0.45 + 0.4 * i
 			band.material_override = Ink.glow(COL_PAD_DANGER, 1.4)
 			root.add_child(band)
+		# 046: a lit cap, so the thing the opening strip says to break first stands out.
+		var cap := MeshInstance3D.new()
+		var dome := SphereMesh.new()
+		dome.radius = 0.26
+		dome.height = 0.32
+		cap.mesh = dome
+		cap.position.y = 1.56
+		cap.material_override = Ink.glow(COL_PAD_DANGER, 2.0)
+		Ink.line(cap, Ink.LINE_ACT)
+		root.add_child(cap)
 	else:
 		# A crate wall: steel boxes, strapped, outlined.
 		var steel: Material = Ink.toon(Ink.STEEL)
@@ -1514,8 +1573,28 @@ func _declutter() -> void:
 		# further went all the way to the banner. Past that, it stays and may overlap.
 		# Play-test 11: the limit is the TAG's height, not the group's -- a group counts the damage
 		# badges hanging by its machine, and a tall group let a name climb far above its machine.
-		if absf(shift) > maxf(float(group["tag_h"]), 24.0) + 4.0:
+		var limit_y: float = maxf(float(group["tag_h"]), 24.0) + 4.0
+		if absf(shift) > limit_y:
 			shift = 0.0
+		# 046 (the agent play-test: two machines side by side stacked their tags into one block):
+		# sideways too, up to half the group's width, when that is the shorter way or the only one.
+		var limit_x: float = box.size.x * 0.5 + 4.0
+		var side: float = 0.0
+		var clear: bool = shift != 0.0 or not _overlaps(box, placed)
+		for sense: float in [1.0, -1.0]:
+			var dx: float = _clear_shift_x(box, placed, sense)
+			if dx != 0.0 and absf(dx) <= limit_x and (not clear or absf(dx) < absf(shift)) and (side == 0.0 or absf(dx) < absf(side)):
+				side = dx
+		if side != 0.0:
+			var at: Vector3 = group["anchor"]
+			var right: Vector3 = _camera.global_transform.basis.x
+			var per_px: float = absf(_camera.unproject_position(at + right).x - _camera.unproject_position(at).x)
+			for node: Variant in group["nodes"]:
+				var n := node as Node3D
+				if n != null and is_instance_valid(n):
+					n.global_position += right * (side / maxf(per_px, 1.0))
+			placed.append(Rect2(box.position + Vector2(side, 0), box.size))
+			continue
 		if shift != 0.0:
 			# Screen pixels per metre of world height at this group, from the camera itself.
 			var anchor: Vector3 = group["anchor"]
@@ -1526,6 +1605,28 @@ func _declutter() -> void:
 				if n != null and is_instance_valid(n):
 					n.position = (n.get_meta("base_pos", n.position) as Vector3) - Vector3(0, down, 0)
 		placed.append(Rect2(box.position + Vector2(0, shift), box.size))
+
+
+func _overlaps(box: Rect2, placed: Array[Rect2]) -> bool:
+	for other: Rect2 in placed:
+		if box.intersects(other):
+			return true
+	return false
+
+
+## The same as `_clear_shift`, sideways: `sense` +1 right, -1 left.
+func _clear_shift_x(box: Rect2, placed: Array[Rect2], sense: float) -> float:
+	var shift: float = 0.0
+	for pass_index: int in 8:
+		var moved: bool = false
+		for other: Rect2 in placed:
+			var here := Rect2(box.position + Vector2(shift, 0), box.size)
+			if here.intersects(other):
+				shift = (other.end.x - box.position.x + 3.0) if sense > 0.0 else (other.position.x - box.end.x - 3.0)
+				moved = true
+		if not moved:
+			return shift
+	return 0.0
 
 
 ## How far (in screen pixels, signed by `sense`: +1 down, -1 up) `box` must move to clear every
@@ -2298,7 +2399,7 @@ func _after_events() -> void:
 		if _run_mode:
 			body += "\n\n" + _recap_text()
 		Audio.play("win" if _state.outcome == CombatState.WON else "lose", -6.0, 0.0)
-		_hud.show_result(_state.outcome == CombatState.WON, body, _run_mode)
+		_hud.show_result(_state.outcome == CombatState.WON, body, _run_mode, _win_headline())
 		return
 	if _selected < 0 or not _unit_has_moves(_selected):
 		_selected = _next_ready_unit()
@@ -3216,11 +3317,13 @@ func _objective_marks() -> void:
 	var cells: Array = o.get("cells", [])
 	match String(o.get("type", "")):
 		"hold":
+			# 046: paper, not blue -- blue is "yours" and the move range, and the zone read as
+			# three more hexes to walk to. A heavier ring and a label that can be read.
 			for cell: Vector2i in cells:
-				_zone_ring(cell, Ink.YOURS)
+				_zone_ring(cell, Ink.PAPER, 1.6)
 			var first: Vector2i = cells[0]
 			_marker_label("HOLD ZONE · %d / %d" % [_state.hold_score, int(o.get("need", 0))],
-				_to_world(first.x, first.y) + Vector3(0, 0.1, HEX * 0.75), Ink.YOURS.lightened(0.3), 28)
+				_to_world(first.x, first.y) + Vector3(0, 0.1, HEX * 0.75), Ink.PAPER, 40)
 		"hack":
 			for cell: Vector2i in cells:
 				_terminal(cell, _state.hacked.has(cell))
@@ -3229,10 +3332,10 @@ func _objective_marks() -> void:
 		_arrival_marker(cell, "WAVE NEXT TURN · stand here to block")
 
 
-func _zone_ring(cell: Vector2i, colour: Color) -> void:
+func _zone_ring(cell: Vector2i, colour: Color, weight: float = 1.0) -> void:
 	var ring := MeshInstance3D.new()
 	var torus := TorusMesh.new()
-	torus.inner_radius = HEX * 0.78
+	torus.inner_radius = HEX * (0.9 - 0.12 * weight)
 	torus.outer_radius = HEX * 0.9
 	torus.ring_segments = 6
 	torus.rings = 6
@@ -3392,7 +3495,7 @@ func _punch() -> void:
 
 
 func _set_zoom(value: float) -> void:
-	_zoom = clampf(value, ZOOM_MIN, ZOOM_MAX)
+	_zoom = clampf(value, ZOOM_MIN, ZOOM_MAX * 1.2)
 	_place_camera()
 
 

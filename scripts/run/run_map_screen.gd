@@ -21,6 +21,10 @@ const GaragePanel := preload("res://scripts/run/garage_panel.gd")
 const AssemblyPanel := preload("res://scripts/run/assembly_panel.gd")
 const TunePanel := preload("res://scripts/run/tune_panel.gd")
 
+## The controls line at the bottom (and a margin): labels and edge arrows stay above it (046).
+const HINT_CLEAR: float = 56.0
+## The crew dock's area on the left: a site under it counts as hidden (046).
+const DOCK_RECT := Rect2(0, 130, 380, 410)
 const SITE_NAMES: Dictionary = {"start": "CAMP", "skirmish": "FIGHT", "elite": "ELITE", "warlord": "WARLORD",
 	"refinery": "REFINERY", "auction": "AUCTION", "arena": "ARENA",
 	"scrapyard": "SCRAPYARD", "workshop": "WORKSHOP", "boss": "THE GATE",
@@ -36,6 +40,7 @@ const RECLAIMER_RED := Color("ff5a3d")
 var _yard: YardView
 var _labels: Control
 var _site_labels: Dictionary = {}     # id -> Control
+var _edge_marks: Dictionary = {}      # id -> Button: a reachable site off screen (046)
 var _preview: PanelContainer
 var _gauge_pips: HBoxContainer
 var _ground_chip: PanelContainer
@@ -171,8 +176,13 @@ func _process(_delta: float) -> void:
 	for id: int in _site_labels:
 		var label: Control = _site_labels[id]
 		var at: Vector2 = _yard.label_pos(id)
+		# 046: a label that would run into the controls line at the bottom goes above its site.
+		if at.y + 2.0 + label.size.y > size.y - HINT_CLEAR:
+			at = _yard.screen_pos(id, 3.8) - Vector2(0, label.size.y + 2.0)
 		label.position = at + Vector2(-label.size.x * 0.5, 2)
-		label.visible = not _busy and at.y > 120.0 and at.y < size.y - 60.0 and at.x > 360.0 and at.x < size.x + 40.0
+		label.visible = not _busy and at.y > 120.0 and at.y + label.size.y < size.y - HINT_CLEAR + 4.0 \
+			and at.x > 360.0 and at.x < size.x + 40.0
+	_place_edge_marks()
 	if not _busy and _overlay == null and _garage == null:
 		var keys := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 		if keys != Vector2.ZERO:
@@ -450,6 +460,7 @@ func _build_site_labels() -> void:
 	for child: Node in _labels.get_children():
 		child.queue_free()
 	_site_labels.clear()
+	_edge_marks.clear()
 	var state: RunState = Run.state
 	var targets: Array[int] = RunSim.destinations(state)
 	for site: Dictionary in state.sites:
@@ -477,6 +488,54 @@ func _build_site_labels() -> void:
 				box.add_child(_centred(cost, UIKit.SIZE_LABEL, Ink.DANGER))
 		_labels.add_child(box)
 		_site_labels[id] = box
+		if reachable:
+			_edge_marks[id] = _edge_mark(id, name)
+
+
+## 046 (the agent play-test: three times a reachable site sat below the screen, the warlord
+## above it, with no label at all): a reachable site off screen gets an arrow at the edge,
+## named; clicking it looks that way.
+func _edge_mark(id: int, name: String) -> Button:
+	var mark := _button(name + "  " + _direction(id), UIKit.ink_button(Ink.PAPER_CARD), Ink.INK, Vector2(0, 40))
+	mark.add_theme_font_size_override("font_size", 18)
+	mark.pressed.connect(func() -> void: _yard.look_at_site(id))
+	var arrow := Polygon2D.new()
+	arrow.polygon = PackedVector2Array([Vector2(0, -12), Vector2(22, 0), Vector2(0, 12)])
+	arrow.color = Ink.YOURS
+	arrow.name = "arrow"
+	mark.add_child(arrow)
+	mark.visible = false
+	_labels.add_child(mark)
+	return mark
+
+
+func _place_edge_marks() -> void:
+	var area := Rect2(380, 140, size.x - 420, size.y - 140 - HINT_CLEAR - 30)
+	for id: int in _edge_marks:
+		var mark: Button = _edge_marks[id]
+		if not is_instance_valid(mark):
+			continue
+		var at: Vector2 = _yard.screen_pos(id, 1.0)
+		# Hidden = off the screen, under the top bar or the hint line, or under the crew dock.
+		var seen: bool = Rect2(0, 130, size.x, size.y - 130 - HINT_CLEAR).has_point(at) and not DOCK_RECT.has_point(at)
+		mark.visible = not _busy and _overlay == null and _garage == null and not seen
+		if not mark.visible:
+			continue
+		# Along the line from the middle of the map toward the site, stopped at the area's edge.
+		var mid: Vector2 = area.get_center()
+		var dir: Vector2 = (at - mid).normalized()
+		var reach: float = INF
+		if absf(dir.x) > 0.001:
+			reach = minf(reach, (area.size.x * 0.5) / absf(dir.x))
+		if absf(dir.y) > 0.001:
+			reach = minf(reach, (area.size.y * 0.5) / absf(dir.y))
+		var edge: Vector2 = mid + dir * reach
+		mark.size = mark.get_combined_minimum_size()
+		mark.position = Vector2(clampf(edge.x - mark.size.x * 0.5, area.position.x, area.end.x - mark.size.x),
+			clampf(edge.y - mark.size.y * 0.5, area.position.y, area.end.y - mark.size.y))
+		var arrow: Polygon2D = mark.get_node("arrow")
+		arrow.rotation = dir.angle()
+		arrow.position = mark.size * 0.5 + dir * (mark.size * 0.5 + Vector2(16, 16))
 
 
 func _centred(text: String, font_size: int, colour: Color) -> Label:
@@ -777,7 +836,15 @@ func _pick_panel() -> void:
 	note += "  Hold: %d / %d." % [state.cargo.size(), state.hold_size]
 	if state.cargo.size() >= state.hold_size:
 		note += "  It is full: you can still take a part, then fit or scrap something in the GARAGE before moving on."
-	var box := _modal("SCRAPYARD" if scrapyard else "SALVAGE", note, 1240, true)
+	# 046: a hoard is not salvage off the wrecks -- it says whose it is and what is in it.
+	var title: String = "SCRAPYARD" if scrapyard else "SALVAGE"
+	var site_kind: String = String(state.site(state.current)["type"])
+	if not scrapyard and (site_kind == "boss" or site_kind == "warlord"):
+		title = "THE KEEPER'S HOARD" if site_kind == "boss" else "THE WARLORD'S HOARD"
+		note = ("The gate is broken. Its keeper kept a LEGENDARY. Take one part -- the crew goes on through the gate."
+			if site_kind == "boss" else "The warlord is down. Its hoard holds a RARE part, sometimes a LEGENDARY. Take one.")
+		note += "  Hold: %d / %d." % [state.cargo.size(), state.hold_size]
+	var box := _modal(title, note, 1240, true)
 	var row := _row(box)
 	var options: Array = state.pending["options"]
 	for i: int in options.size():

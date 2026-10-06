@@ -408,8 +408,10 @@ func set_controls(can_undo: bool, can_end: bool) -> void:
 
 ## `in_run`: the fight belongs to a run, so the only way on is CONTINUE (back to the map);
 ## a practice fight offers FIGHT AGAIN and TITLE instead.
-func show_result(won: bool, body: String, in_run: bool = false) -> void:
-	_result_title.text = "YARD CLEARED!" if won else ("CREW LOST!" if not in_run else "RUN OVER!")
+## `headline` (046): a big win names itself -- GATE BROKEN!, WARLORD DOWN! -- instead of every
+## win reading YARD CLEARED!.
+func show_result(won: bool, body: String, in_run: bool = false, headline: String = "") -> void:
+	_result_title.text = headline if won and not headline.is_empty() else ("YARD CLEARED!" if won else ("CREW LOST!" if not in_run else "RUN OVER!"))
 	_result_title.add_theme_color_override("font_color", UIKit.INK_GREEN if won else UIKit.INK_RED)
 	_result_body.text = body
 	_retry.visible = not in_run

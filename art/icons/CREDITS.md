@@ -25,3 +25,4 @@ removed and each file is rasterised at 128 px; the shapes are unchanged.
 | `alloy.svg` | metal-plate | Delapouite | https://game-icons.net/1x1/delapouite/metal-plate.html |
 | `cores.svg` | cut-diamond | Lorc | https://game-icons.net/1x1/lorc/cut-diamond.html |
 | `yardview.svg` | crane | Delapouite | https://game-icons.net/1x1/delapouite/crane.html |
+| `warlord.svg` | crowned-skull | Lorc | https://game-icons.net/1x1/lorc/crowned-skull.html |
