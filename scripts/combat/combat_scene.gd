@@ -128,6 +128,11 @@ var _state: CombatState
 var _actions: Array = []
 ## Index in `_actions` where the current player turn began; undo cannot cross it.
 var _turn_start: int = 0
+## The state at `_turn_start` (play-test 14): UNDO plays the turn's own actions on a snapshot of
+## it rather than replaying the whole fight.
+var _turn_state: CombatState
+## Slag pools on flooded hexes, by cell (play-test 14).
+var _flood_views: Dictionary = {}
 ## Events already animated.
 var _shown: int = 0
 var _busy: bool = false
@@ -249,7 +254,10 @@ func _start_fight() -> void:
 	_selected = -1
 	_pending = {}
 	_armed = false
-	_state = CombatSim.replay(_setup, _actions)
+	_state = CombatSim.replay(_setup, _actions.slice(0, _turn_start))
+	_turn_state = _state.snapshot()
+	for action: Array in _actions.slice(_turn_start):
+		CombatSim.apply(_state, action)
 	_build_board()
 	# Play-test 12: the floor does not cast shadows onto itself -- every hex was drawn again into the
 	# shadow map each frame. Machines and props still cast theirs.
@@ -341,7 +349,7 @@ func _opening(objective: String) -> void:
 	_marker_label("warm", at, Ink.PAPER, 24)
 	_spawn_marker(-1, cell)
 	_arrival_marker(cell)
-	_flood_marker(cell)
+	_flood_marker(cell, false)
 	_mine_marker(cell)
 	_terminal(Hex.neighbor(cell, 3) if _state.inside(Hex.neighbor(cell, 3)) else cell, false)
 	_throw_arrow(cell, Hex.neighbor(cell, 0))
@@ -628,7 +636,9 @@ func _build_board() -> void:
 	_hint_quads.clear()
 	_threat_quads.clear()
 	_pile_views.clear()
+	_flood_views.clear()
 	_origin = Vector2(SQRT3 * HEX * (float(_setup.width) - 0.5) * 0.5, 1.5 * HEX * float(_setup.height - 1) * 0.5)
+	var arena: bool = _is_arena()
 
 	for y: int in _setup.height:
 		for x: int in _setup.width:
@@ -652,11 +662,135 @@ func _build_board() -> void:
 			if blocks:
 				_board.add_child(_scrap_heap(x, y))
 			_dress_tile(String(def.get("id", "open")), x, y, top)
+			if arena and String(def.get("id", "open")) == "open" and not blocks:
+				_dress_arena_floor(x, y, top)
 			_hint_quads[Vector2i(x, y)] = _quad(x, y, top + 0.012, HEX * 0.80)
 			_threat_quads[Vector2i(x, y)] = _quad(x, y, top + 0.008, HEX * 0.94)
 
 	_build_edges()
 	_build_surroundings()
+	if arena:
+		_build_arena_ring()
+
+
+## A boss's or warlord's fight (play-test 14: their boards "look too empty").
+func _is_arena() -> bool:
+	for u: GridUnit in _setup.units:
+		if u.team == GridUnit.TEAM_ENEMY and BIG_KINDS.has(u.kind):
+			return true
+	return false
+
+
+## The floor of a keeper's arena: worked steel, not open yard -- deck plates with rivets, drain
+## grates, oil stains, loose bolts. All of it lies flat in the floor's own dark values, so none of
+## it reads as terrain (terrain stands up, or is coloured); about half the open hexes get one.
+func _dress_arena_floor(x: int, y: int, top: float) -> void:
+	var h: int = IntentAI.mix(x, y, _setup.rng_seed, 97)
+	var at: Vector3 = _to_world(x, y) + Vector3(0, top, 0)
+	var spin: float = float((h >> 6) % 6) * PI / 3.0
+	match h % 8:
+		0, 1:
+			# A deck plate: a slightly lighter hex inset, a rivet at each corner.
+			var plate := MeshInstance3D.new()
+			plate.mesh = _hex_mesh(HEX * 0.7, 0.012)
+			plate.position = at + Vector3(0, 0.006, 0)
+			plate.rotation.y = spin
+			plate.material_override = Ink.toon(Ink.BOARD.lightened(0.035))
+			_board.add_child(plate)
+			var rivet: Material = Ink.toon(Ink.BOARD.lightened(0.22), "clean")
+			for k: int in 6:
+				var dot := MeshInstance3D.new()
+				var cyl := CylinderMesh.new()
+				cyl.top_radius = 0.035
+				cyl.bottom_radius = 0.035
+				cyl.height = 0.02
+				cyl.radial_segments = 6
+				dot.mesh = cyl
+				var a: float = spin + float(k) * PI / 3.0 + PI / 6.0
+				dot.position = at + Vector3(cos(a) * HEX * 0.52, 0.016, sin(a) * HEX * 0.52)
+				dot.material_override = rivet
+				_board.add_child(dot)
+		2:
+			# A drain grate: dark slots in a frame.
+			var frame := MeshInstance3D.new()
+			var box := BoxMesh.new()
+			box.size = Vector3(HEX * 0.62, 0.012, HEX * 0.44)
+			frame.mesh = box
+			frame.position = at + Vector3(0, 0.006, 0)
+			frame.rotation.y = spin
+			frame.material_override = Ink.toon(Color("15161a"), "clean")
+			Ink.line(frame, Ink.LINE_WORLD)
+			_board.add_child(frame)
+			var bar: Material = Ink.toon(Ink.BOARD.lightened(0.12), "clean")
+			for k: int in 4:
+				var slat := MeshInstance3D.new()
+				var sb := BoxMesh.new()
+				sb.size = Vector3(0.035, 0.014, HEX * 0.4)
+				slat.mesh = sb
+				var off: float = (float(k) - 1.5) * HEX * 0.13
+				slat.position = at + Vector3(cos(spin) * off, 0.012, -sin(spin) * off)
+				slat.rotation.y = spin
+				slat.material_override = bar
+				_board.add_child(slat)
+		3:
+			# An oil stain: a flat dark blot of three overlapping discs.
+			var oil: Material = Ink.toon(Color("121317"))
+			for k: int in 3:
+				var blot := MeshInstance3D.new()
+				var disc := CylinderMesh.new()
+				var r: float = HEX * (0.16 + float((h >> (k * 3)) & 7) * 0.025)
+				disc.top_radius = r
+				disc.bottom_radius = r
+				disc.height = 0.006
+				disc.radial_segments = 12
+				blot.mesh = disc
+				var a: float = spin + float(k) * 2.1
+				blot.position = at + Vector3(cos(a) * HEX * 0.15, 0.004 + float(k) * 0.001, sin(a) * HEX * 0.15)
+				blot.material_override = oil
+				_board.add_child(blot)
+		4:
+			# Loose bolts and a washer, dropped from something big.
+			var steel: Material = Ink.toon(Color("5d5a55"), "clean")
+			for k: int in 3:
+				var bolt := MeshInstance3D.new()
+				var bb := BoxMesh.new()
+				bb.size = Vector3(0.09, 0.025, 0.035)
+				bolt.mesh = bb
+				var a: float = spin + float(k) * 2.4
+				var reach: float = HEX * (0.2 + float((h >> (k * 2)) & 3) * 0.08)
+				bolt.position = at + Vector3(cos(a) * reach, 0.013, sin(a) * reach)
+				bolt.rotation.y = a * 1.7
+				bolt.material_override = steel
+				_board.add_child(bolt)
+
+
+## Around a keeper's arena (play-test 14): a closer wall of barriers and stacks so the board
+## sits in a PLACE, and the gantry looming over the keeper's side.
+func _build_arena_ring() -> void:
+	var half := Vector2(_origin.x + HEX * 1.2, _origin.y + HEX * 1.2)
+	var seed: int = IntentAI.mix(_setup.rng_seed, _setup.width, _setup.height, 79)
+	var near: PackedStringArray = ["barrier_0", "barrier_1", "tyre_stack_0", "tyre_stack_1", "barrier_0", "car_stack_0"]
+	var count: int = 22
+	for i: int in count:
+		var h: int = IntentAI.mix(seed, i, 5, 13)
+		var angle: float = TAU * (float(i) + 0.5) / float(count)
+		var reach: float = 0.9 + float((h >> 8) % 100) / 100.0 * 0.6
+		var at := Vector3(cos(angle) * (half.x + reach), -0.31, sin(angle) * (half.y + reach))
+		var prop: Node3D = Surfaces.kit(near[(h >> 4) % near.size()], 0.4)
+		if prop == null:
+			continue
+		prop.position = at
+		prop.rotation.y = -angle + PI * 0.5 + float((h >> 12) % 40 - 20) * 0.02
+		prop.scale = Vector3.ONE * 0.55
+		Ink.dress_scenery(prop, 0.6)
+		_board.add_child(prop)
+	# The keeper's side is the far one (row 0): the gantry stands behind it.
+	var gantry: Node3D = Surfaces.kit("gantry", 0.3)
+	if gantry != null:
+		gantry.position = Vector3(0, -0.31, _to_world(0, 0).z - HEX * 3.2)
+		gantry.scale = Vector3.ONE * 0.8
+		Ink.dress_scenery(gantry, 0.5)
+		_board.add_child(gantry)
 
 
 ## The board ends in a line you can see (play-test 4: "the battlefield needs edges"): a
@@ -733,26 +867,62 @@ func _dress_tile(id: String, x: int, y: int, top: float) -> void:
 			Ink.line(pool, Ink.LINE_WORLD)
 			_board.add_child(pool)
 		"wire":
-			# LIVE WIRES (028): a downed cable across the hex, hazard-striped, sparking.
-			# 046: it read as dark scrap. A dim danger-red floor under it -- this hex hurts.
-			var under := MeshInstance3D.new()
-			under.mesh = _hex_mesh(HEX * 0.58, 0.02)
-			under.position = at + Vector3(0, 0.01, 0)
-			under.material_override = Ink.glow(COL_PAD_DANGER, 0.35)
-			_board.add_child(under)
-			var cable: Material = Ink.toon(Color("1d1c1a"), "clean")
-			var stripe: Material = Ink.glow(Color("ffc43d"), 1.2)
+			# LIVE WIRES (028): a downed cable across the hex, sparking. Play-test 14: the dim
+			# red floor 046 put under it was "ugly" -- and the board's red already means enemy
+			# fire. Now a scorch where the cable burns the deck, the cable itself heavy enough to
+			# see, and an electric zigzag at its break: the SHAPE says "this hurts", in grey too.
+			var scorch: Material = Ink.toon(Color("100e0c"))
 			for k: int in 3:
+				var burn := MeshInstance3D.new()
+				var disc := CylinderMesh.new()
+				var r: float = HEX * (0.3 + float((h >> (k * 3)) & 3) * 0.05)
+				disc.top_radius = r
+				disc.bottom_radius = r * 1.05
+				disc.height = 0.012
+				disc.radial_segments = 9
+				burn.mesh = disc
+				var a: float = float(h % 11) * 0.6 + float(k) * 2.1
+				burn.position = at + Vector3(cos(a) * HEX * 0.14, 0.006 + float(k) * 0.001, sin(a) * HEX * 0.14)
+				burn.rotation.y = a
+				burn.material_override = scorch
+				_board.add_child(burn)
+			var cable: Material = Ink.toon(Color("24221f"), "clean")
+			var sleeve: Material = Ink.toon(Color("c8a23a"), "clean")
+			var base_angle: float = float(h % 7) * 0.45
+			var point := at + Vector3(-cos(base_angle) * HEX * 0.62, 0.05, -sin(base_angle) * HEX * 0.62)
+			var bend: Array = [0.0, 0.55, -0.4]
+			var tip := point
+			for k: int in 3:
+				var dir: float = base_angle + float(bend[k])
+				var length: float = HEX * 0.46
 				var seg := MeshInstance3D.new()
 				var box := BoxMesh.new()
-				box.size = Vector3(HEX * 0.5, 0.05, 0.06)
+				box.size = Vector3(length, 0.07, 0.085)
 				seg.mesh = box
-				var angle: float = float(h % 7) * 0.4 + float(k) * 0.9
-				seg.position = at + Vector3(cos(angle) * 0.12, 0.04, sin(angle) * 0.12)
-				seg.rotation.y = angle
-				seg.material_override = cable if k != 1 else stripe
+				var step := Vector3(cos(dir), 0, sin(dir)) * length
+				seg.position = point + step * 0.5
+				seg.rotation.y = -dir
+				seg.material_override = sleeve if k == 1 else cable
 				Ink.line(seg, Ink.LINE_WORLD)
 				_board.add_child(seg)
+				point += step
+				if k == 1:
+					tip = point
+			# The spark: a pale zigzag standing at the break, lit so it reads at a glance.
+			var spark: Material = Ink.glow(Color("fff4c8"), 1.6)
+			var zig: Array = [Vector3(0, 0.05, 0), Vector3(0.14, 0.3, 0.0), Vector3(-0.08, 0.44, 0.0), Vector3(0.1, 0.72, 0.0)]
+			for k: int in zig.size() - 1:
+				var a3: Vector3 = zig[k]
+				var b3: Vector3 = zig[k + 1]
+				var bolt := MeshInstance3D.new()
+				var bb := BoxMesh.new()
+				bb.size = Vector3(0.05, a3.distance_to(b3), 0.05)
+				bolt.mesh = bb
+				bolt.position = tip + (a3 + b3) * 0.5
+				bolt.rotation.z = -atan2(b3.x - a3.x, b3.y - a3.y)
+				bolt.material_override = spark
+				Ink.line(bolt, Ink.LINE_WORLD)
+				_board.add_child(bolt)
 		"flue":
 			# A furnace flue (025): an ember glow under an iron grate. The glow is the flue's own
 			# signal; the red hatching the round before it blows is drawn by `_refresh`.
@@ -963,6 +1133,70 @@ func _spawn_units() -> void:
 		_spawn_prop(cell, String((_state.props[cell] as Dictionary)["kind"]))
 
 
+## Puts every view where `_state` says (play-test 14, for UNDO). A machine keeps its model when
+## its look is the same -- parts, torn arms, level -- and is only snapped back to its hex, facing
+## and rest pose; anything else is built again. Piles still lying where they lay stay; props are
+## rebuilt (cheap, and their damage shows in their pieces).
+func _resync_units() -> void:
+	var keep: Dictionary = {}
+	for u: GridUnit in _state.units:
+		if not u.alive or not _views.has(u.ref):
+			continue
+		var view: Dictionary = _views[u.ref]
+		if bool(view["dead"]) or String(view.get("look", "")) != _look_key(u):
+			continue
+		keep[u.ref] = view
+		var root: Node3D = view["root"]
+		root.position = _to_world(u.x, u.y) + Vector3(0, _tile_top(u.x, u.y), 0)
+		root.rotation = Vector3(0, PI if u.team == GridUnit.TEAM_PLAYER else 0.0, 0)
+		var model: Node3D = view["model"]
+		model.position = Vector3.ZERO
+		model.rotation = Vector3.ZERO
+		model.scale = view["scale"]
+		(view["rig"] as ConstructRig).reset_transients()
+		(view["tag"] as Label3D).visible = true
+		(view["ring"] as MeshInstance3D).visible = true
+		_set_tag(view, u)
+	for ref: int in _views.keys():
+		if not keep.has(ref):
+			((_views[ref] as Dictionary)["root"] as Node).queue_free()
+	_views = keep
+	for u: GridUnit in _state.units:
+		if u.alive and not _views.has(u.ref):
+			_views[u.ref] = _build_view(u)
+	var piles_now: Array = _state.pile_cells()
+	for cell: Variant in _pile_views.keys():
+		if not piles_now.has(cell):
+			(_pile_views[cell] as Node).queue_free()
+			_pile_views.erase(cell)
+	for cell: Variant in piles_now:
+		if not _pile_views.has(cell):
+			_spawn_pile(cell)
+	for cell: Variant in _prop_views.keys():
+		(_prop_views[cell] as Node).queue_free()
+	_prop_views.clear()
+	for cell: Variant in _state.props:
+		_spawn_prop(cell, String((_state.props[cell] as Dictionary)["kind"]))
+	# Anything else on the board (a burst wreck that freed itself from `_views`) goes, as it did
+	# when every object was cleared.
+	var known: Dictionary = {}
+	for view: Dictionary in _views.values():
+		known[view["root"]] = true
+	for node: Variant in _pile_views.values() + _prop_views.values():
+		known[node] = true
+	for child: Node in _units_root.get_children():
+		if not known.has(child):
+			child.queue_free()
+
+
+## What a machine's model is built from: two units with the same key draw the same model.
+func _look_key(u: GridUnit) -> String:
+	var torn: Array = []
+	for w: int in u.weapons.size():
+		torn.append(u.can_fire(w))
+	return str([u.part_ids, u.level, u.kind, u.objective, u.carries_scrap, u.team, torn])
+
+
 func _clear_board_objects() -> void:
 	for child: Node in _units_root.get_children():
 		child.queue_free()
@@ -1135,7 +1369,8 @@ func _build_view(u: GridUnit) -> Dictionary:
 	if u.team == GridUnit.TEAM_ENEMY and u.carries_scrap and not u.objective:
 		root.add_child(_scrap_bundle())
 
-	var view: Dictionary = {"root": root, "model": model, "rig": rig, "ring": ring, "tag": tag, "dead": false}
+	var view: Dictionary = {"root": root, "model": model, "rig": rig, "ring": ring, "tag": tag, "dead": false,
+		"look": _look_key(u), "scale": model.scale}
 	view["extras"] = root.get_children().filter(func(n: Node) -> bool: return n.has_meta("label_of"))
 	_set_tag(view, u)
 	for w: int in u.weapons.size():
@@ -2478,6 +2713,10 @@ func _refresh() -> void:
 		_mark(_threat_quads, cell, COL_THREAT)
 		_arrival_marker(cell)
 	# The Pour (021): hexes already slag, and the ones that flood next round.
+	for cell: Variant in _flood_views.keys():
+		if not _state.flooded.has(cell):
+			(_flood_views[cell] as Node).queue_free()
+			_flood_views.erase(cell)
 	for cell: Variant in _state.flooded:
 		_flood_marker(cell)
 	# 047: mines waiting on the board.
@@ -3292,7 +3531,12 @@ func _mine_marker(cell: Vector2i) -> void:
 
 
 ## A hex The Pour has flooded (021): a pool of slag over the tile, for the rest of the fight.
-func _flood_marker(cell: Vector2i) -> void:
+## Play-test 14: the pools were drawn as INTENT marks, which are cleared while the enemy acts, so
+## the slag vanished for the length of every enemy volley. They are the floor now: kept in
+## `_flood_views` until the hex stops being flooded (only the opening card's sample is a mark).
+func _flood_marker(cell: Vector2i, as_floor: bool = true) -> void:
+	if as_floor and _flood_views.has(cell):
+		return
 	var pool := MeshInstance3D.new()
 	var disc := CylinderMesh.new()
 	disc.top_radius = HEX * 0.86
@@ -3302,7 +3546,10 @@ func _flood_marker(cell: Vector2i) -> void:
 	pool.mesh = disc
 	pool.material_override = Ink.glow(Color("ff6a1f"), 0.5)
 	pool.position = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y) + 0.02, 0)
-	pool.set_meta("intent", true)
+	if as_floor:
+		_flood_views[cell] = pool
+	else:
+		pool.set_meta("intent", true)
 	_marks_root.add_child(pool)
 
 
@@ -3836,20 +4083,24 @@ func _act(action: Array) -> void:
 	_after_events()
 
 
-## Replays the fight without the last action and rebuilds every model from the result.
-## Rebuilding rather than patching is what keeps a torn-off arm, a fall and a shove from
-## each needing their own "un-" animation.
+## Replays the turn without the last action and snaps the board to the result. Snapping rather
+## than patching is what keeps a torn-off arm, a fall and a shove from each needing their own
+## "un-" animation. Play-test 14 ("it takes a couple of seconds"): it replayed the whole fight
+## from round 1 (1.6 s by round 8) and rebuilt every machine (0.3-0.5 s more); now it starts
+## from the turn's snapshot and rebuilds only the machines whose LOOK the undo changed.
 func _undo() -> void:
-	if _busy or _bot or _actions.size() <= _turn_start:
+	if _busy or _bot or _actions.size() <= _turn_start or _turn_state == null:
 		return
 	var undone: Array = _actions.pop_back()
 	_record()
-	_state = CombatSim.replay(_setup, _actions)
+	_state = _turn_state.snapshot()
+	for action: Array in _actions.slice(_turn_start):
+		CombatSim.apply(_state, action)
 	_shown = _state.events.size()
 	_pending = {}
 	_armed = false
 	_ability = -1
-	_spawn_units()
+	_resync_units()
 	# Play-test 5: UNDO goes back to the machine whose action it took back -- never to the
 	# next one the game picked for you, nor to none. An undone attack is armed again, ready to
 	# aim; an undone targeted ability too.
@@ -3886,7 +4137,12 @@ func _end_turn() -> void:
 	await get_tree().process_frame
 	_busy = false
 	await _act([CombatSim.ACT_END, -1, 0, 0])
+	_mark_turn_start()
+
+
+func _mark_turn_start() -> void:
 	_turn_start = _actions.size()
+	_turn_state = _state.snapshot()
 
 
 func _unit_has_moves(ref: int) -> bool:
@@ -3929,6 +4185,6 @@ func _bot_turn() -> void:
 		if CombatSim.apply(_state, [CombatSim.ACT_END, -1, 0, 0]):
 			_actions.append([CombatSim.ACT_END, -1, 0, 0])
 			_record()
-		_turn_start = _actions.size()
+		_mark_turn_start()
 		await _play_new_events()
 	_after_events()
