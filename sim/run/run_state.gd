@@ -51,6 +51,11 @@ var assembled: bool = false
 var scouted: Array = []
 ## Signal events already met this run, so the next picks a fresh one.
 var seen_events: Array = []
+## Base ids of the parts offered this run, oldest first (046): a reward never offers one of the
+## last `rewards.recent_offers` again, so salvage stops showing the same part over and over.
+var offered: Array = []
+## Legendaries offered or handed out this run (046): each comes up at most once.
+var legends: Array = []
 ## Human-readable history, newest last. Deterministic like everything else.
 var log: PackedStringArray = []
 

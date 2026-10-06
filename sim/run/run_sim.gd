@@ -360,8 +360,8 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 		state.log.append("%s at site %d." % ["The act boss" if kind == "boss" else kind.capitalize(), to])
 	elif kind == "scrapyard":
 		var rewards: Dictionary = rules_of(state, setup).get("rewards", {})
-		state.pending = {"kind": "scrapyard", "options": _roll_parts(setup, _rng(setup, to, 3, state.act), 1, crew_makers(state, setup),
-			rules_of(state, setup).get("rewards", {})),
+		state.pending = {"kind": "scrapyard", "options": _offer(state, setup, _roll_parts(setup, _rng(setup, to, 3, state.act), 1,
+			crew_makers(state, setup), rewards, avoided(state, setup))),
 			"scrap": int(rewards.get("scrapyard_scrap", 15))}
 		state.log.append("A scrapyard. Something in here still works.")
 	elif kind == "workshop":
@@ -369,7 +369,7 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 		state.log.append("A workshop with the lights still on.")
 	elif kind == "trader":
 		var stock: Array = _roll_parts(setup, _rng(setup, to, 8, state.act), 1, crew_makers(state, setup),
-			rules_of(state, setup).get("rewards", {}))
+			rules_of(state, setup).get("rewards", {}), avoided(state, setup))
 		# The rarest in the stock comes tuned: a trader is where tuned parts can be bought.
 		var best: int = 0
 		for i: int in stock.size():
@@ -377,7 +377,7 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 				best = i
 		if not stock.is_empty() and PartTuning.can_tune(setup.parts, String(stock[best])):
 			stock[best] = PartTuning.variant(String(stock[best]), _rng(setup, to, 9, state.act).range_int(0, 1))
-		state.pending = {"kind": "trader", "stock": stock, "sold": []}
+		state.pending = {"kind": "trader", "stock": _offer(state, setup, stock), "sold": []}
 		state.log.append("A trader's container, lamps on.")
 	elif kind == "tower":
 		var seen: int = _scout(state, setup, to, int((setup.rules.get("tower", {}) as Dictionary).get("radius", 2)))
@@ -535,9 +535,9 @@ static func _choose(state: RunState, setup: RunSetup, index: int) -> bool:
 		member["hp"] = clampi(int(member["hp"]) + change, 1, max_hp(setup, member))
 	var rng: SimRNG = _rng(setup, site, 11, state.act)
 	if effects.has("part"):
-		state.cargo.append(_roll_at_least(setup, rng, int(effects["part"])))
+		state.cargo.append(_offer_one(state, setup, _roll_at_least(setup, rng, int(effects["part"]), avoided(state, setup))))
 	if effects.has("tuned_part"):
-		var part: String = _roll_at_least(setup, rng, int(effects["tuned_part"]))
+		var part: String = _offer_one(state, setup, _roll_at_least(setup, rng, int(effects["tuned_part"]), avoided(state, setup)))
 		state.cargo.append(PartTuning.variant(part, rng.range_int(0, 1)) if PartTuning.can_tune(setup.parts, part) else part)
 	if effects.has("reveal"):
 		_scout(state, setup, site, int(effects["reveal"]))
@@ -552,14 +552,21 @@ static func _choose(state: RunState, setup: RunSetup, index: int) -> bool:
 
 ## One part of at least `min_rarity`, from every slot's pool -- never a legendary unless asked
 ## for one (031: a signal's "uncommon or better" was able to hand one out).
-static func _roll_at_least(setup: RunSetup, rng: SimRNG, min_rarity: int) -> String:
+## `avoid` (046): base ids to leave out -- the hold, the recent offers, legendaries already seen. It
+## is a preference: if it would leave nothing, the whole pool comes back -- except that a
+## legendary already seen is never offered again; with none left, a rare stands in.
+static func _roll_at_least(setup: RunSetup, rng: SimRNG, min_rarity: int, avoid: Array = []) -> String:
 	var all: Array = []
 	for slot: String in ["chassis", "core", "arm", "module"]:
 		for id: Variant in (setup.pools[slot] as Array):
 			var r: int = setup.rarity(String(id))
 			if r >= min_rarity and (r < 4 or min_rarity >= 4):
 				all.append(id)
-	return String(rng.pick(all)) if not all.is_empty() else ""
+	var fresh: Array = all.filter(func(id: Variant) -> bool: return not avoid.has(String(id)))
+	if fresh.is_empty() and min_rarity >= 4:
+		return _roll_at_least(setup, rng, 3, avoid)
+	var pool: Array = fresh if not fresh.is_empty() else all
+	return String(rng.pick(pool)) if not pool.is_empty() else ""
 
 
 static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> bool:
@@ -638,10 +645,10 @@ static func salvage(state: RunState, setup: RunSetup, kind: String) -> Dictionar
 	if kind == "arena":
 		min_rarity = int(rewards.get("arena_min_rarity", 3))
 	var rng: SimRNG = _rng(setup, state.current, 5, state.act)
-	var options: Array = _roll_parts(setup, rng, min_rarity, crew_makers(state, setup), rewards)
+	var options: Array = _roll_parts(setup, rng, min_rarity, crew_makers(state, setup), rewards, avoided(state, setup))
 	if kind == "elite" and not options.is_empty() and PartTuning.can_tune(setup.parts, String(options[0])):
 		options[0] = PartTuning.variant(String(options[0]), rng.range_int(0, 1))
-	return {"kind": "reward", "options": options, "scrap": int(rewards.get("salvage_scrap", 8))}
+	return {"kind": "reward", "options": _offer(state, setup, options), "scrap": int(rewards.get("salvage_scrap", 8))}
 
 
 ## A broken gate's hoard (029): three parts from three slots, the first a LEGENDARY (rarity 4),
@@ -649,17 +656,18 @@ static func salvage(state: RunState, setup: RunSetup, kind: String) -> Dictionar
 static func hoard(state: RunState, setup: RunSetup, then_next_act: bool = true) -> Dictionary:
 	var rewards: Dictionary = rules_of(state, setup).get("rewards", {})
 	var rng: SimRNG = _rng(setup, state.current, 13, state.act)
-	var options: Array = _roll_parts(setup, rng, 1, crew_makers(state, setup), rewards)
+	var avoid: Array = avoided(state, setup)
+	var options: Array = _roll_parts(setup, rng, 1, crew_makers(state, setup), rewards, avoid)
 	# Play-test 10 ("most parts were rare+ by Act 3"): a gate's hoard holds a legendary; a
 	# warlord's holds a rare, and a legendary only `warlord_legend_pct` of the time.
 	var legend: String = ""
 	if then_next_act or rng.chance_percent(int(rewards.get("warlord_legend_pct", 35))):
-		legend = _roll_at_least(setup, rng, 4)
+		legend = _roll_at_least(setup, rng, 4, avoid)
 	else:
-		legend = _roll_at_least(setup, rng, 3)
+		legend = _roll_at_least(setup, rng, 3, avoid)
 	if not legend.is_empty() and not options.is_empty():
 		options[0] = legend
-	var out: Dictionary = {"kind": "reward", "options": options, "scrap": int(rewards.get("hoard_scrap", 25))}
+	var out: Dictionary = {"kind": "reward", "options": _offer(state, setup, options), "scrap": int(rewards.get("hoard_scrap", 25))}
 	if then_next_act:
 		out["then"] = "next_act"
 	return out
@@ -719,8 +727,12 @@ static func _refine(state: RunState, setup: RunSetup, c: int) -> bool:
 	var pool: Array = (setup.pools[slot] as Array).filter(func(id: String) -> bool: return setup.rarity(id) == next)
 	if pool.is_empty():
 		return false
+	# 046: a legendary already seen this run is not made twice, while another is left.
+	var unseen: Array = pool.filter(func(id: String) -> bool: return not state.legends.has(id))
+	if not unseen.is_empty():
+		pool = unseen
 	var rng: SimRNG = _rng(setup, state.current, 21 + c, state.act)
-	var made: String = String(rng.pick(pool))
+	var made: String = _offer_one(state, setup, String(rng.pick(pool)))
 	state.scrap -= cost
 	state.cargo[c] = made
 	state.pending["used"] = true
@@ -740,7 +752,9 @@ static func _bid(state: RunState, setup: RunSetup, tier: int) -> bool:
 	if state.scrap < int(t.get("cost", 0)):
 		return false
 	var rng: SimRNG = _rng(setup, state.current, 31 + tier, state.act)
-	var part: String = _roll_at_least(setup, rng, 4) if rng.chance_percent(int(t.get("legend_pct", 0))) else _roll_at_least(setup, rng, int(t.get("min", 2)))
+	var avoid: Array = avoided(state, setup)
+	var part: String = _offer_one(state, setup, _roll_at_least(setup, rng, 4, avoid) if rng.chance_percent(int(t.get("legend_pct", 0)))
+		else _roll_at_least(setup, rng, int(t.get("min", 2)), avoid))
 	state.scrap -= int(t.get("cost", 0))
 	state.cargo.append(part)
 	state.pending["used"] = true
@@ -795,27 +809,32 @@ static func _refit(state: RunState, setup: RunSetup, index: int, socket: int, ca
 		# Unfit into the hold. A machine cannot give up its chassis.
 		if socket == 0 or old.is_empty():
 			return false
+		var full_before: int = max_hp(setup, member)
 		parts[socket] = ""
 		state.cargo.append(old)
-		_clamp_hp(setup, member)
+		_keep_missing(setup, member, full_before)
 		return true
 	if cargo_index < 0 or cargo_index >= state.cargo.size():
 		return false
 	var incoming: String = state.cargo[cargo_index]
 	if String((setup.parts.get(incoming, {}) as Dictionary).get("slot", "")) != RunSetup.socket_slot(socket):
 		return false
+	var full_before: int = max_hp(setup, member)
 	parts[socket] = incoming
 	if old.is_empty():
 		state.cargo.remove_at(cargo_index)
 	else:
 		state.cargo[cargo_index] = old
-	_clamp_hp(setup, member)
+	_keep_missing(setup, member, full_before)
 	return true
 
 
-## A refit can lower a machine's full HP (a lighter chassis, losing an HP module).
-static func _clamp_hp(setup: RunSetup, member: Dictionary) -> void:
-	member["hp"] = mini(int(member["hp"]), max_hp(setup, member))
+## A refit keeps what the machine is MISSING, not what it has (046, the agent play-test: a full
+## machine on a bigger frame came out of the garage damaged). Swapping back and forth gains
+## nothing; a lighter frame never leaves it below 1.
+static func _keep_missing(setup: RunSetup, member: Dictionary, full_before: int) -> void:
+	var missing: int = maxi(0, full_before - int(member["hp"]))
+	member["hp"] = maxi(1, max_hp(setup, member) - missing)
 
 
 ## Scrap a part from the hold, by rarity (`scrap_value.by_rarity`).
@@ -1088,20 +1107,68 @@ static func _generate_region(state: RunState, setup: RunSetup) -> void:
 			else:
 				kind = _weighted(rng, kinds, weights, col >= int(rules.get("elite_from_column", 2)))
 			state.sites[id]["type"] = kind
+	# Sites a later rule placed on purpose; the no-repeat pass below never rerolls them.
+	var kept: Array = []
+	# A workshop in each listed column (`-1` = the column before the gate, 046: the crew walked
+	# into the Sorter on half HP with no repair on the way); one not linked to another if it can.
 	for col: Variant in (rules.get("workshop_guaranteed_columns", []) as Array):
-		var ids: Array = by_col[clampi(int(col), 1, columns - 2)]
-		var has_shop: bool = false
+		var at: int = int(col) if int(col) >= 0 else columns - 1 + int(col)
+		var ids: Array = by_col[clampi(at, 1, columns - 2)]
+		var shop: int = -1
 		for id: Variant in ids:
-			has_shop = has_shop or String(state.sites[id]["type"]) == "workshop"
-		if not has_shop:
-			state.sites[int(ids[rng.range_int(0, ids.size() - 1)])]["type"] = "workshop"
+			if String(state.sites[id]["type"]) == "workshop":
+				shop = int(id)
+		if shop < 0:
+			var lonely: Array = ids.filter(func(id: Variant) -> bool: return not _linked_to(state, int(id), "workshop"))
+			var from: Array = lonely if not lonely.is_empty() else ids
+			shop = int(from[rng.range_int(0, from.size() - 1)])
+			state.sites[shop]["type"] = "workshop"
+		kept.append(shop)
 	# 030: the act's warlord -- one site in `warlord_column`, never a workshop and never the
 	# column's only site, so it is always a detour you choose.
 	var warlord_col: int = int(rules.get("warlord_column", -1))
 	if warlord_col > 0 and warlord_col < columns - 1:
 		var ids: Array = (by_col[warlord_col] as Array).filter(func(id: Variant) -> bool: return String(state.sites[id]["type"]) != "workshop")
 		if ids.size() >= 1 and (by_col[warlord_col] as Array).size() >= 2:
-			state.sites[int(ids[rng.range_int(0, ids.size() - 1)])]["type"] = "warlord"
+			var lord: int = int(ids[rng.range_int(0, ids.size() - 1)])
+			state.sites[lord]["type"] = "warlord"
+			kept.append(lord)
+	# 046 (agent play-test: two workshops back to back): no two linked sites are the same
+	# service. The later one rerolls from the weights, away from every kind next to it.
+	var services: Array = rules.get("no_linked_repeat", [])
+	for site: Dictionary in state.sites:
+		var id: int = int(site["id"])
+		var kind: String = String(site["type"])
+		if kept.has(id) or not services.has(kind) or not _linked_to(state, id, kind):
+			continue
+		var col: int = int(site["col"])
+		var next: String = "skirmish"
+		for attempt: int in 12:
+			var roll: String = _weighted(rng, kinds, weights, col >= int(rules.get("elite_from_column", 2)))
+			if roll != kind and not (services.has(roll) and _linked_to(state, id, roll)):
+				next = roll
+				break
+		site["type"] = next
+	# 046 (agent play-test: the first three choices were all fights): the first step offers
+	# something that is not a fight -- the first of `first_column_calm` not already next to it.
+	var first: Array = by_col[1]
+	if first.all(func(id: Variant) -> bool: return FIGHT_TYPES.has(String(state.sites[id]["type"]))):
+		var calm: int = int(first[rng.range_int(0, first.size() - 1)])
+		var options: Array = rules.get("first_column_calm", ["scrapyard"])
+		var pick: String = String(options[0])
+		for option: Variant in options:
+			if not _linked_to(state, calm, String(option)):
+				pick = String(option)
+				break
+		state.sites[calm]["type"] = pick
+
+
+## Whether a site linked to `id` is of `kind`.
+static func _linked_to(state: RunState, id: int, kind: String) -> bool:
+	for other: Variant in (state.sites[id]["links"] as Array):
+		if String(state.sites[int(other)]["type"]) == kind:
+			return true
+	return false
 
 
 static func _link(state: RunState, a: int, b: int) -> void:
@@ -1532,6 +1599,36 @@ static func _enemy_positions(template: Dictionary, count: int) -> Array:
 	return out
 
 
+## What a reward should not offer (046, the agent play-test: one module came up four times in an
+## act, a legendary twice): base ids of the parts in the hold, the last `rewards.recent_offers`
+## parts offered, and every legendary already seen this run.
+static func avoided(state: RunState, setup: RunSetup) -> Array:
+	var out: Array = []
+	for part: String in state.cargo:
+		out.append(PartTuning.base_of(part))
+	var window: int = int((rules_of(state, setup).get("rewards", {}) as Dictionary).get("recent_offers", 6))
+	out.append_array(state.offered.slice(maxi(0, state.offered.size() - window)))
+	out.append_array(state.legends)
+	return out
+
+
+## Notes the parts a reward puts in front of the crew (046) and hands them back.
+static func _offer(state: RunState, setup: RunSetup, parts: Array) -> Array:
+	for part: Variant in parts:
+		_offer_one(state, setup, String(part))
+	return parts
+
+
+static func _offer_one(state: RunState, setup: RunSetup, part: String) -> String:
+	if part.is_empty():
+		return part
+	var base: String = PartTuning.base_of(part)
+	state.offered.append(base)
+	if setup.rarity(base) >= 4 and not state.legends.has(base):
+		state.legends.append(base)
+	return part
+
+
 static func _roll_slot(setup: RunSetup, rng: SimRNG, slot: String, cap: int) -> String:
 	var pool: Array = []
 	for id: Variant in (setup.pools[slot] as Array):
@@ -1546,7 +1643,8 @@ static func _roll_slot(setup: RunSetup, rng: SimRNG, slot: String, cap: int) -> 
 ## directions (011: "rewards that are always a real choice"). Each is weighted by rarity; the
 ## first is at `min_rarity` or above; the second comes from a maker in `favour` when one
 ## fits, so a set can be finished on purpose rather than by luck.
-static func _roll_parts(setup: RunSetup, rng: SimRNG, min_rarity: int, favour: Array = [], act_rewards: Dictionary = {}) -> Array:
+static func _roll_parts(setup: RunSetup, rng: SimRNG, min_rarity: int, favour: Array = [], act_rewards: Dictionary = {},
+		avoid: Array = []) -> Array:
 	var rewards: Dictionary = act_rewards if not act_rewards.is_empty() else setup.rules.get("rewards", {})
 	var weights: Array = rewards.get("rarity_weights", [60, 30, 10])
 	var choices: int = int(rewards.get("choices", 3))
@@ -1568,6 +1666,10 @@ static func _roll_parts(setup: RunSetup, rng: SimRNG, min_rarity: int, favour: A
 		if i == 0:
 			rarity = maxi(rarity, min_rarity)
 		var candidates: Array = (setup.pools[slots[i]] as Array).filter(func(id: String) -> bool: return not out.has(id))
+		# 046: leave out what the crew holds or was just offered, while anything else is left.
+		var fresh: Array = candidates.filter(func(id: String) -> bool: return not avoid.has(id))
+		if not fresh.is_empty():
+			candidates = fresh
 		var pool: Array = candidates.filter(func(id: String) -> bool: return setup.rarity(id) == rarity)
 		if pool.is_empty():
 			# Never a legendary by falling through (029): those are rolled on purpose.

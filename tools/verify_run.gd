@@ -40,6 +40,7 @@ func _initialize() -> void:
 	_test_assembly()
 	_test_refit()
 	_test_determinism_and_save()
+	_test_agent_playtest()
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
 	print("")
@@ -374,6 +375,9 @@ func _test_warlords() -> void:
 	for n: int in 60:
 		state.current = n % state.sites.size()
 		state.moves = n
+		# The chance, not the run: 046 makes each legendary come up once a run.
+		state.legends.clear()
+		state.offered.clear()
 		if setup.rarity(String((RunSim.hoard(state, setup, false)["options"] as Array)[0])) == 4:
 			legends += 1
 	_check("a warlord's hoard holds a legendary some of the time, not always (%d of 60)" % legends, legends > 5 and legends < 45)
@@ -986,3 +990,77 @@ func _check(label: String, ok: bool) -> void:
 	else:
 		_failed += 1
 		print("  FAIL  %s" % label)
+
+
+## 046 (the agent's Act 1, 2026-10-05): rewards that do not repeat, map rules, refit HP.
+func _test_agent_playtest() -> void:
+	# Rewards: play many bot runs to their end and watch every offer as it is made.
+	var repeats: Array = []
+	var legend_twice: Array = []
+	var offers: int = 0
+	for s: int in 4:
+		var setup: RunSetup = _setup(700 + s)
+		var state: RunState = RunSim.start(setup)
+		var seen_legends: Array = []
+		for step: int in 400:
+			if state.outcome != RunState.ONGOING:
+				break
+			var avoid: Array = RunSim.avoided(state, setup)
+			var before: int = state.offered.size()
+			var held: Array = state.cargo.map(func(p: String) -> String: return PartTuning.base_of(p))
+			if not RunSim.apply(state, setup, RunBot.next_action(state, setup)):
+				break
+			var fresh: Array = state.offered.slice(before)
+			offers += fresh.size()
+			for base: Variant in fresh:
+				# A reward may fall back to a repeat only when its pool had nothing else; the
+				# pools are big, so in practice that never happens. Count it either way.
+				if avoid.has(base) and not seen_legends.has(base):
+					repeats.append([s, base, held.has(base)])
+				if setup.rarity(String(base)) >= 4:
+					if seen_legends.has(base):
+						legend_twice.append([s, base])
+					seen_legends.append(base)
+	_check("4 bot runs, %d parts offered: none in the hold or among the last offers %s" % [offers, repeats.slice(0, 3)],
+		offers > 40 and repeats.is_empty())
+	_check("no legendary offered twice in a run %s" % [legend_twice.slice(0, 3)], legend_twice.is_empty())
+
+	# Map rules, over 200 regions in every act.
+	var calm_first: bool = true
+	var shop_before_gate: bool = true
+	var linked_repeat: Array = []
+	var services: Array = _db.run_rules.get("no_linked_repeat", [])
+	for s: int in 200:
+		var setup: RunSetup = _setup(s)
+		var state: RunState = RunSim.start(setup)
+		for act: int in RunSim.act_count(setup):
+			var last: int = 0
+			for site: Dictionary in state.sites:
+				last = maxi(last, int(site["col"]))
+			var col1: Array = state.sites.filter(func(x: Dictionary) -> bool: return int(x["col"]) == 1)
+			calm_first = calm_first and not col1.all(func(x: Dictionary) -> bool: return RunSim.FIGHT_TYPES.has(String(x["type"])))
+			shop_before_gate = shop_before_gate and state.sites.any(func(x: Dictionary) -> bool:
+				return int(x["col"]) == last - 1 and String(x["type"]) == "workshop")
+			for site: Dictionary in state.sites:
+				var kind: String = String(site["type"])
+				if services.has(kind) and RunSim._linked_to(state, int(site["id"]), kind):
+					linked_repeat.append([s, act + 1, kind])
+			if act + 1 < RunSim.act_count(setup):
+				RunSim._next_act(state, setup)
+	_check("200 regions x every act: the first step always offers a non-fight", calm_first)
+	_check("200 regions x every act: a workshop in the column before the gate", shop_before_gate)
+	_check("200 regions x every act: no two linked sites the same service %s" % [linked_repeat.slice(0, 3)], linked_repeat.is_empty())
+
+	# Refit keeps the missing HP: a full machine on a bigger frame is still full.
+	var setup2: RunSetup = _setup(5)
+	var st: RunState = RunSim.start(setup2)
+	var needle: Dictionary = st.crew[1]
+	st.cargo.append("ch_bulwark")
+	var full: bool = int(needle["hp"]) == RunSim.max_hp(setup2, needle)
+	RunSim.apply(st, setup2, [RunSim.REFIT, 1, 0, st.cargo.size() - 1])
+	_check("a full machine refitted onto a bigger frame is still full (%d / %d)" % [int(needle["hp"]), RunSim.max_hp(setup2, needle)],
+		full and String(needle["parts"][0]) == "ch_bulwark" and int(needle["hp"]) == RunSim.max_hp(setup2, needle))
+	needle["hp"] = int(needle["hp"]) - 4
+	var hauler_at: int = st.cargo.find("ch_hauler")
+	RunSim.apply(st, setup2, [RunSim.REFIT, 1, 0, hauler_at])
+	_check("and one 4 short stays 4 short on the way back", int(needle["hp"]) == RunSim.max_hp(setup2, needle) - 4)
