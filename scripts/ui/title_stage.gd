@@ -42,11 +42,17 @@ func _process(delta: float) -> void:
 		blink.emission_energy_multiplier = 5.0 if on else 0.4
 
 
+## How far (m) the camera frames left of the crew, to clear the menu column (046).
+const FRAME_SHIFT: float = 1.35
+
+
 ## A slow sway, so the scene is alive without asking to be watched.
 func _place_camera() -> void:
 	var sway: float = sin(_time * 0.12) * 0.16
-	var at := Vector3(sin(sway) * 7.6 - 1.6, 1.9 + sin(_time * 0.2) * 0.05, cos(sway) * 7.6)
-	_camera.look_at_from_position(at, Vector3(-1.1, 1.05, 0.0), Vector3.UP)
+	# 046: framed left of the crew (by FRAME_SHIFT), so the menu column stands in open yard
+	# and not over the first machine.
+	var at := Vector3(sin(sway) * 8.4 - 1.6 - FRAME_SHIFT, 2.0 + sin(_time * 0.2) * 0.05, cos(sway) * 8.4)
+	_camera.look_at_from_position(at, Vector3(-1.1 - FRAME_SHIFT, 1.05, 0.0), Vector3.UP)
 
 
 func _environment() -> void:

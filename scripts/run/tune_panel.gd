@@ -37,9 +37,10 @@ func _ready() -> void:
 	var title := UIKit.caption_title("UPGRADE A PART", 44)
 	title.position = Vector2(40, 20)
 	add_child(title)
-	var line := UIKit.on_page(_label("UPGRADE a part: pick one of its two upgrades. Each part takes one upgrade, for good; an upgraded part is marked +.",
+	# 046: beside the title, not under it -- the tilted caption ran over this line.
+	var line := UIKit.on_page(_label("Pick one of a part's two upgrades. Each part takes one, for good; an upgraded part is marked +.",
 		UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()), 5)
-	line.position = Vector2(42, 84)
+	line.position = Vector2(400, 52)
 	add_child(line)
 	_scrap = UIKit.on_page(_label("", 30, UIKit.PAGE_TEXT, UIKit.font_comic()), 8)
 	_scrap.position = Vector2(1560, 30)
@@ -177,7 +178,7 @@ func _row(index: int, part: String, where: String) -> Control:
 func _build_options() -> void:
 	var part: String = _chosen_part()
 	if part.is_empty() or not PartTuning.can_tune(Run.db.parts, part):
-		_options.add_child(UIKit.on_page(_label("Pick a part on the left to see its two tunings.", UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()), 5))
+		_options.add_child(UIKit.on_page(_label("Pick a part on the left to see its two upgrades.", UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()), 5))
 		return
 	var cost: int = RunSim.tune_cost(Run.setup, part)
 	_options.add_child(UIKit.on_page(_label(PartText.name_of(Run.db.parts, part).to_upper(), 30, UIKit.PAGE_TEXT, UIKit.font_comic()), 8))
