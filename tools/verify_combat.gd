@@ -1671,6 +1671,22 @@ func _test_bot_fight(fight_id: String) -> void:
 			if partial.events[i] != state.events[i]:
 				stable = false
 	_check("%s: every replayed prefix matches the full fight (undo is exact)" % fight_id, stable)
+	# Play-test 14: UNDO starts from a snapshot taken at the turn's start. Played on from any
+	# turn boundary, a snapshot must reach the full fight exactly -- and leave its source alone.
+	var turns_ok: bool = true
+	var boundaries: int = 0
+	for cut: int in range(-1, actions.size()):
+		if cut >= 0 and int(actions[cut][0]) != CombatSim.ACT_END:
+			continue
+		boundaries += 1
+		var source: CombatState = CombatSim.replay(setup, actions.slice(0, cut + 1))
+		var events_before: int = source.events.size()
+		var copy: CombatState = source.snapshot()
+		for a: Array in actions.slice(cut + 1):
+			CombatSim.apply(copy, a)
+		if copy.event_hash() != state.event_hash() or source.events.size() != events_before:
+			turns_ok = false
+	_check("%s: a turn-start snapshot played on matches the full fight (%d turns)" % [fight_id, boundaries], turns_ok and boundaries > 0)
 
 
 func _check(label: String, ok: bool) -> void:
