@@ -118,6 +118,8 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-06 | **Rewards never offer a part in the hold or among the last `recent_offers` (6) offered; each legendary once a run** (`RunSim.avoided`, `RunState.offered`/`legends`). A preference, not a wall: if a pool would empty it falls back, except legendaries (a rare stands in) | The agent's Act 1: Coolant Loop offered four times, the same legendary from the warlord and the gate |
 | 2026-10-06 | **Map rules: a non-fight in column 1, a workshop in the column before the gate (`workshop_guaranteed_columns` `-1`), no two linked sites the same service (`no_linked_repeat`)** | The agent's Act 1: three fights to start, two workshops back to back, no repair before the Sorter |
 | 2026-10-06 | **A refit keeps the machine's MISSING HP** (`RunSim._keep_missing`), never below 1 | A full Needle came out of the garage 14/17 on a bigger frame |
+| 2026-10-06 | **Shoves are a find: Breaker Hammer and Scattergun uncommon, one hammer on the bench. New arms: Chain Flail (`sweep`), Snare Launcher (`snare`), Mine Layer (`mine`); Act 1 traits from 20%. Pits unchanged** | The user: "make more types of arms and the ones that have shove to be uncommon+"; then "go with your recommendation" (flail, snare, mines; grenade and overwatch later) |
+| 2026-10-06 | **A mine is a hazard** (`CombatState.hazard` counts it; `ground_hazard` is what bites) and goes off once | One rule for the AI's steps, the bot's danger and `incoming`; a permanent mine would choke the board |
 
 ## Lessons carried over from the old codebase
 
@@ -291,5 +293,6 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-03 | **041: which comic direction for panels and buttons -- A pulp, B pop art, C inked panels?** | The user picks | |
 | 2026-10-03 | **042: do the 26 new models read at board distance?** | The user looks | |
 | 2026-10-04 | **044: do the warlord, arena, refinery and auction models read on the map?** | The user looks | |
-| 2026-10-06 | **047: Act 1 is too easy for a careful player (the agent finished it with all three machines; most rounds nothing hit) and a 3-damage shove into a pit kills a 12 HP machine** | The user: shove arms uncommon, more arm types, not pit changes. 047 | |
+| 2026-10-06 | **047: Act 1 is too easy for a careful player (the agent finished it with all three machines; most rounds nothing hit) and a 3-damage shove into a pit kills a 12 HP machine** | Done in 047 (shoves uncommon, three arms) | ~~open~~ |
 | 2026-10-06 | **046: does the board framing, the paper hold zone and the edge arrows read right on the user's screen?** | The user plays | |
+| 2026-10-06 | **047: Act 1 is harder (16.0% lost, was 11.3%) but Acts 2-3 jumped 9 points each (bot 43.3% overall). Ease the later acts back (no snares/mines in their rolls, more arrival repair, mine damage 3)?** | The user plays | |

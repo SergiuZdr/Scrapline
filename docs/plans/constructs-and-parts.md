@@ -124,3 +124,15 @@ A core or module may carry, besides its numbers, any of `CombatSetup.EXTRA_KEYS`
 All go through `apply_bonus`, so perks, sets and levels could use them too. 25 modules; rarity
 buys a trait. The power of every part, by slot and rarity: [parts-power](parts-power.md).
 A borrowed model (`"model"`) must name a part with its OWN .glb: aliases do not chain.
+
+## Rarer shoves and three new arms (047)
+
+- **Shove arms are uncommon or better** (Breaker Hammer, Scattergun; the God Hammer is
+  legendary). The starting bench holds ONE (the hammer, once); Relay starts with a Pulse Emitter.
+  The agent's Act 1 (2026-10-05) killed full-HP machines in pits off a common shove every fight.
+- **Chain Flail** (common, kessler; borrows the maul's model): shape `sweep` -- the hex aimed at and
+  the two beside it at the same distance. One step sideways is not always out of it.
+- **Snare Launcher** (uncommon, vektor; the harpoon's model): a shot with `snare` -- what it hits
+  cannot move on its side's next move (no move, dash or charge). It can still attack.
+- **Mine Layer** (uncommon, cinder; the mortar's model): shape `mine` (range 1-3) -- a mine on an
+  open hex, 4 damage, set off once by whatever starts a round on it, either side.

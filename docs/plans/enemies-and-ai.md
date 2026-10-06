@@ -103,3 +103,9 @@ The gates' keepers: the Sorter (18 HP, pylons), the Pour (52, floods 4 every 2 r
 5 every round at 3), the Core (72, shielded -2 by its two conduits via `cover_kind`, pulses every 2;
 erupts: every round, radius 3, 5). Authored machines a gate must keep are counted in `keepers`.
 Drawn 1.75x in crimson (warlords 1.4x, gunmetal) with a boss bar (`CombatHUD.set_boss`).
+
+## Earlier traits and the new arms (047)
+
+Act 1's `kinds.chance_by_column` starts at 20% (was 0%), so early fights have a tracker, bomber,
+warden or hive sometimes. Enemies roll the new arms by the usual rarity caps: the flail from the
+first column, snares and mines from column 3 (`rarity_cap_by_column` 2).

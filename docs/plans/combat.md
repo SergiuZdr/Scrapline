@@ -225,3 +225,15 @@ Sunspear thermal, Pulse Emitter and Coilgun EMP), read into `weapon["dtype"]` an
 `strike_plan`. The wheel is shown as a chart (`TypeChart`, the glossary's DAMAGE TYPES tab), on every
 weapon line, in DETAILS, and as STRONG / WEAK on an aimed hit. `CombatSim.damage_parts` says what a
 total is made of; `diff` reports damage to props that stand. Charge stops on the hex aimed at.
+
+## Mines and snares (047)
+
+- `CombatState.mines` (`{cell: damage}`, cloned) are set off in `_round_hazards` after the ground
+  (`MINE_BLEW` then a `DAMAGE`), once. `CombatState.hazard()` counts a mine, so the AI's
+  `_tile_value`, the bot's danger and `incoming` all see it with no second rule;
+  `ground_hazard()` is the slag/flood part the round-start loop bites with.
+- `GridUnit.snared` is set by a primary hit with `snare` (`SNARED`). The crew's clears at the
+  start of `_end_turn` (before the volley that may set new ones), the enemy's after the enemy's
+  move in `_begin_round`. `reachable`, dash/charge and `IntentAI.plan` respect it.
+- The AI values a mine laid under a foe like the hit it will be (`IntentAI._mine_value`) and a
+  snare like a mark; the dodge leaves the hex mined, which is the point.

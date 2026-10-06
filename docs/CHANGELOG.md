@@ -2,6 +2,20 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [047] Difficulty: rarer shoves, three new arms, earlier traits — 2026-10-06 ([detail](iterations/047-difficulty.md))
+
+### Changed
+- **The Breaker Hammer and the Scattergun are uncommon.** The starting bench has one hammer;
+  Relay starts with a Pulse Emitter. A shove into a pit is something you find now.
+- **Three new arms, for you and for the enemy**:
+  - **Chain Flail** hits the hex you aim at and the two beside it -- one step sideways is not
+    always out of it.
+  - **Snare Launcher**: whatever it hits cannot move next time (no move, dash or charge).
+  - **Mine Layer** drops a mine on a hex; it goes off under whatever starts a round there.
+- Special enemies (trackers, bombers, wardens, hives) turn up from the first fights of Act 1.
+- The enemy-fire list says where a mine is going and who it waits under; snared machines say
+  SNARED; mines sit on the board as red-ringed charges.
+
 ## [046] Agent play-test fixes — 2026-10-06 ([detail](iterations/046-agent-playtest-fixes.md))
 
 ### Fixed
