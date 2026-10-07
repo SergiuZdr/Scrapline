@@ -2,6 +2,21 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [050] Boss tricks — 2026-10-07 ([detail](iterations/050-boss-tricks.md))
+
+### Added
+- **Every boss and warlord has a trick to turn against it**, warned a round ahead:
+  - **The Grinder** marks a lane and charges down it. Charging into a heap, a crate, a drum, a pit
+    or the board's edge leaves it **STUCK**: no saws, double damage for your turn.
+  - **The Sorter**'s claw grabs the nearest machine within 4 and throws it onto its pad. Whenever
+    its pad works -- builds, or is blocked -- its **hatch** is open: double damage, no pylons.
+  - **The Pour**: burst a **coolant tank** within 2 of it and its shell cracks for two turns; the
+    slag by the tank cools.
+  - **The Magnet King** hauls drums, crates and tanks too. A drum hauled into it goes off in its face.
+  - **The Core** has an **open side** that turns every round: +3 from there, no conduit cover.
+  - **The Twin Furnaces** rebuild a fallen twin in 3 rounds unless you break the other first.
+- A keeper caught open says EXPOSED on its tag and on the boss bar; the bar names each one's trick.
+
 ## [049] The hex yard — 2026-10-07 ([detail](iterations/049-hex-yard.md))
 
 ### Changed

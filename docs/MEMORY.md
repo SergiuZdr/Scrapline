@@ -124,6 +124,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-06 | **Gate and warlord boards get `arena_terrain`** (run.json, per act overridable) scattered into their middle rows after everything else is rolled (048) | Play-test 14: "boss battlefields look too empty" -- authored 8x8 and padded with bare rows, they were the only fights with no scattered terrain |
 
 | 2026-10-07 | **The run map's ground is the fight board's hexes** (`YardHexes`, R 1.62 m, three to a zone; sites snap to hex centres; roads are hex lines; each zone merged into one node with its pits beside it) (049) | The user picked mockup C, "the hex diorama look, with the comics aesthetics like in battle": one world for map and fight |
+| 2026-10-07 | **Every keeper has a trick, and three share one opening: EXPOSED** (`state.exposed`, ref -> the crew's turns; double damage via `exposed_pct`, no pylon / conduit / twin cover, counted down at the top of `_begin_round`) (050) | The user: bosses must not be "a bulky dummy" you just hit. A window to hit hard is the reward for using the trick |
 
 ## Lessons carried over from the old codebase
 
@@ -303,3 +304,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-06 | **046: does the board framing, the paper hold zone and the edge arrows read right on the user's screen?** | The user plays | |
 | 2026-10-06 | **047: Act 1 is harder (16.0% lost, was 11.3%) but Acts 2-3 jumped 9 points each (bot 43.3% overall). Ease the later acts back (no snares/mines in their rolls, more arrival repair, mine damage 3)?** | The user plays | |
 | 2026-10-06 | **048: which direction for the run map** -- A ink atlas, B signal board, C hex diorama, D comic route, E floodlit yard (the mockup page)? | The user picks | C, with the battle's comic look (049) |
+| 2026-10-07 | **050: Act 3 got much easier for the bot with the boss tricks (17.4% lost, was 31.4%; gate 4 losses, was 12). Core `open_bonus` 2, or turn two sixths?** | The user plays | |
