@@ -57,9 +57,19 @@ const LAST_STAND: int = 46   ## actor took a wrecking blow and held at 1 HP (033
 const MINE_LAID: int = 47    ## actor laid a mine at (x, y) worth v1 (047)
 const MINE_BLEW: int = 48    ## the mine at (x, y) went off under target for v1 (047); a DAMAGE follows
 const SNARED: int = 49       ## actor snared target at (x, y): it cannot move on its side's next move (047)
+const EXPOSED: int = 50      ## actor (a keeper, 050) is open at (x, y) for the crew's next v1 turns; v2 = why: 0 stuck, 1 hatch, 2 quenched
+const CHARGE_MARKED: int = 51 ## actor (the Grinder, 050) charges from (x, y) along direction v1 next round; v2 = the lane's length
+const CHARGED: int = 52      ## actor charged to (x, y) from v1 (packed y * 64 + x); v2 = 1 it ended stuck
+const GRAB_MARKED: int = 53  ## actor (the Sorter, 050) will grab target, now at (x, y), next round
+const GRABBED: int = 54      ## actor threw target to (x, y) from v1 (packed); v2 = damage
+const PROP_MOVED: int = 55   ## actor hauled the prop at v1 (packed) to (x, y) (050, the Magnet King)
+const QUENCHED: int = 56     ## a coolant tank burst at (x, y) (actor broke it); target = the keeper it quenched or -1; v1 = turns
+const SIDE_TURNED: int = 57  ## actor (the Core, 050) at (x, y) is open on side v1 (a hex direction)
+const REBUILD_MARKED: int = 58 ## actor (a twin, 050) will rebuild target at (x, y) in v1 rounds
+const REBUILT: int = 59      ## actor rebuilt target at (x, y) with v1 HP
 
 ## What a PROP_PLACED / PROP_BROKEN `v1` names. An int, because events are flat ints.
-const PROP_KINDS: PackedStringArray = ["crate", "barrel", "pylon"]
+const PROP_KINDS: PackedStringArray = ["crate", "barrel", "pylon", "coolant"]
 
 const F_KIND: int = 0
 const F_ACTOR: int = 1
@@ -77,6 +87,8 @@ const NAMES: PackedStringArray = [
 	"SPAWN_MARKED", "SPAWNED", "SPAWN_BLOCKED", "SHIELDED", "ARRIVAL_MARKED", "WRECK_THROWN", "PILE_LOST", "POUR_MARKED", "FLOODED",
 	"FLUE_BLEW", "PULSE_MARKED", "PULSED", "ENRAGED", "HOLD_SCORED", "HACKED", "WAVE_MARKED", "HAULED",
 	"REPAIRED", "LAST_STAND", "MINE_LAID", "MINE_BLEW", "SNARED",
+	"EXPOSED", "CHARGE_MARKED", "CHARGED", "GRAB_MARKED", "GRABBED", "PROP_MOVED", "QUENCHED",
+	"SIDE_TURNED", "REBUILD_MARKED", "REBUILT",
 ]
 
 

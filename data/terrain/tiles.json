@@ -159,5 +159,18 @@
       "move_cost": 1,
       "hazard": 2
     }
+  },
+  {
+    "id": "coolant",
+    "name": "Coolant Tank",
+    "glyph": "k",
+    "colour": "1a1e26",
+    "height": 0.0,
+    "blocks": false,
+    "text": "A tank of coolant (050). Burst it within 2 of The Pour and its shell cracks: it takes double for this turn and the next. The slag around the tank cools.",
+    "grid": {
+      "move_cost": 1,
+      "prop": "coolant"
+    }
   }
 ]
