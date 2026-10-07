@@ -1,0 +1,119 @@
+{
+ "id": "045_brute",
+ "name": "Container Row",
+ "_comment": "045: a staged frame (NOT content) -- the default crew (Knuckles is the generated Brute with --models gen) on Container Row, for recording a round.",
+ "rows": [
+  "........",
+  ".s....s.",
+  ".sbr..s.",
+  ".s...bs.",
+  "...oo...",
+  "...^^...",
+  ".r....r.",
+  "........"
+ ],
+ "player": [
+  {
+   "name": "Knuckles",
+   "parts": [
+    "ch_brute",
+    "co_slug",
+    "ar_saw",
+    "ar_hammer",
+    "mo_scavenger"
+   ],
+   "x": 2,
+   "y": 6
+  },
+  {
+   "name": "Needle",
+   "parts": [
+    "ch_hauler",
+    "co_furnace",
+    "ar_pulse",
+    "ar_lance",
+    "mo_ablative"
+   ],
+   "x": 4,
+   "y": 6
+  },
+  {
+   "name": "Relay",
+   "parts": [
+    "ch_strider",
+    "co_arc",
+    "ar_scanner",
+    "ar_pulse",
+    "mo_governor"
+   ],
+   "x": 5,
+   "y": 7
+  }
+ ],
+ "enemy": [
+  {
+   "name": "Strider",
+   "parts": [
+    "ch_strider",
+    "co_mag",
+    "ar_scanner",
+    "ar_railgun",
+    "mo_scavenger"
+   ],
+   "x": 0,
+   "y": 0,
+   "kind": "tracker"
+  },
+  {
+   "name": "Brute",
+   "parts": [
+    "ch_brute",
+    "co_bile",
+    "ar_saw",
+    "ar_hammer",
+    "mo_servo"
+   ],
+   "x": 3,
+   "y": 0
+  },
+  {
+   "name": "Bulwark",
+   "parts": [
+    "ch_bulwark",
+    "co_furnace",
+    "ar_mortar",
+    "ar_hammer",
+    "mo_reactive"
+   ],
+   "x": 4,
+   "y": 1,
+   "kind": "warden"
+  },
+  {
+   "name": "Reaper",
+   "parts": [
+    "ch_reaper",
+    "co_tesla",
+    "ar_ripper",
+    "ar_pulse",
+    "mo_bypass"
+   ],
+   "x": 7,
+   "y": 0
+  }
+ ],
+ "objective": {
+  "type": "defend",
+  "rounds": 4,
+  "caches": [
+   {
+    "x": 3,
+    "y": 7
+   },
+   {
+    "x": 6,
+    "y": 7
+   }
+  ]
+ }
+}
