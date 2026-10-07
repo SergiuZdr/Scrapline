@@ -2,6 +2,17 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [049] The hex yard — 2026-10-07 ([detail](iterations/049-hex-yard.md))
+
+### Changed
+- **The run map is built from the fight board's hexes**, inked and shaded like the board. Sites
+  stand on raised hexes, roads are paved hex paths, and the roads you can take now wear the same
+  blue hatching as the hexes a machine can move to (amber under the pointer). The crew walks the
+  road hex by hex.
+- **The Reclaimer eats the ground a zone at a time**: behind it the hexes are pits.
+- Each act's ground has its own terrain: rubble and scrap heaps, slag in Act 2, flues in Act 3.
+- Zone names are lettered like the board's tags.
+
 ## [048] Play-test 14: undo without a freeze, fuller arenas, map directions — 2026-10-06 ([detail](iterations/048-playtest-14.md))
 
 ### Changed
