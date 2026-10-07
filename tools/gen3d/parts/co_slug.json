@@ -1,0 +1,12 @@
+{
+  "_comment": "045: the Slug core (concept art/concepts/machines/co_slug.png, core 1). Lens toward -Y as generated; sized to the old core (0.15 m across); mounted by its back on the chest.",
+  "slot": "core",
+  "size": 0.17,
+  "mount": "back",
+  "budget": 2500,
+  "posterize": 10,
+  "grade": [
+    1.45,
+    0.62
+  ]
+}

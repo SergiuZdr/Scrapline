@@ -137,3 +137,27 @@ TRELLIS: MIT. Hunyuan3D is excluded (its licence does not cover the EU, UK or So
 roster (it does not reproduce the committed one). An arm may name a `look` (a weapon archetype)
 apart from its `weapon_class`; a module may name a `look` from `MODULE_LOOKS` (a shape for its
 job). After a new model: `make_ink_thumbs.gd --only <ids>`, then verify_assembly.
+
+## Generated machines (045)
+
+Route C works for machines when **each slot is generated alone**: a frame without arms, an arm
+without a frame, a core, a module. Nothing is cut apart between slots, only a frame's legs.
+
+1. **Concept**: `tools/gen3d/part_concept.sh <id> 1 2 3` (FLUX.1-schnell; prompts in
+   `tools/gen3d/part_concepts.json`: a 3D render of mismatched scrap plates on white, three-quarter
+   view). The user picks one: copy it to `art/concepts/machines/<id>.png`.
+2. **Model**: `tools/gen3d/colab_prep.sh <ids>`, upload `shots/colab_in/*.png` into
+   `tools/gen3d/trellis_colab.ipynb` on Colab's free T4 (runtime 2025.07), run, download
+   `scrapline_parts.zip`, `colab_prep.sh --import <folder>`. (`next_part.sh <id>` does the same on
+   the Hugging Face allowance, one or two a day.)
+3. **Rig**: `tools/gen3d/parts/<id>.json`, then `next_part.sh <id> --rig` (no GPU), which runs
+   `tools/blender/rig_generated_part.py`: `rotate` to face -Y, `size`, `floor` / `cut_below`,
+   `drop_shadow`, `grade` [saturation, ceiling], `posterize`; a frame's `cut_arms`, `hip_z`, `hip_x`,
+   `pelvis_x` (read off the width profile it prints) and `sockets`; an attachment's `mount`. Previews
+   are `shots/045_<id>_0..3.png` (front, three-quarter, side, back).
+4. **Check**: `verify_assembly.gd -- --dir res://art/parts_gen`, then a fight with `-- --models gen`
+   (`tools/record_round.gd` records one).
+
+The Brute (045): frame 0.64 m, 20,264 triangles in all. `Ink.dress_machine` keeps a textured
+surface's texture under the ramp (`Ink.textured`), tinted by a boss's livery.
+

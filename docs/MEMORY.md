@@ -125,6 +125,8 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 
 | 2026-10-07 | **The run map's ground is the fight board's hexes** (`YardHexes`, R 1.62 m, three to a zone; sites snap to hex centres; roads are hex lines; each zone merged into one node with its pits beside it) (049) | The user picked mockup C, "the hex diorama look, with the comics aesthetics like in battle": one world for map and fight |
 | 2026-10-07 | **Every keeper has a trick, and three share one opening: EXPOSED** (`state.exposed`, ref -> the crew's turns; double damage via `exposed_pct`, no pylon / conduit / twin cover, counted down at the top of `_begin_round`) (050) | The user: bosses must not be "a bulky dummy" you just hit. A window to hit hard is the reward for using the trick |
+| 2026-10-07 | **Machines can be generated, one slot at a time** (FLUX concept the user picks -> TRELLIS -> `rig_generated_part.py`; `art/parts_gen/`, `--models gen`) (045) | The user: the scripted Blender machines were "bad to say the least". Generating each slot separately keeps the part contract; only a frame's legs are cut |
+| 2026-10-07 | **Free generation runs on Google Colab** (`tools/gen3d/trellis_colab.ipynb`), not the Hugging Face allowance (045) | The user wanted to stay free; the allowance made one or two models a day, a Colab T4 makes one a minute |
 
 ## Lessons carried over from the old codebase
 
@@ -246,6 +248,9 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-06 | **Something that stays on the board must not be an intent mark.** Intents are cleared while the enemy acts; The Pour's slag pools were drawn as intents and blinked out for every volley (048, `_flood_views`) |
 | 2026-10-06 | **A canvas context keeps its state between redraws**: the map mockups drew twice (once more when the fonts loaded) and the second pass inherited `textAlign = right` from the first, clipping every title. Reset the state at the top of each draw |
 | 2026-10-07 | **`Ink.line` builds a new outline hull for every primitive mesh** (only ArrayMeshes are cached). A field of a thousand hexes must outline one mesh per shape and share it (`YardView._add_inked`) |
+| 2026-10-07 | **TRELLIS bakes its render's highlights into the texture.** Under the toon ramp, which shows a texture's lit colour exactly, the Brute's pauldrons and chest read cream from the board camera. Grade the texture first (`grade`: saturation up, highlights under a ceiling) (045) |
+| 2026-10-07 | **A TRELLIS model is many thin loose shells.** Removing "thin" pieces to drop a baked drop-shadow disc tore real plates off; pick the disc by colour and place instead (`drop_shadow`) (045) |
+| 2026-10-07 | **FLUX ignores "without arms"**: every frame concept had arms. Cut them by a measured width profile (legs, a gap, then the arms) (045) |
 
 ## Open questions
 
@@ -305,3 +310,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-06 | **047: Act 1 is harder (16.0% lost, was 11.3%) but Acts 2-3 jumped 9 points each (bot 43.3% overall). Ease the later acts back (no snares/mines in their rolls, more arrival repair, mine damage 3)?** | The user plays | |
 | 2026-10-06 | **048: which direction for the run map** -- A ink atlas, B signal board, C hex diorama, D comic route, E floodlit yard (the mockup page)? | The user picks | C, with the battle's comic look (049) |
 | 2026-10-07 | **050: Act 3 got much easier for the bot with the boss tricks (17.4% lost, was 31.4%; gate 4 losses, was 12). Core `open_bonus` 2, or turn two sixths?** | The user plays | |
+| 2026-10-07 | **Do the rest of the machines the 045 way?** About 60 parts: an hour of Colab, a concept pick each, and a rig spec per part | The user looks at the generated Brute first | |

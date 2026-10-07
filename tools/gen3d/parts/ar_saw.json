@@ -1,0 +1,18 @@
+{
+  "_comment": "045: the Brute's saw arm (concept art/concepts/machines/ar_saw.png, saw 1). TRELLIS laid the weapon along +X: turned so it reaches forward (-Y) from the shoulder. Its drop shadow came back as a disc (drop_shadow).",
+  "slot": "arm",
+  "rotate": [
+    0,
+    0,
+    -90
+  ],
+  "drop_shadow": true,
+  "size": 0.42,
+  "mount": "top",
+  "budget": 4000,
+  "posterize": 10,
+  "grade": [
+    1.45,
+    0.62
+  ]
+}
