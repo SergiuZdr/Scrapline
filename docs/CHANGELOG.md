@@ -2,6 +2,23 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [048] Play-test 14: undo without a freeze, fuller arenas, map directions — 2026-10-06 ([detail](iterations/048-playtest-14.md))
+
+### Changed
+- **UNDO is instant.** It used to replay the whole fight from round 1 and rebuild every machine
+  (up to two seconds by round 8). It now starts from the turn's own snapshot and only rebuilds a
+  machine whose parts changed.
+- **Boss and warlord arenas have cover**: rubble, scrap heaps, crate walls and a fuel drum are
+  scattered into the middle of their boards. Their open floor is worked steel (deck plates, drain
+  grates, oil stains, bolts) and they sit inside a closer wall of barriers and stacks.
+- **Live wires** are a scorch mark, a heavy cable and a pale electric spark, not a red hex.
+
+### Fixed
+- The Pour's slag pools no longer vanish while the enemy is firing.
+
+### Added
+- A page of five mockups for the run map, for the user to pick a direction.
+
 ## [047] Difficulty: rarer shoves, three new arms, earlier traits — 2026-10-06 ([detail](iterations/047-difficulty.md))
 
 ### Changed
