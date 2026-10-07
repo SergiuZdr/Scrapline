@@ -1229,6 +1229,40 @@ func _spawn_prop(cell: Vector2i, kind: String) -> void:
 			drum.material_override = skin
 			Ink.line(drum, Ink.LINE_ACT)
 			root.add_child(drum)
+	elif kind == "coolant":
+		# A coolant tank (050, The Pour's board): a squat white tank, ink hoops and an ink
+		# snowflake -- cold, and nothing like a drum.
+		var tank := MeshInstance3D.new()
+		var body := CylinderMesh.new()
+		body.top_radius = 0.24
+		body.bottom_radius = 0.27
+		body.height = 0.7
+		body.radial_segments = 12
+		tank.mesh = body
+		tank.position.y = 0.35
+		tank.material_override = Ink.toon(Color("dfe4e0"), "clean")
+		Ink.line(tank, Ink.LINE_ACT)
+		root.add_child(tank)
+		for i: int in 2:
+			var hoop := MeshInstance3D.new()
+			var band := CylinderMesh.new()
+			band.top_radius = 0.275
+			band.bottom_radius = 0.275
+			band.height = 0.05
+			band.radial_segments = 12
+			hoop.mesh = band
+			hoop.position.y = 0.14 + 0.42 * i
+			hoop.material_override = Ink.toon(Ink.INK, "clean")
+			root.add_child(hoop)
+		for i: int in 3:
+			var spoke := MeshInstance3D.new()
+			var bar := BoxMesh.new()
+			bar.size = Vector3(0.04, 0.26, 0.02)
+			spoke.mesh = bar
+			spoke.position = Vector3(0, 0.36, 0.265)
+			spoke.rotation.z = float(i) * PI / 3.0
+			spoke.material_override = Ink.toon(Ink.INK, "clean")
+			root.add_child(spoke)
 	elif kind == "pylon":
 		# A gate pylon (013): a black column banded in the danger red. Its beam to the Sorter is
 		# drawn with the intents (`_pylon_beams`).
@@ -1593,7 +1627,11 @@ func _set_tag(view: Dictionary, u: GridUnit) -> void:
 		status.append("ANCHORED")
 	if u.shield > 0:
 		status.append("SHIELD")
-	if u.kind == "sorter" and _state != null and CombatSim.has_pylon(_state):
+	# 050: an opening says so on the keeper's own tag, and its armour line goes.
+	var open: bool = _state != null and _state.exposed.has(u.ref)
+	if open:
+		status.append("EXPOSED x2")
+	if u.kind == "sorter" and _state != null and CombatSim.has_pylon(_state) and not open:
 		status.append("PYLONS -3")
 	if u.team == GridUnit.TEAM_PLAYER and not u.objective and u.heat > 0:
 		status.append("HEAT %d/%d" % [u.heat, u.heat_cap])
@@ -2188,6 +2226,92 @@ func _animate(e: Array) -> void:
 		GridEv.SHIELDED:
 			_refresh_tag(target)
 			Audio.play("shield", -9.0)
+		# --- 050: the keepers' tricks ---
+		GridEv.EXPOSED:
+			var open_at: Vector3 = _unit_pos(actor) + Vector3(0, 0.6, 0)
+			var words: String = ["STUCK!", "HATCH OPEN!", "CRACKED!"][clampi(int(e[GridEv.F_V2]), 0, 2)]
+			_vfx.burst(open_at, Ink.ACTION, 3.0)
+			_letters(open_at + Vector3(0.2, 2.4, 0), words, Ink.ACTION, 120, 0.08)
+			_float_text(open_at + Vector3(0, 1.6, 0), "TAKES DOUBLE", Ink.ACTION)
+			_refresh_tag(actor)
+			Audio.play("reward", -6.0)
+			await _wait(0.45)
+		GridEv.CHARGE_MARKED:
+			_float_text(_unit_pos(actor) + Vector3(0, 2.6, 0), "IT WILL CHARGE", COL_PAD_DANGER)
+			Audio.play("warn", -6.0)
+			await _wait(0.15)
+		GridEv.CHARGED:
+			if _views.has(actor):
+				var root: Node3D = (_views[actor] as Dictionary)["root"]
+				var goal: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
+				if goal.distance_to(root.position) > 0.05:
+					root.rotation.y = atan2(goal.x - root.position.x, goal.z - root.position.z)
+				_streaks(root.position, goal)
+				var run := create_tween()
+				run.tween_property(root, "position", goal, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+				_letters(goal + Vector3(0.2, 2.2, 0), "VRRRAM!", Ink.DANGER, 120, -0.1)
+				Audio.play("hit_heavy", -6.0)
+				await run.finished
+				if int(e[GridEv.F_V2]) == 1:
+					_vfx.sparks(goal + Vector3(0, 0.5, 0), Color("ffb070"), 18, 1.2)
+					_vfx.shake(0.45)
+		GridEv.GRAB_MARKED:
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.8, 0), "THE CLAW MARKS IT", COL_PAD_DANGER)
+			Audio.play("warn", -6.0)
+			await _wait(0.15)
+		GridEv.GRABBED:
+			if _views.has(target):
+				var root: Node3D = (_views[target] as Dictionary)["root"]
+				var start: Vector3 = root.position
+				var goal: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
+				var fly := create_tween()
+				fly.tween_method(func(k: float) -> void:
+					root.position = start.lerp(goal, k) + Vector3(0, sin(k * PI) * 1.6, 0), 0.0, 1.0, 0.4)
+				_letters(start + Vector3(0, 2.2, 0), "YOINK!", Ink.DANGER, 110, 0.1)
+				Audio.play("zap", -5.0)
+				await fly.finished
+				_letters(goal + Vector3(0.2, 1.8, 0), "CLANG!", Ink.ACTION, 100, -0.08)
+				_vfx.shake(0.3)
+		GridEv.PROP_MOVED:
+			var packed: int = int(e[GridEv.F_V1])
+			var from := Vector2i(packed % 64, packed / 64)
+			if _prop_views.has(from):
+				var prop: Node3D = _prop_views[from]
+				_prop_views.erase(from)
+				_prop_views[cell] = prop
+				var slide := create_tween()
+				slide.tween_property(prop, "position", _to_world(cell.x, cell.y), 0.2).set_trans(Tween.TRANS_QUAD)
+				await slide.finished
+		GridEv.QUENCHED:
+			var steam: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, 0.5, 0)
+			_vfx.burst(steam, Color("e8f0ee"), 4.0)
+			_letters(steam + Vector3(0, 1.8, 0), "HSSSSS!", Ink.PAPER, 120, 0.06)
+			for flooded: Variant in _flood_views.keys():
+				if not _state.flooded.has(flooded):
+					(_flood_views[flooded] as Node).queue_free()
+					_flood_views.erase(flooded)
+			Audio.play("flood", -4.0)
+			await _wait(0.3)
+		GridEv.SIDE_TURNED:
+			pass
+		GridEv.REBUILD_MARKED:
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.8, 0), "REBUILDING · %d ROUNDS" % int(e[GridEv.F_V1]), COL_PAD_DANGER)
+			Audio.play("warn", -6.0)
+			await _wait(0.2)
+		GridEv.REBUILT:
+			var back: GridUnit = _state.unit(target)
+			if back != null:
+				if _views.has(target):
+					((_views[target] as Dictionary)["root"] as Node).queue_free()
+				_views[target] = _build_view(back)
+				var root: Node3D = (_views[target] as Dictionary)["root"]
+				var size: Vector3 = root.scale
+				root.scale = size * 0.1
+				var grow := create_tween()
+				grow.tween_property(root, "scale", size, 0.35).set_trans(Tween.TRANS_BACK)
+				_letters(_unit_pos(target) + Vector3(0, 2.6, 0), "REBUILT!", Ink.DANGER, 120, 0.06)
+				Audio.play("spawn", -4.0)
+				await _wait(0.4)
 		GridEv.FIGHT_END:
 			pass
 
@@ -2866,6 +2990,21 @@ func _hud_boss() -> void:
 		bits.append(("BOSS" if BOSS_KINDS.has(u.kind) else "WARLORD"))
 		if _state.enraged.has(u.ref):
 			bits.append("ENRAGED")
+		# 050: the opening first -- it is the moment to hit it.
+		if _state.exposed.has(u.ref):
+			bits.append("EXPOSED: takes double, no armour")
+		if int(rules.get("charge_every", 0)) > 0:
+			bits.append("charges along a marked lane: stuck in a wall, it takes double")
+		if int(rules.get("grab_every", 0)) > 0:
+			bits.append("its pad working opens it")
+		if int(rules.get("quench_rounds", 0)) > 0:
+			bits.append("burst a coolant tank near it: it takes double")
+		if bool(rules.get("haul_props", false)):
+			bits.append("a drum hauled into it goes off")
+		if int(rules.get("open_bonus", 0)) > 0:
+			bits.append("OPEN SIDE (amber): +%d" % int(rules["open_bonus"]))
+		if int(rules.get("rebuild_rounds", 0)) > 0:
+			bits.append("rebuilds its twin in %d" % int(rules["rebuild_rounds"]))
 		var shield_kind: String = String(rules.get("cover_kind", ""))
 		var shields: int = 0
 		for other: GridUnit in _state.units:
@@ -2873,7 +3012,7 @@ func _hud_boss() -> void:
 				shields += 1
 		if shields > 0:
 			bits.append("SHIELDED by %d %s%s: -%d per hit" % [shields, shield_kind.to_upper(), "S" if shields > 1 else "", int(rules.get("cover_armor", 0))])
-		if u.kind == "sorter" and CombatSim.has_pylon(_state):
+		if u.kind == "sorter" and CombatSim.has_pylon(_state) and not _state.exposed.has(u.ref):
 			bits.append("SHIELDED by its pylons: -3 per hit")
 		if not _state.enraged.has(u.ref) and (rules.has("enraged") or (_state.setup.kinds.get(u.kind, {}) as Dictionary).has("enraged")):
 			bits.append("erupts at half HP")
@@ -3631,8 +3770,55 @@ func _warlord_marks() -> void:
 				top + Vector3(0, 0.08, HEX * 1.6), Ink.PAPER, 28)
 		if int((_db.enemy_kinds.get(u.kind, {}) as Dictionary).get("twin_armor", 0)) > 0:
 			twins.append(u)
+		_trick_marks(u, here, top, rules)
 	if twins.size() == 2:
 		_intent_marker_bar(_to_world(twins[0].x, twins[0].y) + Vector3(0, 1.4, 0), _to_world(twins[1].x, twins[1].y) + Vector3(0, 1.4, 0), COL_PAD_DANGER)
+
+
+## 050: each keeper's trick, a round ahead -- the Grinder's lane, the Sorter's claw, the Core's
+## open side -- and an opening while it lasts.
+func _trick_marks(u: GridUnit, here: Vector2i, top: Vector3, rules: Dictionary) -> void:
+	if _state.exposed.has(u.ref):
+		_zone_ring(here, Ink.ACTION, 1.8)
+		_marker_label("EXPOSED · it takes double, no armour", top + Vector3(0, 0.08, HEX * 1.15), Ink.ACTION, 44)
+	if _state.charges.has(u.ref):
+		var lane: Array = (_state.charges[u.ref] as Dictionary)["cells"]
+		for cell: Variant in lane:
+			_mark(_threat_quads, cell, COL_THREAT)
+		if not lane.is_empty():
+			_throw_arrow(here, lane[0])
+			var end: Vector2i = lane[lane.size() - 1]
+			_marker_label("CHARGES NEXT ROUND · it sticks in a heap, a crate, a drum or a pit",
+				_to_world(end.x, end.y) + Vector3(0, 0.08, HEX * 0.72), COL_PAD_DANGER.lightened(0.35), 36)
+	if _state.grabs.has(u.ref):
+		var t: GridUnit = _state.unit(int(_state.grabs[u.ref]))
+		if t != null and t.alive:
+			_mark(_threat_quads, Vector2i(t.x, t.y), COL_THREAT)
+			_throw_arrow(Vector2i(t.x, t.y), here)
+			_marker_label("THE CLAW · get more than %d away, or land on its pad" % int(rules.get("grab_range", 4)),
+				_to_world(t.x, t.y) + Vector3(0, 0.08, HEX * 0.72), COL_PAD_DANGER.lightened(0.35), 36)
+	if _state.facing.has(u.ref):
+		# An amber arrow out of its open face and rings down that side: hit it from there.
+		var dir: int = int(_state.facing[u.ref])
+		var side: Vector2i = Hex.neighbor(here, dir)
+		var far: Vector2i = side
+		for i: int in 3:
+			if not _state.inside(far):
+				break
+			_zone_ring(far, Ink.ACTION, 1.8 - 0.4 * float(i))
+			far = Hex.neighbor(far, dir)
+		if _state.inside(side):
+			_throw_arrow(here, Hex.neighbor(side, dir) if _state.inside(Hex.neighbor(side, dir)) else side)
+			var label_at: Vector2i = Hex.neighbor(side, dir) if _state.inside(Hex.neighbor(side, dir)) else side
+			_marker_label("OPEN SIDE · hit it from here: +%d" % int(rules.get("open_bonus", 0)),
+				_to_world(label_at.x, label_at.y) + Vector3(0, 0.08, HEX * 0.72), Ink.ACTION, 46)
+	for ref: Variant in _state.rebuilds:
+		var fallen: GridUnit = _state.unit(int(ref))
+		if fallen != null and fallen.kind == u.kind:
+			var at := Vector2i(fallen.x, fallen.y)
+			_zone_ring(at, COL_PAD_DANGER, 1.6)
+			_marker_label("REBUILT IN %d · break its twin first" % int(_state.rebuilds[ref]),
+				_to_world(at.x, at.y) + Vector3(0, 0.08, HEX * 0.72), COL_PAD_DANGER.lightened(0.35), 40)
 
 
 ## 028: HOLD's zone (blue rings, HOLD ZONE), HACK's terminals (consoles: blue to take, green when
