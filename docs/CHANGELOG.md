@@ -2,6 +2,19 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [045] Generated machines: the Brute — 2026-10-07 ([detail](iterations/045-generated-machines.md))
+
+### Added
+- **The Brute rebuilt from generated models** (concept -> TRELLIS -> rig), shown with `-- --models gen`:
+  frame, saw, hammer, core and module, each made from a concept the user picked, multi-coloured scrap
+  under the ink look. The default game is unchanged.
+- `tools/gen3d/trellis_colab.ipynb`: TRELLIS on Colab's free T4, about a minute a model.
+- `tools/gen3d/part_concept.sh` (FLUX concepts), `next_part.sh` (Hugging Face TRELLIS, or `--rig` again),
+  `colab_prep.sh` (cut concepts for Colab, import its models), `queue_parts.sh` (waits out the allowance).
+- `tools/blender/rig_generated_part.py`: orients, sizes, grades and posterizes a generated part, cuts
+  a frame's legs at the hips and adds its sockets; specs per part in `tools/gen3d/parts/`.
+- `tools/record_round.gd`: a fight playing itself for Godot's movie writer.
+
 ## [050] Boss tricks — 2026-10-07 ([detail](iterations/050-boss-tricks.md))
 
 ### Added

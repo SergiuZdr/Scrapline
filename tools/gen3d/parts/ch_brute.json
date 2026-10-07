@@ -1,17 +1,46 @@
 {
-  "_comment": "045: the Brute's generated frame (concept art/concepts/machines/ch_brute.png). Metres, game frame (-Y forward). Hips and sockets read off the rig's previews; the old Brute: 0.85 m tall, hips 0.354.",
+  "_comment": "045: the Brute's generated frame (concept art/concepts/machines/ch_brute.png). Metres after sizing, game frame (-Y forward). TRELLIS faced it -X (rotate 90) on a plinth (floor). Numbers read off the rig's width profile: legs |x| 0.04-0.24, gap to 0.32, hanging arms beyond, joining the pauldrons above ~0.5 (at 0.85 tall; scaled to 0.64 here: at 0.78 the pauldrons spilled off the hex).",
   "slot": "chassis",
-  "size": 0.85,
+  "rotate": [
+    0,
+    0,
+    90
+  ],
+  "size": 0.64,
+  "floor": 0.03,
   "budget": 9000,
-  "posterize": 16,
-  "hip_z": 0.36,
-  "hip_x": 0.1,
-  "pelvis_x": 0.03,
-  "cut_arms": [0.27, 0.58],
+  "posterize": 10,
+  "hip_z": 0.238,
+  "hip_x": 0.098,
+  "pelvis_x": 0.029,
+  "cut_arms": [
+    0.213,
+    0.394
+  ],
   "sockets": {
-    "socket_arm_l": [-0.27, 0.0, 0.62],
-    "socket_arm_r": [0.27, 0.0, 0.62],
-    "socket_core": [0.0, -0.15, 0.55],
-    "socket_module": [0.0, 0.18, 0.55]
-  }
+    "socket_arm_l": [
+      -0.279,
+      0.0,
+      0.41
+    ],
+    "socket_arm_r": [
+      0.279,
+      0.0,
+      0.41
+    ],
+    "socket_core": [
+      0.0,
+      -0.181,
+      0.345
+    ],
+    "socket_module": [
+      0.0,
+      0.172,
+      0.41
+    ]
+  },
+  "grade": [
+    1.45,
+    0.62
+  ]
 }

@@ -124,10 +124,59 @@ def parent_keep(child, parent):
     child.matrix_world = world
 
 
+def profile(obj, bands=12):
+    """Width of the frame per height band, to place `hip_z` and `cut_arms` from numbers."""
+    lo, hi = bounds(obj)
+    step = (hi.z - lo.z) / bands
+    for b in range(bands - 1, -1, -1):
+        xs = [v.co.x for v in obj.data.vertices if lo.z + b * step <= v.co.z < lo.z + (b + 1) * step]
+        ys = [v.co.y for v in obj.data.vertices if lo.z + b * step <= v.co.z < lo.z + (b + 1) * step]
+        if xs:
+            cells = set(int((x + 0.6) / 0.04) for x in xs)
+            print("  " + "".join("#" if c in cells else "." for c in range(30)))
+            print("  z %.2f-%.2f  x %+.3f..%+.3f  y %+.3f..%+.3f" % (lo.z + b * step, lo.z + (b + 1) * step,
+                                                                  min(xs), max(xs), min(ys), max(ys)))
+
+
+def grade(obj, saturation, ceiling):
+    """TRELLIS bakes its render's highlights into the texture, so the top of a pauldron comes back
+    near-white -- and the board camera looks straight down at it, where the toon ramp shows the
+    texture's own colour (045: the Brute read cream). Saturation up, and the value of every texel
+    squeezed under \`ceiling\`, so the concept's paint comes back."""
+    import numpy as np
+    for slot in obj.material_slots:
+        if not (slot.material and slot.material.use_nodes):
+            continue
+        for node in slot.material.node_tree.nodes:
+            if node.type != "TEX_IMAGE" or node.image is None:
+                continue
+            image = node.image
+            px = np.array(image.pixels[:], dtype=np.float32).reshape(-1, 4)
+            rgb = px[:, :3]
+            v = rgb.max(1, keepdims=True)
+            grey = rgb.mean(1, keepdims=True)
+            rgb = np.clip(grey + (rgb - grey) * saturation, 0.0, 1.0)
+            # Highlights compress toward the ceiling; darks are left alone.
+            scale = np.where(v > 0.0, np.minimum(1.0, (ceiling * np.tanh(v / ceiling)) / np.maximum(v, 1e-4)), 1.0)
+            px[:, :3] = rgb * scale
+            image.pixels[:] = px.reshape(-1)
+            image.update()
+            image.pack()
+
+
 def chassis(obj, spec):
     size_to(obj, spec["size"], True)
     lo, hi = bounds(obj)
     obj.data.transform(Matrix.Translation(Vector((-(lo.x + hi.x) * 0.5, -(lo.y + hi.y) * 0.5, -lo.z))))
+    if spec.get("floor", 0.0) > 0.0:
+        # TRELLIS grows a plinth under a standing figure: everything below `floor` goes, and the
+        # feet are set back down on z=0.
+        cut(obj, Vector((0, 0, spec["floor"])), Vector((0, 0, 1)))
+        gone = delete_faces(obj, lambda c: c.z < spec["floor"])
+        lo, hi = bounds(obj)
+        obj.data.transform(Matrix.Translation(Vector((-(lo.x + hi.x) * 0.5, -(lo.y + hi.y) * 0.5, -lo.z))))
+        print("floor: %d faces below %.3f" % (gone, spec["floor"]))
+    profile(obj)
     if "cut_arms" in spec:
         ax, az = spec["cut_arms"]
         for side in (1.0, -1.0):
@@ -155,7 +204,68 @@ def chassis(obj, spec):
     return [obj] + list(legs.values())
 
 
+def drop_shadow(obj, lum_min=0.42, sat_max=0.28, share=0.6, low=0.25):
+    """Removes the concept's drop shadow, which TRELLIS turns into a pale disc under the object
+    (045, both arms): a loose piece in the bottom `low` of the part whose faces are mostly pale in
+    the texture. Not by shape -- a TRELLIS model is many thin loose shells, and a thinness test tore
+    real plates off both arms."""
+    import numpy as np
+    image = None
+    for slot in obj.material_slots:
+        if slot.material and slot.material.use_nodes:
+            for node in slot.material.node_tree.nodes:
+                if node.type == "TEX_IMAGE" and node.image is not None:
+                    image = node.image
+    if image is None or not obj.data.uv_layers:
+        return
+    w, h = image.size
+    px = np.array(image.pixels[:], dtype=np.float32).reshape(h, w, 4)
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    uv = bm.loops.layers.uv.active
+    bm.faces.ensure_lookup_table()
+
+    def pale(face):
+        u = sum(l[uv].uv.x for l in face.loops) / len(face.loops)
+        v = sum(l[uv].uv.y for l in face.loops) / len(face.loops)
+        r, g, b = px[min(int(v % 1.0 * h), h - 1), min(int(u % 1.0 * w), w - 1), :3]
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b > lum_min and max(r, g, b) - min(r, g, b) < sat_max
+
+    zs = [v.co.z for v in bm.verts]
+    floor = min(zs) + (max(zs) - min(zs)) * low
+    seen, doomed = set(), []
+    for face in bm.faces:
+        if face.index in seen:
+            continue
+        island, stack = [], [face]
+        seen.add(face.index)
+        while stack:
+            f = stack.pop()
+            island.append(f)
+            for e in f.edges:
+                for g in e.link_faces:
+                    if g.index not in seen:
+                        seen.add(g.index)
+                        stack.append(g)
+        top = max(v.co.z for f in island for v in f.verts)
+        if top < floor and sum(1 for f in island if pale(f)) >= share * len(island):
+            doomed += island
+    bmesh.ops.delete(bm, geom=doomed, context="FACES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm.to_mesh(obj.data)
+    bm.free()
+    print("shadow dropped: %d faces" % len(doomed))
+
+
 def attachment(obj, spec):
+    if spec.get("drop_shadow", False):
+        drop_shadow(obj)
+    if spec.get("cut_below", 0.0) > 0.0:
+        # A share of the height off the bottom: legs FLUX gave an object that hangs on a machine.
+        lo, hi = bounds(obj)
+        z = lo.z + (hi.z - lo.z) * spec["cut_below"]
+        cut(obj, Vector((0, 0, z)), Vector((0, 0, 1)))
+        print("cut below: %d faces" % delete_faces(obj, lambda c: c.z < z))
     size_to(obj, spec["size"], False)
     lo, hi = bounds(obj)
     mid = (lo + hi) * 0.5
@@ -201,6 +311,8 @@ def main():
                        @ Matrix.Rotation(math.radians(rx), 4, "X"))
     before = sum(len(p.vertices) - 2 for p in obj.data.polygons)
     cg.collapse(obj, spec.get("budget", 5000), spec.get("sharp", 45.0))
+    if "grade" in spec:
+        grade(obj, *spec["grade"])
     cg.posterize(obj, spec.get("posterize", 16))
     part_id = os.path.splitext(os.path.basename(a.out))[0]
     obj.name = part_id

@@ -40,6 +40,6 @@ fi
 [ -f tools/gen3d/parts/$id.json ] || { echo "$id: write tools/gen3d/parts/$id.json, then: $0 $id --rig"; exit 0; }
 mkdir -p shots
 blender --background --python tools/blender/rig_generated_part.py -- --in $raw --spec tools/gen3d/parts/$id.json \
-  --out art/parts_gen/$id.glb --preview shots/045_$id 2>&1 | grep -E "^  |^rigged|^arms|Error|no leg"
-$GODOT --headless --path . --import 2>&1 | grep -i "error" | head -3
+  --out art/parts_gen/$id.glb --preview shots/045_$id 2>&1 | grep -E "^  |^rigged|^arms|^shadow|^cut|^floor|Error|no leg"
+[ -f project.godot ] && $GODOT --headless --path . --import 2>&1 | grep -i "error" | head -3
 echo "$id: art/parts_gen/$id.glb (previews shots/045_${id}_0..3.png)"

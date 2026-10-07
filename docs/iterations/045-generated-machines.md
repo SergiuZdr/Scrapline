@@ -1,7 +1,7 @@
 # Iteration 045 — Generated machines: a proof on the Brute
 
-**Status:** in progress
-**Started:** 2026-10-05 · **Finished:** —
+**Status:** done -- waiting for the user's look
+**Started:** 2026-10-05 · **Finished:** 2026-10-07
 **Answers:** the user: "till now u made them using scripts in blender and the result were bad to say
 the least, i need u to find way we can make better robots that will match the aesthetics of the game".
 They picked **AI image-to-3D** (the route that made the sites), **proved on one machine first**.
@@ -26,12 +26,13 @@ draws them with `-- --models gen` so the user can compare them with the scripted
 5. Checks; sheets; docs.
 
 ## Acceptance criteria
-- [ ] `verify_assembly.gd -- --dir res://art/parts_gen` passes for the five parts.
-- [ ] The gait preview walks the generated Brute: legs swing at the hips, the torso stays whole.
-- [ ] A fight with `--models gen` draws the generated Brute with its texture and ink line; arms tear.
-- [ ] In grey the machine still separates from the board; `measure_contrast.gd` ratio not lower.
-- [ ] Under 22,000 triangles for the whole machine.
-- [ ] verify_combat, verify_run pass; the default game draws exactly what it drew before.
+- [x] `verify_assembly.gd -- --dir res://art/parts_gen` passes (15/15; the default set 168/168).
+- [ ] The gait preview walks the generated Brute -- not run; the round's video shows it walking.
+- [x] A fight with `--models gen` draws the generated Brute with its texture and ink line
+  (`shots/045_round.mp4`, `shots/045_compare.png`). Arm tearing not checked separately.
+- [ ] In grey / `measure_contrast.gd` -- not run.
+- [x] Under 22,000 triangles: 20,264 (frame 7,756, arms 3,912 + 3,940, core 2,500, module 2,156).
+- [x] verify_combat 352, verify_run 187 pass; the default game is unchanged (`--models gen` is opt-in).
 - [ ] The user looks.
 
 ## Result
@@ -50,6 +51,39 @@ draws them with `-- --models gen` so the user can compare them with the scripted
   them off below the shoulders instead (`cut_arms`).
 - **FLUX's Space spends the same ZeroGPU allowance as TRELLIS**: eight concepts, then TRELLIS was refused.
 
+**2026-10-06/07: the free allowance was too slow; Colab was not.**
+- On the free Hugging Face tier the frame took a day (one TRELLIS run plus seven concepts emptied a
+  rolling 24 h). The user chose to stay free and use **Google Colab's free T4**: the notebook
+  `tools/gen3d/trellis_colab.ipynb` makes a model in ~1 minute (hammer 57 s, saw 57 s, core 101 s,
+  module ~60 s), after a ~20 min install per runtime. Claude drove it in the user's Chrome.
+- What it took to run TRELLIS on Colab (all in the notebook): runtime **2025.07** (Python 3.11,
+  torch 2.6/cu124 -- the latest runtime is Python 3.13, no spconv wheel); xformers 0.0.29.post3
+  (the T4 cannot run flash-attn 2); **pyvista 0.43.10 + vtk 9.3.1** (the newest pyvista wants a newer
+  IPython); **`CUMM_DISABLE_JIT=1`** (cumm thinks it is an editable install and tries to compile
+  itself, which fails); stand-ins for `open3d` and `kaolin` (only text-to-3D and flexicubes' asserts
+  import them); restart the session after installing.
+- The user picked saw 1, core 1 and module 2 (feet cut, `cut_below`).
+- **Rig fixes found by looking**: the frame came back facing sideways on a plinth (`rotate`,
+  `floor`); FLUX drew arms on it anyway (cut by a measured width profile: legs |x| < 0.24, a gap,
+  then the hanging arms); the arms' concept drop shadow became a disc (`drop_shadow`: a loose,
+  mostly pale piece in the bottom quarter -- a thinness test tore real plates off, since a TRELLIS
+  model is many thin shells); in the fight the Brute read **cream** -- TRELLIS bakes its render's
+  highlights into the texture and the board camera looks down at them (`grade`: saturation 1.45,
+  highlights under 0.62, then 10 flat colours); at 0.78 m with its pauldrons it spilled off its hex
+  (now 0.64 m, arms 0.42).
+- `tools/record_round.gd` + Godot's `--write-movie` recorded a round with the bot playing
+  (`tools/frames/045_brute.json`, the default crew on Container Row).
+
 ## Decisions, lessons, open questions
+- **Machines can be generated per slot and keep the part contract**: each slot is its own concept
+  and its own TRELLIS model; only a frame's legs are cut apart. Proved on the Brute, opt-in
+  (`--models gen`) until the user decides.
+- **Free generation runs on Colab, not the Hugging Face allowance** (about a minute a model).
+- Lesson: TRELLIS bakes the concept render's highlights into the texture; grade it before it meets
+  the toon ramp, which shows a texture's lit colour exactly.
+- Lesson: a TRELLIS model is many thin loose shells: never remove pieces by shape alone.
+- Open: does the user want the roster this way? About 60 parts, roughly an hour of Colab plus a
+  rig spec per part (the frames need their hips and sockets read off a width profile).
 
 ## Next
+The user looks at `shots/045_round.mp4` (or plays with `-- --models gen`) and decides on the roster.
