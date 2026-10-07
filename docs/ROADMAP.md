@@ -70,6 +70,8 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 044 | [Models for the warlord, arena, refinery, auction](iterations/044-more-sites.md) | The four 030-031 site kinds as TRELLIS models, all in one evening | ✅ awaiting the user's look |
 | 046 | [Agent play-test fixes](iterations/046-agent-playtest-fixes.md) | The agent played Act 1: resume soft-lock, rewards that repeat, map rules, refit HP, the board under the HUD, tags, off-screen sites, big moments (bot 58.0%) | ✅ awaiting the play-test |
 | 047 | [Difficulty](iterations/047-difficulty.md) | Shove arms uncommon (one on the bench); flail, snare launcher, mine layer for both sides; enemy traits earlier in Act 1 (bot 43.3%: Act 1 16.0% lost) | ✅ awaiting the play-test |
+| — | [Play-test 14](playtests/2026-10-06-playtest-14.md) | The map's look, a slow UNDO, empty arenas, red live wires, slag that blinks | ✅ |
+| 048 | [Play-test 14 fixes](iterations/048-playtest-14.md) | UNDO from the turn's snapshot, arena cover and floor, the wire redrawn, slag that stays; five map directions to pick from | 🔨 |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

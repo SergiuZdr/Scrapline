@@ -120,6 +120,8 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-06 | **A refit keeps the machine's MISSING HP** (`RunSim._keep_missing`), never below 1 | A full Needle came out of the garage 14/17 on a bigger frame |
 | 2026-10-06 | **Shoves are a find: Breaker Hammer and Scattergun uncommon, one hammer on the bench. New arms: Chain Flail (`sweep`), Snare Launcher (`snare`), Mine Layer (`mine`); Act 1 traits from 20%. Pits unchanged** | The user: "make more types of arms and the ones that have shove to be uncommon+"; then "go with your recommendation" (flail, snare, mines; grenade and overwatch later) |
 | 2026-10-06 | **A mine is a hazard** (`CombatState.hazard` counts it; `ground_hazard` is what bites) and goes off once | One rule for the AI's steps, the bot's danger and `incoming`; a permanent mine would choke the board |
+| 2026-10-06 | **UNDO starts from a snapshot of the turn's start** (`CombatState.snapshot`, the scene's `_turn_state`), not a replay from round 1; a view is kept when its look key (parts, torn arms, level, kind) is unchanged (048) | Play-test 14: undo froze for up to 2 s. The action log is still the fight: `verify_combat` plays every fight on from every turn's snapshot and requires the full fight's hash |
+| 2026-10-06 | **Gate and warlord boards get `arena_terrain`** (run.json, per act overridable) scattered into their middle rows after everything else is rolled (048) | Play-test 14: "boss battlefields look too empty" -- authored 8x8 and padded with bare rows, they were the only fights with no scattered terrain |
 
 ## Lessons carried over from the old codebase
 
@@ -238,7 +240,8 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-06 | **A test that waits for `_busy` to clear must FAIL when it never does.** `verify_run_ui`'s resume check settled by running out of frames and then drove the fight itself, so a resumed fight that could never be played passed for weeks. The agent found it in one CONTINUE |
 | 2026-10-06 | **An agent can play the real game**: a `--script` driver reading commands from a file (click/hex/site/press-by-label, screenshots, a text dump of the state and the sim's own queries) played Act 1 in about 250 calls. Text beat pixels; screenshots were for looks. Kept in the session scratchpad, not the repo |
 | 2026-10-06 | **Frame the board by measuring it**, not by constants: `_fit_board` projects the far row (with a pylon's height) and the near row and moves the aim until both sit between the top bars and the HUD |
-
+| 2026-10-06 | **Something that stays on the board must not be an intent mark.** Intents are cleared while the enemy acts; The Pour's slag pools were drawn as intents and blinked out for every volley (048, `_flood_views`) |
+| 2026-10-06 | **A canvas context keeps its state between redraws**: the map mockups drew twice (once more when the fonts loaded) and the second pass inherited `textAlign = right` from the first, clipping every title. Reset the state at the top of each draw |
 
 ## Open questions
 
@@ -296,3 +299,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-06 | **047: Act 1 is too easy for a careful player (the agent finished it with all three machines; most rounds nothing hit) and a 3-damage shove into a pit kills a 12 HP machine** | Done in 047 (shoves uncommon, three arms) | ~~open~~ |
 | 2026-10-06 | **046: does the board framing, the paper hold zone and the edge arrows read right on the user's screen?** | The user plays | |
 | 2026-10-06 | **047: Act 1 is harder (16.0% lost, was 11.3%) but Acts 2-3 jumped 9 points each (bot 43.3% overall). Ease the later acts back (no snares/mines in their rolls, more arrival repair, mine damage 3)?** | The user plays | |
+| 2026-10-06 | **048: which direction for the run map** -- A ink atlas, B signal board, C hex diorama, D comic route, E floodlit yard (the mockup page)? | The user picks | |
