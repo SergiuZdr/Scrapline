@@ -14,6 +14,12 @@ extends Node3D
 ##
 ## Display only: it is told the state and asked where things are on screen. The map screen
 ## does the input and every rule question goes to `RunSim`.
+##
+## 049 (play-test 14: "the hex diorama look, with the comics aesthetics like in battle"): the
+## ground is the fight board's hexes at map scale (`YardHexes`), toon-shaded and inked like the
+## board. Sites stand on raised hexes, roads are paved hex paths, the roads you can take wear
+## the board's own MOVE hatching (amber under the pointer), and the Reclaimer eats the ground a
+## zone at a time, leaving the board's pits.
 
 const SPACING_X: float = 8.5       # metres between columns
 const DEPTH: float = 30.0          # metres across the rows (site y 0..100)
@@ -40,7 +46,18 @@ const WALK_SPEED: float = 5.0      # metres a second on the road
 const SIGHT: float = 9.5           # metres of fog cleared around a scouted site
 const FOG_PX_PER_M: float = 0.5   # the shader filters it; a finer mask only costs time
 ## Where the three stand on a site: in front of its landmark, toward the camera.
-const FORMATION: Array = [Vector3(-1.1, 0, 1.3), Vector3(1.1, 0, 1.3), Vector3(0.0, 0, 1.9)]
+## 049: the crew stands on the hexes around its site -- the two in front and the one behind.
+const FORMATION: Array = [Vector3(-1.403, 0, 2.43), Vector3(1.403, 0, 2.43), Vector3(-2.806, 0, 0.0)]
+## How high a site's hex stands above the ground.
+const PAD_TOP: float = 0.34
+## The board's move mark, at map scale (`combat_scene.MARK_STYLES`).
+const MARK_GO := Color("33c8e0")
+const MARK_HOT := Color("ffc43d")
+## The ground's fields, the fight board's terrain values (`combat_scene.INK_TERRAIN`).
+const FIELD_RUBBLE := Color("403830")
+const FIELD_SLAG := Color("3d1f17")
+const FIELD_FLUE := Color("241a17")
+const FIELD_PAVED := Color("34373f")
 
 var _state: RunState
 ## Content, handed in (a display class must not reach for the `Run` autoload: a `--script`
@@ -79,9 +96,18 @@ var _fog_planes: Array[MeshInstance3D] = []
 var _fog_key: String = ""
 var _drones: Array[Dictionary] = []
 ## Roads and loose junk, each with what decides whether it is out of the fog.
-var _road_nodes: Array[Dictionary] = []    # { "node", "a", "b" } site ids
 var _clutter_nodes: Array[Node3D] = []
 var _blinkers: Array[StandardMaterial3D] = []
+var _hexes: YardHexes
+var _bands: Dictionary = {}         # band (zone) -> { "ground": Node3D, "pits": Node3D }
+var _road_paths: Dictionary = {}    # "a:b" (a < b) -> Array[Vector2i]
+var _road_cells: Dictionary = {}    # Vector2i -> Array of [a, b]
+var _site_cells: Dictionary = {}    # Vector2i -> site id
+var _paving: Dictionary = {}        # Vector2i -> MeshInstance3D
+var _clutter_band: Dictionary = {}  # junk Node3D -> band
+var _inked: Dictionary = {}         # mesh key -> [ArrayMesh, overlay Material]
+var _mark_go: ShaderMaterial
+var _mark_hot: ShaderMaterial
 
 
 ## Builds the yard once for this run's region. `every`: moves between the front's steps.
@@ -90,6 +116,12 @@ func build(state: RunState, columns: int, every: int, db: ContentDB) -> void:
 	_db = db
 	_columns = columns
 	_setup_every = maxi(1, every)
+	var width: float = SPACING_X * float(columns - 1)
+	_hexes = YardHexes.new(Rect2(-width * 0.5 - 11.0, -DEPTH * 0.5 - 7.0, width + 22.0, DEPTH + 14.0), SPACING_X, _column_x(0))
+	_site_cells.clear()
+	for site: Dictionary in state.sites:
+		_site_cells[_hexes.cell_of(site_world(int(site["id"])))] = int(site["id"])
+	_compute_roads()
 	_build_world()
 	_build_ground()
 	_build_skyline()
@@ -173,19 +205,36 @@ func travel(from: int, to: int) -> void:
 	_follow = true
 	var a: Vector3 = site_world(from)
 	var b: Vector3 = site_world(to)
-	var flat := Vector3(b.x - a.x, 0, b.z - a.z)
-	var seconds: float = clampf(flat.length() / WALK_SPEED, 0.8, 2.6)
-	var yaw: float = atan2(flat.x, flat.z)
-	var tween := create_tween().set_parallel(true)
+	# 049: down the road's own hexes, centre to centre, then into formation at the far end.
+	var points: Array[Vector3] = []
+	for cell: Vector2i in _road_path(from, to):
+		if not _site_cells.has(cell):
+			points.append(_hexes.centre(cell))
+	points.append(b)
+	var length: float = 0.0
+	var last: Vector3 = a
+	for point: Vector3 in points:
+		length += Vector2(point.x - last.x, point.z - last.z).length()
+		last = point
+	var seconds: float = clampf(length / WALK_SPEED, 0.8, 2.8)
+	var walks: Array[Tween] = []
 	for slot: int in _crew.size():
 		var root: Node3D = _crew[slot]["root"]
 		var offset: Vector3 = FORMATION[slot % FORMATION.size()]
-		root.rotation.y = yaw
 		(_crew[slot]["rig"] as ConstructRig).set_moving(true)
-		# The leader goes first; the others follow a beat behind.
-		tween.tween_property(root, "position", b + offset, seconds).set_delay(0.12 * float(slot)) \
-			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	while tween.is_running():
+		# The leader goes first; the others follow a beat behind, a little to its side.
+		var side: Vector3 = offset * 0.25
+		var walk := create_tween()
+		walk.tween_interval(0.12 * float(slot))
+		var from_point: Vector3 = root.position
+		for i: int in points.size():
+			var goal: Vector3 = points[i] + (offset if i == points.size() - 1 else side)
+			var step: float = Vector2(goal.x - from_point.x, goal.z - from_point.z).length()
+			walk.tween_callback(func() -> void: root.rotation.y = atan2(goal.x - root.position.x, goal.z - root.position.z))
+			walk.tween_property(root, "position", goal, maxf(0.05, seconds * step / maxf(0.1, length)))
+			from_point = goal
+		walks.append(walk)
+	while walks.any(func(t: Tween) -> bool: return t.is_running()):
 		_focus_goal = _crew_lead_position()
 		await get_tree().process_frame
 	for entry: Dictionary in _crew:
@@ -195,7 +244,9 @@ func travel(from: int, to: int) -> void:
 
 func site_world(id: int) -> Vector3:
 	var site: Dictionary = _state.site(id)
-	return _map_point(float(site["x"]), float(site["y"]))
+	var point: Vector3 = _map_point(float(site["x"]), float(site["y"]))
+	# 049: every site stands on a hex of the ground.
+	return _hexes.centre(_hexes.cell_of(point)) if _hexes != null else point
 
 
 ## Where site `id` is on screen (its pad), for labels and picking.
@@ -205,7 +256,7 @@ func screen_pos(id: int, lift: float = 0.0) -> Vector2:
 
 ## Just below a site's pad on screen, where its label goes.
 func label_pos(id: int) -> Vector2:
-	return _camera.unproject_position(site_world(id) + Vector3(0, 0, 1.7))
+	return _camera.unproject_position(site_world(id) + Vector3(0, 0, 1.9))
 
 
 ## The site under a screen point, or -1. Sites still under fog cannot be picked.
@@ -314,35 +365,31 @@ func _build_ground() -> void:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(width + 140.0, DEPTH + 120.0)
 	ground.mesh = plane
-	# The yard floor: night ground with a drawn grain.
-	ground.material_override = Ink.patterned(Color("20232b"), 2, Color("1a1d24"), 1.1, 0.22)
+	# The night ground under the hex field: the board stands on it like a diorama on a table.
+	ground.position.y = -0.72
+	ground.material_override = Ink.patterned(Color("15171d"), 2, Color("101217"), 1.1, 0.22)
 	add_child(ground)
-	# The zones: a faint seam between columns and a name on the far edge.
+	_build_hex_field()
+	# The zones: a caption on the far edge, lettered like the board's tags -- paper on ink.
 	for col: int in _columns:
 		var x: float = _column_x(col)
-		if col > 0:
-			var seam := MeshInstance3D.new()
-			var box := BoxMesh.new()
-			box.size = Vector3(0.1, 0.02, DEPTH + 6.0)
-			seam.mesh = box
-			seam.position = Vector3(x - SPACING_X * 0.5, 0.01, 0.0)
-			seam.material_override = Ink.flat(Color("2c2f38"))
-			add_child(seam)
 		var name := Label3D.new()
 		name.text = "CAMP" if col == 0 else ("GATE" if col == _columns - 1 else "ZONE %d" % (col + 1))
 		name.font = UIKit.font_comic()
 		name.font_size = 96
 		name.pixel_size = 0.012
-		name.modulate = Color(Ink.PAPER, 0.5)
-		name.outline_size = 0
+		name.modulate = Ink.PAPER
+		name.outline_size = 22
+		name.outline_modulate = Ink.INK
 		name.rotation_degrees = Vector3(-90, 0, 0)
-		name.position = Vector3(x, 0.03, -DEPTH * 0.5 - 2.2)
+		name.position = Vector3(x, 0.05, -DEPTH * 0.5 - 4.2)
 		add_child(name)
 
+	# 049: the reclaimed ground is the hexes' pits now (`_bands`); the old hatched plane stays
+	# hidden, kept only because `_place_front` sizes it.
 	_reclaimed = MeshInstance3D.new()
 	_reclaimed.mesh = PlaneMesh.new()
-	# Reclaimed ground: taken, and drawn as such -- hatched in the danger red.
-	_reclaimed.material_override = Ink.patterned(Color("2a1614"), 2, Color("6a1f17"), 1.4, 0.3)
+	_reclaimed.visible = false
 	add_child(_reclaimed)
 	_next_zone = MeshInstance3D.new()
 	var next_plane := PlaneMesh.new()
@@ -355,6 +402,142 @@ func _build_ground() -> void:
 	_next_zone.material_override = _next_material
 	add_child(_next_zone)
 
+
+## The hex field (049): one toon prism per cell, inked like the fight board, with the act's
+## terrain drawn as the board draws it -- rubble stippled, slag hatched over a glowing pool,
+## flues as embers under a grate, scrap heaps as black slabs edged in paper. Each zone's hexes
+## are merged into one node, with its pits beside it, so the Reclaimer can swap a whole zone.
+func _build_hex_field() -> void:
+	var near_site: Dictionary = {}
+	for cell: Vector2i in _site_cells:
+		for d: Vector2i in _neighbours(cell):
+			near_site[d] = true
+	var act: int = maxi(1, _state.act)
+	for y: int in _hexes.height:
+		for x: int in _hexes.width:
+			var cell := Vector2i(x, y)
+			var band: Dictionary = _band(_hexes.band_of(cell, _columns))
+			var ground: Node3D = band["ground"]
+			var at: Vector3 = _hexes.centre(cell)
+			var h: int = YardHexes.mix(cell, 31 + act)
+			var kind: String = "open"
+			if not _road_cells.has(cell) and not _site_cells.has(cell) and not near_site.has(cell):
+				var roll: int = h % 100
+				match act:
+					1:
+						kind = "rubble" if roll < 9 else ("heap" if roll < 13 else "open")
+					2:
+						kind = "slag" if roll < 7 else ("rubble" if roll < 13 else ("heap" if roll < 16 else "open"))
+					_:
+						kind = "flue" if roll < 6 else ("slag" if roll < 10 else ("rubble" if roll < 15 else ("heap" if roll < 18 else "open")))
+			var top: float = 0.1 if kind == "rubble" else 0.0
+			var field: Color = Ink.BOARD_ALT if (x + y) % 2 == 1 else Ink.BOARD
+			var material: Material = Ink.toon(field)
+			match kind:
+				"rubble":
+					material = Ink.patterned(FIELD_RUBBLE, 1, FIELD_RUBBLE.lerp(Ink.PAPER, 0.5), 5.0, 0.55)
+				"slag":
+					material = Ink.patterned(FIELD_SLAG, 2, Color("6b2a14"), 3.5, 0.22)
+				"flue":
+					material = Ink.toon(FIELD_FLUE)
+			_add_inked(ground, "slab:%.2f" % top, func() -> Mesh: return _hex_prism(YardHexes.R * 0.97, 0.7 + top),
+				at + Vector3(0, -0.35 + top * 0.5, 0), material, Ink.LINE_WORLD)
+			match kind:
+				"slag":
+					_add_inked(ground, "pool", func() -> Mesh: return _hex_prism(YardHexes.R * 0.5, 0.02),
+						at + Vector3(0, 0.012, 0), Ink.glow(Color("ff6a2a"), 1.1), Ink.LINE_WORLD)
+				"flue":
+					_add_plain(ground, "ember", func() -> Mesh: return _hex_prism(YardHexes.R * 0.6, 0.02),
+						at + Vector3(0, 0.01, 0), Ink.glow(Color("ff5a1f"), 0.7))
+					for i: int in 4:
+						_add_inked(ground, "bar", _box_maker(Vector3(YardHexes.R * 1.05, 0.06, 0.1)),
+							at + Vector3(0, 0.05, (float(i) - 1.5) * YardHexes.R * 0.24), Ink.toon(Color("2b2725"), "clean"), Ink.LINE_WORLD)
+				"heap":
+					for i: int in 3:
+						var size: float = [0.95, 0.72, 0.5][i]
+						var piece: MeshInstance3D = _add_inked(ground, "heap%d" % i, _box_maker(Vector3(YardHexes.R * size * 1.2, 0.34, YardHexes.R * size)),
+							at + Vector3(0, 0.17 + float(i) * 0.3, 0), Ink.toon(Color("1b1816"), "clean"), Ink.LINE_WORLD, Ink.PAPER.darkened(0.3))
+						piece.rotation = Vector3(float(((h >> (i * 2)) & 3) - 1) * 0.1, float((h >> (i * 6)) & 15) * 0.2, float(((h >> (i * 3 + 1)) & 3) - 1) * 0.1)
+			# The pit this hex becomes once the Reclaimer has been through: the board's hole, its
+			# rim in the danger red -- taken ground.
+			var pits: Node3D = band["pits"]
+			_add_plain(pits, "rim", func() -> Mesh: return _hex_prism(YardHexes.R * 0.97, 0.7),
+				at + Vector3(0, -0.36, 0), Ink.flat(Color("4a1612")))
+			_add_plain(pits, "hole", func() -> Mesh: return _hex_prism(YardHexes.R * 0.74, 0.02),
+				at + Vector3(0, 0.002, 0), Ink.flat(Color("030304")))
+	for key: Variant in _bands:
+		Ink.merge_static((_bands[key] as Dictionary)["ground"])
+		Ink.merge_static((_bands[key] as Dictionary)["pits"])
+		((_bands[key] as Dictionary)["pits"] as Node3D).visible = false
+
+
+func _box_maker(size: Vector3) -> Callable:
+	return func() -> Mesh:
+		var box := BoxMesh.new()
+		box.size = size
+		return box
+
+
+func _band(index: int) -> Dictionary:
+	if not _bands.has(index):
+		var ground := Node3D.new()
+		var pits := Node3D.new()
+		add_child(ground)
+		add_child(pits)
+		_bands[index] = {"ground": ground, "pits": pits}
+	return _bands[index]
+
+
+func _neighbours(cell: Vector2i) -> Array[Vector2i]:
+	var odd: bool = (cell.y & 1) == 1
+	var out: Array[Vector2i] = [cell + Vector2i(1, 0), cell + Vector2i(-1, 0)]
+	for dy: int in [-1, 1]:
+		out.append(cell + Vector2i(0 if odd else -1, dy))
+		out.append(cell + Vector2i(1 if odd else 0, dy))
+	return out
+
+
+## A six-sided prism, pointy-top, the board's hex (`combat_scene._hex_mesh`).
+func _hex_prism(radius: float, height: float) -> CylinderMesh:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = height
+	mesh.radial_segments = 6
+	mesh.rings = 1
+	return mesh
+
+
+## A mesh instance drawn with the ink line. The outlined mesh is built once per `key` (a
+## thousand hexes share a handful), since `Ink.line` makes a fresh hull for every primitive.
+func _add_inked(parent: Node3D, key: String, make: Callable, at: Vector3, material: Material,
+		width: float, colour: Color = Ink.INK) -> MeshInstance3D:
+	var full_key: String = "%s|%.3f|%s" % [key, width, colour.to_html()]
+	if not _inked.has(full_key):
+		var probe := MeshInstance3D.new()
+		probe.mesh = make.call()
+		Ink.line(probe, width, colour)
+		_inked[full_key] = [probe.mesh, probe.material_overlay]
+		probe.free()
+	var node := MeshInstance3D.new()
+	node.mesh = _inked[full_key][0]
+	node.material_overlay = _inked[full_key][1]
+	node.material_override = material
+	node.position = at
+	parent.add_child(node)
+	return node
+
+
+func _add_plain(parent: Node3D, key: String, make: Callable, at: Vector3, material: Material) -> MeshInstance3D:
+	if not _inked.has(key):
+		_inked[key] = [make.call(), null]
+	var node := MeshInstance3D.new()
+	node.mesh = _inked[key][0]
+	node.material_override = material
+	node.position = at
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(node)
+	return node
 
 ## The dead valley around the yards: factory blocks, chimneys and tanks as dark shapes on
 ## the horizon, red lamps blinking on the stacks, and the Crucible's glow beyond the gate
@@ -414,23 +597,17 @@ func _build_site(site: Dictionary) -> void:
 	var root := Node3D.new()
 	root.position = site_world(id)
 	add_child(root)
+	# 049: the site's own hex, raised out of the field, with a hex frame on its top edge that
+	# says what it is to you (the ring's colours).
 	var pad := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = 1.35
-	disc.bottom_radius = 1.5
-	disc.height = 0.16
-	pad.mesh = disc
-	pad.position.y = 0.08
+	pad.mesh = _hex_prism(YardHexes.R * 0.97, 0.7 + PAD_TOP)
+	pad.position.y = (PAD_TOP - 0.7) * 0.5
 	pad.material_override = Ink.toon(Color("3a3b41"))
 	Ink.line(pad, Ink.LINE_WORLD)
 	root.add_child(pad)
 	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 1.38
-	torus.outer_radius = 1.55
-	ring.mesh = torus
-	ring.position.y = 0.17
-	ring.scale = Vector3(1, 0.5, 1)
+	ring.mesh = _hex_frame(YardHexes.R * 0.99, YardHexes.R * 0.8, 0.09)
+	ring.position.y = PAD_TOP
 	ring.material_override = Ink.flat(RING_FAR)
 	Ink.line(ring, Ink.LINE_WORLD)
 	root.add_child(ring)
@@ -473,6 +650,30 @@ func _build_site(site: Dictionary) -> void:
 		root.add_child(beam)
 
 
+## A flat hex band (pointy-top) `height` thick: the top face between two hexes, and the outer
+## wall -- a site's ring.
+func _hex_frame(outer: float, inner: float, height: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for k: int in 6:
+		var a0: float = TAU * float(k) / 6.0
+		var a1: float = TAU * float(k + 1) / 6.0
+		var o0 := Vector3(sin(a0) * outer, height, cos(a0) * outer)
+		var o1 := Vector3(sin(a1) * outer, height, cos(a1) * outer)
+		var i0 := Vector3(sin(a0) * inner, height, cos(a0) * inner)
+		var i1 := Vector3(sin(a1) * inner, height, cos(a1) * inner)
+		st.set_normal(Vector3.UP)
+		for v: Vector3 in [o0, i1, i0, o0, o1, i1]:
+			st.add_vertex(v)
+		var out := Vector3(sin((a0 + a1) * 0.5), 0, cos((a0 + a1) * 0.5))
+		st.set_normal(out)
+		var b0 := Vector3(o0.x, 0, o0.z)
+		var b1 := Vector3(o1.x, 0, o1.z)
+		for v: Vector3 in [o0, b0, b1, o0, b1, o1]:
+			st.add_vertex(v)
+	return st.commit()
+
+
 func _style_site(id: int, targets: Array[int]) -> void:
 	var entry: Dictionary = _sites[id]
 	var site: Dictionary = _state.site(id)
@@ -491,6 +692,7 @@ func _style_site(id: int, targets: Array[int]) -> void:
 		entry["landmark"] = null
 		if known:
 			var landmark: Node3D = _landmark(type, id)
+			landmark.position.y = PAD_TOP
 			root.add_child(landmark)
 			entry["landmark"] = landmark
 		var icon: Sprite3D = entry["icon"]
@@ -706,75 +908,95 @@ func _smoke(parent: Node3D) -> CPUParticles3D:
 # --- Roads --------------------------------------------------------------------
 
 func _build_roads() -> void:
+	# 049: a road is paved hexes -- a lighter steel inset on each cell it crosses.
+	for cell: Variant in _road_cells:
+		if _site_cells.has(cell):
+			continue
+		var paving: MeshInstance3D = _add_inked(_roads, "paving", func() -> Mesh: return _hex_prism(YardHexes.R * 0.84, 0.04),
+			_hexes.centre(cell) + Vector3(0, 0.02, 0), Ink.toon(FIELD_PAVED), Ink.LINE_WORLD)
+		_paving[cell] = paving
+
+
+## Every road's hexes, from the region's links.
+func _compute_roads() -> void:
+	_road_paths.clear()
+	_road_cells.clear()
 	for a: Dictionary in _state.sites:
 		for other: Variant in (a["links"] as Array):
 			if int(other) < int(a["id"]):
 				continue
-			var road: MeshInstance3D = _strip(site_world(int(a["id"])), site_world(int(other)), 1.1, 0.03, Ink.toon(Color("3b3e47")))
-			Ink.line(road, Ink.LINE_WORLD)
-			_roads.add_child(road)
-			_road_nodes.append({"node": road, "a": int(a["id"]), "b": int(other)})
+			var path: Array[Vector2i] = _hexes.path(_hexes.cell_of(site_world(int(a["id"]))), _hexes.cell_of(site_world(int(other))))
+			_road_paths["%d:%d" % [int(a["id"]), int(other)]] = path
+			for cell: Vector2i in path:
+				if not _road_cells.has(cell):
+					_road_cells[cell] = []
+				(_road_cells[cell] as Array).append([int(a["id"]), int(other)])
 
+
+func _road_path(from: int, to: int) -> Array[Vector2i]:
+	var key: String = "%d:%d" % [mini(from, to), maxi(from, to)]
+	var path: Array[Vector2i] = []
+	if _road_paths.has(key):
+		path.assign(_road_paths[key])
+		if from > to:
+			path.reverse()
+	return path
 
 func _mark_roads(targets: Array[int]) -> void:
 	for child: Node in _road_marks.get_children():
 		child.queue_free()
-	var here: Vector3 = site_world(_state.current)
+	if _mark_go == null:
+		_mark_go = _mark_material(MARK_GO, [0.55, 0.30, 0.10, 0.09, 0.0, 1.0])
+		_mark_hot = _mark_material(MARK_HOT, [0.62, 0.24, 0.16, 0.12, 0.0, 0.0])
+	# 049: the roads you can take are marked as the board marks where a machine can go -- the
+	# same blue hatching, one hex at a time; the one under the pointer as the board's target.
 	for id: int in targets:
 		var hot: bool = id == _hover
-		var mark: MeshInstance3D = _strip(here, site_world(id), 0.28 if hot else 0.2, 0.05,
-			Ink.glow(RING_HERE if hot else RING_GO, 0.5 if hot else 0.0))
-		Ink.line(mark, Ink.LINE_WORLD)
-		_road_marks.add_child(mark)
+		for cell: Vector2i in _road_path(_state.current, id):
+			if _site_cells.has(cell):
+				continue
+			var mark := MeshInstance3D.new()
+			mark.mesh = _hex_prism(YardHexes.R * 0.84, 0.012)
+			mark.position = _hexes.centre(cell) + Vector3(0, 0.05, 0)
+			mark.material_override = _mark_hot if hot else _mark_go
+			mark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			_road_marks.add_child(mark)
 
 
-## A flat strip on the ground from `a` to `b`, stopping short of the pads.
-func _strip(a: Vector3, b: Vector3, width: float, height: float, material: Material) -> MeshInstance3D:
-	var flat_a := Vector3(a.x, 0, a.z)
-	var flat_b := Vector3(b.x, 0, b.z)
-	var length: float = maxf(0.1, flat_a.distance_to(flat_b) - 3.6)
-	var strip := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(length, height, width)
-	strip.mesh = box
-	strip.material_override = material
-	strip.position = (flat_a + flat_b) * 0.5 + Vector3(0, height * 0.5 + 0.01, 0)
-	strip.rotation.y = -atan2(flat_b.z - flat_a.z, flat_b.x - flat_a.x)
-	return strip
-
+func _mark_material(colour: Color, style: Array) -> ShaderMaterial:
+	var material: ShaderMaterial = Ink.mark_material(YardHexes.R * 0.84)
+	material.set_shader_parameter("colour", colour)
+	material.set_shader_parameter("hatch_alpha", style[0])
+	material.set_shader_parameter("hatch_width", style[1])
+	material.set_shader_parameter("fill_alpha", style[2])
+	material.set_shader_parameter("border", style[3])
+	material.set_shader_parameter("dashes", style[4])
+	material.set_shader_parameter("hatch_dir", style[5])
+	material.set_shader_parameter("hatch_period", 0.34)
+	return material
 
 ## Loose junk between the sites, so the yard is a yard and not a diagram.
 func _build_clutter() -> void:
+	# 049: junk stands on hexes of its own, clear of the roads and of the hexes around a site.
 	var names: PackedStringArray = ["tyre_stack_0", "tyre_stack_1", "car_stack_1", "container_0", "container_1", "barrier_0"]
-	var width: float = SPACING_X * float(_columns - 1)
-	var placed: int = 0
-	var tries: int = 0
-	while placed < 70 and tries < 600:
-		tries += 1
-		var x: float = -width * 0.5 - 6.0 + float(_h(tries, 7) % 1000) / 1000.0 * (width + 12.0)
-		var z: float = -DEPTH * 0.5 - 3.0 + float(_h(tries, 11) % 1000) / 1000.0 * (DEPTH + 6.0)
-		var spot := Vector3(x, 0, z)
-		# Keep clear of the sites, the roads and the zone names on the far edge.
-		if _near_site_or_road(spot) or z < -DEPTH * 0.5 - 0.5:
-			continue
-		var junk: Node3D = _prop(self, names[_h(tries, 13) % names.size()], spot, float(_h(tries, 17) % 360), 0.34, 0.45)
-		if junk != null:
-			_clutter_nodes.append(junk)
-		placed += 1
-
-
-func _near_site_or_road(p: Vector3) -> bool:
-	for id: int in _sites:
-		if Vector2(p.x, p.z).distance_to(Vector2(site_world(id).x, site_world(id).z)) < 3.2:
-			return true
-	for a: Dictionary in _state.sites:
-		for other: Variant in (a["links"] as Array):
-			var s: Vector3 = site_world(int(a["id"]))
-			var e: Vector3 = site_world(int(other))
-			if Geometry2D.get_closest_point_to_segment(Vector2(p.x, p.z), Vector2(s.x, s.z), Vector2(e.x, e.z)).distance_to(Vector2(p.x, p.z)) < 1.6:
-				return true
-	return false
-
+	var near_site: Dictionary = {}
+	for cell: Vector2i in _site_cells:
+		near_site[cell] = true
+		for d: Vector2i in _neighbours(cell):
+			near_site[d] = true
+	for y: int in _hexes.height:
+		for x: int in _hexes.width:
+			var cell := Vector2i(x, y)
+			var h: int = YardHexes.mix(cell, 57)
+			if h % 100 >= 7 or _road_cells.has(cell) or near_site.has(cell):
+				continue
+			var spot: Vector3 = _hexes.centre(cell)
+			if spot.z < -DEPTH * 0.5 - 3.5:
+				continue
+			var junk: Node3D = _prop(self, names[(h >> 8) % names.size()], spot, float((h >> 4) % 360), 0.34, 0.45)
+			if junk != null:
+				_clutter_nodes.append(junk)
+				_clutter_band[junk] = _hexes.band_of(cell, _columns)
 
 # --- The crew on the map ------------------------------------------------------
 
@@ -935,9 +1157,35 @@ func _place_front(x: float) -> void:
 	_reclaimed.position = Vector3(left + taken * 0.5, 0.015, 0)
 	var next_col: int = _state.front_col + 1
 	_next_zone.visible = next_col < _columns - 1
-	_next_zone.position = Vector3(_column_x(next_col), 0.02, 0)
+	_next_zone.position = Vector3(_column_x(next_col), 0.14, 0)
 	_ghost.visible = next_col < _columns - 1
 	_ghost.position.x = _column_x(next_col) + SPACING_X * 0.5
+	# 049: a zone whose ground the wall has passed is pits.
+	for key: Variant in _bands:
+		var eaten: bool = _band_eaten(int(key), x)
+		((_bands[key] as Dictionary)["ground"] as Node3D).visible = not eaten
+		((_bands[key] as Dictionary)["pits"] as Node3D).visible = eaten
+	_show_ground_things()
+
+
+func _band_eaten(band: int, front_x: float) -> bool:
+	return _hexes.first_column_x + (float(band) + 0.5) * SPACING_X <= front_x + 0.01
+
+
+## Paving and junk: seen where scouted, gone where the Reclaimer has eaten the ground.
+func _show_ground_things() -> void:
+	if _fog_image == null:
+		return
+	for cell: Variant in _paving:
+		var seen: bool = false
+		for road: Variant in (_road_cells[cell] as Array):
+			if RunSim.revealed(_state, int(road[0])) or RunSim.revealed(_state, int(road[1])):
+				seen = true
+				break
+		(_paving[cell] as Node3D).visible = seen and not _band_eaten(_hexes.band_of(cell, _columns), _reclaimer.position.x)
+	for junk: Node3D in _clutter_nodes:
+		junk.visible = _fog_at(Vector2(junk.position.x, junk.position.z)) < 0.6 \
+			and not _band_eaten(int(_clutter_band.get(junk, 99)), _reclaimer.position.x)
 
 
 # --- The Reclaimer's scouts ----------------------------------------------------
@@ -1070,10 +1318,7 @@ func _update_fog() -> void:
 	_fog_texture.update(_fog_image)
 	# What is deep in the fog is not drawn at all -- a haze thin enough to be beautiful is
 	# thin enough to read a road through.
-	for road: Dictionary in _road_nodes:
-		(road["node"] as Node3D).visible = RunSim.revealed(_state, int(road["a"])) or RunSim.revealed(_state, int(road["b"]))
-	for junk: Node3D in _clutter_nodes:
-		junk.visible = _fog_at(Vector2(junk.position.x, junk.position.z)) < 0.6
+	_show_ground_things()
 
 
 ## How hidden a point is (0 clear .. 1 fog), read back from the mask.
