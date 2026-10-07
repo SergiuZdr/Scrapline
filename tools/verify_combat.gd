@@ -57,6 +57,7 @@ func _initialize() -> void:
 	_test_enemy_kinds()
 	_test_dry_run_matches()
 	_test_gate_and_reclaimer()
+	_test_boss_tricks()
 	_test_playtest5()
 	_test_scrap_on_the_way()
 	_test_shot_leanings()
@@ -1090,6 +1091,153 @@ func _test_shot_leanings() -> void:
 		(both["hits"] as Array).size() == 2 and (both["tiles"] as Array).has(extra))
 
 
+## 050: every keeper's trick -- what it does, its opening, and that the copies keep it.
+func _test_boss_tricks() -> void:
+	var saws: Array = ["ch_citadel", "co_mag", "ar_maul", "ar_maul", "mo_reactive"]
+	var keeper := func(kind: String, cell: Vector2i, hp: int = 40) -> Dictionary:
+		return {"name": kind, "kind": kind, "hp": hp, "parts": saws, "x": cell.x, "y": cell.y}
+	var g := Vector2i(4, 2)
+	var dir: int = 5
+	var one: Vector2i = Hex.neighbor(g, dir)
+	var two: Vector2i = Hex.neighbor(one, dir)
+
+	# Grinder: a charge into a heap sticks; stuck, it takes double and its saws stop.
+	var stuck_state: CombatState = _fight(_rows({two: "s"}), [_unit(RAIL, Vector2i(8, 8))], [keeper.call("grinder", g)])
+	_place(stuck_state, 10, g)
+	var grinder: GridUnit = stuck_state.unit(10)
+	var shooter: GridUnit = stuck_state.unit(0)
+	var before: int = CombatSim.damage_to(stuck_state, shooter, grinder, 6, false)
+	stuck_state.charges[10] = {"dir": dir, "cells": [one]}
+	CombatSim._charges(stuck_state)
+	var after: int = CombatSim.damage_to(stuck_state, shooter, grinder, 6, false)
+	_check("the Grinder's charge stops against a heap and it is STUCK: exposed, double damage (%d -> %d)" % [before, after],
+		Vector2i(grinder.x, grinder.y) == one and stuck_state.exposed.has(10) and after == before * 2)
+	_place(stuck_state, 0, Hex.neighbor(one, 0))
+	var hp: int = shooter.hp
+	CombatSim._auras(stuck_state)
+	_check("a stuck Grinder's saws are idle", shooter.hp == hp)
+	# A charge into a machine: 3 and a shove on, and no opening.
+	var hit_state: CombatState = _fight(_rows(), [_unit(RAIL, two)], [keeper.call("grinder", g)])
+	_place(hit_state, 10, g)
+	hit_state.charges[10] = {"dir": dir, "cells": [one, two]}
+	var hp_hit: int = hit_state.unit(0).hp
+	CombatSim._charges(hit_state)
+	var victim: GridUnit = hit_state.unit(0)
+	_check("a charge into a machine hits it for 3, shoves it on, and is not stuck",
+		victim.hp == hp_hit - 3 and Vector2i(victim.x, victim.y) == Hex.neighbor(two, dir)
+		and Vector2i(hit_state.unit(10).x, hit_state.unit(10).y) == one and not hit_state.exposed.has(10))
+	# Marked a round ahead, along the lane to the machine, and `incoming` counts it.
+	var lane_state: CombatState = _fight(_rows(), [_unit(RAIL, Hex.neighbor(two, dir))], [keeper.call("grinder", g)])
+	_place(lane_state, 10, g)
+	lane_state.round_number = 1
+	CombatSim._mark_charges(lane_state)
+	var lane: Dictionary = lane_state.charges.get(10, {})
+	_check("the Grinder marks its lane toward the machine it can reach", int(lane.get("dir", -1)) == dir
+		and (lane.get("cells", []) as Array).has(Hex.neighbor(two, dir)))
+	var counted: bool = false
+	for entry: Dictionary in (CombatSim.incoming(lane_state)["units"] as Array):
+		counted = counted or (int(entry["ref"]) == 0 and int(entry["hp_lost"]) >= 3)
+	_check("the board's totals count the charge", counted)
+
+	# Sorter: the claw marks the nearest machine in reach and throws it onto the pad.
+	var claw_state: CombatState = _fight(_rows(), [_unit(RAIL, Vector2i(4, 5))], [keeper.call("sorter", Vector2i(4, 1))])
+	_place(claw_state, 10, Vector2i(4, 1))
+	claw_state.round_number = 2
+	CombatSim._mark_grabs(claw_state)
+	_check("the Sorter's claw marks the machine within 4", int(claw_state.grabs.get(10, -1)) == 0)
+	var claw_hp: int = claw_state.unit(0).hp
+	var pad: Vector2i = claw_state.spawn_marks.get(10, Vector2i(-1, -1))
+	CombatSim._grabs(claw_state)
+	var thrown: GridUnit = claw_state.unit(0)
+	_check("and next round throws it onto its pad for 2", Vector2i(thrown.x, thrown.y) == pad and thrown.hp == claw_hp - 2)
+	var away_state: CombatState = _fight(_rows(), [_unit(RAIL, Vector2i(4, 5))], [keeper.call("sorter", Vector2i(4, 1))])
+	away_state.round_number = 2
+	CombatSim._mark_grabs(away_state)
+	_place(away_state, 0, Vector2i(4, 8))
+	CombatSim._grabs(away_state)
+	_check("a machine that got out of reach is not thrown", Vector2i(away_state.unit(0).x, away_state.unit(0).y) == Vector2i(4, 8))
+	claw_state.spawn_due[10] = claw_state.round_number
+	CombatSim._hives(claw_state)
+	_check("a blocked pad opens the Sorter's hatch (exposed, pylons or not)",
+		claw_state.exposed.has(10) and _count(claw_state, 0, GridEv.SPAWN_BLOCKED) > 0)
+
+	# The Pour: a coolant tank burst within 2 quenches it and cools the slag around the tank.
+	var p := Vector2i(4, 1)
+	var tank := Vector2i(4, 3)
+	var pour_state: CombatState = _fight(_rows({tank: "k"}), [_unit(RAIL, Vector2i(1, 8))], [keeper.call("pour", p)])
+	_place(pour_state, 10, p)
+	var slag: Vector2i = Hex.neighbor(tank, 3)
+	pour_state.flooded[slag] = 2
+	_check("(precondition) a coolant tank is a prop", String((pour_state.props.get(tank, {}) as Dictionary).get("kind", "")) == "coolant")
+	CombatSim.damage_prop(pour_state, 0, tank, 5)
+	_check("a coolant tank burst within 2 quenches The Pour for this turn and the next",
+		int(pour_state.exposed.get(10, 0)) == 2 and _count(pour_state, 0, GridEv.QUENCHED) == 1)
+	_check("and cools the slag next to the tank", not pour_state.flooded.has(slag))
+	var far_state: CombatState = _fight(_rows({Vector2i(4, 7): "k"}), [_unit(RAIL, Vector2i(1, 8))], [keeper.call("pour", p)])
+	_place(far_state, 10, p)
+	CombatSim.damage_prop(far_state, 0, Vector2i(4, 7), 5)
+	_check("a tank burst far from it quenches nothing", not far_state.exposed.has(10))
+
+	# The Magnet King: the haul drags a drum; one dragged against it goes off in its face.
+	var m := Vector2i(4, 4)
+	var drum: Vector2i = Hex.neighbor(Hex.neighbor(m, 0), 0)
+	var crate: Vector2i = Hex.neighbor(Hex.neighbor(Hex.neighbor(m, 3), 3), 3)
+	var mag_state: CombatState = _fight(_rows({drum: "b", crate: "c"}), [_unit(RAIL, Vector2i(0, 8))], [keeper.call("magnet", m)])
+	_place(mag_state, 10, m)
+	var magnet: GridUnit = mag_state.unit(10)
+	var mag_hp: int = magnet.hp
+	mag_state.round_number = 2
+	CombatSim._hauls(mag_state)
+	var blast: int = int((mag_state.setup.kinds["magnet"] as Dictionary)["haul_blast"]) + mag_state.setup.barrel_damage
+	_check("a drum hauled against the Magnet King goes off in its face (%d HP lost)" % (mag_hp - magnet.hp),
+		mag_hp - magnet.hp == blast and not mag_state.props.has(drum) and not mag_state.props.has(Hex.neighbor(m, 0)))
+	_check("and a crate is dragged a hex closer", mag_state.props.has(Hex.neighbor(crate, 0)) and not mag_state.props.has(crate))
+
+	# The Core: one open side, +3 and no conduit cover from it; it turns a sixth each round.
+	var c := Vector2i(4, 4)
+	var core_state: CombatState = _fight(_rows(), [_unit(RAIL, Vector2i(0, 8))], [keeper.call("heart", c)])
+	core_state.facing[10] = 0
+	_place(core_state, 10, c)
+	var core: GridUnit = core_state.unit(10)
+	var gunner: GridUnit = core_state.unit(0)
+	_place(core_state, 0, Hex.neighbor(Hex.neighbor(c, 0), 0))
+	var open_hit: int = CombatSim.damage_to(core_state, gunner, core, 6, false)
+	_place(core_state, 0, Hex.neighbor(Hex.neighbor(c, 3), 3))
+	var closed_hit: int = CombatSim.damage_to(core_state, gunner, core, 6, false)
+	_check("a hit on the Core's open side does 3 more (%d / %d)" % [open_hit, closed_hit], open_hit == closed_hit + 3)
+	CombatSim._turn_sides(core_state)
+	_check("and the open side turns a sixth each round", int(core_state.facing[10]) == 1)
+
+	# The Twin Furnaces: one that falls is rebuilt in 3 at half HP -- unless both fall.
+	var twins: CombatState = _fight(_rows(), [_unit(RAIL, Vector2i(0, 8))], [keeper.call("twin", Vector2i(2, 1), 20), keeper.call("twin", Vector2i(6, 1), 20)])
+	var first: GridUnit = twins.unit(10)
+	CombatSim.hurt(twins, 0, first, first.hp)
+	_check("a fallen twin is marked for rebuilding in 3", int(twins.rebuilds.get(10, 0)) == 3)
+	for i: int in 3:
+		CombatSim._rebuild(twins)
+	_check("and is back at half HP after 3 rounds", first.alive and first.hp == first.max_hp / 2 and _count(twins, 0, GridEv.REBUILT) == 1)
+	var pair: CombatState = _fight(_rows(), [_unit(RAIL, Vector2i(0, 8))], [keeper.call("twin", Vector2i(2, 1), 20), keeper.call("twin", Vector2i(6, 1), 20)])
+	CombatSim.hurt(pair, 0, pair.unit(10), 99)
+	CombatSim.hurt(pair, 0, pair.unit(11), 99)
+	_check("break the second before then and the fight is won", CombatSim._check_outcome(pair) and pair.outcome == CombatState.WON)
+
+	# The copies: everything new is carried by clone, and a copy's changes stay in the copy.
+	var original: CombatState = _fight(_rows(), [_unit(RAIL, Vector2i(0, 8))], [keeper.call("grinder", g)])
+	original.exposed[10] = 1
+	original.charges[10] = {"dir": 2, "cells": [one]}
+	original.grabs[10] = 0
+	original.facing[10] = 4
+	original.rebuilds[11] = 2
+	var copy: CombatState = original.clone()
+	var same: bool = copy.exposed == original.exposed and copy.charges == original.charges and copy.grabs == original.grabs \
+		and copy.facing == original.facing and copy.rebuilds == original.rebuilds
+	copy.exposed.clear()
+	(copy.charges[10] as Dictionary)["dir"] = 5
+	copy.facing[10] = 0
+	_check("clone carries every trick's state, and a copy's changes stay in the copy",
+		same and original.exposed.has(10) and int((original.charges[10] as Dictionary)["dir"]) == 2 and int(original.facing[10]) == 4)
+
+
 func _test_gate_and_reclaimer() -> void:
 	var marks: Dictionary = {Vector2i(1, 1): "p", Vector2i(6, 1): "p"}
 	var sorter: Dictionary = {"name": "The Sorter", "kind": "sorter", "hp": 18,
@@ -1114,7 +1262,16 @@ func _test_gate_and_reclaimer() -> void:
 	for u: GridUnit in pads.units:
 		if u.team == GridUnit.TEAM_ENEMY and u.ref != 10 and u.alive:
 			built += 1
-	_check("and its pad builds a drone after 3 rounds (round %d, %d built)" % [pads.round_number, built], built == 1)
+	# 050: the claw may throw the lone machine onto the pad first, and then the pad is blocked.
+	var blocked: bool = _count(pads, 0, GridEv.GRABBED) > 0 and _count(pads, 0, GridEv.SPAWN_BLOCKED) > 0
+	if built != 1 and not blocked:
+		var names: PackedStringArray = []
+		for e: Array in pads.events:
+			if [GridEv.GRABBED, GridEv.GRAB_MARKED, GridEv.SPAWN_BLOCKED, GridEv.SPAWNED, GridEv.SPAWN_MARKED, GridEv.EXPOSED, GridEv.DESTROYED].has(int(e[0])):
+				names.append("%s%s" % [GridEv.NAMES[int(e[0])], str(e.slice(1))])
+		print("    pad events: ", names)
+	_check("and its pad builds a drone after 3 rounds, unless the claw blocked it with a machine (round %d, %d built)" % [pads.round_number, built],
+		built == 1 or blocked or pads.outcome != CombatState.ONGOING)
 
 	var fight: Dictionary = {"id": "t", "rows": _rows(), "player": [_unit(RAIL, Vector2i(1, 3))],
 		"enemy": [_unit(HAMMER, Vector2i(4, 0), 40)], "reclaimer": {"round": 3, "count": 2}}

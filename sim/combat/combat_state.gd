@@ -51,6 +51,18 @@ var wave_marks: Array = []
 var piles_collected: int = 0
 var scrap_collected: int = 0
 ## Every event since the fight began. See `GridEv`.
+## 050 (boss tricks): keepers open to a heavy blow -- ref -> the crew's turns left (they take
+## `exposed_pct` and none of their pylon / conduit / twin cover).
+var exposed: Dictionary = {}
+## 050: the Grinder's charge, marked a round ahead: ref -> {"dir": int, "cells": Array}.
+var charges: Dictionary = {}
+## 050: the Sorter's claw, marked a round ahead: keeper ref -> the machine it will throw.
+var grabs: Dictionary = {}
+## 050: the Core's open side: ref -> hex direction 0..5.
+var facing: Dictionary = {}
+## 050: a fallen twin being rebuilt: its ref -> rounds left.
+var rebuilds: Dictionary = {}
+
 var events: Array = []
 var action_count: int = 0
 
@@ -205,6 +217,11 @@ func clone() -> CombatState:
 	c.summons = summons.duplicate()
 	c.piles_collected = piles_collected
 	c.scrap_collected = scrap_collected
+	c.exposed = exposed.duplicate()
+	c.charges = charges.duplicate(true)
+	c.grabs = grabs.duplicate()
+	c.facing = facing.duplicate()
+	c.rebuilds = rebuilds.duplicate()
 	return c
 
 
