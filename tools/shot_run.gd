@@ -5,7 +5,7 @@ extends SceneTree
 ##
 ##   godot --path . --resolution 1920x1080 --script res://tools/shot_run.gd -- \
 ##       --seed 7 --until reward --out shots/reward.png [--refit [--stats] [--focus S] [--perks] [--levelup N]]
-##       [--choose] [--fill-hold] [--brief] [--tune S]   (--tune needs --until workshop; S = the socket to show)
+##       [--act N] [--zoom STEP] [--pan DX DY] [--choose] [--fill-hold] [--brief] [--tune S]   (--tune needs --until workshop; S = the socket to show)
 ##       [--force KIND]   the sites next to the camp become KIND (trader, tower, signal...)
 ##       [--enter SECONDS]   with --until fight: enter the fight, photograph its board after SECONDS
 ##
@@ -35,9 +35,11 @@ func _go() -> void:
 		var state: RunState = run.get("state")
 		if state.outcome != RunState.ONGOING:
 			break
-		if String(state.pending.get("kind", "")) == until:
+		# 049: `--act N` waits for that act first (moves start again at every act).
+		var in_act: bool = state.act >= _arg(args, "--act", "1").to_int()
+		if in_act and String(state.pending.get("kind", "")) == until:
 			break
-		if until.begins_with("moves:") and state.moves >= until.split(":")[1].to_int() and state.pending.is_empty():
+		if in_act and until.begins_with("moves:") and state.moves >= until.split(":")[1].to_int() and state.pending.is_empty():
 			break
 		run.call("apply", RunBot.next_action(state, run.get("setup")))
 		guard += 1
@@ -68,6 +70,14 @@ func _go() -> void:
 	if args.has("--zoom"):
 		var yard: Node = current_scene.get("_yard")
 		yard.call("zoom_by", _arg(args, "--zoom", "0").to_float())
+		yard.call("settle_camera")
+		for i: int in 6:
+			await process_frame
+	# 049: `--pan DX DY` drags the map by that many pixels (positive DX looks left).
+	var pan_at: int = args.find("--pan")
+	if pan_at >= 0 and pan_at + 2 < args.size():
+		var yard: Node = current_scene.get("_yard")
+		yard.call("pan", Vector2(args[pan_at + 1].to_float(), args[pan_at + 2].to_float()))
 		yard.call("settle_camera")
 		for i: int in 6:
 			await process_frame
