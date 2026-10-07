@@ -73,6 +73,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | — | [Play-test 14](playtests/2026-10-06-playtest-14.md) | The map's look, a slow UNDO, empty arenas, red live wires, slag that blinks | ✅ |
 | 048 | [Play-test 14 fixes](iterations/048-playtest-14.md) | UNDO from the turn's snapshot (13 ms), arena cover and floor, the wire redrawn, slag that stays; five map directions (the user picked C) | ✅ awaiting the play-test |
 | 049 | [The hex yard](iterations/049-hex-yard.md) | The run map as a diorama of the board's hexes, inked like the fight: raised site hexes, paved hex roads, move hatching on the roads you can take, zones eaten into pits | ✅ awaiting the user's look |
+| 050 | [Boss tricks](iterations/050-boss-tricks.md) | The Grinder's charge, the Sorter's claw and hatch, coolant tanks, the Magnet hauling drums, the Core's open side, twins rebuilt; one shared EXPOSED opening (bot 47.3%) | ✅ awaiting the play-test |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

@@ -1,7 +1,7 @@
 # Iteration 050 — Boss tricks: every keeper has something to turn against it
 
-**Status:** in progress
-**Started:** 2026-10-07 · **Finished:** —
+**Status:** done (awaiting the play-test)
+**Started:** 2026-10-07 · **Finished:** 2026-10-07
 **Answers:** the user, after 048's arena numbers: "the bosses don't need just cover and extra
 rounds, there needs to be more engaging boss/mini-boss passives/caveats to the fight so the player
 will not just hit a bulky dummy". They approved all six proposals.
@@ -40,15 +40,40 @@ telegraphed a round ahead like everything else.
 4. Bot 150 runs; screenshots; docs.
 
 ## Acceptance criteria
-- [ ] `verify_combat`: each trick does what its text says, is in `incoming` where it bites at a
+- [x] `verify_combat`: each trick does what its text says, is in `incoming` where it bites at a
       round's start, and survives `clone`/`snapshot` without leaking.
-- [ ] Every suite passes.
-- [ ] Bot 150 runs recorded against 048 (39.3%).
-- [ ] Screenshots of each trick's telegraph.
+- [x] Every suite passes.
+- [x] Bot 150 runs recorded against 048 (39.3%).
+- [~] Screenshots of each trick's telegraph: the Grinder's lane and its STUCK, the claw, the
+      coolant tanks, the open side. Not shot: a quench, a haul dragging a drum, a rebuild.
 - [ ] The user plays.
 
 ## Result
+- `verify_combat` **352/352**: new -- a charge into a heap sticks (exposed, double damage) and its
+  saws idle; a charge into a machine hits for 3 and shoves it on, not stuck; the lane is marked
+  toward the machine it reaches and `incoming` counts it; the claw marks the machine within 4 and
+  throws it onto the pad for 2, not one that got away; a blocked pad opens the hatch; a coolant
+  tank within 2 quenches The Pour for two turns and cools the slag by it, one far away does
+  nothing; a drum hauled against the Magnet King does `haul_blast` + its blast, a crate is dragged
+  a hex; the Core's open side does +3 and turns a sixth a round; a fallen twin is back at half HP
+  after 3 rounds, both down wins; `clone` carries all of it without leaking. The old pad test now
+  allows the claw blocking the pad (it did, on the first run: the new rule working).
+- `verify_combat_input` 27, `verify_run` 187, `verify_run_ui` 51, `verify_onboarding` 39,
+  `verify_save` 15, `verify_meta` 77: all pass.
+- **Bot, 150 runs: 47.3%** (048 with cover 39.3%; 047 43.3%). Gate held (out of rounds) 15 (was 33).
+  Act 1 lost 17.3% (at gate 15), Act 2 30.6% (8), Act 3 17.4% (4, was 12): the openings are big
+  damage windows, the Core's +3 side the most.
+- Screenshots: `shots/050/grinder.png` (the lane), `grinder_r2.png` (STUCK, EXPOSED x2 on the tag
+  and the bar), `sorter.png` (the claw's arrow), `pour.png` (coolant tanks), `core.png` (the open
+  side -- hard to see under the pulse ring; the bar names it).
 
 ## Decisions, lessons, open questions
+- One shared opening, EXPOSED (double damage, no pylon / conduit / twin cover), for three keepers
+  (MEMORY decisions).
+- Open: Act 3 got much easier for the bot (17.4% lost, was 31.4%). Try `open_bonus` 2, or the side
+  turning two sixths, after the user plays.
+- Open: ground labels are small at the board's zoom ("CHARGES NEXT ROUND", "FLOODS NEXT TURN"
+  alike); the boss bar carries each trick.
 
 ## Next
+The user plays the tricks; tune by what they say.
