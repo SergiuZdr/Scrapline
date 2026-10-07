@@ -34,10 +34,15 @@
   "sorter": {
     "keeps_arms": true,
     "name": "The Sorter",
-    "text": "The Sorting Gate's keeper. While any gate pylon stands it takes 3 less from every hit: break the pylons first. Every 3 rounds it calls a drone from a pad beside it, warning a turn ahead.",
+    "text": "The Sorting Gate's keeper. While any gate pylon stands it takes 3 less from every hit. Every 3 rounds its pad builds a drone (it warns a turn ahead). Every 3 rounds its CLAW marks the nearest machine within 4 and next round throws it onto the pad for 2, unless it got away. Whenever the pad works -- builds, or is blocked by a machine on it -- its HATCH is open for your next turn: no pylon armour, and it takes double.",
     "pylon_armor": 3,
     "builds": true,
-    "every": 3
+    "every": 3,
+    "grab_every": 3,
+    "grab_range": 4,
+    "grab_damage": 2,
+    "hatch": 1,
+    "exposed_pct": 200
   },
   "reclaimer": {
     "name": "Reclaimer drone",
@@ -63,7 +68,7 @@
   "pour": {
     "keeps_arms": true,
     "name": "The Pour",
-    "text": "The Slag Flats' keeper. Every other round it marks four hexes, the ones your machines stand on first; a round later they flood with slag for the rest of the fight (2 damage a round to anything on them). Keep moving, and break it before the floor runs out. At half HP it BOILS OVER: it marks five hexes every round, the slag bites for 3, and three drones come to guard it.",
+    "text": "The Slag Flats' keeper. Every other round it marks four hexes, the ones your machines stand on first; a round later they flood with slag for the rest of the fight (2 damage a round to anything on them). COOLANT TANKS stand on its floor: burst one within 2 of it and its shell cracks -- it takes double for this turn and your next -- and the slag around the tank cools. At half HP it BOILS OVER: it marks five hexes every round, the slag bites for 3, and three drones come to guard it.",
     "floods": 4,
     "every": 2,
     "hazard": 2,
@@ -72,7 +77,10 @@
       "every": 1,
       "hazard": 3,
       "summons": 3
-    }
+    },
+    "quench_rounds": 2,
+    "quench_radius": 2,
+    "exposed_pct": 200
   },
   "conduit": {
     "name": "Conduit",
@@ -82,7 +90,7 @@
   "heart": {
     "keeps_arms": true,
     "name": "The Core",
-    "text": "The Crucible's heart and the run's last boss, bolted to the floor: it never moves and cannot be shoved. While a CONDUIT stands it takes 2 less from every hit -- break them first. Every other round it marks every hex within 2 of it, and a round later it pulses: 4 damage to each of your machines still in the ring. Its pad builds a drone every 3 rounds. At half HP it ERUPTS: it pulses EVERY round, 3 hexes out, for 5, and calls three drones.",
+    "text": "The Crucible's heart and the run's last boss, bolted to the floor: it never moves and cannot be shoved. It has one OPEN SIDE, marked on the board, which turns a sixth every round: hits from that side do 3 more and ignore its conduits. While a CONDUIT stands every other hit takes 2 less. Every other round it marks every hex within 2 of it, and a round later it pulses: 4 damage to each of your machines still in the ring. Its pad builds a drone every 3 rounds. At half HP it ERUPTS: it pulses EVERY round, 3 hexes out, for 5, and calls three drones.",
     "pulse_every": 2,
     "pulse_radius": 2,
     "pulse_damage": 4,
@@ -97,27 +105,37 @@
       "summons": 3
     },
     "cover_kind": "conduit",
-    "cover_armor": 2
+    "cover_armor": 2,
+    "open_bonus": 3
   },
   "grinder": {
     "keeps_arms": true,
     "name": "The Grinder",
-    "text": "Act 1's warlord: a ring of saws. At the start of every round, 2 to each of your machines standing next to it -- the hexes around it are marked. Hit it from range, or hit it and step away.",
+    "text": "Act 1's warlord: a ring of saws. At the start of every round, 2 to each of your machines standing next to it. Every other round it marks a straight lane and CHARGES down it next round: the first machine in the way takes 3 and is shoved on. If the charge ends against a heap, a crate, a drum, a pit or the board's edge it is STUCK for your next turn: no saws, and it takes double.",
     "aura": 2,
-    "anchored": true
+    "anchored": true,
+    "charge_every": 2,
+    "charge_range": 4,
+    "charge_damage": 3,
+    "stuck_rounds": 1,
+    "exposed_pct": 200
   },
   "magnet": {
     "keeps_arms": true,
     "name": "The Magnet King",
-    "text": "Act 2's warlord. Every other round it hauls each of your machines within 3 a hex toward itself -- into pits, into each other -- marked the round before. Stand where a haul does you no harm, or stay out of reach.",
+    "text": "Act 2's warlord. Every other round it hauls everything within 3 a hex toward itself -- your machines into pits and into each other, and drums, crates and tanks too -- marked the round before. A FUEL DRUM hauled up against it goes off in its face: 5, then the blast.",
     "haul_every": 2,
     "haul_radius": 3,
-    "anchored": true
+    "anchored": true,
+    "haul_props": true,
+    "haul_blast": 5
   },
   "twin": {
     "keeps_arms": true,
     "name": "Twin Furnace",
-    "text": "Act 3's warlords come in a pair. While both stand, each takes 2 less from every hit: break one, then the other.",
-    "twin_armor": 2
+    "text": "Act 3's warlords come in a pair. While both stand, each takes 2 less from every hit. When one falls, the other starts REBUILDING it: it is back in 3 rounds at half HP unless you break the second first.",
+    "twin_armor": 2,
+    "rebuild_rounds": 3,
+    "rebuild_pct": 50
   }
 }

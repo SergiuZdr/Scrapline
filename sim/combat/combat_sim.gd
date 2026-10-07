@@ -613,11 +613,28 @@ static func damage_to(state: CombatState, u: GridUnit, target: GridUnit, amount:
 	var dmg: int = (amount * pct + 50) / 100
 	if shot:
 		dmg -= state.cover(target.x, target.y)
-	dmg -= target.armor + target.shield + _warden_cover(state, target) + _pylon_cover(state, target) + _twin_cover(state, target) \
-		+ _kind_cover(state, target)
+	dmg -= target.armor + target.shield + _warden_cover(state, target)
+	# 050: an exposed keeper has none of its pylon / conduit / twin cover and takes `exposed_pct`;
+	# the Core's open side (toward `u`) takes `open_bonus` more and ignores its conduits.
+	var exposed: bool = state.exposed.has(target.ref)
+	var open: bool = open_toward(state, target, Vector2i(u.x, u.y))
+	if not exposed:
+		dmg -= _pylon_cover(state, target) + _twin_cover(state, target) + (0 if open else _kind_cover(state, target))
+	if open:
+		dmg += int(kind_rules(state, target).get("open_bonus", 0))
+	if exposed:
+		dmg = (maxi(0, dmg) * int(kind_rules(state, target).get("exposed_pct", 200)) + 50) / 100
 	if target.marked:
 		dmg += state.setup.mark_bonus
 	return maxi(state.setup.min_damage, dmg)
+
+
+## The Core (050): whether a blow from `from` lands on its open side -- the side it faces this
+## round (`state.facing`). Off the six axes a hex lies between two sides; either counts.
+static func open_toward(state: CombatState, target: GridUnit, from: Vector2i) -> bool:
+	if not state.facing.has(target.ref) or from == Vector2i(target.x, target.y):
+		return false
+	return Hex.directions(Vector2i(target.x, target.y), from).has(int(state.facing[target.ref]))
 
 
 ## A conduit (025, the Foundry Mind's) lends every ally next to it `boost` damage on each
@@ -1049,6 +1066,14 @@ static func hurt(state: CombatState, actor: int, target: GridUnit, dmg: int) -> 
 		state.emit(GridEv.PILE_DROPPED, actor, target.ref, cell.x, cell.y, state.setup.pile_value)
 	if target.kind == "bomber":
 		explode(state, target.ref, cell, int((state.setup.kinds.get("bomber", {}) as Dictionary).get("blast", 4)))
+	# 050, the Twin Furnaces: one that falls while its twin stands is rebuilt in `rebuild_rounds`.
+	var rounds: int = int(kind_rules(state, target).get("rebuild_rounds", 0))
+	if rounds > 0:
+		for other: GridUnit in state.units:
+			if other.alive and other.kind == target.kind and other.team == target.team:
+				state.rebuilds[target.ref] = rounds
+				state.emit(GridEv.REBUILD_MARKED, other.ref, target.ref, cell.x, cell.y, rounds)
+				break
 
 
 ## Gives `u` up to `amount` HP back, never past its maximum (033).
@@ -1108,10 +1133,40 @@ static func damage_prop(state: CombatState, actor: int, cell: Vector2i, dmg: int
 	if int(prop["hp"]) > 0:
 		return
 	var barrel: bool = String(prop["kind"]) == "barrel"
+	var coolant: bool = String(prop["kind"]) == "coolant"
 	state.props.erase(cell)
-	state.emit(GridEv.PROP_BROKEN, actor, -1, cell.x, cell.y, 1 if barrel else 0)
+	state.emit(GridEv.PROP_BROKEN, actor, -1, cell.x, cell.y, 1 if barrel else (3 if coolant else 0))
 	if barrel:
 		explode(state, actor, cell, state.setup.barrel_damage)
+	if coolant:
+		_quench(state, actor, cell)
+
+
+## A coolant tank bursts (050, The Pour's board): the slag next to it cools, and a keeper that
+## can be quenched (`quench_rounds`) within its `quench_radius` is exposed -- its shell cracks.
+static func _quench(state: CombatState, actor: int, cell: Vector2i) -> void:
+	for n: Vector2i in [cell] + Hex.neighbors(cell):
+		state.flooded.erase(n)
+		state.pour_marks.erase(n)
+	var keeper: GridUnit = null
+	for u: GridUnit in state.units:
+		var rules: Dictionary = kind_rules(state, u)
+		if u.alive and int(rules.get("quench_rounds", 0)) > 0 \
+				and Hex.distance(Vector2i(u.x, u.y), cell) <= int(rules.get("quench_radius", 2)):
+			keeper = u
+			break
+	var turns: int = int(kind_rules(state, keeper).get("quench_rounds", 0)) if keeper != null else 0
+	state.emit(GridEv.QUENCHED, actor, keeper.ref if keeper != null else -1, cell.x, cell.y, turns)
+	if keeper != null:
+		expose(state, keeper, turns, 2)
+
+
+## Opens a keeper for the crew's next `turns` turns (050); never shortens an opening already there.
+static func expose(state: CombatState, u: GridUnit, turns: int, why: int) -> void:
+	if turns <= 0 or not u.alive:
+		return
+	state.exposed[u.ref] = maxi(int(state.exposed.get(u.ref, 0)), turns)
+	state.emit(GridEv.EXPOSED, u.ref, -1, u.x, u.y, int(state.exposed[u.ref]), why)
 
 
 ## Into a pit: gone, with no pile (it went down with its scrap).
@@ -1312,6 +1367,13 @@ static func _begin_round(state: CombatState) -> void:
 	state.round_number += 1
 	state.intents.clear()
 	state.emit(GridEv.ROUND_START, -1, -1, -1, -1, state.round_number)
+	# 050: an opening lasts the crew's turns it was given; one more of them is over.
+	var open_refs: Array = state.exposed.keys()
+	open_refs.sort()
+	for ref: Variant in open_refs:
+		state.exposed[ref] = int(state.exposed[ref]) - 1
+		if int(state.exposed[ref]) <= 0:
+			state.exposed.erase(ref)
 	for u: GridUnit in state.units:
 		u.moved = false
 		u.acted = false
@@ -1343,6 +1405,7 @@ static func _begin_round(state: CombatState) -> void:
 	if _check_outcome(state):
 		return
 	_waves(state)
+	_rebuild(state)
 
 	_hives(state)
 	_reclaimer(state)
@@ -1378,6 +1441,9 @@ static func _begin_round(state: CombatState) -> void:
 	for u: GridUnit in state.units:
 		if u.team == GridUnit.TEAM_ENEMY:
 			u.snared = false
+	# 050: what the keepers will do at the next round's start, marked now, after they moved.
+	_mark_charges(state)
+	_mark_grabs(state)
 
 
 ## HOLD (028): a round that starts with a crew machine on the zone and no enemy on it scores.
@@ -1461,6 +1527,9 @@ static func _round_hazards(state: CombatState) -> void:
 			hurt(state, -1, u, dmg)
 	_flues(state)
 	_pulses(state)
+	_turn_sides(state)
+	_charges(state)
+	_grabs(state)
 	_auras(state)
 	_hauls(state)
 
@@ -1472,7 +1541,8 @@ static func _auras(state: CombatState) -> void:
 		if not u.alive or u.kind.is_empty():
 			continue
 		var aura: int = int(kind_rules(state, u).get("aura", 0))
-		if aura <= 0:
+		# 050: a Grinder stuck in a wall has its saws in the wall.
+		if aura <= 0 or state.exposed.has(u.ref):
 			continue
 		for n: Vector2i in Hex.neighbors(Vector2i(u.x, u.y)):
 			var t: GridUnit = state.unit_at(n.x, n.y) if state.inside(n) else null
@@ -1507,6 +1577,38 @@ static func _hauls(state: CombatState) -> void:
 		for t: GridUnit in pulled:
 			if t.alive:
 				shove(state, u.ref, t, Hex.directions(Vector2i(t.x, t.y), here)[0])
+		if bool(kind_rules(state, u).get("haul_props", false)) and u.alive:
+			_haul_props(state, u, radius)
+
+
+## The Magnet King (050): the haul drags drums, crates and tanks too, nearest first, a hex each
+## into open ground. A fuel drum dragged up against it goes off in its face: `haul_blast` to the
+## Magnet itself, then the drum's own explosion.
+static func _haul_props(state: CombatState, u: GridUnit, radius: int) -> void:
+	var here := Vector2i(u.x, u.y)
+	var cells: Array[Vector2i] = []
+	for cell: Variant in state.props:
+		var c: Vector2i = cell
+		if String((state.props[c] as Dictionary).get("kind", "")) != "pylon" \
+				and Hex.distance(c, here) <= radius and Hex.distance(c, here) > 1:
+			cells.append(c)
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		var da: int = Hex.distance(a, here)
+		var db: int = Hex.distance(b, here)
+		return da < db or (da == db and (a.y < b.y or (a.y == b.y and a.x < b.x))))
+	for cell: Vector2i in cells:
+		if not state.props.has(cell) or not u.alive:
+			continue
+		var n: Vector2i = Hex.neighbor(cell, Hex.directions(cell, here)[0])
+		if not state.inside(n) or state.solid(n) or state.is_pit(n) or state.unit_at(n.x, n.y) != null:
+			continue
+		var prop: Dictionary = state.props[cell]
+		state.props.erase(cell)
+		state.props[n] = prop
+		state.emit(GridEv.PROP_MOVED, u.ref, -1, n.x, n.y, cell.y * 64 + cell.x)
+		if String(prop.get("kind", "")) == "barrel" and Hex.distance(n, here) <= 1:
+			hurt(state, -1, u, int(kind_rules(state, u).get("haul_blast", 0)))
+			damage_prop(state, -1, n, int(prop.get("hp", 1)))
 
 
 ## Whether the furnace flues blow at the start of round `round` (025): every `flue_every`th.
@@ -1583,6 +1685,8 @@ static func _hives(state: CombatState) -> void:
 		if int(state.spawn_due.get(ref, 0)) != state.round_number:
 			continue
 		state.spawn_due[ref] = state.round_number + _build_every(state, builder.kind)
+		# 050: whenever the Sorter's pad works -- builds, or is blocked -- its hatch is open.
+		expose(state, builder, int(kind_rules(state, builder).get("hatch", 0)), 1)
 		if state.unit_at(cell.x, cell.y) != null or state.solid(cell) or state.is_pit(cell):
 			state.emit(GridEv.SPAWN_BLOCKED, builder.ref, -1, cell.x, cell.y, 0)
 			continue
@@ -1745,6 +1849,205 @@ static func drone_in(state: CombatState, ref: int) -> int:
 
 
 ## Ends the fight if its objective is met or failed. Returns true if it ended.
+# --- 050: boss tricks ------------------------------------------------------------
+
+## The Grinder (050) marks its charge a round ahead: of the six lanes, the one whose first machine
+## of the crew is nearest within `charge_range`, else the lane toward the nearest machine.
+static func _mark_charges(state: CombatState) -> void:
+	state.charges.clear()
+	for u: GridUnit in state.units:
+		var rules: Dictionary = kind_rules(state, u)
+		var every: int = int(rules.get("charge_every", 0))
+		if not u.alive or every <= 0 or (state.round_number + 1) % every != 0:
+			continue
+		var here := Vector2i(u.x, u.y)
+		var reach: int = int(rules.get("charge_range", 4))
+		var best_dir: int = -1
+		var best_at: int = 1000
+		for dir: int in 6:
+			var lane: Array = charge_lane(state, u, here, dir, reach)
+			var last: Vector2i = lane[lane.size() - 1] if not lane.is_empty() else here
+			var t: GridUnit = state.unit_at(last.x, last.y) if not lane.is_empty() else null
+			if t != null and t.team != u.team and not t.objective and lane.size() < best_at:
+				best_at = lane.size()
+				best_dir = dir
+		if best_dir < 0:
+			var nearest: GridUnit = null
+			for t: GridUnit in state.crew(GridUnit.TEAM_PLAYER):
+				if nearest == null or Hex.distance(here, Vector2i(t.x, t.y)) < Hex.distance(here, Vector2i(nearest.x, nearest.y)):
+					nearest = t
+			if nearest == null:
+				continue
+			best_dir = Hex.directions(here, Vector2i(nearest.x, nearest.y))[0]
+		var cells: Array = charge_lane(state, u, here, best_dir, reach)
+		state.charges[u.ref] = {"dir": best_dir, "cells": cells}
+		state.emit(GridEv.CHARGE_MARKED, u.ref, -1, here.x, here.y, best_dir, cells.size())
+
+
+## The hexes a charge from `from` along `dir` crosses: open ground up to `reach`, ending on the
+## first machine in the way; a wall, prop, pit or the board's edge ends it before.
+static func charge_lane(state: CombatState, u: GridUnit, from: Vector2i, dir: int, reach: int) -> Array:
+	var out: Array = []
+	var pos: Vector2i = from
+	for i: int in reach:
+		var n: Vector2i = Hex.neighbor(pos, dir)
+		if not state.inside(n) or state.solid(n) or state.is_pit(n):
+			break
+		out.append(n)
+		var occupant: GridUnit = state.unit_at(n.x, n.y)
+		if occupant != null and occupant != u:
+			break
+		pos = n
+	return out
+
+
+## The charge (050), at the round's start along the lane it marked: it runs until something stops
+## it. The first machine of the crew in the way takes `charge_damage` and is shoved on; anything
+## solid -- a heap, a prop (which takes the blow), a pit's edge, the board's edge -- leaves it
+## STUCK: exposed, its saws idle, for `stuck_rounds` of the crew's turns.
+static func _charges(state: CombatState) -> void:
+	var refs: Array = state.charges.keys()
+	refs.sort()
+	for ref: Variant in refs:
+		var u: GridUnit = state.unit(int(ref))
+		if u == null or not u.alive:
+			continue
+		var rules: Dictionary = kind_rules(state, u)
+		var dir: int = int((state.charges[ref] as Dictionary)["dir"])
+		var start := Vector2i(u.x, u.y)
+		var pos: Vector2i = start
+		var stuck: bool = false
+		var hit: GridUnit = null
+		var blocker := Vector2i(-1, -1)
+		for i: int in int(rules.get("charge_range", 4)):
+			var n: Vector2i = Hex.neighbor(pos, dir)
+			if not state.inside(n) or state.solid(n) or state.is_pit(n):
+				stuck = true
+				blocker = n
+				break
+			var occupant: GridUnit = state.unit_at(n.x, n.y)
+			if occupant != null:
+				hit = occupant
+				break
+			pos = n
+		u.x = pos.x
+		u.y = pos.y
+		state.emit(GridEv.CHARGED, u.ref, -1, pos.x, pos.y, start.y * 64 + start.x, 1 if stuck else 0)
+		var dmg: int = int(rules.get("charge_damage", 3))
+		if stuck and state.props.has(blocker):
+			damage_prop(state, u.ref, blocker, dmg)
+		if hit != null and hit.team != u.team and not hit.objective:
+			hurt(state, u.ref, hit, dmg)
+			if hit.alive:
+				shove(state, u.ref, hit, dir)
+		if stuck and u.alive:
+			expose(state, u, int(rules.get("stuck_rounds", 1)), 0)
+	state.charges.clear()
+
+
+## The Sorter's claw (050), marked a round ahead: the nearest machine of the crew within
+## `grab_range`, every `grab_every` rounds.
+static func _mark_grabs(state: CombatState) -> void:
+	state.grabs.clear()
+	for u: GridUnit in state.units:
+		var rules: Dictionary = kind_rules(state, u)
+		var every: int = int(rules.get("grab_every", 0))
+		if not u.alive or every <= 0 or (state.round_number + 1) % every != 0:
+			continue
+		var here := Vector2i(u.x, u.y)
+		var reach: int = int(rules.get("grab_range", 4))
+		var pick: GridUnit = null
+		for t: GridUnit in state.crew(GridUnit.TEAM_PLAYER):
+			var d: int = Hex.distance(here, Vector2i(t.x, t.y))
+			if d > reach:
+				continue
+			if pick == null or d < Hex.distance(here, Vector2i(pick.x, pick.y)):
+				pick = t
+		if pick != null:
+			state.grabs[u.ref] = pick.ref
+			state.emit(GridEv.GRAB_MARKED, u.ref, pick.ref, pick.x, pick.y)
+
+
+## The grab (050): a marked machine still within `grab_range` is thrown onto the Sorter's pad
+## (else the first free hex beside it) for `grab_damage`. Standing on the pad blocks the build,
+## and a blocked build opens the Sorter's hatch: the counter is in the throw.
+static func _grabs(state: CombatState) -> void:
+	var refs: Array = state.grabs.keys()
+	refs.sort()
+	for ref: Variant in refs:
+		var u: GridUnit = state.unit(int(ref))
+		var t: GridUnit = state.unit(int(state.grabs[ref]))
+		if u == null or t == null or not u.alive or not t.alive:
+			continue
+		var rules: Dictionary = kind_rules(state, u)
+		var here := Vector2i(u.x, u.y)
+		if Hex.distance(here, Vector2i(t.x, t.y)) > int(rules.get("grab_range", 4)):
+			state.emit(GridEv.MISSED, u.ref, t.ref, t.x, t.y)
+			continue
+		var landing := Vector2i(-1, -1)
+		var spots: Array[Vector2i] = []
+		if state.spawn_marks.has(u.ref):
+			spots.append(state.spawn_marks[u.ref])
+		spots.append_array(Hex.neighbors(here))
+		for cell: Vector2i in spots:
+			if cell == Vector2i(t.x, t.y) or (state.inside(cell) and not state.solid(cell) and not state.is_pit(cell) \
+					and state.unit_at(cell.x, cell.y) == null):
+				landing = cell
+				break
+		if landing.x < 0:
+			continue
+		var from := Vector2i(t.x, t.y)
+		t.x = landing.x
+		t.y = landing.y
+		var dmg: int = int(rules.get("grab_damage", 2))
+		state.emit(GridEv.GRABBED, u.ref, t.ref, landing.x, landing.y, from.y * 64 + from.x, dmg)
+		hurt(state, u.ref, t, dmg)
+	state.grabs.clear()
+
+
+## The Core (050): its open side turns a sixth every round (the first from a hash of the fight).
+static func _turn_sides(state: CombatState) -> void:
+	for u: GridUnit in state.units:
+		if not u.alive or int(kind_rules(state, u).get("open_bonus", 0)) <= 0:
+			continue
+		var dir: int = (int(state.facing[u.ref]) + 1) % 6 if state.facing.has(u.ref) \
+			else IntentAI.mix(state.setup.rng_seed, u.ref, 0, 59) % 6
+		state.facing[u.ref] = dir
+		state.emit(GridEv.SIDE_TURNED, u.ref, -1, u.x, u.y, dir)
+
+
+## The Twin Furnaces (050): a fallen twin's countdown runs; at 0, if its twin still stands, it is
+## back on its wreck's hex (or the first free one beside it) at `rebuild_pct` of its HP.
+static func _rebuild(state: CombatState) -> void:
+	var refs: Array = state.rebuilds.keys()
+	refs.sort()
+	for ref: Variant in refs:
+		var fallen: GridUnit = state.unit(int(ref))
+		var builder: GridUnit = null
+		for other: GridUnit in state.units:
+			if other.alive and fallen != null and other.kind == fallen.kind and other.team == fallen.team:
+				builder = other
+				break
+		if fallen == null or builder == null:
+			state.rebuilds.erase(ref)
+			continue
+		state.rebuilds[ref] = int(state.rebuilds[ref]) - 1
+		if int(state.rebuilds[ref]) > 0:
+			continue
+		state.rebuilds.erase(ref)
+		var at := Vector2i(fallen.x, fallen.y)
+		var spots: Array[Vector2i] = [at]
+		spots.append_array(Hex.neighbors(at))
+		for cell: Vector2i in spots:
+			if state.inside(cell) and not state.solid(cell) and not state.is_pit(cell) and state.unit_at(cell.x, cell.y) == null:
+				fallen.x = cell.x
+				fallen.y = cell.y
+				fallen.alive = true
+				fallen.hp = maxi(1, fallen.max_hp * int(kind_rules(state, fallen).get("rebuild_pct", 50)) / 100)
+				state.emit(GridEv.REBUILT, builder.ref, fallen.ref, cell.x, cell.y, fallen.hp)
+				break
+
+
 static func _check_outcome(state: CombatState) -> bool:
 	if state.outcome != CombatState.ONGOING:
 		return true
