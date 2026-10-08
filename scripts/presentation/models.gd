@@ -43,6 +43,18 @@ static func gen_models() -> bool:
 	return _mode() == 2
 
 
+## 051: `--gen-dir res://art/parts_gen_b` draws another generated set, to compare looks.
+static var _gen_dir: String = ""
+
+
+static func gen_dir() -> String:
+	if _gen_dir.is_empty():
+		var args: PackedStringArray = OS.get_cmdline_user_args()
+		var at: int = args.find("--gen-dir")
+		_gen_dir = args[at + 1] if at >= 0 and at + 1 < args.size() else GEN_PARTS
+	return _gen_dir
+
+
 ## For tools and tests that compare the sets in one process.
 static func use_new(on: bool) -> void:
 	_new = 1 if on else 0
@@ -56,7 +68,7 @@ static func use_gen(on: bool) -> void:
 ## else the shipped one.
 static func part_path(part_id: String) -> String:
 	if gen_models():
-		var gen: String = "%s/%s.glb" % [GEN_PARTS, part_id]
+		var gen: String = "%s/%s.glb" % [gen_dir(), part_id]
 		if ResourceLoader.exists(gen):
 			return gen
 	if new_models():
