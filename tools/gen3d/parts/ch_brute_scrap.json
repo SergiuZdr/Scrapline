@@ -1,5 +1,5 @@
 {
-  "_comment": "051: the scrap Brute from ChatGPT Images concepts (art/concepts/machines/ch_brute_scrap.png) through TRELLIS on Colab. Drawn armless and facing forward. Width profile: legs part below ~0.15 (centre |x| < 0.06), the pelvis narrows to +-0.17 under the torso at ~0.36, shoulder sockets at the pauldrons' ends (+-0.29). Graded [0.7, 0.72]: TRELLIS gave the frame's worn mustard back near pure yellow. 053: pauldrons squeezed (beyond 0.15, x0.55: 0.29 -> 0.23); arm sockets at the pauldrons' new ends; core and module sockets set into the body (they stood their whole depth off it).",
+  "_comment": "051: the scrap Brute from ChatGPT Images concepts (art/concepts/machines/ch_brute_scrap.png) through TRELLIS on Colab. Drawn armless and facing forward. Width profile: legs part below ~0.15 (centre |x| < 0.06), the pelvis narrows to +-0.17 under the torso at ~0.36, shoulder sockets at the pauldrons' ends (+-0.29). Graded [0.7, 0.72]: TRELLIS gave the frame's worn mustard back near pure yellow. 053: pauldrons squeezed (beyond 0.15, x0.55: 0.29 -> 0.23); arm sockets at the pauldrons' new ends; core and module sockets set into the body (they stood their whole depth off it). 054: arm sockets at the pauldrons' outer faces (their round openings), mid-height.",
   "slot": "chassis",
   "rotate": [
     0,
@@ -15,14 +15,14 @@
   "pelvis_x": 0.06,
   "sockets": {
     "socket_arm_l": [
-      -0.215,
+      -0.23,
       0.0,
-      0.44
+      0.46
     ],
     "socket_arm_r": [
-      0.215,
+      0.23,
       0.0,
-      0.44
+      0.46
     ],
     "socket_core": [
       0.0,
