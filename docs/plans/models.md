@@ -161,3 +161,14 @@ without a frame, a core, a module. Nothing is cut apart between slots, only a fr
 The Brute (045): frame 0.64 m, 20,264 triangles in all. `Ink.dress_machine` keeps a textured
 surface's texture under the ramp (`Ink.textured`), tinted by a boss's livery.
 
+## Comic scrap machines (051) -- the current route for machines
+
+1. **Concept** in ChatGPT Images, one chat per machine: the whole machine (comic: bold ink, flat
+   cel colour), then each part alone against it (no arms on the frame; arms hang with the weapon
+   below; core and module single objects), each in its **maker's** paint and patched with plates
+   off other machines (`Ink.MAKER_LIVERY`). Save with `tools/gen3d/chatgpt_show.js` (`__grab(-1)`)
+   and a full-size extension screenshot, then `python3 tools/gen3d/grab_crop.py <capture> <png>`.
+2. **3D** on Colab (`tools/gen3d/trellis_colab.ipynb`): `colab_prep.sh <ids>`, upload, restart, run.
+3. **Rig** with `tools/gen3d/parts/<id>_scrap.json` into `art/parts_gen_scrap/`; check with
+   `verify_assembly.gd -- --dir res://art/parts_gen_scrap` and `tools/shot_machine.gd`.
+

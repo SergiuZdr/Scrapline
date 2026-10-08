@@ -2,6 +2,17 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [051] Comic scrap machines: the Brute — 2026-10-08 ([detail](iterations/051-comic-machines.md))
+
+### Added
+- **The Brute as comic scrap**, drawn with `-- --models gen --gen-dir res://art/parts_gen_scrap`: five
+  parts from ChatGPT Images concepts (one design), each in its maker's paint and patched with plates off
+  other machines, made 3D by TRELLIS on Colab.
+- `tools/gen3d/chatgpt_show.js` + `grab_crop.py`: saves ChatGPT images without the download dialog.
+- `tools/shot_machine.gd`: one machine in the game's ink at chosen angles.
+- The rig's `--style inked|zones`; `--gen-dir` picks a generated set; textured parts are hatched and
+  rimmed like every machine.
+
 ## [045] Generated machines: the Brute — 2026-10-07 ([detail](iterations/045-generated-machines.md))
 
 ### Added
