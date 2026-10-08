@@ -108,14 +108,20 @@ static func patterned(colour: Color, pattern: int, ink_colour: Color, scale: flo
 
 ## A toon material over a texture (a drum's painted band), tinted by `colour`. `kind` as `toon`:
 ## a machine part is "clean" (hatched, rimmed, like every machine), scenery "matte" (halftone).
-static func textured(texture: Texture2D, colour: Color = Color.WHITE, kind: String = "matte") -> ShaderMaterial:
-	var key: String = "tex:%d:%s:%s" % [texture.get_instance_id(), colour.to_html(), kind]
+static func textured(texture: Texture2D, colour: Color = Color.WHITE, kind: String = "matte",
+		clean_tex: Texture2D = null, clean: float = 0.0) -> ShaderMaterial:
+	var key: String = "tex:%d:%s:%s:%d:%.2f" % [texture.get_instance_id(), colour.to_html(), kind,
+		clean_tex.get_instance_id() if clean_tex != null else 0, clean]
 	if _materials.has(key):
 		return _materials[key]
 	var m: ShaderMaterial = toon(colour, kind).duplicate()
 	m.set_shader_parameter("use_tex", true)
 	m.set_shader_parameter("albedo_tex", texture)
 	m.set_shader_parameter("halftone", 0.0)
+	if clean_tex != null:
+		m.set_shader_parameter("use_clean", true)
+		m.set_shader_parameter("clean_tex", clean_tex)
+		m.set_shader_parameter("clean", clean)
 	_materials[key] = m
 	return m
 
@@ -450,6 +456,31 @@ static func dress_machine(model: Node3D, part_ids: PackedStringArray, team: Colo
 	_dress_node(model, "", slots, part_ids, team, kit, paint)
 
 
+## 053: the share of a generated part's rust cleaned off at a machine's level (0 at level 0, all at the
+## top level), from the `level` ConstructView.build_parts records on the model.
+const CLEAN_LEVELS: int = 5
+
+
+static func clean_of(model: Node) -> float:
+	var top: Node = model
+	while top != null and not top.has_meta("level"):
+		top = top.get_parent()
+	return clampf(float(top.get_meta("level", 0)) / float(CLEAN_LEVELS), 0.0, 1.0) if top != null else 0.0
+
+
+## The rust-cleaned texture next to a generated part's model (`<part>_clean.png`), or null.
+static var _clean_cache: Dictionary = {}
+
+
+static func clean_texture(part_id: String) -> Texture2D:
+	if part_id.is_empty():
+		return null
+	if not _clean_cache.has(part_id):
+		var path: String = Models.part_path(part_id).replace(".glb", "_clean.png")
+		_clean_cache[part_id] = load(path) if path.contains("/parts_gen") and ResourceLoader.exists(path) else null
+	return _clean_cache[part_id]
+
+
 static func _dress_node(node: Node, part_id: String, slots: Dictionary, part_ids: PackedStringArray,
 		team: Color, kit: Dictionary, paint: Color = Color(0, 0, 0, 0)) -> void:
 	var here: String = part_id
@@ -468,7 +499,8 @@ static func _dress_node(node: Node, part_id: String, slots: Dictionary, part_ids
 				# (a boss's one livery tints it).
 				if source is BaseMaterial3D and (source as BaseMaterial3D).albedo_texture != null:
 					var tint: Color = paint.lerp(Color.WHITE, 0.45) if paint.a > 0.0 else Color.WHITE
-					mesh.set_surface_override_material(s, textured((source as BaseMaterial3D).albedo_texture, tint, "clean"))
+					mesh.set_surface_override_material(s, textured((source as BaseMaterial3D).albedo_texture, tint, "clean",
+						clean_texture(here), clean_of(mesh)))
 					continue
 				var zone: String = PartMaterials.zone_of(source)
 				mesh.set_surface_override_material(s, zone_material(zone, livery, team))

@@ -61,6 +61,8 @@ static func build(unit: SimUnit, content: ContentDB, team_colour: Color) -> Node
 ## units are not `SimUnit`s, and the view has no business caring which sim built them.
 static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_colour: Color, level: int = 0) -> Node3D:
 	var root := Node3D.new()
+	# 053: Ink.dress_machine reads it -- a generated part's rust wears off as the machine levels.
+	root.set_meta("level", level)
 
 	var chassis_id: String = _part_id(part_ids, 0)
 	var chassis: Node3D = _instance(chassis_id)
@@ -117,7 +119,12 @@ static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_c
 
 	_seat_arms(root, chassis, chassis_id)
 	if level > 0:
-		_level_kit(chassis, sockets, level, PartMaterials.livery_of(chassis_id), team_colour)
+		# 053: a generated frame shows its level by its rust wearing off (Ink.clean_of); the bolted
+		# kit is placed for the scripted frames and floats off a generated one. It still grows.
+		if Models.part_path(chassis_id).contains("/parts_gen"):
+			chassis.scale *= 1.0 + LEVEL_SCALE * float(level)
+		else:
+			_level_kit(chassis, sockets, level, PartMaterials.livery_of(chassis_id), team_colour)
 	return root
 
 
@@ -126,6 +133,10 @@ static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_c
 ## it lies inside the body's bounds (the shoulder may still sit in its socket), at most
 ## ARM_PUSH_MAX. Measured on the real geometry; cached per frame, arm and side.
 static func _seat_arms(root: Node3D, chassis: Node3D, chassis_id: String) -> void:
+	# 053: a generated frame's arm sockets are placed by hand on its own shoulders; pushing its
+	# arms out of the body's box left them hanging in the air.
+	if Models.part_path(chassis_id).contains("/parts_gen"):
+		return
 	var body := AABB()
 	var legs: Array[AABB] = []
 	var have_body: bool = false

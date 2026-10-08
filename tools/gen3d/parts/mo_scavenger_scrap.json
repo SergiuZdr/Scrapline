@@ -1,8 +1,9 @@
 {
   "_comment": "051: the scrap Brute from ChatGPT Images concepts (art/concepts/machines/mo_scavenger_scrap.png) through TRELLIS on Colab. ",
   "slot": "module",
-  "size": 0.2,
+  "size": 0.18,
   "mount": "front",
   "budget": 2500,
-  "posterize": 12
+  "posterize": 12,
+  "rust_map": true
 }

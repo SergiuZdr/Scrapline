@@ -1,13 +1,18 @@
 {
-  "_comment": "051: the scrap Brute from ChatGPT Images concepts (art/concepts/machines/ar_saw_scrap.png) through TRELLIS on Colab. Hangs straight down from its shoulder as generated.",
+  "_comment": "051: the scrap Brute from ChatGPT Images concepts (art/concepts/machines/ar_saw_scrap.png) through TRELLIS on Colab. Hangs straight down from its shoulder as generated. 053: turned so the shoulder ring faces the body (it faced forward), and the weapon twisted 90 against the shoulder (the user).",
   "slot": "arm",
   "rotate": [
     0,
     0,
-    0
+    -90
   ],
-  "size": 0.5,
+  "size": 0.44,
   "mount": "top",
   "budget": 4000,
-  "posterize": 12
+  "posterize": 12,
+  "rust_map": true,
+  "twist": [
+    0.4,
+    90
+  ]
 }

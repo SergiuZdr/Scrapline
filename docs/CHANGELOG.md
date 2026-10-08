@@ -2,6 +2,14 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [053] Scrap Brute fixes; rust that wears off with levels — 2026-10-08 ([detail](iterations/053-scrap-brute-fixes.md))
+
+### Changed
+- The generated Brute's arms hang from its shoulders (no push for generated frames; shoulder rings
+  turned to the body; weapons twisted 90), its pauldrons are narrower, its core and backpack sit in.
+- **A generated machine's rust wears off as it levels** (0 to 5), instead of the bolted level kit.
+- Rig: `twist`, `squeeze`, `rust_map`; `tools/shot_machine.gd --level`.
+
 ## [051] Comic scrap machines: the Brute — 2026-10-08 ([detail](iterations/051-comic-machines.md))
 
 ### Added

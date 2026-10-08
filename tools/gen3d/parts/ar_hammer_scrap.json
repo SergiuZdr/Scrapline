@@ -1,13 +1,18 @@
 {
-  "_comment": "051: the scrap Brute from ChatGPT Images concepts (art/concepts/machines/ar_hammer_scrap.png) through TRELLIS on Colab. TRELLIS laid it along +X, shoulder high: turned to reach forward and down.",
+  "_comment": "051: the scrap Brute from ChatGPT Images concepts (art/concepts/machines/ar_hammer_scrap.png) through TRELLIS on Colab. TRELLIS laid it along +X, shoulder high: turned to reach forward and down. 053: turned so the shoulder ring faces the body (it faced forward) after standing it up -- TRELLIS laid it 35 degrees off horizontal, and the weapon twisted 90 against the shoulder (the user).",
   "slot": "arm",
   "rotate": [
     0,
-    0,
+    55,
     -90
   ],
-  "size": 0.5,
+  "size": 0.44,
   "mount": "top",
   "budget": 4000,
-  "posterize": 12
+  "posterize": 12,
+  "rust_map": true,
+  "twist": [
+    0.45,
+    90
+  ]
 }

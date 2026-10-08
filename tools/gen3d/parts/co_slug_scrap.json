@@ -6,8 +6,9 @@
     0,
     180
   ],
-  "size": 0.17,
+  "size": 0.15,
   "mount": "back",
   "budget": 2500,
-  "posterize": 12
+  "posterize": 12,
+  "rust_map": true
 }
