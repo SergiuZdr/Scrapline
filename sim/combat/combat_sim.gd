@@ -1416,6 +1416,10 @@ static func _begin_round(state: CombatState) -> void:
 	for u: GridUnit in state.units:
 		if not u.alive or u.team != GridUnit.TEAM_ENEMY:
 			continue
+		# 051: an exposed keeper holds still for the turn it is open (the agent's Sorter walked
+		# off the machine it had thrown onto its pad, so only guns could use the opening).
+		if state.exposed.has(u.ref):
+			u.moved = true
 		var plan: Dictionary = IntentAI.plan(state, u, {})
 		var dest: Vector2i = plan["dest"]
 		if dest != Vector2i(u.x, u.y):
@@ -1936,10 +1940,19 @@ static func _charges(state: CombatState) -> void:
 		var dmg: int = int(rules.get("charge_damage", 3))
 		if stuck and state.props.has(blocker):
 			damage_prop(state, u.ref, blocker, dmg)
+		# 051 (the agent playing it: the charge almost never stuck by design, only by luck): a
+		# charge into one of its own side sticks, and so does one into a machine braced against
+		# something it cannot be shoved into -- stand with your back to a heap and take the blow.
+		if hit != null and hit.team == u.team:
+			stuck = true
 		if hit != null and hit.team != u.team and not hit.objective:
+			var behind: Vector2i = Hex.neighbor(Vector2i(hit.x, hit.y), dir)
+			var braced: bool = hit.unshovable or not state.inside(behind) or state.solid(behind) \
+				or state.unit_at(behind.x, behind.y) != null
 			hurt(state, u.ref, hit, dmg)
 			if hit.alive:
 				shove(state, u.ref, hit, dir)
+			stuck = stuck or braced
 		if stuck and u.alive:
 			expose(state, u, int(rules.get("stuck_rounds", 1)), 0)
 	state.charges.clear()
@@ -1957,9 +1970,12 @@ static func _mark_grabs(state: CombatState) -> void:
 		var here := Vector2i(u.x, u.y)
 		var reach: int = int(rules.get("grab_range", 4))
 		var pick: GridUnit = null
+		var pad: Vector2i = state.spawn_marks.get(u.ref, Vector2i(-1, -1))
 		for t: GridUnit in state.crew(GridUnit.TEAM_PLAYER):
 			var d: int = Hex.distance(here, Vector2i(t.x, t.y))
-			if d > reach:
+			# 051: a machine already in its reach of hand (beside it, or on its pad) is not grabbed
+			# again -- it was being "thrown" onto the hex it stood on.
+			if d > reach or d <= 1 or Vector2i(t.x, t.y) == pad:
 				continue
 			if pick == null or d < Hex.distance(here, Vector2i(pick.x, pick.y)):
 				pick = t
