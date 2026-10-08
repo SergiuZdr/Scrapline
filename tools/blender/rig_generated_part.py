@@ -48,6 +48,7 @@ def args():
     p.add_argument("--spec", required=True)
     p.add_argument("--out", required=True)
     p.add_argument("--preview", default="")
+    p.add_argument("--style", default="", help="texture | inked | zones (051); overrides the spec")
     return p.parse_args(argv)
 
 
@@ -162,6 +163,126 @@ def grade(obj, saturation, ceiling):
             image.pixels[:] = px.reshape(-1)
             image.update()
             image.pack()
+
+
+# 051: the game's machine colours, as references a texel or a face is snapped to. A zone name is
+# what `Ink.dress_machine` paints (livery, patch plate, neutral steel, ...), so a "zones" part is
+# drawn exactly like a scripted one; the hex is that zone's look on a yellow-livery machine.
+STYLE_ZONES = [
+    ("paint", "d9a02b"),        # the livery: worn yellow on the Brute
+    ("patch", "a8432c"),        # a plate off another machine: oxide red
+    ("steel", "7d848c"),        # neutral structure
+    ("dark", "3a3638"),         # recesses and mechanism
+    ("rust", "7a3b20"),         # stain and brown scrap
+    ("alu", "c9c4b8"),          # the one light value
+    ("glow_visor", "4fd2ff"),   # a lit eye: the team colour in the game
+]
+INK = (0.078, 0.067, 0.059)
+
+
+def texture_of(obj):
+    for slot in obj.material_slots:
+        if slot.material and slot.material.use_nodes:
+            for node in slot.material.node_tree.nodes:
+                if node.type == "TEX_IMAGE" and node.image is not None:
+                    return node.image
+    return None
+
+
+def _zone_labs():
+    import numpy as np
+    return np.array([cg.srgb_to_lab(cg.hex_rgb(h)) for _, h in STYLE_ZONES])
+
+
+def _nearest_zone(rgb, labs):
+    import numpy as np
+    lab = np.array(cg.srgb_to_lab(tuple(float(c) for c in rgb)))
+    d = ((labs - lab) ** 2).sum(1)
+    # A lit eye must be unmistakable: only strongly cyan texels become the visor.
+    k = int(d.argmin())
+    if STYLE_ZONES[k][0] == "glow_visor" and not (rgb[2] > 0.6 and rgb[0] < 0.45):
+        d[k] = 1e9
+        k = int(d.argmin())
+    return k
+
+
+def style_inked(obj, cell=4):
+    """Style A: the texture in the game's palette, flat, with ink drawn along its colour edges.
+    Averaged over \`cell\` texels first (the speckle a board camera sees as noise), each cell snapped
+    to the nearest STYLE_ZONES colour, and a cell whose right or lower neighbour differs inked."""
+    import numpy as np
+    image = texture_of(obj)
+    if image is None:
+        return
+    w, h = image.size
+    px = np.array(image.pixels[:], dtype=np.float32).reshape(h, w, 4)
+    cw, ch = w // cell, h // cell
+    small = px[:ch * cell, :cw * cell, :3].reshape(ch, cell, cw, cell, 3).mean((1, 3))
+    labs = _zone_labs()
+    flat = small.reshape(-1, 3)
+    # Snap in batches through a small cache: there are few distinct colours after the average.
+    keys = np.round(flat * 31).astype(np.int32)
+    index = np.empty(len(flat), dtype=np.int32)
+    cache = {}
+    for i, k in enumerate(map(tuple, keys)):
+        if k not in cache:
+            cache[k] = _nearest_zone(flat[i], labs)
+        index[i] = cache[k]
+    index = index.reshape(ch, cw)
+    colours = np.array([cg.hex_rgb(hx) for _, hx in STYLE_ZONES], dtype=np.float32)
+    out = colours[index]
+    edge = np.zeros((ch, cw), dtype=bool)
+    edge[:, :-1] |= index[:, :-1] != index[:, 1:]
+    edge[:-1, :] |= index[:-1, :] != index[1:, :]
+    out[edge] = INK
+    big = np.repeat(np.repeat(out, cell, 0), cell, 1)
+    px[:ch * cell, :cw * cell, :3] = big
+    image.pixels[:] = px.reshape(-1)
+    image.update()
+    image.pack()
+    print("inked: %d cells, %.0f%% ink" % (cw * ch, 100.0 * edge.mean()))
+
+
+def style_zones(obj, passes=3):
+    """Style B: no texture. Each face takes the zone of the texel under its centre, a face that
+    disagrees with all its neighbours joins them, and the zones become \`mat_<zone>\` materials --
+    so the game paints the part like every scripted machine (livery, hatching, rim, ink line)."""
+    import numpy as np
+    image = texture_of(obj)
+    if image is None or not obj.data.uv_layers:
+        return
+    w, h = image.size
+    px = np.array(image.pixels[:], dtype=np.float32).reshape(h, w, 4)
+    labs = _zone_labs()
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    uv = bm.loops.layers.uv.active
+    bm.faces.ensure_lookup_table()
+    zone = []
+    for f in bm.faces:
+        u = sum(l[uv].uv.x for l in f.loops) / len(f.loops)
+        v = sum(l[uv].uv.y for l in f.loops) / len(f.loops)
+        zone.append(_nearest_zone(px[min(int(v % 1.0 * h), h - 1), min(int(u % 1.0 * w), w - 1), :3], labs))
+    for _ in range(passes):
+        changed = 0
+        for f in bm.faces:
+            around = [zone[g.index] for e in f.edges for g in e.link_faces if g.index != f.index]
+            if around and zone[f.index] not in around:
+                zone[f.index] = max(set(around), key=around.count)
+                changed += 1
+        if not changed:
+            break
+    bm.free()
+    obj.data.materials.clear()
+    for name, hx in STYLE_ZONES:
+        m = bpy.data.materials.new("mat_" + name)
+        r, g, b = cg.hex_rgb(hx)
+        m.diffuse_color = (r, g, b, 1.0)
+        obj.data.materials.append(m)
+    for poly in obj.data.polygons:
+        poly.material_index = zone[poly.index]
+    counts = {STYLE_ZONES[k][0]: zone.count(k) for k in range(len(STYLE_ZONES)) if zone.count(k)}
+    print("zones:", counts)
 
 
 def chassis(obj, spec):
@@ -280,7 +401,7 @@ def preview(objects, prefix):
     scene = bpy.context.scene
     scene.render.engine = "BLENDER_WORKBENCH"
     scene.display.shading.light = "STUDIO"
-    scene.display.shading.color_type = "TEXTURE"
+    scene.display.shading.color_type = "TEXTURE" if objects[0].data.uv_layers and texture_of(objects[0]) else "MATERIAL"
     scene.display.shading.show_object_outline = True
     scene.render.resolution_x = scene.render.resolution_y = 420
     scene.render.film_transparent = False
@@ -313,7 +434,16 @@ def main():
     cg.collapse(obj, spec.get("budget", 5000), spec.get("sharp", 45.0))
     if "grade" in spec:
         grade(obj, *spec["grade"])
-    cg.posterize(obj, spec.get("posterize", 16))
+    style = a.style or spec.get("style", "texture")
+    if style == "zones":
+        style_zones(obj)
+    elif style == "inked":
+        style_inked(obj)
+        for slot in obj.material_slots:
+            if slot.material:
+                slot.material.name = "mat_texture"
+    else:
+        cg.posterize(obj, spec.get("posterize", 16))
     part_id = os.path.splitext(os.path.basename(a.out))[0]
     obj.name = part_id
     obj.data.name = part_id
@@ -330,7 +460,7 @@ def main():
     for o in bpy.context.scene.objects:
         o.select_set(o in objects or (o.type == "EMPTY" and o.parent in objects))
     bpy.ops.export_scene.gltf(filepath=a.out, export_format="GLB", use_selection=True,
-                              export_yup=True, export_texcoords=True, export_normals=True)
+                              export_yup=True, export_texcoords=style != "zones", export_normals=True)
     if a.preview:
         preview(objects, a.preview)
 
