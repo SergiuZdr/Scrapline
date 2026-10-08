@@ -1,0 +1,13 @@
+{
+  "_comment": "051: the scrap Brute from ChatGPT Images concepts (art/concepts/machines/ar_hammer_scrap.png) through TRELLIS on Colab. TRELLIS laid it along +X, shoulder high: turned to reach forward and down.",
+  "slot": "arm",
+  "rotate": [
+    0,
+    0,
+    -90
+  ],
+  "size": 0.42,
+  "mount": "top",
+  "budget": 4000,
+  "posterize": 12
+}
