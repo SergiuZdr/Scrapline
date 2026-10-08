@@ -1,0 +1,14 @@
+{
+  "_comment": "055: Needle's ablative plating from a ChatGPT concept (art/concepts/machines/mo_ablative_scrap.png) through TRELLIS on Colab. Came lying flat: stood up (-90 about X) so the plates face out of the back.",
+  "slot": "module",
+  "rotate": [
+    -90,
+    0,
+    0
+  ],
+  "size": 0.2,
+  "mount": "front",
+  "budget": 2500,
+  "posterize": 12,
+  "rust_map": true
+}

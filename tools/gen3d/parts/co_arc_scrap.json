@@ -1,0 +1,9 @@
+{
+  "_comment": "055: Relay's arc core from a ChatGPT concept (art/concepts/machines/co_arc_scrap.png) through TRELLIS on Colab. Lens already faces -Y.",
+  "slot": "core",
+  "size": 0.15,
+  "mount": "back",
+  "budget": 2500,
+  "posterize": 12,
+  "rust_map": true
+}

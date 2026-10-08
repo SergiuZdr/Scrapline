@@ -1,0 +1,15 @@
+{
+  "_comment": "055: The pulse emitter (Needle and Relay) from a ChatGPT concept (art/concepts/machines/ar_pulse_scrap.png) through TRELLIS on Colab. Came lying along X: turned 90 so the muzzle points forward, mirrored so the ring faces the body.",
+  "slot": "arm",
+  "rotate": [
+    0,
+    0,
+    90
+  ],
+  "mirror_x": true,
+  "size": 0.4,
+  "mount": "ring",
+  "budget": 4000,
+  "posterize": 12,
+  "rust_map": true
+}
