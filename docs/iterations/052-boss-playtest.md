@@ -1,4 +1,7 @@
-# Iteration 051 — The agent plays every boss and warlord
+# Iteration 052 — The agent plays every boss and warlord
+
+(Numbered 051 while it was built; another session's 051 is `051-comic-machines.md`. Code comments
+and commits from this iteration say 051.)
 
 **Status:** done (awaiting the user)
 **Started:** 2026-10-08 · **Finished:** 2026-10-08

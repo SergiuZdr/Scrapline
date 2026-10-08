@@ -15,7 +15,7 @@ Newest first. One entry per iteration; link to the iteration file for detail.
   a frame's legs at the hips and adds its sockets; specs per part in `tools/gen3d/parts/`.
 - `tools/record_round.gd`: a fight playing itself for Godot's movie writer.
 
-## [051] The agent played every boss — 2026-10-08 ([detail](iterations/051-boss-playtest.md))
+## [052] The agent played every boss — 2026-10-08 ([detail](iterations/052-boss-playtest.md))
 
 ### Fixed
 - Enemies no longer shoot lone fuel drums that hurt nobody, or blow up drums beside their own side.
