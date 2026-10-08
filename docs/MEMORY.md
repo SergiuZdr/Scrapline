@@ -128,6 +128,8 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-07 | **Machines can be generated, one slot at a time** (FLUX concept the user picks -> TRELLIS -> `rig_generated_part.py`; `art/parts_gen/`, `--models gen`) (045) | The user: the scripted Blender machines were "bad to say the least". Generating each slot separately keeps the part contract; only a frame's legs are cut |
 | 2026-10-07 | **Free generation runs on Google Colab** (`tools/gen3d/trellis_colab.ipynb`), not the Hugging Face allowance (045) | The user wanted to stay free; the allowance made one or two models a day, a Colab T4 makes one a minute |
 | 2026-10-08 | **IntentAI chooses the attack from the dry runs, not from the quick score** (the quick score only picks which candidates get one); enemies treat their allies' committed lines as danger (052) | The drum bonus was a guess the dry run could only raise: enemies shot lone drums and blew up their own side |
+| 2026-10-08 | **Machine concepts come from ChatGPT Images, one chat per machine** (whole machine first, then each part against it), saved by `chatgpt_show.js` + `grab_crop.py` (051) | The user: FLUX "always looks kinda bad, with inconsistent design and flaws"; they picked ChatGPT of four generators |
+| 2026-10-08 | **A part wears its maker's paint and is patched with plates off other machines** (051) | The user: the robots must read as scrap, "made from different machines", and must not push one build |
 
 ## Lessons carried over from the old codebase
 
@@ -253,6 +255,8 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-07 | **A TRELLIS model is many thin loose shells.** Removing "thin" pieces to drop a baked drop-shadow disc tore real plates off; pick the disc by colour and place instead (`drop_shadow`) (045) |
 | 2026-10-07 | **FLUX ignores "without arms"**: every frame concept had arms. Cut them by a measured width profile (legs, a gap, then the arms) (045) |
 | 2026-10-08 | **Judge a keeper on a fight a run built, not on its practice board**: `--fight` fields every authored enemy (the Act 1 warlord's 4 instead of 2) and the starting crew. `tools/dump_boss_fights.gd` saves the real ones; `tools/play_fight.gd` plays any fight as text, turn by turn |
+| 2026-10-08 | **When the browser asks where to save, capture instead of downloading**: show the image alone in the page and save a full-size screenshot (a `scale`d screenshot saves small too) (051) |
+| 2026-10-08 | **Grade a generated part on its own**: one grade for the set dulled the frame's yellow correctly and turned the hammer beige (051) |
 
 ## Open questions
 
@@ -314,3 +318,4 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-07 | **050: Act 3 got much easier for the bot with the boss tricks (17.4% lost, was 31.4%; gate 4 losses, was 12). Core `open_bonus` 2, or turn two sixths?** | The user plays | |
 | 2026-10-07 | **Do the rest of the machines the 045 way?** About 60 parts: an hour of Colab, a concept pick each, and a rig spec per part | The user looks at the generated Brute first | |
 | 2026-10-08 | **052: the Magnet King's trick works by itself -- should the crew's Magnet ability pull fuel drums (so a drum can be set up)? And the bot is at 55.3% after the AI fixes: tune harder?** | The user | |
+| 2026-10-08 | **Maker set bonuses reward matching parts, while the scrap look says any mix is right** -- keep, soften, or reward mixing? | The user decides | |
