@@ -67,7 +67,7 @@
       "x": 2,
       "y": 0,
       "kind": "twin",
-      "hp": 26
+      "hp": 34
     },
     {
       "name": "Furnace East",
@@ -81,7 +81,7 @@
       "x": 5,
       "y": 0,
       "kind": "twin",
-      "hp": 26
+      "hp": 34
     },
     {
       "name": "Lancer",

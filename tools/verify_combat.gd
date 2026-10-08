@@ -1126,6 +1126,24 @@ func _test_boss_tricks() -> void:
 	_check("a charge into a machine hits it for 3, shoves it on, and is not stuck",
 		victim.hp == hp_hit - 3 and Vector2i(victim.x, victim.y) == Hex.neighbor(two, dir)
 		and Vector2i(hit_state.unit(10).x, hit_state.unit(10).y) == one and not hit_state.exposed.has(10))
+	# 051: a machine braced against a heap stops the charge cold -- it takes the blow, and the
+	# Grinder is stuck.
+	var three: Vector2i = Hex.neighbor(two, dir)
+	var brace_state: CombatState = _fight(_rows({three: "s"}), [_unit(RAIL, two)], [keeper.call("grinder", g)])
+	_place(brace_state, 10, g)
+	brace_state.charges[10] = {"dir": dir, "cells": [one, two]}
+	var braced_hp: int = brace_state.unit(0).hp
+	CombatSim._charges(brace_state)
+	_check("a charge into a machine braced against a heap: it takes the blow (and the bump), the Grinder is STUCK",
+		brace_state.unit(0).hp < braced_hp and brace_state.exposed.has(10) and Vector2i(brace_state.unit(0).x, brace_state.unit(0).y) == two)
+	# 051: an exposed keeper holds still for the turn it is open.
+	var still_state: CombatState = _fight(_rows(), [_unit(RAIL, Vector2i(4, 8))], [keeper.call("grinder", g)])
+	_place(still_state, 10, g)
+	still_state.exposed[10] = 2
+	still_state.charges.clear()
+	CombatSim.apply(still_state, [CombatSim.ACT_END, -1, 0, 0])
+	_check("an exposed keeper does not walk off while it is open (round %d, at %s)" % [still_state.round_number, Vector2i(still_state.unit(10).x, still_state.unit(10).y)],
+		Vector2i(still_state.unit(10).x, still_state.unit(10).y) == g and still_state.exposed.has(10))
 	# Marked a round ahead, along the lane to the machine, and `incoming` counts it.
 	var lane_state: CombatState = _fight(_rows(), [_unit(RAIL, Hex.neighbor(two, dir))], [keeper.call("grinder", g)])
 	_place(lane_state, 10, g)
@@ -1156,6 +1174,13 @@ func _test_boss_tricks() -> void:
 	_place(away_state, 0, Vector2i(4, 8))
 	CombatSim._grabs(away_state)
 	_check("a machine that got out of reach is not thrown", Vector2i(away_state.unit(0).x, away_state.unit(0).y) == Vector2i(4, 8))
+	# 051: one already beside it (or on its pad) is not grabbed again.
+	var held_state: CombatState = _fight(_rows(), [_unit(RAIL, Vector2i(4, 2))], [keeper.call("sorter", Vector2i(4, 1))])
+	_place(held_state, 10, Vector2i(4, 1))
+	_place(held_state, 0, Hex.neighbor(Vector2i(4, 1), 0))
+	held_state.round_number = 2
+	CombatSim._mark_grabs(held_state)
+	_check("the claw does not grab a machine already beside the Sorter", not held_state.grabs.has(10))
 	claw_state.spawn_due[10] = claw_state.round_number
 	CombatSim._hives(claw_state)
 	_check("a blocked pad opens the Sorter's hatch (exposed, pylons or not)",
@@ -1170,8 +1195,9 @@ func _test_boss_tricks() -> void:
 	pour_state.flooded[slag] = 2
 	_check("(precondition) a coolant tank is a prop", String((pour_state.props.get(tank, {}) as Dictionary).get("kind", "")) == "coolant")
 	CombatSim.damage_prop(pour_state, 0, tank, 5)
-	_check("a coolant tank burst within 2 quenches The Pour for this turn and the next",
-		int(pour_state.exposed.get(10, 0)) == 2 and _count(pour_state, 0, GridEv.QUENCHED) == 1)
+	var quench: int = int((pour_state.setup.kinds["pour"] as Dictionary)["quench_rounds"])
+	_check("a coolant tank burst within 2 quenches The Pour for %d of your turns" % quench,
+		int(pour_state.exposed.get(10, 0)) == quench and _count(pour_state, 0, GridEv.QUENCHED) == 1)
 	_check("and cools the slag next to the tank", not pour_state.flooded.has(slag))
 	var far_state: CombatState = _fight(_rows({Vector2i(4, 7): "k"}), [_unit(RAIL, Vector2i(1, 8))], [keeper.call("pour", p)])
 	_place(far_state, 10, p)
@@ -1204,7 +1230,8 @@ func _test_boss_tricks() -> void:
 	var open_hit: int = CombatSim.damage_to(core_state, gunner, core, 6, false)
 	_place(core_state, 0, Hex.neighbor(Hex.neighbor(c, 3), 3))
 	var closed_hit: int = CombatSim.damage_to(core_state, gunner, core, 6, false)
-	_check("a hit on the Core's open side does 3 more (%d / %d)" % [open_hit, closed_hit], open_hit == closed_hit + 3)
+	var bonus: int = int((core_state.setup.kinds["heart"] as Dictionary)["open_bonus"])
+	_check("a hit on the Core's open side does %d more (%d / %d)" % [bonus, open_hit, closed_hit], open_hit == closed_hit + bonus)
 	CombatSim._turn_sides(core_state)
 	_check("and the open side turns a sixth each round", int(core_state.facing[10]) == 1)
 
