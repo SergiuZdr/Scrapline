@@ -5,7 +5,7 @@ extends SceneTree
 ##
 ##   godot --path . --resolution 900x1100 --script res://tools/shot_machine.gd -- \
 ##       --models gen --gen-dir res://art/parts_gen_scrap --yaw 45,25,0 --out shots/brute
-##       [--parts ch_brute,co_slug,ar_saw,ar_hammer,mo_scavenger]
+##       [--parts ch_brute,co_slug,ar_saw,ar_hammer,mo_scavenger] [--level 0..5]
 ##
 ## Writes `<out>_<yaw>.png` per angle: 0 is the machine's front to the camera, 45 is three-quarter.
 ## Not headless: it has to render.
@@ -39,7 +39,8 @@ func _run() -> void:
 	ground.material_override = Ink.toon(Ink.BOARD)
 	world.add_child(ground)
 
-	var model: Node3D = ConstructView.build_parts(parts, db, Ink.YOURS)
+	var level: int = args[args.find("--level") + 1].to_int() if args.has("--level") else 0
+	var model: Node3D = ConstructView.build_parts(parts, db, Ink.YOURS, level)
 	Ink.dress_machine(model, parts, Ink.YOURS)
 	world.add_child(model)
 

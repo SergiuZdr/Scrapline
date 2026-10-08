@@ -13,6 +13,12 @@ render_mode cull_back;
 uniform vec3 albedo : source_color = vec3(0.5);
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform bool use_tex = false;
+// 053: a generated part's rust wears off as its machine levels up. `clean_tex` is the part's
+// texture with the rust painted over (RGB) and, in ALPHA, the order each rust texel cleans in;
+// a texel shows clean once `clean` (level / max level) reaches it. Untouched texels have alpha 1.
+uniform sampler2D clean_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform bool use_clean = false;
+uniform float clean = 0.0;
 // Signals only: an emissive colour, added whatever the light.
 uniform vec3 emission : source_color = vec3(0.0);
 uniform float emission_energy = 0.0;
@@ -54,6 +60,12 @@ float hash(vec2 p) {
 
 void fragment() {
 	vec3 c = use_tex ? texture(albedo_tex, UV).rgb * albedo : albedo;
+	if (use_tex && use_clean) {
+		vec4 k = texture(clean_tex, UV);
+		if (k.a < 0.999 && k.a <= clean) {
+			c = k.rgb * albedo;
+		}
+	}
 	if (pattern == 1) {
 		vec2 p = world_pos.xz * pattern_scale;
 		vec2 cell = floor(p);
