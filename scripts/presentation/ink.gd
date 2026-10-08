@@ -106,12 +106,13 @@ static func patterned(colour: Color, pattern: int, ink_colour: Color, scale: flo
 	return m
 
 
-## A toon material over a texture (a drum's painted band), tinted by `colour`.
-static func textured(texture: Texture2D, colour: Color = Color.WHITE) -> ShaderMaterial:
-	var key: String = "tex:%d:%s" % [texture.get_instance_id(), colour.to_html()]
+## A toon material over a texture (a drum's painted band), tinted by `colour`. `kind` as `toon`:
+## a machine part is "clean" (hatched, rimmed, like every machine), scenery "matte" (halftone).
+static func textured(texture: Texture2D, colour: Color = Color.WHITE, kind: String = "matte") -> ShaderMaterial:
+	var key: String = "tex:%d:%s:%s" % [texture.get_instance_id(), colour.to_html(), kind]
 	if _materials.has(key):
 		return _materials[key]
-	var m: ShaderMaterial = toon(colour).duplicate()
+	var m: ShaderMaterial = toon(colour, kind).duplicate()
 	m.set_shader_parameter("use_tex", true)
 	m.set_shader_parameter("albedo_tex", texture)
 	m.set_shader_parameter("halftone", 0.0)
@@ -467,7 +468,7 @@ static func _dress_node(node: Node, part_id: String, slots: Dictionary, part_ids
 				# (a boss's one livery tints it).
 				if source is BaseMaterial3D and (source as BaseMaterial3D).albedo_texture != null:
 					var tint: Color = paint.lerp(Color.WHITE, 0.45) if paint.a > 0.0 else Color.WHITE
-					mesh.set_surface_override_material(s, textured((source as BaseMaterial3D).albedo_texture, tint))
+					mesh.set_surface_override_material(s, textured((source as BaseMaterial3D).albedo_texture, tint, "clean"))
 					continue
 				var zone: String = PartMaterials.zone_of(source)
 				mesh.set_surface_override_material(s, zone_material(zone, livery, team))
