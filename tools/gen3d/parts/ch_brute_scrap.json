@@ -1,5 +1,5 @@
 {
-  "_comment": "051: the scrap Brute from ChatGPT Images concepts (art/concepts/machines/ch_brute_scrap.png) through TRELLIS on Colab. Drawn armless and facing forward. Width profile: legs part below ~0.15 (centre |x| < 0.06), the pelvis narrows to +-0.17 under the torso at ~0.36, shoulder sockets at the pauldrons' ends (+-0.29).",
+  "_comment": "051: the scrap Brute from ChatGPT Images concepts (art/concepts/machines/ch_brute_scrap.png) through TRELLIS on Colab. Drawn armless and facing forward. Width profile: legs part below ~0.15 (centre |x| < 0.06), the pelvis narrows to +-0.17 under the torso at ~0.36, shoulder sockets at the pauldrons' ends (+-0.29). Graded [0.7, 0.72]: TRELLIS gave the frame's worn mustard back near pure yellow.",
   "slot": "chassis",
   "rotate": [
     0,
@@ -8,7 +8,7 @@
   ],
   "size": 0.64,
   "floor": 0.03,
-  "budget": 9000,
+  "budget": 8000,
   "posterize": 12,
   "hip_z": 0.2,
   "hip_x": 0.13,
@@ -34,5 +34,9 @@
       0.15,
       0.45
     ]
-  }
+  },
+  "grade": [
+    0.7,
+    0.72
+  ]
 }
