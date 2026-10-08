@@ -15,6 +15,21 @@ Newest first. One entry per iteration; link to the iteration file for detail.
   a frame's legs at the hips and adds its sockets; specs per part in `tools/gen3d/parts/`.
 - `tools/record_round.gd`: a fight playing itself for Godot's movie writer.
 
+## [051] The agent played every boss — 2026-10-08 ([detail](iterations/051-boss-playtest.md))
+
+### Fixed
+- Enemies no longer shoot lone fuel drums that hurt nobody, or blow up drums beside their own side.
+- Enemies no longer walk into the line of a shot an ally has already lined up.
+- The Sorter's claw no longer "throws" a machine that is already beside it onto the same hex.
+
+### Changed
+- **The Grinder** also sticks when its charge hits a machine braced against something solid (or one
+  of its own): stand with your back to a heap, take the blow, and it is open.
+- **An exposed boss holds still** for the turn it is open, so melee machines can use the opening.
+- **The Pour**: a coolant tank opens it for the rest of that turn (was two turns).
+- **The Twin Furnaces** have 34 HP each (was 26); **the Core's** open side is +2 (was +3); **the
+  Sorter** has 24 HP (was 18).
+
 ## [050] Boss tricks — 2026-10-07 ([detail](iterations/050-boss-tricks.md))
 
 ### Added
