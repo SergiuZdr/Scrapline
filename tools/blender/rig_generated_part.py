@@ -285,6 +285,57 @@ def style_zones(obj, passes=3):
     print("zones:", counts)
 
 
+def rust_map(obj, out_png, passes=60):
+    """053: a machine's rust wears off as it levels up. The texture's rust (orange-brown, darker than
+    paint) is found, painted over from the paint around it, and saved as \`<part>_clean.png\`: RGB is
+    the clean texture, ALPHA the order a rust texel cleans in (smooth noise, so patches go in chunks;
+    1 where there was no rust). The game shows the clean texel once the machine's level passes it."""
+    import colorsys
+    import numpy as np
+    image = texture_of(obj)
+    if image is None:
+        return
+    w, h = image.size
+    px = np.array(image.pixels[:], dtype=np.float32).reshape(h, w, 4)
+    rgb = px[:, :, :3]
+    mx, mn = rgb.max(2), rgb.min(2)
+    v = mx
+    sat = np.where(mx > 1e-4, (mx - mn) / np.maximum(mx, 1e-4), 0.0)
+    r, g, b = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
+    hue = np.zeros_like(v)
+    d = np.maximum(mx - mn, 1e-4)
+    hue = np.where(mx == r, ((g - b) / d) % 6.0, np.where(mx == g, (b - r) / d + 2.0, (r - g) / d + 4.0)) * 60.0
+    rust = (hue > 8.0) & (hue < 40.0) & (sat > 0.35) & (v > 0.12) & (v < 0.62)
+    clean = rgb.copy()
+    known = ~rust
+    for _ in range(passes):
+        if known.all():
+            break
+        acc = np.zeros_like(clean)
+        cnt = np.zeros((h, w), dtype=np.float32)
+        for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1)):
+            k = np.roll(np.roll(known, dy, 0), dx, 1)
+            acc += np.roll(np.roll(clean, dy, 0), dx, 1) * k[:, :, None]
+            cnt += k
+        fill = (~known) & (cnt > 0)
+        clean[fill] = acc[fill] / cnt[fill][:, None]
+        known = known | fill
+    rng = np.random.default_rng(53)
+    noise = rng.random((h // 32 + 2, w // 32 + 2)).astype(np.float32)
+    noise = np.kron(noise, np.ones((32, 32), dtype=np.float32))[:h, :w]
+    for _ in range(3):
+        noise = (noise + np.roll(noise, 8, 0) + np.roll(noise, -8, 0) + np.roll(noise, 8, 1) + np.roll(noise, -8, 1)) / 5.0
+    noise = (noise - noise.min()) / max(noise.max() - noise.min(), 1e-4)
+    order = np.where(rust, 0.05 + 0.9 * noise, 1.0)
+    out = np.dstack([clean, order]).astype(np.float32)
+    img = bpy.data.images.new("clean", w, h, alpha=True)
+    img.pixels[:] = out.reshape(-1)
+    img.filepath_raw = out_png
+    img.file_format = "PNG"
+    img.save()
+    print("rust: %.0f%% of the texture -> %s" % (100.0 * rust.mean(), out_png))
+
+
 def chassis(obj, spec):
     size_to(obj, spec["size"], True)
     lo, hi = bounds(obj)
@@ -297,6 +348,15 @@ def chassis(obj, spec):
         lo, hi = bounds(obj)
         obj.data.transform(Matrix.Translation(Vector((-(lo.x + hi.x) * 0.5, -(lo.y + hi.y) * 0.5, -lo.z))))
         print("floor: %d faces below %.3f" % (gone, spec["floor"]))
+    if "squeeze" in spec:
+        # 053: narrower shoulders. Above \`z\`, everything beyond \`x\` from the middle is pulled in by
+        # \`factor\` -- the pauldrons narrow, the chest between them does not.
+        z0, x0, k = spec["squeeze"]
+        for v in obj.data.vertices:
+            if v.co.z > z0 and abs(v.co.x) > x0:
+                sign = 1.0 if v.co.x > 0 else -1.0
+                v.co.x = sign * (x0 + (abs(v.co.x) - x0) * k)
+        print("squeezed: above %.2f, beyond %.2f, x%.2f" % (z0, x0, k))
     profile(obj)
     if "cut_arms" in spec:
         ax, az = spec["cut_arms"]
@@ -381,6 +441,21 @@ def drop_shadow(obj, lum_min=0.42, sat_max=0.28, share=0.6, low=0.25):
 def attachment(obj, spec):
     if spec.get("drop_shadow", False):
         drop_shadow(obj)
+    if "twist" in spec:
+        # 053: the weapon turned about the arm's own vertical axis against its shoulder. Everything
+        # below \`share\` of the height (the forearm and weapon) turns \`degrees\` about the vertical
+        # line through its middle; the joint above it is narrow, so the seam is a twist, not a tear.
+        share, degrees = spec["twist"]
+        lo, hi = bounds(obj)
+        z = lo.z + (hi.z - lo.z) * share
+        low = [v for v in obj.data.vertices if v.co.z < z]
+        cx = sum(v.co.x for v in low) / max(len(low), 1)
+        cy = sum(v.co.y for v in low) / max(len(low), 1)
+        turn = Matrix.Rotation(math.radians(degrees), 3, "Z")
+        for v in low:
+            p = turn @ Vector((v.co.x - cx, v.co.y - cy, v.co.z))
+            v.co = Vector((p.x + cx, p.y + cy, p.z))
+        print("twisted: %d vertices below %.2f by %.0f" % (len(low), z, degrees))
     if spec.get("cut_below", 0.0) > 0.0:
         # A share of the height off the bottom: legs FLUX gave an object that hangs on a machine.
         lo, hi = bounds(obj)
@@ -444,6 +519,8 @@ def main():
                 slot.material.name = "mat_texture"
     else:
         cg.posterize(obj, spec.get("posterize", 16))
+        if spec.get("rust_map", False):
+            rust_map(obj, os.path.splitext(os.path.abspath(a.out))[0] + "_clean.png")
     part_id = os.path.splitext(os.path.basename(a.out))[0]
     obj.name = part_id
     obj.data.name = part_id
