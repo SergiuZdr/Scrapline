@@ -1,0 +1,10 @@
+{
+  "_comment": "055: Needle's rail lance from a ChatGPT concept (art/concepts/machines/ar_lance_scrap.png) through TRELLIS on Colab. Came with the barrel forward but the shoulder ring facing +X: mirrored so it faces the body.",
+  "slot": "arm",
+  "mirror_x": true,
+  "size": 0.44,
+  "mount": "ring",
+  "budget": 4000,
+  "posterize": 12,
+  "rust_map": true
+}

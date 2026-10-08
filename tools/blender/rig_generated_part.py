@@ -516,6 +516,15 @@ def main():
     rx, ry, rz = spec.get("rotate", [0, 0, 0])
     obj.data.transform(Matrix.Rotation(math.radians(rz), 4, "Z") @ Matrix.Rotation(math.radians(ry), 4, "Y")
                        @ Matrix.Rotation(math.radians(rx), 4, "X"))
+    if spec.get("mirror_x", False):
+        # 055: an arm drawn as a LEFT arm (shoulder on the far side from where it bends) cannot be
+        # turned into a right one; mirrored, with its faces turned back out.
+        obj.data.transform(Matrix.Scale(-1.0, 4, Vector((1.0, 0.0, 0.0))))
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
+        bm.to_mesh(obj.data)
+        bm.free()
     before = sum(len(p.vertices) - 2 for p in obj.data.polygons)
     cg.collapse(obj, spec.get("budget", 5000), spec.get("sharp", 45.0))
     if "grade" in spec:
