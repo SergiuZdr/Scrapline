@@ -54,6 +54,11 @@ static func plan(state: CombatState, u: GridUnit, ctx: Dictionary) -> Dictionary
 	options[here] = [] as Array[Vector2i]
 	var danger: Dictionary = ctx.get("danger", {})
 	var shield: Dictionary = ctx.get("shield", {})
+	# 051 (the agent's play): an enemy planned after an ally walked into the ally's line of fire --
+	# drones shooting drones, a Hauler stepping in front of The Pour. The hexes its side's committed
+	# shots will cross count as danger to it.
+	if ctx.is_empty():
+		danger = _friendly_lines(state, u)
 	var can_shoot: bool = not u.acted and not u.seized
 
 	var cells: Array = options.keys()
@@ -90,6 +95,12 @@ static func plan(state: CombatState, u: GridUnit, ctx: Dictionary) -> Dictionary
 	# a copy, so a shot into a barrel beside three machines, a shove into a pit or killing a
 	# bomber next to its friends is valued by what actually happens.
 	candidates.sort_custom(func(a: Array, b: Array) -> bool: return int(a[0]) > int(b[0]) or (int(a[0]) == int(b[0]) and int(a[1]) < int(b[1])))
+	# 051 (the agent playing the bosses): the quick score's drum bonus is a guess, and the dry run
+	# could only RAISE a candidate, so a shot at a lone drum that hurt nobody -- or its own side --
+	# kept the guess and won. The attack is now chosen from what the dry runs actually found.
+	if not candidates.is_empty():
+		best_score = -1000000
+		best_attack = 0
 	for k: int in mini(REFINE, candidates.size()):
 		var c: Array = candidates[k]
 		var choice: Array = c[3]
@@ -117,6 +128,19 @@ static func plan(state: CombatState, u: GridUnit, ctx: Dictionary) -> Dictionary
 			best_tie = tie
 			best = {"dest": cell, "path": options[cell], "w": -1, "target": Vector2i.ZERO, "score": score}
 	return best
+
+
+## The hexes the shots already committed by `u`'s side will hit, as danger to `u` (051).
+static func _friendly_lines(state: CombatState, u: GridUnit) -> Dictionary:
+	var out: Dictionary = {}
+	for intent: Dictionary in state.intents:
+		var shooter: GridUnit = state.unit(int(intent["ref"]))
+		if shooter == null or shooter == u or not shooter.alive or shooter.team != u.team:
+			continue
+		var plan: Dictionary = CombatSim.strike_plan(state, shooter, int(intent["w"]), CombatSim.intent_target(state, intent))
+		for cell: Variant in (plan.get("tiles", []) as Array):
+			out[cell] = int(out.get(cell, 0)) + 6
+	return out
 
 
 ## `[w, target, value]` of the best attack from where `u` stands, or w = -1.

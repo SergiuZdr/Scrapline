@@ -68,7 +68,7 @@
   "pour": {
     "keeps_arms": true,
     "name": "The Pour",
-    "text": "The Slag Flats' keeper. Every other round it marks four hexes, the ones your machines stand on first; a round later they flood with slag for the rest of the fight (2 damage a round to anything on them). COOLANT TANKS stand on its floor: burst one within 2 of it and its shell cracks -- it takes double for this turn and your next -- and the slag around the tank cools. At half HP it BOILS OVER: it marks five hexes every round, the slag bites for 3, and three drones come to guard it.",
+    "text": "The Slag Flats' keeper. Every other round it marks four hexes, the ones your machines stand on first; a round later they flood with slag for the rest of the fight (2 damage a round to anything on them). COOLANT TANKS stand on its floor: burst one within 2 of it and its shell cracks -- it takes double for the rest of your turn -- and the slag around the tank cools. At half HP it BOILS OVER: it marks five hexes every round, the slag bites for 3, and three drones come to guard it.",
     "floods": 4,
     "every": 2,
     "hazard": 2,
@@ -78,7 +78,7 @@
       "hazard": 3,
       "summons": 3
     },
-    "quench_rounds": 2,
+    "quench_rounds": 1,
     "quench_radius": 2,
     "exposed_pct": 200
   },
@@ -90,7 +90,7 @@
   "heart": {
     "keeps_arms": true,
     "name": "The Core",
-    "text": "The Crucible's heart and the run's last boss, bolted to the floor: it never moves and cannot be shoved. It has one OPEN SIDE, marked on the board, which turns a sixth every round: hits from that side do 3 more and ignore its conduits. While a CONDUIT stands every other hit takes 2 less. Every other round it marks every hex within 2 of it, and a round later it pulses: 4 damage to each of your machines still in the ring. Its pad builds a drone every 3 rounds. At half HP it ERUPTS: it pulses EVERY round, 3 hexes out, for 5, and calls three drones.",
+    "text": "The Crucible's heart and the run's last boss, bolted to the floor: it never moves and cannot be shoved. It has one OPEN SIDE, marked on the board, which turns a sixth every round: hits from that side do 2 more and ignore its conduits. While a CONDUIT stands every other hit takes 2 less. Every other round it marks every hex within 2 of it, and a round later it pulses: 4 damage to each of your machines still in the ring. Its pad builds a drone every 3 rounds. At half HP it ERUPTS: it pulses EVERY round, 3 hexes out, for 5, and calls three drones.",
     "pulse_every": 2,
     "pulse_radius": 2,
     "pulse_damage": 4,
@@ -106,12 +106,12 @@
     },
     "cover_kind": "conduit",
     "cover_armor": 2,
-    "open_bonus": 3
+    "open_bonus": 2
   },
   "grinder": {
     "keeps_arms": true,
     "name": "The Grinder",
-    "text": "Act 1's warlord: a ring of saws. At the start of every round, 2 to each of your machines standing next to it. Every other round it marks a straight lane and CHARGES down it next round: the first machine in the way takes 3 and is shoved on. If the charge ends against a heap, a crate, a drum, a pit or the board's edge it is STUCK for your next turn: no saws, and it takes double.",
+    "text": "Act 1's warlord: a ring of saws. At the start of every round, 2 to each of your machines standing next to it. Every other round it marks a straight lane and CHARGES down it next round: the first machine in the way takes 3 and is shoved on. If the charge ends against a heap, a crate, a drum, a pit, the board's edge, one of its own -- or a machine braced against any of those -- it is STUCK for your next turn: no saws, and it takes double.",
     "aura": 2,
     "anchored": true,
     "charge_every": 2,

@@ -14,16 +14,108 @@
     "........"
   ],
   "player": [
-    {"name": "Knuckles", "parts": ["ch_brute", "co_slug", "ar_saw", "ar_hammer", "mo_scavenger"], "x": 2, "y": 7},
-    {"name": "Needle", "parts": ["ch_hauler", "co_furnace", "ar_pulse", "ar_lance", "mo_ablative"], "x": 4, "y": 7},
-    {"name": "Relay", "parts": ["ch_strider", "co_arc", "ar_scanner", "ar_scatter", "mo_governor"], "x": 6, "y": 7}
+    {
+      "name": "Knuckles",
+      "parts": [
+        "ch_brute",
+        "co_slug",
+        "ar_saw",
+        "ar_hammer",
+        "mo_scavenger"
+      ],
+      "x": 2,
+      "y": 7
+    },
+    {
+      "name": "Needle",
+      "parts": [
+        "ch_hauler",
+        "co_furnace",
+        "ar_pulse",
+        "ar_lance",
+        "mo_ablative"
+      ],
+      "x": 4,
+      "y": 7
+    },
+    {
+      "name": "Relay",
+      "parts": [
+        "ch_strider",
+        "co_arc",
+        "ar_scanner",
+        "ar_scatter",
+        "mo_governor"
+      ],
+      "x": 6,
+      "y": 7
+    }
   ],
   "enemy": [
-    {"name": "The Sorter", "kind": "sorter", "parts": ["ch_citadel", "co_mag", "ar_maul", "ar_mortar", "mo_reactive"], "hp": 18, "x": 3, "y": 1},
-    {"name": "Reaper", "parts": ["ch_reaper", "co_bile", "ar_ripper", "ar_saw", "mo_bypass"], "x": 1, "y": 2},
-    {"name": "Lancer", "parts": ["ch_lancer", "co_dynamo", "ar_scanner", "ar_lance", "mo_targeting"], "x": 6, "y": 2},
-    {"name": "Dredge", "parts": ["ch_dredge", "co_slug", "ar_hammer", "ar_scatter", "mo_ablative"], "x": 4, "y": 0},
-    {"name": "Courier", "parts": ["ch_courier", "co_ember", "ar_pulse", "ar_scatter", "mo_servo"], "x": 0, "y": 0}
+    {
+      "name": "The Sorter",
+      "kind": "sorter",
+      "parts": [
+        "ch_citadel",
+        "co_mag",
+        "ar_maul",
+        "ar_mortar",
+        "mo_reactive"
+      ],
+      "hp": 24,
+      "x": 3,
+      "y": 1
+    },
+    {
+      "name": "Reaper",
+      "parts": [
+        "ch_reaper",
+        "co_bile",
+        "ar_ripper",
+        "ar_saw",
+        "mo_bypass"
+      ],
+      "x": 1,
+      "y": 2
+    },
+    {
+      "name": "Lancer",
+      "parts": [
+        "ch_lancer",
+        "co_dynamo",
+        "ar_scanner",
+        "ar_lance",
+        "mo_targeting"
+      ],
+      "x": 6,
+      "y": 2
+    },
+    {
+      "name": "Dredge",
+      "parts": [
+        "ch_dredge",
+        "co_slug",
+        "ar_hammer",
+        "ar_scatter",
+        "mo_ablative"
+      ],
+      "x": 4,
+      "y": 0
+    },
+    {
+      "name": "Courier",
+      "parts": [
+        "ch_courier",
+        "co_ember",
+        "ar_pulse",
+        "ar_scatter",
+        "mo_servo"
+      ],
+      "x": 0,
+      "y": 0
+    }
   ],
-  "objective": {"type": "rout"}
+  "objective": {
+    "type": "rout"
+  }
 }
