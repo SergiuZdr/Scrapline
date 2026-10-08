@@ -2,6 +2,11 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [054] Generated arms bolt into the shoulder ends — 2026-10-08 ([detail](iterations/054-arm-mounts.md))
+
+### Fixed
+- The scrap Brute's arms plug into its pauldrons' ends and hang outside its legs (rig `mount: "ring"`).
+
 ## [053] Scrap Brute fixes; rust that wears off with levels — 2026-10-08 ([detail](iterations/053-scrap-brute-fixes.md))
 
 ### Changed

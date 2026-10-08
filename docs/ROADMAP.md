@@ -78,6 +78,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 051 | [Comic scrap machines](iterations/051-comic-machines.md) | The Brute redrawn as comic scrap (ChatGPT Images concepts, each part in its maker's paint, patched off other machines) and made 3D on Colab; `--gen-dir res://art/parts_gen_scrap` | ✅ awaiting the user's look |
 | 052 | [The agent plays the bosses](iterations/052-boss-playtest.md) | Six keeper fights played turn by turn: two AI bugs and a claw bug fixed; braced charges, exposed keepers hold still, quench 1 turn, keepers' HP (bot 55.3%) | ✅ awaiting the user |
 | 053 | [Scrap Brute fixes](iterations/053-scrap-brute-fixes.md) | Arms seated and turned, narrower shoulders, core and backpack set in; rust wears off level by level | ✅ awaiting the user's look |
+| 054 | [Arm mounts](iterations/054-arm-mounts.md) | Generated arms bolted by their shoulder ring into the pauldron ends, hanging outside the legs | ✅ awaiting the user's look |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

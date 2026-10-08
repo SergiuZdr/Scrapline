@@ -18,7 +18,7 @@ stands 0.85 m with its hips at 0.354 -- `art/parts_new/ch_brute.glb`):
   below z are deleted -- FLUX draws arms on a frame however it is asked not to, and the arm slot
   brings its own), and `sockets` {name: [x, y, z]}. The feet land on z=0, centred.
 - **arm / core / module**: `mount` -- which point of the part becomes its origin, the point the
-  game bolts to the socket: "top" (an arm's shoulder), "back" (a core sits on the chest and faces
+  game bolts to the socket: "ring" (an arm by its shoulder ring's face, 054), "top" (an arm's shoulder), "back" (a core sits on the chest and faces
   forward) or "front" (a module hangs on the back). Arms are built as the RIGHT arm (the game
   mirrors it for the left) and hang down and forward from the shoulder, as `make_ink_parts.py`'s do.
 
@@ -465,6 +465,17 @@ def attachment(obj, spec):
     size_to(obj, spec["size"], False)
     lo, hi = bounds(obj)
     mid = (lo + hi) * 0.5
+    if spec["mount"] == "ring":
+        # 054: an arm whose shoulder ring faces the body (-X, as the right arm is built) is bolted by
+        # that ring's face: the point is the arm's innermost x, at the middle of what lies within
+        # 15% of it in the upper half -- so the arm hangs OUTSIDE the frame, not under its shoulder.
+        span = hi.x - lo.x
+        near = [v.co for v in obj.data.vertices if v.co.x < lo.x + 0.15 * span and v.co.z > mid.z]
+        if near:
+            ring = Vector((lo.x, sum(c.y for c in near) / len(near), sum(c.z for c in near) / len(near)))
+            obj.data.transform(Matrix.Translation(-ring + Vector(spec.get("offset", [0, 0, 0]))))
+            print("ring mount at %s" % (tuple(round(x, 3) for x in ring),))
+            return [obj]
     point = {"top": Vector((mid.x, mid.y, hi.z)),
              "back": Vector((mid.x, hi.y, mid.z)),
              "front": Vector((mid.x, lo.y, mid.z))}[spec["mount"]]

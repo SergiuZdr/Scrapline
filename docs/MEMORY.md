@@ -259,6 +259,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-08 | **When the browser asks where to save, capture instead of downloading**: show the image alone in the page and save a full-size screenshot (a `scale`d screenshot saves small too) (051) |
 | 2026-10-08 | **Grade a generated part on its own**: one grade for the set dulled the frame's yellow correctly and turned the hammer beige (051) |
 | 2026-10-08 | **A generated arm comes in the concept's pose**: turn its shoulder ring to the body, then check the weapon against the shoulder (`rotate`, `twist`). A generated frame's sockets are exact: never push its arms (053) |
+| 2026-10-08 | **Mount a generated arm by its shoulder ring, not its bounding box** (`mount: "ring"`): bolted by its top centre, the Brute's arms hung through its body and legs (054) |
 
 ## Open questions
 
