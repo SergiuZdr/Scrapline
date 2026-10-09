@@ -1,0 +1,38 @@
+{
+  "_comment": "055: Relay's frame from a ChatGPT concept (art/concepts/machines/ch_strider_scrap.png), TRELLIS on Hugging Face (Colab's free GPU hit its daily limit). Only head, torso, hips, legs (the user: no modules baked into the frame). Numbers from its width profile at 0.7 m: shoulders end near |x| 0.13 at z 0.45-0.56 (TRELLIS turned it a few degrees), legs part below 0.28.",
+  "slot": "chassis",
+  "size": 0.7,
+  "floor": 0.03,
+  "budget": 8000,
+  "posterize": 12,
+  "rust_map": true,
+  "hip_z": 0.29,
+  "hip_x": 0.07,
+  "pelvis_x": 0.02,
+  "sockets": {
+    "socket_arm_l": [
+      -0.13,
+      0.0,
+      0.51
+    ],
+    "socket_arm_r": [
+      0.13,
+      0.0,
+      0.51
+    ],
+    "socket_core": [
+      0.0,
+      -0.07,
+      0.47
+    ],
+    "socket_module": [
+      0.0,
+      0.07,
+      0.48
+    ]
+  },
+  "grade": [
+    0.75,
+    0.75
+  ]
+}
