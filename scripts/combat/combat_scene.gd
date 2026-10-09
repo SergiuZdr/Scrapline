@@ -90,10 +90,13 @@ const FIT_BOTTOM: float = 0.79
 ## How long each kind of event holds the queue, in seconds. Play-test 1 called the old
 ## timings laggy (0.13 s a tile, a pause before every strike, half a second per death):
 ## a move is now one continuous glide, and nothing waits longer than it has to be seen.
-const T_STEP: float = 0.075
+## 059: a hex per stride of the run (the rig keeps the feet in step with the distance).
+const T_STEP: float = 0.20
 const T_ATTACK: float = 0.14
 const T_HIT: float = 0.16
 const T_DESTROY: float = 0.30
+## 059: how long a wreck plays its death and lies there before it is crushed into scrap.
+const WRECK_LIES: float = 2.0
 const T_BANNER: float = 0.30
 ## The beat between consequences of one cause that are played together (play-test 7), and the
 ## events that are.
@@ -163,6 +166,8 @@ var _marks_root: Node3D
 var _hint_quads: Dictionary = {}
 var _threat_quads: Dictionary = {}
 var _views: Dictionary = {}
+## 059: rigs of machines playing their death (no longer in `_views`).
+var _dying: Array[ConstructRig] = []
 ## Scrap pile models, by hex.
 var _pile_views: Dictionary = {}
 ## Board-space offset that centres the hex layout on the origin.
@@ -1187,6 +1192,7 @@ func _resync_units() -> void:
 	for child: Node in _units_root.get_children():
 		if not known.has(child):
 			child.queue_free()
+	_dying.clear()
 
 
 ## What a machine's model is built from: two units with the same key draw the same model.
@@ -1198,6 +1204,7 @@ func _look_key(u: GridUnit) -> String:
 
 
 func _clear_board_objects() -> void:
+	_dying.clear()
 	for child: Node in _units_root.get_children():
 		child.queue_free()
 	_views.clear()
@@ -1380,6 +1387,7 @@ func _build_view(u: GridUnit) -> Dictionary:
 	var rig := ConstructRig.new()
 	rig.bind(model)
 	rig.set_stances(_weapon_classes(u.part_ids))
+	rig.set_gait(String((_db.parts.get(PartTuning.base_of(u.part_ids[0]) if u.part_ids.size() > 0 else "", {}) as Dictionary).get("role", "line")))
 
 	# Lettered in the comic face, paper on a heavy ink outline: a caption, not a HUD readout.
 	var tag := Label3D.new()
@@ -1688,16 +1696,26 @@ func _burst(view: Dictionary, push: Vector3) -> void:
 	(view["tag"] as Label3D).visible = false
 	(view["ring"] as MeshInstance3D).visible = false
 	var model: Node3D = view["model"]
-	var world_push: Vector3 = root.transform.basis * push
-	var tween := create_tween().set_parallel(true)
-	tween.tween_property(model, "position", model.position + Vector3(world_push.x * 0.3, 0.35, world_push.z * 0.3), 0.12)
-	tween.tween_property(model, "scale", model.scale * 0.05, 0.22).set_delay(0.06).set_ease(Tween.EASE_IN)
-	tween.chain().tween_callback(root.queue_free)
+	# 059: the death plays (snap, sputter, knees, over), the wreck lies a beat, then it is crushed
+	# into the scrap it leaves. `_dying` keeps the rig running after the view leaves `_views`.
+	var rig: ConstructRig = view["rig"]
+	rig.collapse(push)
+	_dying.append(rig)
+	var tween := create_tween()
+	tween.tween_interval(WRECK_LIES)
+	tween.tween_callback(func() -> void:
+		_dying.erase(rig)
+		if is_instance_valid(model):
+			_vfx.burst(root.position + Vector3(0, 0.3, 0), Color("ff9a5a"), 0.8))
+	tween.tween_property(model, "scale", Vector3(model.scale.x * 1.15, model.scale.y * 0.08, model.scale.z * 1.15), 0.12).set_ease(Tween.EASE_IN)
+	tween.tween_callback(root.queue_free)
 
 
 func _process(delta: float) -> void:
 	for ref: Variant in _views:
 		((_views[ref] as Dictionary)["rig"] as ConstructRig).update(delta)
+	for rig: ConstructRig in _dying:
+		rig.update(delta)
 	_declutter()
 	_follow_selection()
 	_point_info()
@@ -2328,6 +2346,8 @@ func _walk(ref: int, path: Array[Vector2i]) -> void:
 	var root: Node3D = view["root"]
 	var rig: ConstructRig = view["rig"]
 	rig.set_moving(true)
+	# 059: the crouch before it pushes off.
+	await _wait(rig.start_lead())
 	var tween := create_tween()
 	var from: Vector3 = root.position
 	for cell: Vector2i in path:
@@ -2354,7 +2374,9 @@ func _attack(ref: int, aim: Vector2i, w: int, end: Vector2i) -> void:
 	var weapon: Dictionary = u.weapons[w]
 	_face(root, _to_world(aim.x, aim.y))
 	await _wait(0.05)
-	(view["rig"] as ConstructRig).strike("arm_l" if w == GridUnit.ARM_L else "arm_r", String(weapon["class"]), get_tree())
+	# 059: the wind-up plays first; the shot, the flash and the sound land on the strike's IMPACT.
+	var lead: float = (view["rig"] as ConstructRig).strike("arm_l" if w == GridUnit.ARM_L else "arm_r", String(weapon["class"]), get_tree())
+	await _wait(lead)
 	var colour: Color = DAMAGE_COLOURS[clampi(u.damage_type, 0, DAMAGE_COLOURS.size() - 1)]
 	var muzzle: Vector3 = root.position + Vector3(0, 0.7, 0)
 	match String(weapon["shape"]):

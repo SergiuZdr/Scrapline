@@ -119,8 +119,11 @@ func _test_gait_is_not_a_sine() -> void:
 		total += 1
 		previous = value
 
-	var swing_share: float = float(forward) / float(total)
-	_check("the swing is faster than the stance (%.0f%% of the cycle)"
+	# 059: whichever way the hip turns, one direction (the run's stance, under half the cycle)
+	# must take less of the cycle than the other. The old check was written for legs that cycled
+	# backwards (+rotation.x swings a rigid leg BACK).
+	var swing_share: float = minf(float(forward), float(total - forward)) / float(total)
+	_check("one way is faster than the other (%.0f%% of the cycle)"
 		% (swing_share * 100.0), swing_share > 0.2 and swing_share < 0.48)
 
 

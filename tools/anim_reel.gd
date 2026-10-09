@@ -13,10 +13,14 @@ const CREW: Array = [
 	["ch_hauler", "co_furnace", "ar_pulse", "ar_lance", "mo_ablative"],
 	["ch_strider", "co_arc", "ar_scanner", "ar_pulse", "mo_governor"],
 ]
-## (time, what) -- seconds from the start.
+## (time, what) -- seconds from the start. 059: the run is at the fight's pace (a hex per
+## `HEX_TIME`), with turns, and the death is played after two hits (light, heavy).
 const SCRIPT: Array = [
-	[0.6, "walk"], [3.4, "stop"], [4.0, "strike_r"], [5.4, "strike_l"], [6.8, "hit"], [8.0, "die"], [10.0, "end"],
+	[0.6, "walk"], [1.6, "turn"], [2.3, "stop"], [3.0, "strike_r"], [4.4, "strike_l"], [5.8, "hit_light"],
+	[6.6, "hit"], [7.8, "die"], [10.0, "end"],
 ]
+const HEX_DISTANCE: float = 1.351
+const HEX_TIME: float = 0.24
 
 var _rigs: Array = []
 var _models: Array = []
@@ -76,6 +80,7 @@ func _build() -> void:
 		for k: int in [2, 3]:
 			classes.append(String((db.parts.get(parts[k], {}) as Dictionary).get("weapon_class", "")))
 		rig.set_stances(classes)
+		rig.set_gait(String((db.parts.get(parts[0], {}) as Dictionary).get("role", "line")))
 		_rigs.append([rig, classes])
 		_models.append(model)
 	var camera := Camera3D.new()
@@ -86,7 +91,7 @@ func _build() -> void:
 	if only >= 0:
 		_follow = camera.position
 	var aim := Vector3(0.0, 0.4, 0.3) if only < 0 else Vector3(0.0, 0.35, 0.3)
-	camera.look_at_from_position(aim + (Vector3(0.0, 2.4, 8.5) if only < 0 else Vector3(0.0, 0.9, 3.4)), aim, Vector3.UP)
+	camera.look_at_from_position(aim + (Vector3(0.0, 2.4, 8.5) if only < 0 else Vector3(2.6, 1.0, 2.3)), aim, Vector3.UP)
 	_follow = camera.position
 	process_frame.connect(_tick)
 
@@ -102,7 +107,7 @@ func _tick() -> void:
 		rig.update(delta)
 		if _walking:
 			var m: Node3D = (_models[i] as Node3D).get_parent()
-			m.position += -m.global_transform.basis.z * delta * 0.25
+			m.position += m.global_transform.basis.z * delta * HEX_DISTANCE / HEX_TIME
 	# Filming one machine, the camera follows it.
 	if _models.size() == 1:
 		var at: Vector3 = ((_models[0] as Node3D).get_parent() as Node3D).position
@@ -120,12 +125,17 @@ func _do(what: String) -> void:
 			"stop":
 				_walking = false
 				rig.set_moving(false)
+			"turn":
+				for m: Node3D in _models:
+					m.get_parent().rotation_degrees.y += 60.0
+			"hit_light":
+				rig.stagger(Vector3(0.0, 0.0, -1.0), 0.35)
 			"strike_r":
-				rig.strike("arm_r", classes[1], self)
+				print("impact ", classes[1], " ", rig.strike("arm_r", classes[1], self))
 			"strike_l":
-				rig.strike("arm_l", classes[0], self)
+				print("impact ", classes[0], " ", rig.strike("arm_l", classes[0], self))
 			"hit":
-				rig.stagger(Vector3(0.0, 0.0, 1.0), 0.9)
+				rig.stagger(Vector3(0.3, 0.0, -1.0).normalized(), 0.95)
 			"die":
 				rig.collapse(Vector3(0.0, 0.0, -1.0))
 			"end":
