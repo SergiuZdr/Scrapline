@@ -15,7 +15,7 @@ const CREW: Array = [
 ]
 ## (time, what) -- seconds from the start.
 const SCRIPT: Array = [
-	[0.6, "walk"], [2.6, "stop"], [3.2, "strike_r"], [4.4, "strike_l"], [5.6, "hit"], [6.8, "die"], [9.0, "end"],
+	[0.6, "walk"], [3.4, "stop"], [4.0, "strike_r"], [5.4, "strike_l"], [6.8, "hit"], [8.0, "die"], [10.0, "end"],
 ]
 
 var _rigs: Array = []
@@ -63,9 +63,13 @@ func _build() -> void:
 		var parts := PackedStringArray(CREW[i])
 		var model: Node3D = ConstructView.build_parts(parts, db, Ink.YOURS)
 		Ink.dress_machine(model, parts, Ink.YOURS)
-		model.position = Vector3((float(i) - 1.0) * 1.7, 0.0, 0.0) if only < 0 else Vector3.ZERO
-		model.rotation_degrees.y = -30.0 if only < 0 else -60.0
-		world.add_child(model)
+		# The rig owns the model's own transform (lean, recoil); walking moves a holder, as the
+		# combat scene moves a unit's root.
+		var holder := Node3D.new()
+		holder.position = Vector3((float(i) - 1.0) * 1.7, 0.0, 0.0) if only < 0 else Vector3.ZERO
+		holder.rotation_degrees.y = -30.0 if only < 0 else -60.0
+		world.add_child(holder)
+		holder.add_child(model)
 		var rig := ConstructRig.new()
 		rig.bind(model)
 		var classes := PackedStringArray()
@@ -97,11 +101,11 @@ func _tick() -> void:
 		var rig: ConstructRig = _rigs[i][0]
 		rig.update(delta)
 		if _walking:
-			var m: Node3D = _models[i]
+			var m: Node3D = (_models[i] as Node3D).get_parent()
 			m.position += -m.global_transform.basis.z * delta * 0.25
 	# Filming one machine, the camera follows it.
 	if _models.size() == 1:
-		var at: Vector3 = (_models[0] as Node3D).position
+		var at: Vector3 = ((_models[0] as Node3D).get_parent() as Node3D).position
 		_camera.position = _follow + Vector3(at.x, 0.0, at.z)
 
 
