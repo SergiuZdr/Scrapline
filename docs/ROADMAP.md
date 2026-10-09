@@ -83,6 +83,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 056 | [Skeletons](iterations/056-skeletons.md) | Generated parts get standard skeletons: knee walk, rest pose by weapon, elbow strikes, knee-fold deaths; wrecks no longer sink | ✅ awaiting the user's look |
 | 057 | [IK walk](iterations/057-ik-walk.md) | Feet placed by IK (never under the floor), staged strikes, kneel-then-fall deaths | ✅ awaiting the user's look |
 | 058 | [Animation fixes](iterations/058-anim-fixes.md) | Ground-anchored feet, knees bend as drawn, slump deaths, Relay redrawn facing forward | ✅ awaiting the user's look |
+| 059 | [Comic motion](iterations/059-comic-motion.md) | Every robot animation redone pose to pose: run, strikes, hits, deaths; impact-timed shots; deaths played in the fight | ✅ awaiting the user's look |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
