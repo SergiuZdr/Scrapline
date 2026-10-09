@@ -183,10 +183,20 @@ var _last_footfall: int = -1
 # A generated part carries a Skeleton3D with STANDARD bone names (frame: torso, hip/knee/ankle
 # _l/_r; arm: shoulder, elbow, wrist), so these motions drive any part of its slot. Every
 # bone's local X is the machine's lateral axis: a positive turn swings the limb forward.
-## Knee flex at the top of a stride, radians.
-const KNEE_BEND: float = 0.85
-## How far the knees fold while a wreck goes down.
-const KNEE_BUCKLE: float = 1.25
+## 057: a skeleton frame walks by IK -- each foot is PLACED (on the ground in stance, lifted on
+## an arc in swing) and the hip and knee are solved to reach it, so a foot can never go under the
+## floor and the knees always bend forward. Distances are shares of the leg's length.
+const STEP_REACH: float = 0.22
+const STEP_LIFT: float = 0.16
+## Feet are drawn in under the hips by this share of their sideways offset (the Brute's model
+## stands wide; walking that wide read as bow-legged).
+const FEET_IN: float = 0.45
+## The body dips as each leg passes under it (a heavy machine sinks into its stride).
+const STEP_DIP: float = 0.05
+## Death: the knees give first (the body drops this share of the hip height, feet planted), the
+## arms go slack, THEN it pitches forward.
+const KNEEL_DROP: float = 0.42
+const KNEEL_TIME: float = 0.45
 ## Weapons swung by hand hang at the side, weapon low; everything else is held up and aimed.
 const MELEE: PackedStringArray = ["hammer", "maul", "saw", "ripper"]
 ## Where the forearm points at rest, as a pitch below horizontal-forward (radians): a hand weapon
@@ -197,6 +207,11 @@ const PITCH_MELEE: float = 1.3
 const PITCH_AIM: float = 0.12
 var _frame_skel: Skeleton3D
 var _frame_bones: Dictionary = {}
+## Per leg (l/r): rest globals in skeleton space, lengths, and the walk's forward/up.
+var _legs: Dictionary = {}
+var _fwd: Vector3 = Vector3.FORWARD
+var _kneel: float = 0.0
+var _dip: float = 0.0
 ## slot -> [Skeleton3D, {bone: index}]
 var _arm_skel: Dictionary = {}
 ## slot -> rest pose (Vector3), and the strike's offset on top of it
@@ -225,6 +240,17 @@ func bind(model: Node3D) -> void:
 		_frame_skel = frame
 		for bone: String in ["torso", "hip_l", "knee_l", "ankle_l", "hip_r", "knee_r", "ankle_r"]:
 			_frame_bones[bone] = frame.find_bone(bone)
+		_legs = {}
+		var toe_dir := Vector3.ZERO
+		for tag: String in ["l", "r"]:
+			var h: Transform3D = frame.get_bone_global_rest(_frame_bones["hip_" + tag])
+			var k: Transform3D = frame.get_bone_global_rest(_frame_bones["knee_" + tag])
+			var a: Transform3D = frame.get_bone_global_rest(_frame_bones["ankle_" + tag])
+			_legs[tag] = {"hip": h, "knee": k, "ankle": a,
+				"l1": (k.origin - h.origin).length(), "l2": (a.origin - k.origin).length()}
+			toe_dir += a.basis.y
+		toe_dir.y = 0.0
+		_fwd = toe_dir.normalized() if toe_dir.length() > 0.01 else Vector3(0, 0, 1)
 	for slot: String in ["arm_l", "arm_r"]:
 		var arm: Node3D = _arm_l if slot == "arm_l" else _arm_r
 		var sk: Skeleton3D = _skeleton_in(arm, "shoulder") if arm != null else null
@@ -233,6 +259,8 @@ func bind(model: Node3D) -> void:
 			_stance[slot] = Vector3(0.0, _forearm_turn(slot, PITCH_AIM), 0.0)
 			_arm_offset[slot] = Vector3.ZERO
 	_pose_arms()
+	if _frame_skel != null:
+		_walk_legs(Vector2.ZERO, Vector2.ZERO, 0.0)
 
 
 ## The rest pose of each arm from its weapon: hand weapons hang at the side, guns are held up and
@@ -296,16 +324,72 @@ func _pose_arms() -> void:
 		_turn(sk, ids["wrist"], a.z)
 
 
-func _pose_legs(hip_l: float, hip_r: float, knee_l: float, knee_r: float) -> void:
-	if _frame_skel == null or not is_instance_valid(_frame_skel):
+func _pose_legs(_hip_l: float, _hip_r: float, _knee_l: float, _knee_r: float) -> void:
+	pass
+
+
+## Where a foot is in its cycle: (forward, lift) as shares of the leg. Stance (the first
+## STANCE_FRACTION) slides it back along the floor; swing carries it forward on an arc.
+static func _foot_step(phase: float) -> Vector2:
+	var t: float = fposmod(phase / TAU, 1.0)
+	if t < STANCE_FRACTION:
+		return Vector2(lerpf(STEP_REACH, -STEP_REACH, t / STANCE_FRACTION), 0.0)
+	var u: float = (t - STANCE_FRACTION) / (1.0 - STANCE_FRACTION)
+	return Vector2(lerpf(-STEP_REACH, STEP_REACH, smoothstep(0.0, 1.0, u)), STEP_LIFT * sin(PI * u))
+
+
+func _leg_length() -> float:
+	if _legs.is_empty():
+		return 0.0
+	return float(_legs["l"]["l1"]) + float(_legs["l"]["l2"])
+
+
+## 057: places each foot and solves its leg. `step` per leg is (forward share, lift share) of the
+## leg's length; `drop` is how far the BODY has been lowered (skeleton units): the feet are raised
+## by it in the skeleton's space, so they stay planted on the floor.
+func _walk_legs(step_l: Vector2, step_r: Vector2, drop: float) -> void:
+	if _frame_skel == null or not is_instance_valid(_frame_skel) or _legs.is_empty():
 		return
-	_turn(_frame_skel, _frame_bones["hip_l"], hip_l)
-	_turn(_frame_skel, _frame_bones["hip_r"], hip_r)
-	# The shin folds back; the foot is kept near level.
-	_turn(_frame_skel, _frame_bones["knee_l"], -knee_l)
-	_turn(_frame_skel, _frame_bones["knee_r"], -knee_r)
-	_turn(_frame_skel, _frame_bones["ankle_l"], knee_l - hip_l)
-	_turn(_frame_skel, _frame_bones["ankle_r"], knee_r - hip_r)
+	for tag: String in ["l", "r"]:
+		var leg: Dictionary = _legs[tag]
+		var hip: Transform3D = leg["hip"]
+		var ankle: Transform3D = leg["ankle"]
+		var length: float = float(leg["l1"]) + float(leg["l2"])
+		var step: Vector2 = step_l if tag == "l" else step_r
+		var foot: Vector3 = ankle.origin
+		foot.x = lerpf(foot.x, hip.origin.x, FEET_IN)
+		foot += _fwd * step.x * length + Vector3.UP * (step.y * length + drop)
+		_solve_leg(tag, foot)
+
+
+## Two-bone IK in the plane of hip, foot and the walk's forward: the knee always bends FORWARD.
+## Each bone keeps its rest orientation turned by the shortest arc onto its new direction; the
+## foot keeps its rest orientation (flat on the floor).
+func _solve_leg(tag: String, foot: Vector3) -> void:
+	var leg: Dictionary = _legs[tag]
+	var sk: Skeleton3D = _frame_skel
+	var hip_rest: Transform3D = leg["hip"]
+	var knee_rest: Transform3D = leg["knee"]
+	var ankle_rest: Transform3D = leg["ankle"]
+	var l1: float = leg["l1"]
+	var l2: float = leg["l2"]
+	var h: Vector3 = hip_rest.origin
+	var to_foot: Vector3 = foot - h
+	var d: float = clampf(to_foot.length(), absf(l1 - l2) + 0.001, (l1 + l2) * 0.999)
+	var dir: Vector3 = to_foot.normalized()
+	foot = h + dir * d
+	# Knee: the law of cosines, bent toward the forward side of the hip-foot line.
+	var along: float = (l1 * l1 - l2 * l2 + d * d) / (2.0 * d)
+	var out: float = sqrt(maxf(l1 * l1 - along * along, 0.0))
+	var bend: Vector3 = (_fwd - dir * _fwd.dot(dir))
+	bend = bend.normalized() if bend.length() > 0.001 else _fwd
+	var knee: Vector3 = h + dir * along + bend * out
+	var hip_rot := Quaternion((knee_rest.origin - h).normalized(), (knee - h).normalized())
+	var knee_rot := Quaternion((ankle_rest.origin - knee_rest.origin).normalized(), (foot - knee).normalized())
+	sk.set_bone_global_pose(_frame_bones["hip_" + tag], Transform3D(Basis(hip_rot) * hip_rest.basis, h))
+	sk.set_bone_global_pose(_frame_bones["knee_" + tag], Transform3D(Basis(knee_rot) * knee_rest.basis, knee))
+	sk.set_bone_global_pose(_frame_bones["ankle_" + tag], Transform3D(ankle_rest.basis, foot))
+
 
 
 func set_moving(moving: bool) -> void:
@@ -348,13 +432,16 @@ func update(delta: float, speed_scale: float = 1.0) -> void:
 		_leg_l.rotation.x = swing_l + _brace
 	if _leg_r != null and is_instance_valid(_leg_r):
 		_leg_r.rotation.x = swing_r + _brace
-	# 056: a skeleton frame bends at the knee on the forward swing of each leg.
-	_pose_legs(swing_l + _brace, swing_r + _brace,
-		KNEE_BEND * stride * maxf(0.0, sin(_phase)), KNEE_BEND * stride * maxf(0.0, sin(_phase + PI)))
+	# 057: a skeleton frame places its feet (stance on the floor, swing on an arc) and solves the
+	# legs; the hips dip as each leg passes under.
+	if _frame_skel != null:
+		_dip = STEP_DIP * stride * absf(sin(_phase)) * _leg_length()
+		_walk_legs(_foot_step(_phase) * stride, _foot_step(_phase + PI) * stride, _dip)
 
-	# Two bobs per stride: the body rises as each leg passes under it.
-	var bob: float = absf(sin(_phase)) * BOB * stride
-	_body.position = _base + Vector3(_recoil.x, bob + _recoil.y, _recoil.z)
+	# Two bobs per stride: the body rises as each leg passes under it. (A skeleton frame sinks into
+	# its legs instead, above -- lifting its body lifted its feet off the floor.)
+	var bob: float = 0.0 if _frame_skel != null else absf(sin(_phase)) * BOB * stride
+	_body.position = _base + Vector3(_recoil.x, bob - _dip * _body.scale.y + _recoil.y, _recoil.z)
 
 	# Lean into the walk, and roll onto whichever foot is carrying. Only x and z are
 	# touched -- y is the unit's FACING, owned by the battle scene, and writing it here
@@ -415,6 +502,12 @@ func strike(slot: String, weapon_class: String, tree: SceneTree) -> void:
 		return
 	_striking[slot] = true
 
+	# 057: a skeleton arm plays a staged strike: anticipation, a held impact, recovery, with the
+	# body in it -- the quick whole-arm flicks below were too small to read (the user).
+	if _arm_skel.has(slot):
+		_strike_skeleton(slot, arm, weapon_class, tree)
+		return
+
 	_body_recoil(weapon_class)
 
 	var rest: Vector3 = Vector3.ZERO
@@ -423,13 +516,7 @@ func strike(slot: String, weapon_class: String, tree: SceneTree) -> void:
 
 	# 056: a skeleton arm never slides out of its shoulder: guns kick back through the shoulder
 	# and elbow (below) instead of the whole arm travelling along its length.
-	var kind: String = weapon_class
-	if _arm_skel.has(slot) and (kind == "lance" or kind == "railgun" or kind == "coil" or kind == "scattergun"):
-		kind = "skeleton_gun"
-	match kind:
-		"skeleton_gun":
-			tween.tween_property(arm, "rotation:x", -0.22, 0.05).set_ease(Tween.EASE_OUT)
-			tween.tween_property(arm, "rotation:x", rest.x, 0.34).set_ease(Tween.EASE_OUT)
+	match weapon_class:
 		"hammer", "maul":
 			# Wind up and slam. The wind-up is the tell: it is longer than the strike,
 			# which is what makes a heavy hit feel heavy rather than merely large.
@@ -468,30 +555,68 @@ func strike(slot: String, weapon_class: String, tree: SceneTree) -> void:
 			tween.tween_property(arm, "position", rest_pos + Vector3(0, 0, 0.16), 0.05)
 			tween.tween_property(arm, "position", rest_pos, 0.24).set_ease(Tween.EASE_OUT)
 
-	# 056: a skeleton arm also works its elbow -- a wind-up and chop for hand weapons, a short
-	# kick for guns -- on top of the whole-arm motion above.
-	if _arm_skel.has(slot):
-		var elbow_tween: Tween = tree.create_tween()
-		var set_offset := func(v: Vector3) -> void:
-			_arm_offset[slot] = v
-			_pose_arms()
-		match weapon_class:
-			"hammer", "maul":
-				elbow_tween.tween_method(set_offset, Vector3.ZERO, Vector3(0.0, 1.1, 0.4), 0.22)
-				elbow_tween.tween_method(set_offset, Vector3(0.0, 1.1, 0.4), Vector3(0.0, -0.4, -0.2), 0.09)
-				elbow_tween.tween_method(set_offset, Vector3(0.0, -0.4, -0.2), Vector3.ZERO, 0.26)
-			"ripper", "saw":
-				for _i: int in 3:
-					elbow_tween.tween_method(set_offset, Vector3.ZERO, Vector3(0.0, 0.45, 0.0), 0.06)
-					elbow_tween.tween_method(set_offset, Vector3(0.0, 0.45, 0.0), Vector3.ZERO, 0.06)
-			"scanner":
-				elbow_tween.tween_method(set_offset, Vector3.ZERO, Vector3(0.0, 0.2, 0.3), 0.18)
-				elbow_tween.tween_method(set_offset, Vector3(0.0, 0.2, 0.3), Vector3.ZERO, 0.30)
-			_:
-				elbow_tween.tween_method(set_offset, Vector3.ZERO, Vector3(0.0, -0.35, -0.2), 0.05)
-				elbow_tween.tween_method(set_offset, Vector3(0.0, -0.35, -0.2), Vector3.ZERO, 0.30)
-
 	tween.finished.connect(func() -> void: _striking.erase(slot))
+
+
+## 057: one staged strike for a skeleton arm. Poses are (whole-arm swing at the shoulder socket,
+## elbow, wrist) on top of the arm's rest stance; the body leans into it through the same spring a
+## hit uses (negative lean = toward the target, which is -Z).
+func _strike_skeleton(slot: String, arm: Node3D, weapon_class: String, tree: SceneTree) -> void:
+	var t: Tween = tree.create_tween()
+	var pose := func(v: Vector3) -> void:
+		if is_instance_valid(arm):
+			arm.rotation.x = v.x
+		_arm_offset[slot] = Vector3(0.0, v.y, v.z)
+		_pose_arms()
+	var lean := func(amount: float) -> void:
+		_lean_velocity.x += amount
+	var key := func(from: Vector3, to: Vector3, time: float, ease_type: int) -> void:
+		t.tween_method(pose, from, to, time).set_ease(ease_type).set_trans(Tween.TRANS_CUBIC)
+	match weapon_class:
+		"hammer", "maul":
+			# Raised high and held: the tell. Then it comes down hard and STAYS down a beat.
+			var up := Vector3(-2.1, 0.9, 0.5)
+			var down := Vector3(0.85, -0.35, -0.3)
+			t.tween_callback(lean.bind(2.2))
+			key.call(Vector3.ZERO, up, 0.38, Tween.EASE_OUT)
+			t.tween_interval(0.10)
+			t.tween_callback(lean.bind(-5.5))
+			key.call(up, down, 0.10, Tween.EASE_IN)
+			t.tween_callback(func() -> void: _recoil_velocity.y -= 0.9)
+			t.tween_interval(0.16)
+			key.call(down, Vector3.ZERO, 0.40, Tween.EASE_IN_OUT)
+		"ripper", "saw":
+			# A lunge: the arm drives forward, grinds three times, pulls back.
+			var drive := Vector3(-0.9, -0.7, 0.0)
+			t.tween_callback(lean.bind(1.2))
+			key.call(Vector3.ZERO, Vector3(0.3, 0.5, 0.0), 0.18, Tween.EASE_OUT)
+			t.tween_callback(lean.bind(-4.0))
+			key.call(Vector3(0.3, 0.5, 0.0), drive, 0.12, Tween.EASE_IN)
+			for _i: int in 3:
+				key.call(drive, drive + Vector3(0.12, 0.18, 0.1), 0.06, Tween.EASE_IN_OUT)
+				key.call(drive + Vector3(0.12, 0.18, 0.1), drive, 0.06, Tween.EASE_IN_OUT)
+			key.call(drive, Vector3.ZERO, 0.35, Tween.EASE_IN_OUT)
+		"scanner":
+			# Sweeps, steadies, holds: it looks, it does not shoot.
+			t.tween_property(arm, "rotation:y", 0.6, 0.30).set_ease(Tween.EASE_OUT)
+			t.tween_property(arm, "rotation:y", -0.25, 0.35).set_ease(Tween.EASE_IN_OUT)
+			t.tween_interval(0.25)
+			t.tween_property(arm, "rotation:y", 0.0, 0.30).set_ease(Tween.EASE_IN_OUT)
+		_:
+			# A gun: brought up and steadied (the tell), then a hard kick through shoulder and
+			# elbow that rocks the whole machine back, and a slow settle.
+			var aim := Vector3(-0.15, 0.1, 0.0)
+			var kick := Vector3(-0.75, -0.55, -0.35)
+			key.call(Vector3.ZERO, aim, 0.22, Tween.EASE_OUT)
+			t.tween_interval(0.12)
+			t.tween_callback(lean.bind(3.6))
+			t.tween_callback(func() -> void: _recoil_velocity.z += 0.9)
+			key.call(aim, kick, 0.05, Tween.EASE_OUT)
+			key.call(kick, Vector3.ZERO, 0.50, Tween.EASE_OUT)
+	t.finished.connect(func() -> void:
+		_striking.erase(slot)
+		_arm_offset[slot] = Vector3.ZERO
+		_pose_arms())
 
 
 ## The construct is destroyed: buckle and fall over.
@@ -520,6 +645,7 @@ func collapse(direction: Vector3) -> void:
 	# anywhere near 90° and the wreck arrives twisted.
 	_fall_axis = Vector3(fall.z, 0.0, -fall.x).normalized()
 	_pivot = fall * _reach(fall)
+	_kneel = 0.0
 	_fall_velocity = 0.0
 	_buckle = 0.0
 
@@ -594,6 +720,21 @@ func reset_transients() -> void:
 func _advance_fall(delta: float) -> void:
 	_advance_reactions(delta)
 
+	# 057: a skeleton machine drops to its knees first -- hips sink, feet stay planted, the arms
+	# go slack -- and only then pitches over. Toppling stiff-legged read as a statue pushed over.
+	if _frame_skel != null and _kneel < 1.0:
+		_kneel = move_toward(_kneel, 1.0, delta / KNEEL_TIME)
+		var k: float = ease(_kneel, 0.5)
+		var drop: float = KNEEL_DROP * _leg_length() * k
+		_walk_legs(Vector2(0.08 * k, 0.0), Vector2(-0.06 * k, 0.0), drop)
+		for slot: String in _arm_skel:
+			_arm_offset[slot] = Vector3(-0.55, -(_stance.get(slot, Vector3.ZERO) as Vector3).y * 0.8, 0.4) * k
+		_pose_arms()
+		var yaw0 := Basis.from_euler(Vector3(0.0, _base_yaw, 0.0))
+		_body.transform.basis = yaw0 * Basis(_fall_axis, 0.12 * k)
+		_body.position = _base + Vector3(_recoil.x, _recoil.y - drop * _body.scale.y, _recoil.z)
+		return
+
 	if _fall < FALL_REST:
 		_fall_velocity += FALL_GRAVITY * delta
 		_fall += _fall_velocity * delta
@@ -614,8 +755,9 @@ func _advance_fall(delta: float) -> void:
 		_leg_l.rotation.x = fold
 	if _leg_r != null and is_instance_valid(_leg_r):
 		_leg_r.rotation.x = fold * 0.72  # asymmetric: one knee gives before the other
-	# 056: a skeleton frame folds at the knees as it goes down, one before the other.
-	_pose_legs(fold * 0.5, fold * 0.35, _buckle * KNEE_BUCKLE, _buckle * KNEE_BUCKLE * 0.7)
+	# 057: a skeleton frame stays on its knees as it goes over.
+	if _frame_skel != null:
+		_walk_legs(Vector2(0.08, 0.0), Vector2(-0.06, 0.0), KNEEL_DROP * _leg_length())
 
 	# Yaw first, then the topple in the construct's OWN frame. Composed rather than
 	# written as euler angles so the machine falls the way it was facing; building the
@@ -627,6 +769,9 @@ func _advance_fall(delta: float) -> void:
 	# Tipped about the footprint's edge, not its middle: the pivot stays where it was.
 	var hinge: Vector3 = yaw * (_pivot - topple * _pivot) * _body.scale.x
 	var settle: float = -WRECK_SINK * clampf(_buckle, 0.0, 1.0)
+	if _frame_skel != null:
+		# Kneeling, it goes over from the knees: start from the knelt height, not the standing one.
+		settle = -KNEEL_DROP * _leg_length() * _body.scale.y * cos(clampf(_fall, 0.0, PI * 0.5)) * 0.5
 	_body.position = _base + hinge + Vector3(_recoil.x, _recoil.y + settle, _recoil.z)
 
 

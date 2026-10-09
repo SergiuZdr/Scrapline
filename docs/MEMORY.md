@@ -263,6 +263,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-08 | **Mount a generated arm by its shoulder ring, not its bounding box** (`mount: "ring"`): bolted by its top centre, the Brute's arms hung through its body and legs (054) |
 | 2026-10-09 | **Set an arm's pose in the concept, never twist the mesh**: one drawn layout for all arms (shoulder face to the viewer, elbow with piston, weapon toward the bend); the 053 twist mangled the wrist. Frames are drawn bare -- no core, module or rack (055) |
 | 2026-10-09 | **Compute a rest pose from each generated arm's own geometry**: fixed angles pointed the guns at the sky. **Topple a wreck about its footprint's edge**: about the middle, half of it went under the floor (056) |
+| 2026-10-09 | **Walk a skeleton by placing its feet (IK), never by swinging angles**: angle swings on a splayed leg went sideways and under the floor. A walking body dips into its steps; bobbing up lifts the feet off the ground (057) |
 
 ## Open questions
 
