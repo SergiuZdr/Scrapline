@@ -2,6 +2,12 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [055] The starting crew as comic scrap — 2026-10-09 ([detail](iterations/055-crew-scrap.md))
+
+### Added
+- Needle and Relay as generated comic-scrap machines; the Brute's arms redrawn with elbows. All arms
+  share one drawn layout (shoulder, elbow with piston, weapon forward), turned whole, never twisted.
+
 ## [054] Generated arms bolt into the shoulder ends — 2026-10-08 ([detail](iterations/054-arm-mounts.md))
 
 ### Fixed

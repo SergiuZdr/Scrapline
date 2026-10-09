@@ -1,0 +1,14 @@
+{
+  "_comment": "055: Relay's spotter array, redrawn simple (the user: the first 'screams AI vibes'); same arm layout as the others: turned -90: it came lying along X with the lens outward.",
+  "slot": "arm",
+  "rotate": [
+    0,
+    0,
+    -90
+  ],
+  "size": 0.4,
+  "mount": "ring",
+  "budget": 4000,
+  "posterize": 12,
+  "rust_map": true
+}

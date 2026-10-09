@@ -260,6 +260,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-08 | **Grade a generated part on its own**: one grade for the set dulled the frame's yellow correctly and turned the hammer beige (051) |
 | 2026-10-08 | **A generated arm comes in the concept's pose**: turn its shoulder ring to the body, then check the weapon against the shoulder (`rotate`, `twist`). A generated frame's sockets are exact: never push its arms (053) |
 | 2026-10-08 | **Mount a generated arm by its shoulder ring, not its bounding box** (`mount: "ring"`): bolted by its top centre, the Brute's arms hung through its body and legs (054) |
+| 2026-10-09 | **Set an arm's pose in the concept, never twist the mesh**: one drawn layout for all arms (shoulder face to the viewer, elbow with piston, weapon toward the bend); the 053 twist mangled the wrist. Frames are drawn bare -- no core, module or rack (055) |
 
 ## Open questions
 

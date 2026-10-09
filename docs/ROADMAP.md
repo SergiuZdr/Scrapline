@@ -79,6 +79,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 052 | [The agent plays the bosses](iterations/052-boss-playtest.md) | Six keeper fights played turn by turn: two AI bugs and a claw bug fixed; braced charges, exposed keepers hold still, quench 1 turn, keepers' HP (bot 55.3%) | ✅ awaiting the user |
 | 053 | [Scrap Brute fixes](iterations/053-scrap-brute-fixes.md) | Arms seated and turned, narrower shoulders, core and backpack set in; rust wears off level by level | ✅ awaiting the user's look |
 | 054 | [Arm mounts](iterations/054-arm-mounts.md) | Generated arms bolted by their shoulder ring into the pauldron ends, hanging outside the legs | ✅ awaiting the user's look |
+| 055 | [Crew as comic scrap](iterations/055-crew-scrap.md) | Knuckles, Needle and Relay all generated: bare frames, arms with elbows, every part its own model | ✅ awaiting the user's look |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
