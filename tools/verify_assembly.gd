@@ -75,8 +75,16 @@ func _run() -> void:
 		_check("%s has a plausible standing height (%.2f m)" % [chassis_id, bounds.size.y],
 			bounds.size.y > 0.45)
 
+		# 056: a skeleton frame walks on its hip bones instead: standard names, hips off the floor.
+		var skel: Skeleton3D = ConstructRig._skeleton_in(model, "hip_l")
+		if skel != null:
+			for bone: String in ["torso", "hip_l", "knee_l", "ankle_l", "hip_r", "knee_r", "ankle_r"]:
+				_check("%s skeleton has %s" % [chassis_id, bone], skel.find_bone(bone) >= 0)
+			for hip: String in ["hip_l", "hip_r"]:
+				var at: Vector3 = (skel.global_transform * skel.get_bone_global_rest(skel.find_bone(hip))).origin
+				_check("%s %s is off the floor (y=%.2f)" % [chassis_id, hip, at.y], at.y > MIN_MOUNT_HEIGHT)
 		# The rig walks by turning `limb_leg_l/r` about their origins: on the hips, off the floor.
-		for limb_name: String in ["limb_leg_l", "limb_leg_r"]:
+		for limb_name: String in ([] if skel != null else ["limb_leg_l", "limb_leg_r"]):
 			var limb: Node3D = _find(model, limb_name)
 			_check("%s has %s" % [chassis_id, limb_name], limb != null)
 			if limb != null:

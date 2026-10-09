@@ -10,5 +10,6 @@
   "mount": "ring",
   "budget": 4000,
   "posterize": 12,
-  "rust_map": true
+  "rust_map": true,
+  "skeleton": true
 }

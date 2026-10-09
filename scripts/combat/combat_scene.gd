@@ -1379,6 +1379,7 @@ func _build_view(u: GridUnit) -> Dictionary:
 
 	var rig := ConstructRig.new()
 	rig.bind(model)
+	rig.set_stances(_weapon_classes(u.part_ids))
 
 	# Lettered in the comic face, paper on a heavy ink outline: a caption, not a HUD readout.
 	var tag := Label3D.new()
@@ -4374,3 +4375,12 @@ func _bot_turn() -> void:
 		_mark_turn_start()
 		await _play_new_events()
 	_after_events()
+
+
+## 056: the weapon classes of a machine's two arms, for its rig's rest pose.
+func _weapon_classes(part_ids: PackedStringArray) -> PackedStringArray:
+	var out := PackedStringArray()
+	for i: int in [2, 3]:
+		var id: String = PartTuning.base_of(part_ids[i]) if i < part_ids.size() else ""
+		out.append(String((_db.parts.get(id, {}) as Dictionary).get("weapon_class", "")))
+	return out

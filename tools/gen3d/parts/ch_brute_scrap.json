@@ -44,5 +44,6 @@
     0.15,
     0.55
   ],
-  "rust_map": true
+  "rust_map": true,
+  "skeleton": true
 }
