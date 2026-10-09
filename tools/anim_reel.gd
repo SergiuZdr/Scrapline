@@ -5,7 +5,8 @@ extends SceneTree
 ## writer:
 ##
 ##   godot --path . --resolution 1280x720 --write-movie shots/reel.avi --fixed-fps 30 \
-##       --script res://tools/anim_reel.gd -- --models gen --gen-dir res://art/parts_gen_skel
+##       --script res://tools/anim_reel.gd -- --models gen --gen-dir res://art/parts_gen_scrap [--crew 0|1|2]
+## `--crew N` films one machine alone, close, from its three-quarter side (feet against the floor).
 
 const CREW: Array = [
 	["ch_brute", "co_slug", "ar_saw", "ar_hammer", "mo_scavenger"],
@@ -22,6 +23,8 @@ var _models: Array = []
 var _clock: float = 0.0
 var _step: int = 0
 var _walking: bool = false
+var _camera: Camera3D
+var _follow: Vector3 = Vector3.ZERO
 
 
 func _initialize() -> void:
@@ -42,12 +45,26 @@ func _build() -> void:
 	ground.mesh = plane
 	ground.material_override = Ink.toon(Ink.BOARD)
 	world.add_child(ground)
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	var only: int = args[args.find("--crew") + 1].to_int() if args.has("--crew") else -1
+	# A floor grid, so a foot that goes under the floor shows.
+	for k: int in range(-10, 11):
+		for horizontal: bool in [true, false]:
+			var bar := MeshInstance3D.new()
+			var box := BoxMesh.new()
+			box.size = Vector3(20, 0.004, 0.01) if horizontal else Vector3(0.01, 0.004, 20)
+			bar.mesh = box
+			bar.position = Vector3(0, 0.002, k * 0.25) if horizontal else Vector3(k * 0.25, 0.002, 0)
+			bar.material_override = Ink.toon(Color(0.35, 0.36, 0.40))
+			world.add_child(bar)
 	for i: int in CREW.size():
+		if only >= 0 and i != only:
+			continue
 		var parts := PackedStringArray(CREW[i])
 		var model: Node3D = ConstructView.build_parts(parts, db, Ink.YOURS)
 		Ink.dress_machine(model, parts, Ink.YOURS)
-		model.position = Vector3((float(i) - 1.0) * 1.7, 0.0, 0.0)
-		model.rotation_degrees.y = -30.0
+		model.position = Vector3((float(i) - 1.0) * 1.7, 0.0, 0.0) if only < 0 else Vector3.ZERO
+		model.rotation_degrees.y = -30.0 if only < 0 else -60.0
 		world.add_child(model)
 		var rig := ConstructRig.new()
 		rig.bind(model)
@@ -60,9 +77,13 @@ func _build() -> void:
 	var camera := Camera3D.new()
 	world.add_child(camera)
 	camera.current = true
-	camera.fov = 30.0
-	var aim := Vector3(0.0, 0.4, 0.3)
-	camera.look_at_from_position(aim + Vector3(0.0, 2.4, 8.5), aim, Vector3.UP)
+	camera.fov = 30.0 if only < 0 else 20.0
+	_camera = camera
+	if only >= 0:
+		_follow = camera.position
+	var aim := Vector3(0.0, 0.4, 0.3) if only < 0 else Vector3(0.0, 0.35, 0.3)
+	camera.look_at_from_position(aim + (Vector3(0.0, 2.4, 8.5) if only < 0 else Vector3(0.0, 0.9, 3.4)), aim, Vector3.UP)
+	_follow = camera.position
 	process_frame.connect(_tick)
 
 
@@ -76,7 +97,12 @@ func _tick() -> void:
 		var rig: ConstructRig = _rigs[i][0]
 		rig.update(delta)
 		if _walking:
-			(_models[i] as Node3D).position.z += delta * 0.25
+			var m: Node3D = _models[i]
+			m.position += -m.global_transform.basis.z * delta * 0.25
+	# Filming one machine, the camera follows it.
+	if _models.size() == 1:
+		var at: Vector3 = (_models[0] as Node3D).position
+		_camera.position = _follow + Vector3(at.x, 0.0, at.z)
 
 
 func _do(what: String) -> void:
@@ -97,6 +123,6 @@ func _do(what: String) -> void:
 			"hit":
 				rig.stagger(Vector3(0.0, 0.0, 1.0), 0.9)
 			"die":
-				rig.collapse(Vector3(-1.0, 0.0, 0.0))
+				rig.collapse(Vector3(0.0, 0.0, -1.0))
 			"end":
 				quit()
