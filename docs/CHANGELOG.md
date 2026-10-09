@@ -2,6 +2,13 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [057] IK walk, staged strikes, kneel-then-fall deaths — 2026-10-09 ([detail](iterations/057-ik-walk.md))
+
+### Changed
+- Generated machines walk by IK: feet planted on the floor and lifted on an arc, knees forward, no feet
+  under the ground, the Brute no longer bow-legged. Strikes are staged (wind-up, held impact, body in
+  it). Deaths kneel first, arms slack, then fall forward.
+
 ## [056] Skeletons and animation for generated machines — 2026-10-09 ([detail](iterations/056-skeletons.md))
 
 ### Added
