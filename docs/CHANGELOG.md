@@ -2,6 +2,18 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [059] Comic motion: every robot animation redone — 2026-10-09 ([detail](iterations/059-comic-motion.md))
+
+### Changed
+- Machines move pose to pose: anticipation held, smeared strikes, held impacts, rebound and settle. A run
+  in step with the ground with a gait per role; ten distinct weapon strikes; hits with a snap pose and
+  a stumble; deaths that snap, sputter, kneel and fall, played in the fight before the wreck turns to
+  scrap. The shot lands when the weapon does. A hex takes 0.20 s.
+
+### Fixed
+- Generated arms turned about random bone axes; the torso never moved its arms; the rigid roster's
+  legs cycled backwards; a death in a fight was a shrink.
+
 ## [058] Feet on the ground, knees as drawn, slump deaths — 2026-10-09 ([detail](iterations/058-anim-fixes.md))
 
 ### Fixed

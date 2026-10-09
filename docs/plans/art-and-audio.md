@@ -165,3 +165,11 @@ speed and focus lines, a panel border (in `ink_print.gdshader`) and page turns (
 titles (`UIKit.caption_title`), inked models (hatching in the shade band, a rim stroke, a brush line
 in `ink_outline.gdshader`), and story strips (`ComicStrip`, `CombatHUD.show_opening_strip`).
 Every new effect is drawn once behind the opening card. Contrast 2.92.
+
+## Motion (059)
+Machines move **pose to pose, like comic panels** (`ConstructRig`): every motion is a clip of key poses
+over named channels (body, upper body, each arm's joints, each foot), reached with SNAP / SMEAR / EASE /
+BACK / STEP curves and HELD. Anticipation is a held key before the action; the impact is a held pose,
+then a rebound past rest and a settle; stepped keys (no in-betweens) for sputters, ticks and grinds.
+Each weapon class has its own strike; each chassis role its own run. The fight shows a strike's effect
+at its impact (`strike` returns the lead), and a death plays out before the wreck becomes scrap.

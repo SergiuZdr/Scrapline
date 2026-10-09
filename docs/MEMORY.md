@@ -265,6 +265,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-09 | **Compute a rest pose from each generated arm's own geometry**: fixed angles pointed the guns at the sky. **Topple a wreck about its footprint's edge**: about the middle, half of it went under the floor (056) |
 | 2026-10-09 | **Walk a skeleton by placing its feet (IK), never by swinging angles**: angle swings on a splayed leg went sideways and under the floor. A walking body dips into its steps; bobbing up lifts the feet off the ground (057) |
 | 2026-10-09 | **Anchor IK feet in the GROUND's frame, not the body's**: a leaning or recoiling body carried its feet under the floor. Take each knee's bend side from the drawn model (bird legs bend back) and forward from the machine's -Z (058) |
+| 2026-10-09 | **Animate pose to pose** (held keys, SNAP/SMEAR/STEP curves, additive layers), **turn bones about the MACHINE's axes** (front is +Z; a generated bone's own X points anywhere), let the torso carry the sockets, and **show a strike's effect at its impact** (`strike` returns the lead). The rigid roster's legs had cycled backwards since the start (059) |
 
 ## Open questions
 
