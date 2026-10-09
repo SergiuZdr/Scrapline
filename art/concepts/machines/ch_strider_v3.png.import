@@ -2,19 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dn7ov1vhaaw0i"
-path="res://.godot/imported/ch_strider_Image_0.png-a28aafd0f8a6924c08f3a55323eeac4b.ctex"
+uid="uid://taqwgf51roxr"
+path="res://.godot/imported/ch_strider_v3.png-158fd9076d49aff0adad6ed03ccf0484.ctex"
 metadata={
 "vram_texture": false
-}
-generator_parameters={
-"md5": "5c694c40ab1d3d39b77337cb0ea2fecb"
 }
 
 [deps]
 
-source_file="res://art/parts_gen_scrap/ch_strider_Image_0.png"
-dest_files=["res://.godot/imported/ch_strider_Image_0.png-a28aafd0f8a6924c08f3a55323eeac4b.ctex"]
+source_file="res://art/concepts/machines/ch_strider_v3.png"
+dest_files=["res://.godot/imported/ch_strider_v3.png-158fd9076d49aff0adad6ed03ccf0484.ctex"]
 
 [params]
 
@@ -26,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

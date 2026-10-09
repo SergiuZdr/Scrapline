@@ -2,6 +2,12 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [058] Feet on the ground, knees as drawn, slump deaths — 2026-10-09 ([detail](iterations/058-anim-fixes.md))
+
+### Fixed
+- Feet stay on the floor however the body leans; reverse-jointed legs bend backwards; Relay walks
+  forward with its head facing forward; deaths are a slump onto the knees, feet planted.
+
 ## [057] IK walk, staged strikes, kneel-then-fall deaths — 2026-10-09 ([detail](iterations/057-ik-walk.md))
 
 ### Changed

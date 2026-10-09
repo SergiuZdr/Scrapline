@@ -190,13 +190,14 @@ const STEP_REACH: float = 0.22
 const STEP_LIFT: float = 0.16
 ## Feet are drawn in under the hips by this share of their sideways offset (the Brute's model
 ## stands wide; walking that wide read as bow-legged).
-const FEET_IN: float = 0.45
+const FEET_IN: float = 0.15
 ## The body dips as each leg passes under it (a heavy machine sinks into its stride).
 const STEP_DIP: float = 0.05
-## Death: the knees give first (the body drops this share of the hip height, feet planted), the
-## arms go slack, THEN it pitches forward.
-const KNEEL_DROP: float = 0.42
-const KNEEL_TIME: float = 0.45
+## Death (058): a machine that stops slumps -- knees give, the hips drop (this share of the leg),
+## the torso folds forward onto them, the arms hang. The feet stay planted on the floor.
+const KNEEL_DROP: float = 0.45
+const KNEEL_TIME: float = 0.55
+const SLUMP_PITCH: float = 0.55
 ## Weapons swung by hand hang at the side, weapon low; everything else is held up and aimed.
 const MELEE: PackedStringArray = ["hammer", "maul", "saw", "ripper"]
 ## Where the forearm points at rest, as a pitch below horizontal-forward (radians): a hand weapon
@@ -241,16 +242,22 @@ func bind(model: Node3D) -> void:
 		for bone: String in ["torso", "hip_l", "knee_l", "ankle_l", "hip_r", "knee_r", "ankle_r"]:
 			_frame_bones[bone] = frame.find_bone(bone)
 		_legs = {}
-		var toe_dir := Vector3.ZERO
+		# Forward is the MACHINE's (-Z of the body, the way it faces in a fight), carried into the
+		# skeleton's space -- toe-guessing pointed Relay backwards.
+		var skel_rel: Transform3D = _relative(frame)
+		_fwd = (skel_rel.basis.inverse() * Vector3(0, 0, -1))
+		_fwd.y = 0.0
+		_fwd = _fwd.normalized()
 		for tag: String in ["l", "r"]:
 			var h: Transform3D = frame.get_bone_global_rest(_frame_bones["hip_" + tag])
 			var k: Transform3D = frame.get_bone_global_rest(_frame_bones["knee_" + tag])
 			var a: Transform3D = frame.get_bone_global_rest(_frame_bones["ankle_" + tag])
-			_legs[tag] = {"hip": h, "knee": k, "ankle": a,
+			# Which way this knee bends, as drawn: forward (a person) or back (a bird's leg).
+			var line: Vector3 = (a.origin - h.origin).normalized()
+			var off: Vector3 = (k.origin - h.origin) - line * (k.origin - h.origin).dot(line)
+			var side: float = -1.0 if off.dot(_fwd) < -0.005 else 1.0
+			_legs[tag] = {"hip": h, "knee": k, "ankle": a, "side": side,
 				"l1": (k.origin - h.origin).length(), "l2": (a.origin - k.origin).length()}
-			toe_dir += a.basis.y
-		toe_dir.y = 0.0
-		_fwd = toe_dir.normalized() if toe_dir.length() > 0.01 else Vector3(0, 0, 1)
 	for slot: String in ["arm_l", "arm_r"]:
 		var arm: Node3D = _arm_l if slot == "arm_l" else _arm_r
 		var sk: Skeleton3D = _skeleton_in(arm, "shoulder") if arm != null else null
@@ -347,9 +354,13 @@ func _leg_length() -> float:
 ## 057: places each foot and solves its leg. `step` per leg is (forward share, lift share) of the
 ## leg's length; `drop` is how far the BODY has been lowered (skeleton units): the feet are raised
 ## by it in the skeleton's space, so they stay planted on the floor.
-func _walk_legs(step_l: Vector2, step_r: Vector2, drop: float) -> void:
+func _walk_legs(step_l: Vector2, step_r: Vector2, _drop: float = 0.0) -> void:
 	if _frame_skel == null or not is_instance_valid(_frame_skel) or _legs.is_empty():
 		return
+	# 058: feet are placed in the GROUND's frame (the machine standing upright where it stands) and
+	# carried into the skeleton as it is now -- leaning, recoiling, dipping, kneeling -- so a foot
+	# never follows the body under the floor.
+	var to_now: Transform3D = _ground_to_skeleton()
 	for tag: String in ["l", "r"]:
 		var leg: Dictionary = _legs[tag]
 		var hip: Transform3D = leg["hip"]
@@ -357,9 +368,35 @@ func _walk_legs(step_l: Vector2, step_r: Vector2, drop: float) -> void:
 		var length: float = float(leg["l1"]) + float(leg["l2"])
 		var step: Vector2 = step_l if tag == "l" else step_r
 		var foot: Vector3 = ankle.origin
-		foot.x = lerpf(foot.x, hip.origin.x, FEET_IN)
-		foot += _fwd * step.x * length + Vector3.UP * (step.y * length + drop)
-		_solve_leg(tag, foot)
+		var inward: Vector3 = hip.origin - ankle.origin
+		inward -= _fwd * inward.dot(_fwd)
+		inward.y = 0.0
+		foot += inward * FEET_IN
+		foot += _fwd * step.x * length + Vector3.UP * maxf(step.y * length, 0.0)
+		_solve_leg(tag, to_now * foot)
+
+
+## The skeleton's frame as it would be with the body standing upright at its base (no lean, no
+## recoil, no dip), mapped into the skeleton's frame as it is now.
+func _ground_to_skeleton() -> Transform3D:
+	if not _body.is_inside_tree():
+		return Transform3D.IDENTITY
+	var parent: Node3D = _body.get_parent() as Node3D
+	var parent_global: Transform3D = parent.global_transform if parent != null else Transform3D.IDENTITY
+	var upright := Transform3D(Basis.from_euler(Vector3(0.0, _base_yaw, 0.0)).scaled(_body.scale), _base)
+	var rel: Transform3D = _relative(_frame_skel)
+	return _frame_skel.global_transform.affine_inverse() * parent_global * upright * rel
+
+
+## `node`'s transform in the body's own frame.
+func _relative(node: Node3D) -> Transform3D:
+	var t: Transform3D = Transform3D.IDENTITY
+	var n: Node = node
+	while n != null and n != _body:
+		if n is Node3D:
+			t = (n as Node3D).transform * t
+		n = n.get_parent()
+	return t
 
 
 ## Two-bone IK in the plane of hip, foot and the walk's forward: the knee always bends FORWARD.
@@ -381,8 +418,9 @@ func _solve_leg(tag: String, foot: Vector3) -> void:
 	# Knee: the law of cosines, bent toward the forward side of the hip-foot line.
 	var along: float = (l1 * l1 - l2 * l2 + d * d) / (2.0 * d)
 	var out: float = sqrt(maxf(l1 * l1 - along * along, 0.0))
-	var bend: Vector3 = (_fwd - dir * _fwd.dot(dir))
-	bend = bend.normalized() if bend.length() > 0.001 else _fwd
+	var pole: Vector3 = _fwd * float(leg["side"])
+	var bend: Vector3 = (pole - dir * pole.dot(dir))
+	bend = bend.normalized() if bend.length() > 0.001 else pole
 	var knee: Vector3 = h + dir * along + bend * out
 	var hip_rot := Quaternion((knee_rest.origin - h).normalized(), (knee - h).normalized())
 	var knee_rot := Quaternion((ankle_rest.origin - knee_rest.origin).normalized(), (foot - knee).normalized())
@@ -436,7 +474,7 @@ func update(delta: float, speed_scale: float = 1.0) -> void:
 	# legs; the hips dip as each leg passes under.
 	if _frame_skel != null:
 		_dip = STEP_DIP * stride * absf(sin(_phase)) * _leg_length()
-		_walk_legs(_foot_step(_phase) * stride, _foot_step(_phase + PI) * stride, _dip)
+		_walk_legs(_foot_step(_phase) * stride, _foot_step(_phase + PI) * stride)
 
 	# Two bobs per stride: the body rises as each leg passes under it. (A skeleton frame sinks into
 	# its legs instead, above -- lifting its body lifted its feet off the floor.)
@@ -720,19 +758,25 @@ func reset_transients() -> void:
 func _advance_fall(delta: float) -> void:
 	_advance_reactions(delta)
 
-	# 057: a skeleton machine drops to its knees first -- hips sink, feet stay planted, the arms
-	# go slack -- and only then pitches over. Toppling stiff-legged read as a statue pushed over.
-	if _frame_skel != null and _kneel < 1.0:
+	# 058: a skeleton machine slumps where it stands -- knees give, hips drop, the torso folds
+	# forward over them, the arms hang -- with its feet planted on the floor (the IK holds them).
+	# It does not topple: a toppled generated frame lay half through the floor and read as nothing.
+	if _frame_skel != null:
 		_kneel = move_toward(_kneel, 1.0, delta / KNEEL_TIME)
-		var k: float = ease(_kneel, 0.5)
-		var drop: float = KNEEL_DROP * _leg_length() * k
-		_walk_legs(Vector2(0.08 * k, 0.0), Vector2(-0.06 * k, 0.0), drop)
-		for slot: String in _arm_skel:
-			_arm_offset[slot] = Vector3(-0.55, -(_stance.get(slot, Vector3.ZERO) as Vector3).y * 0.8, 0.4) * k
-		_pose_arms()
+		var k: float = ease(_kneel, 0.4)
+		var drop: float = KNEEL_DROP * _leg_length() * _body.scale.y * k
 		var yaw0 := Basis.from_euler(Vector3(0.0, _base_yaw, 0.0))
-		_body.transform.basis = yaw0 * Basis(_fall_axis, 0.12 * k)
-		_body.position = _base + Vector3(_recoil.x, _recoil.y - drop * _body.scale.y, _recoil.z)
+		_body.transform.basis = yaw0 * Basis(Vector3.RIGHT, -SLUMP_PITCH * k)
+		_body.position = _base + Vector3(_recoil.x, _recoil.y - drop, _recoil.z)
+		_walk_legs(Vector2.ZERO, Vector2.ZERO)
+		for slot: String in _arm_skel:
+			_arm_offset[slot] = Vector3(0.0, -(_stance.get(slot, Vector3.ZERO) as Vector3).y * 0.9, 0.35) * k
+		var arm_hang: float = SLUMP_PITCH * k * 0.9
+		if _arm_l != null and is_instance_valid(_arm_l):
+			_arm_l.rotation.x = arm_hang
+		if _arm_r != null and is_instance_valid(_arm_r):
+			_arm_r.rotation.x = arm_hang
+		_pose_arms()
 		return
 
 	if _fall < FALL_REST:
@@ -755,9 +799,6 @@ func _advance_fall(delta: float) -> void:
 		_leg_l.rotation.x = fold
 	if _leg_r != null and is_instance_valid(_leg_r):
 		_leg_r.rotation.x = fold * 0.72  # asymmetric: one knee gives before the other
-	# 057: a skeleton frame stays on its knees as it goes over.
-	if _frame_skel != null:
-		_walk_legs(Vector2(0.08, 0.0), Vector2(-0.06, 0.0), KNEEL_DROP * _leg_length())
 
 	# Yaw first, then the topple in the construct's OWN frame. Composed rather than
 	# written as euler angles so the machine falls the way it was facing; building the
