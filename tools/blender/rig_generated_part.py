@@ -336,6 +336,114 @@ def rust_map(obj, out_png, passes=60):
     print("rust: %.0f%% of the texture -> %s" % (100.0 * rust.mean(), out_png))
 
 
+# 056: a skeleton per part, with STANDARD bone names, so one animation drives any part of its slot
+# (the user picked full skeletons over rigid pieces). Mechanical parts bend at joints only, so every
+# vertex is bound RIGIDLY to one bone (weight 1), never blended.
+ARM_BONES = ("shoulder", "elbow", "wrist")
+
+
+def _shell(points, origin, lo_share, hi_share, length):
+    """Centroid of the points whose distance from `origin` is between two shares of `length`: on a
+    jointed limb drawn in any pose (hanging, bent, held out) that ring is where the joint is."""
+    sel = [p for p in points if lo_share * length <= (p - origin).length <= hi_share * length]
+    if not sel:
+        return None
+    return sum(sel, Vector()) / len(sel)
+
+
+def _chain(points, origin, shares):
+    """Joints along a limb from `origin` to its farthest point: one per share of the length."""
+    tip = max(points, key=lambda p: (p - origin).length)
+    length = (tip - origin).length
+    joints = []
+    for share in shares:
+        j = _shell(points, origin, share - 0.04, share + 0.04, length)
+        joints.append(j if j is not None else origin.lerp(tip, share))
+    return joints, tip
+
+
+def build_armature(name, bones, parent_of):
+    """`bones` maps a bone name to (head, tail); `parent_of` maps a bone to its parent. Every bone's
+    local X is the machine's lateral axis, so a positive or negative X turn bends a joint forward
+    or back whatever the pose."""
+    arm_data = bpy.data.armatures.new(name)
+    rig = bpy.data.objects.new(name, arm_data)
+    bpy.context.scene.collection.objects.link(rig)
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.mode_set(mode="EDIT")
+    for bone, (head, tail) in bones.items():
+        eb = arm_data.edit_bones.new(bone)
+        eb.head, eb.tail = head, tail
+        if (tail - head).length < 1e-3:
+            eb.tail = head + Vector((0.0, 0.0, -0.03))
+        eb.align_roll(Vector((0.0, -1.0, 0.0)) if abs((eb.tail - eb.head).normalized().y) < 0.9 else Vector((0.0, 0.0, 1.0)))
+    for bone, parent in parent_of.items():
+        arm_data.edit_bones[bone].parent = arm_data.edit_bones[parent]
+    bpy.ops.object.mode_set(mode="OBJECT")
+    return rig
+
+
+def bind_rigid(obj, rig, pick):
+    """Each vertex to ONE bone (`pick(co) -> bone name`)."""
+    groups = {}
+    for b in rig.data.bones:
+        groups[b.name] = obj.vertex_groups.new(name=b.name)
+    by_bone = {}
+    for v in obj.data.vertices:
+        by_bone.setdefault(pick(v.co), []).append(v.index)
+    for bone, idx in by_bone.items():
+        groups[bone].add(idx, 1.0, "REPLACE")
+    mod = obj.modifiers.new("skeleton", "ARMATURE")
+    mod.object = rig
+    obj.parent = rig
+    return {k: len(v) for k, v in by_bone.items()}
+
+
+def skeleton_arm(obj, spec):
+    pts = [v.co.copy() for v in obj.data.vertices]
+    origin = Vector((0.0, 0.0, 0.0))
+    shares = spec.get("joints", [0.42, 0.72])
+    (elbow, wrist), tip = _chain(pts, origin, shares)
+    rig = build_armature(obj.name + "_rig", {"shoulder": (origin, elbow), "elbow": (elbow, wrist), "wrist": (wrist, tip)},
+                         {"elbow": "shoulder", "wrist": "elbow"})
+    de, dw = elbow.length, wrist.length
+    counts = bind_rigid(obj, rig, lambda c: "shoulder" if c.length < de else ("elbow" if c.length < dw else "wrist"))
+    print("skeleton arm: elbow %s wrist %s tip %s %s" % (tuple(round(x, 3) for x in elbow), tuple(round(x, 3) for x in wrist),
+                                                       tuple(round(x, 3) for x in tip), counts))
+    return rig
+
+
+def skeleton_frame(obj, spec):
+    hip_z, hip_x, pelvis = spec["hip_z"], spec["hip_x"], spec.get("pelvis_x", 0.0)
+    bones = {"torso": (Vector((0.0, 0.0, hip_z)), Vector((0.0, 0.0, hip_z + 0.2)))}
+    parents = {}
+    cut_at = {}
+    for side, tag in ((-1.0, "l"), (1.0, "r")):
+        hip = Vector((side * hip_x, 0.0, hip_z))
+        leg = [v.co.copy() for v in obj.data.vertices if v.co.z < hip_z and v.co.x * side > pelvis]
+        (knee, ankle), toe = _chain(leg, hip, spec.get("leg_joints", [0.5, 0.86]))
+        bones["hip_" + tag] = (hip, knee)
+        bones["knee_" + tag] = (knee, ankle)
+        bones["ankle_" + tag] = (ankle, Vector((ankle.x, toe.y, 0.0)))
+        parents["knee_" + tag] = "hip_" + tag
+        parents["ankle_" + tag] = "knee_" + tag
+        cut_at[tag] = (hip, (knee - hip).length, (ankle - hip).length)
+        print("skeleton leg %s: knee %s ankle %s" % (tag, tuple(round(x, 3) for x in knee), tuple(round(x, 3) for x in ankle)))
+    rig = build_armature(obj.name + "_rig", bones, parents)
+
+    def pick(c):
+        if c.z >= hip_z or abs(c.x) <= pelvis:
+            return "torso"
+        tag = "l" if c.x < 0 else "r"
+        hip, dk, da = cut_at[tag]
+        d = (c - hip).length
+        return "hip_" + tag if d < dk else ("knee_" + tag if d < da else "ankle_" + tag)
+
+    counts = bind_rigid(obj, rig, pick)
+    print("skeleton frame:", counts)
+    return rig
+
+
 def chassis(obj, spec):
     size_to(obj, spec["size"], True)
     lo, hi = bounds(obj)
@@ -366,6 +474,14 @@ def chassis(obj, spec):
         gone = delete_faces(obj, lambda c: abs(c.x) > ax and c.z < az)
         print("arms cut: %d faces outboard of %.3f below %.3f" % (gone, ax, az))
     hip_z, hip_x, pelvis = spec["hip_z"], spec["hip_x"], spec.get("pelvis_x", 0.0)
+    if spec.get("skeleton", False):
+        rig = skeleton_frame(obj, spec)
+        for name, at in spec["sockets"].items():
+            empty = bpy.data.objects.new(name, None)
+            bpy.context.scene.collection.objects.link(empty)
+            empty.location = Vector(at)
+            parent_keep(empty, rig)
+        return [obj], rig
     cut(obj, Vector((0, 0, hip_z)), Vector((0, 0, 1)))
     legs = {}
     for name, side in (("limb_leg_l", -1.0), ("limb_leg_r", 1.0)):
@@ -382,7 +498,7 @@ def chassis(obj, spec):
         bpy.context.scene.collection.objects.link(empty)
         empty.location = Vector(at)
         parent_keep(empty, obj)
-    return [obj] + list(legs.values())
+    return [obj] + list(legs.values()), None
 
 
 def drop_shadow(obj, lum_min=0.42, sat_max=0.28, share=0.6, low=0.25):
@@ -475,12 +591,12 @@ def attachment(obj, spec):
             ring = Vector((lo.x, sum(c.y for c in near) / len(near), sum(c.z for c in near) / len(near)))
             obj.data.transform(Matrix.Translation(-ring + Vector(spec.get("offset", [0, 0, 0]))))
             print("ring mount at %s" % (tuple(round(x, 3) for x in ring),))
-            return [obj]
+            return [obj], (skeleton_arm(obj, spec) if spec.get("skeleton", False) and spec["slot"] == "arm" else None)
     point = {"top": Vector((mid.x, mid.y, hi.z)),
              "back": Vector((mid.x, hi.y, mid.z)),
              "front": Vector((mid.x, lo.y, mid.z))}[spec["mount"]]
     obj.data.transform(Matrix.Translation(-point + Vector(spec.get("offset", [0, 0, 0]))))
-    return [obj]
+    return [obj], (skeleton_arm(obj, spec) if spec.get("skeleton", False) and spec["slot"] == "arm" else None)
 
 
 def preview(objects, prefix):
@@ -544,7 +660,7 @@ def main():
     part_id = os.path.splitext(os.path.basename(a.out))[0]
     obj.name = part_id
     obj.data.name = part_id
-    objects = chassis(obj, spec) if spec["slot"] == "chassis" else attachment(obj, spec)
+    objects, rig = chassis(obj, spec) if spec["slot"] == "chassis" else attachment(obj, spec)
     after = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in objects)
     bpy.context.view_layer.update()
     for o in objects:
@@ -555,7 +671,7 @@ def main():
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     bpy.ops.object.select_all(action="DESELECT")
     for o in bpy.context.scene.objects:
-        o.select_set(o in objects or (o.type == "EMPTY" and o.parent in objects))
+        o.select_set(o in objects or o == rig or (o.type == "EMPTY" and (o.parent in objects or (rig is not None and o.parent == rig))))
     bpy.ops.export_scene.gltf(filepath=a.out, export_format="GLB", use_selection=True,
                               export_yup=True, export_texcoords=style != "zones", export_normals=True)
     if a.preview:
