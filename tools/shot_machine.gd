@@ -5,7 +5,7 @@ extends SceneTree
 ##
 ##   godot --path . --resolution 900x1100 --script res://tools/shot_machine.gd -- \
 ##       --models gen --gen-dir res://art/parts_gen_scrap --yaw 45,25,0 --out shots/brute
-##       [--parts ch_brute,co_slug,ar_saw,ar_hammer,mo_scavenger] [--level 0..5]
+##       [--parts ch_brute,co_slug,ar_saw,ar_hammer,mo_scavenger] [--level 0..5] [--walk seconds]
 ##
 ## Writes `<out>_<yaw>.png` per angle: 0 is the machine's front to the camera, 45 is three-quarter.
 ## Not headless: it has to render.
@@ -43,6 +43,25 @@ func _run() -> void:
 	var model: Node3D = ConstructView.build_parts(parts, db, Ink.YOURS, level)
 	Ink.dress_machine(model, parts, Ink.YOURS)
 	world.add_child(model)
+	# 056: the rest pose of a skeleton machine comes from its rig (stances by weapon class).
+	var rig := ConstructRig.new()
+	rig.bind(model)
+	var classes := PackedStringArray()
+	for i: int in [2, 3]:
+		classes.append(String((db.parts.get(PartTuning.base_of(parts[i]), {}) as Dictionary).get("weapon_class", "")) if i < parts.size() else "")
+	rig.set_stances(classes)
+	if args.has("--aabb"):
+		for m: MeshInstance3D in ConstructView.meshes_of(model):
+			m.custom_aabb = AABB(Vector3(-2, -2, -2), Vector3(4, 4, 4))
+	if args.has("--die"):
+		rig.collapse(Vector3(1.0, 0.0, 0.0))
+		for i: int in 120:
+			rig.update(1.0 / 60.0)
+	var walk: float = args[args.find("--walk") + 1].to_float() if args.has("--walk") else -1.0
+	if walk >= 0.0:
+		rig.set_moving(true)
+		for i: int in 60:
+			rig.update(walk / 60.0)
 
 	var camera := Camera3D.new()
 	world.add_child(camera)

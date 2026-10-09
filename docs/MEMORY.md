@@ -131,6 +131,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-08 | **Machine concepts come from ChatGPT Images, one chat per machine** (whole machine first, then each part against it), saved by `chatgpt_show.js` + `grab_crop.py` (051) | The user: FLUX "always looks kinda bad, with inconsistent design and flaws"; they picked ChatGPT of four generators |
 | 2026-10-08 | **A part wears its maker's paint and is patched with plates off other machines** (051) | The user: the robots must read as scrap, "made from different machines", and must not push one build |
 | 2026-10-08 | **A generated machine shows its level as rust wearing off** (`<part>_clean.png`, `ink_toon` `clean`), not the bolted kit (053) | The user: "i want the robots to have lesser rusty parts with each upgrade" |
+| 2026-10-09 | **Generated parts carry skeletons with standard bone names** (frame torso/hip/knee/ankle, arm shoulder/elbow/wrist), driven by ConstructRig; rest pose by weapon (056) | The user picked full skeletons, and hand weapons at the side, guns aimed |
 
 ## Lessons carried over from the old codebase
 
@@ -261,6 +262,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-08 | **A generated arm comes in the concept's pose**: turn its shoulder ring to the body, then check the weapon against the shoulder (`rotate`, `twist`). A generated frame's sockets are exact: never push its arms (053) |
 | 2026-10-08 | **Mount a generated arm by its shoulder ring, not its bounding box** (`mount: "ring"`): bolted by its top centre, the Brute's arms hung through its body and legs (054) |
 | 2026-10-09 | **Set an arm's pose in the concept, never twist the mesh**: one drawn layout for all arms (shoulder face to the viewer, elbow with piston, weapon toward the bend); the 053 twist mangled the wrist. Frames are drawn bare -- no core, module or rack (055) |
+| 2026-10-09 | **Compute a rest pose from each generated arm's own geometry**: fixed angles pointed the guns at the sky. **Topple a wreck about its footprint's edge**: about the middle, half of it went under the floor (056) |
 
 ## Open questions
 

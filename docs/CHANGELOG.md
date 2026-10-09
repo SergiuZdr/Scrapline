@@ -2,6 +2,14 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [056] Skeletons and animation for generated machines — 2026-10-09 ([detail](iterations/056-skeletons.md))
+
+### Added
+- Every generated part has a skeleton with standard bones; knees bend when walking, arms rest by
+  weapon (hand weapons at the side, guns aimed), elbows work in strikes, knees fold on death.
+### Fixed
+- Wrecks no longer sink halfway into the floor: they tip over the edge of their footprint.
+
 ## [055] The starting crew as comic scrap — 2026-10-09 ([detail](iterations/055-crew-scrap.md))
 
 ### Added
