@@ -15,6 +15,12 @@ var _model: Node3D
 var _holder: Node3D
 var _t: int = 0
 var _db: ContentDB
+## 064: how far the wreck's middle travels sideways while it goes over, and after it lands (drift).
+var _last_mid: Vector2 = Vector2.INF
+var _path_fall: float = 0.0
+var _path_lying: float = 0.0
+var _fall_start: Vector2 = Vector2.INF
+var _fall_dir_seen: Vector3 = Vector3.ZERO
 
 func _initialize() -> void:
 	_db = ContentDB.load_all()
@@ -45,12 +51,31 @@ func _next() -> void:
 	_rig.collapse(Vector3(0, 0, -1))
 	_rig.set_meta("job", "%s %d arms" % [job[0][0], job[1]])
 	_t = 0
+	_last_mid = Vector2.INF
+	_path_fall = 0.0
+	_path_lying = 0.0
+	_fall_start = Vector2.INF
 
 func _tick() -> void:
 	if _rig == null:
 		return
 	_rig.update(1.0 / 30.0)
 	_t += 1
+	var mid := Vector2.ZERO
+	for e: Array in _rig._skin_points:
+		var sk: Skeleton3D = e[0]
+		var o: Vector3 = (sk.global_transform * sk.get_bone_global_pose(int(e[1]))).origin
+		mid += Vector2(o.x, o.z)
+	mid /= maxf(1.0, float(_rig._skin_points.size()))
+	if _rig._death_clock >= _rig._stand_time:
+		if _fall_start == Vector2.INF:
+			_fall_start = mid
+			_fall_dir_seen = _rig._fall_dir
+		elif _rig._landed == 0:
+			_path_fall += mid.distance_to(_last_mid)
+		else:
+			_path_lying += mid.distance_to(_last_mid)
+	_last_mid = mid
 	if _t == 150:
 		var low: float = _rig.lowest_point()
 		var high: float = -INF
@@ -66,6 +91,9 @@ func _tick() -> void:
 		print("fall %.3f vel %.4f clock %.2f stand %.2f" % [_rig._fall, _rig._fall_velocity, _rig._death_clock, _rig._stand_time])
 		print("%-22s settled %s  low %.3f high %.3f  up %s  parts %d farthest %.2f m" % [_rig.get_meta("job"), _rig.is_settled(), low, high,
 			str(_model.global_transform.basis.y.normalized().snapped(Vector3.ONE * 0.01)), _rig._loose.size(), far])
+		print("    slide %s body %s" % [str(_rig._slide), str(_rig._body.global_position)])
+		print("    falls %s  middle moved %.2f m going over, %.3f m after landing, ends %.2f m from the hex middle" % [
+			str(_fall_dir_seen.snapped(Vector3.ONE * 0.01)), _path_fall, _path_lying, mid.length()])
 		_holder.queue_free()
 		_rig = null
 		_next.call_deferred()

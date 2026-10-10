@@ -927,7 +927,8 @@ func _death_two(fall: Vector3) -> Array:
 	keys.append([0.16, head_up, EASE])
 	keys.append([0.12, head_up, STEP])
 	keys.append([0.14, bow, SMEAR])
-	return [keys, bow, fall]
+	# 064: backwards, whichever side the hit came from (the user: never on its side).
+	return [keys, bow, -FWD]
 
 
 ## One arm: knocked back two stumbling steps, it hunches and clutches its chest with the arm it
@@ -972,15 +973,13 @@ func _death_one(fall: Vector3) -> Array:
 	keys.append([0.10, sag, SNAP])
 	keys.append([0.20, kneel, SMEAR])
 	keys.append([0.18, kneel, STEP])
-	# Forward: toward what killed it.
-	return [keys, kneel, -fall]
+	# Forward, on its face (064: never on its side).
+	return [keys, kneel, FWD]
 
 
-## No arms: it looks down at one stump, then the other; it sways, wider each time; a knee gives
-## on one side and it topples over that way.
+## No arms: it looks down at one stump, then the other; it sways, wider each time; both knees
+## give, it sits back on its heels and goes over backwards (064: never on its side).
 func _death_none(fall: Vector3) -> Array:
-	var side := Vector3(1, 0, 0) if fall.x >= 0.0 else Vector3(-1, 0, 0)
-	var s: float = side.x
 	var jolt: PackedFloat32Array = _push_pose(fall, 1.0)
 	jolt[DROP] = 0.06
 	var look_a := _p({"twist": 0.0, "tpitch": 0.28, "drop": 0.08})
@@ -1004,15 +1003,13 @@ func _death_none(fall: Vector3) -> Array:
 		k[ROLL] = -w * 0.8
 		keys.append([0.20, k, EASE])
 	keys.append([0.0, keys[keys.size() - 1][1], STEP, _break_part.bind("part_module", Vector3(0, 0, -1), 1.0)])
-	# The knee on the falling side gives: that foot slides out, the body drops and leans over it.
-	var give := _p({"tpitch": 0.25, "drop": 0.22})
-	give[SWAY] = s * 0.10
-	give[ROLL] = -s * 0.22
-	var foot: int = LF_F if s == _hip_side(0) else RF_F
-	give[foot + 2] = 0.18
+	# Both knees give: it drops straight down, head bowed, and sits back.
+	var give := _p({"tpitch": 0.30, "drop": 0.28, "surge": -0.04})
+	var sit := _plus(give, _p({"tpitch": -0.12, "pitch": -0.06}))
 	keys.append([0.18, give, SMEAR])
 	keys.append([0.16, give, STEP])
-	return [keys, give, side]
+	keys.append([0.16, sit, EASE])
+	return [keys, sit, -FWD]
 
 
 # --- 060/061: parts that break off -------------------------------------------------------
@@ -1883,8 +1880,11 @@ func _keep_above_floor() -> void:
 			n += 1
 		if n > 0:
 			mid /= float(n)
+			# 064: an offset, never a running sum. The body is placed afresh every frame, so the
+			# middle measured here never includes the last frame's slide; summing it moved a lying
+			# wreck 6-9 m across the board.
 			var off := Vector2(mid.x - parent.global_position.x, mid.z - parent.global_position.z)
-			_slide += off * -0.15 * smoothstep(0.2, 1.0, _fall / FALL_REST)
+			_slide = -off * smoothstep(0.2, 1.0, _fall / FALL_REST)
 		_body.global_position += Vector3(_slide.x, 0.0, _slide.y)
 
 

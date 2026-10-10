@@ -300,12 +300,12 @@ func _test_collapse_falls_over() -> void:
 
 
 func _test_collapse_direction() -> void:
-	# A machine killed from the front goes over BACKWARDS. Falling the same way every
-	# time regardless of what killed it is the tell that the direction was never wired.
+	# 064: never on its side (the user). With both arms it goes over BACKWARDS from whichever side
+	# the hit came; with one, forward on its face; with none, backwards (`_death_two/_one/_none`).
 	for case: Dictionary in [
-		{"name": "front", "push": Vector3(0, 0, 1), "axis": 2, "sign": 1.0},
+		{"name": "front", "push": Vector3(0, 0, 1), "axis": 2, "sign": -1.0},
 		{"name": "back", "push": Vector3(0, 0, -1), "axis": 2, "sign": -1.0},
-		{"name": "left", "push": Vector3(1, 0, 0), "axis": 0, "sign": 1.0},
+		{"name": "left", "push": Vector3(1, 0, 0), "axis": 2, "sign": -1.0},
 	]:
 		var model: Node3D = _model()
 		var rig := ConstructRig.new()
@@ -315,8 +315,8 @@ func _test_collapse_direction() -> void:
 		# Once it is flat, the body's own UP axis points the way it fell.
 		var up: Vector3 = model.transform.basis.y
 		var component: float = up[case["axis"]]
-		_check("killed from the %s, it falls that way (%.2f)" % [case["name"], component],
-			signf(component) == case["sign"] and absf(component) > 0.7)
+		_check("killed from the %s, it falls backwards, not on its side (%.2f, sideways %.2f)" % [case["name"], component, up.x],
+			signf(component) == case["sign"] and absf(component) > 0.7 and absf(up.x) < 0.3)
 
 
 func _test_collapse_is_idempotent() -> void:
@@ -370,7 +370,8 @@ func _test_real_chassis_binds() -> void:
 		_run(rig, 0.5)
 		checked += 1
 		var leg: Node3D = _find(model, "limb_leg_l")
-		if leg != null and absf(leg.rotation.x) > 0.001:
+		# 064: a generated frame (the default) walks on its skeleton's legs, solved by the rig.
+		if (leg != null and absf(leg.rotation.x) > 0.001) or rig._legs.size() == 2:
 			walked += 1
 		model.free()
 	_check("every chassis has legs the rig can drive (%d/%d)" % [walked, checked],
