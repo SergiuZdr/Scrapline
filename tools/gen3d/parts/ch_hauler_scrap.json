@@ -1,5 +1,5 @@
 {
-  "_comment": "055: Needle's frame from a ChatGPT concept (art/concepts/machines/ch_hauler_scrap.png), TRELLIS on Hugging Face (Colab's free GPU hit its daily limit). Only head, torso, hips, legs (the user: no modules baked into the frame). Numbers from its width profile at 0.7 m: shoulder drums end at |x| 0.157 around z 0.5-0.6, legs part below 0.28. 061: foot_top 0.045 (the ankle at the top of the foot plate, the plate bound to it).",
+  "_comment": "055: Needle's frame from a ChatGPT concept (art/concepts/machines/ch_hauler_scrap.png), TRELLIS on Hugging Face (Colab's free GPU hit its daily limit). Only head, torso, hips, legs (the user: no modules baked into the frame). Numbers from its width profile at 0.7 m: shoulder drums end at |x| 0.157 around z 0.5-0.6, legs part below 0.28. 061: foot_top 0.045 (the ankle at the top of the foot plate, the plate bound to it). 062: arm sockets moved to the CENTRE of each shoulder's outer face (measured on the mesh: they sat low and behind it, the user: arms too far from the frame and not centred on the visual socket).",
   "slot": "chassis",
   "size": 0.7,
   "floor": 0.03,
@@ -11,14 +11,14 @@
   "pelvis_x": 0.03,
   "sockets": {
     "socket_arm_l": [
-      -0.157,
-      0.0,
-      0.53
+      -0.152,
+      -0.028,
+      0.547
     ],
     "socket_arm_r": [
-      0.157,
-      0.0,
-      0.53
+      0.152,
+      -0.028,
+      0.547
     ],
     "socket_core": [
       0.0,

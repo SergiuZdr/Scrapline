@@ -86,6 +86,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 059 | [Comic motion](iterations/059-comic-motion.md) | Every robot animation redone pose to pose: run, strikes, hits, deaths; impact-timed shots; deaths played in the fight | ✅ awaiting the user's look |
 | 060 | [Motion, second pass](iterations/060-motion-pass2.md) | Feet never under the floor (measured), longer Brute legs, level-aimed guns, a death that falls apart | ✅ awaiting the user's look |
 | 061 | [Death on its hex, solid parts](iterations/061-death-feet.md) | Solid loose parts that stay on the hex, a shallower kneel, legs out when lying, foot plates bound to the ankle, the Brute's crotch and stance | ✅ awaiting the user's look |
+| 062 | [Deaths by loadout, arm mounts](iterations/062-deaths-mounts.md) | Three deaths (2/1/0 arms), wrecks flat on the floor over their hex, Needle's and Relay's arms on their shoulders | ✅ awaiting the user's look |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
