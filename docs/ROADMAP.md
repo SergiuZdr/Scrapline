@@ -89,6 +89,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 062 | [Deaths by loadout, arm mounts](iterations/062-deaths-mounts.md) | Three deaths (2/1/0 arms), wrecks flat on the floor over their hex, Needle's and Relay's arms on their shoulders | ✅ awaiting the user's look |
 | 063 | [Cleanup](iterations/063-cleanup.md) | The battler's leftovers deleted: `legacy/`, the real-time sim classes, `balance.json` (wheel into `rules.json`), unread content tables, unused art (~130 MB) and one-off tools; CLAUDE.md trimmed | ✅ |
 | 064 | [Generated machines by default](iterations/064-default-gen.md) | The generated machines are the default; deaths never fall sideways; the wreck no longer slides 6-9 m after landing | ✅ |
+| 065 | [Death effects](iterations/065-death-fx.md) | Core and backpack explode instead of falling through the frame; deaths 1.7x faster; KA-BLAM/BOOM/THUD effects in the fight | ✅ |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
