@@ -176,48 +176,33 @@ func _star_texture() -> ImageTexture:
 
 ## A destroyed construct throws debris. This is the one effect allowed to be loud --
 ## a kill is the most important thing that happens in a cycle.
+## 066: DRAWN, like the rest of the game (the user: comic, Borderlands -- not realistic): ink-edged
+## shards that pop out of a cartoon blast and shrink away.
 func destruction(at: Vector3, colour: Color) -> void:
-	var origin: Vector3 = at + Vector3(0, 0.6, 0)
-	for i: int in 14:
-		var chunk := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(randf_range(0.05, 0.11), randf_range(0.05, 0.11), randf_range(0.05, 0.11))
-		chunk.mesh = box
-		# Scorched metal, LIT, with only a trace of team colour -- not an unshaded block
-		# of the team's paint. Flat team-coloured cubes lying near a construct are
-		# indistinguishable from pieces of that construct that have fallen off, and they
-		# were being read as exactly that: the "floating parts" on an intact machine were
-		# this effect, not the model.
-		var material := StandardMaterial3D.new()
-		material.albedo_color = Color("2f2a25").lerp(colour, 0.18).darkened(
-			randf_range(0.0, 0.25))
-		material.roughness = 0.92
-		material.metallic = 0.35
-		chunk.material_override = Ink.hold(material)
-		chunk.position = origin
-		add_child(chunk)
-
-		var direction := Vector3(
-			randf_range(-1.0, 1.0), randf_range(0.4, 1.2), randf_range(-1.0, 1.0)).normalized()
-		var landing: Vector3 = origin + direction * randf_range(0.7, 1.7)
-		landing.y = 0.05
-
-		var tween := create_tween()
-		tween.tween_property(chunk, "position", origin + direction * 0.9 + Vector3(0, 0.5, 0), 0.22) \
-			.set_ease(Tween.EASE_OUT)
-		tween.tween_property(chunk, "position", landing, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-		tween.parallel().tween_property(chunk, "rotation", Vector3(
-			randf_range(-6, 6), randf_range(-6, 6), randf_range(-6, 6)), 0.72)
-		# Cleared quickly. Debris that lies about on the ground accumulates over a battle
-		# into a field of small boxes the player has to mentally filter out of the fight.
-		tween.tween_interval(0.15)
-		tween.tween_property(chunk, "scale", Vector3.ZERO, 0.22)
-		tween.tween_callback(chunk.queue_free)
-
-	# A kill burns: a small fireball and smoke on top of the debris.
+	shards(at + Vector3(0, 0.5, 0), 9, 1.2)
 	fireball(at, 0.55)
 	shake(1.0)
 	hitstop(0.09)
+
+
+## Ink-edged scrap shards thrown in arcs from `at`; they shrink to nothing where they land.
+func shards(at: Vector3, count: int, force: float = 1.0) -> void:
+	var tex: Texture2D = _shard_texture()
+	for i: int in count:
+		var shard: Sprite3D = _sprite(tex, at, randf_range(0.0028, 0.0045))
+		shard.flip_h = randf() < 0.5
+		shard.flip_v = randf() < 0.5
+		var dir := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized()
+		var reach: float = randf_range(0.5, 1.3) * force
+		var peak: Vector3 = at + dir * reach * 0.5 + Vector3(0, randf_range(0.4, 0.9) * force, 0)
+		var land: Vector3 = at + dir * reach
+		land.y = 0.08
+		var t := create_tween()
+		t.tween_property(shard, "position", peak, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		t.tween_property(shard, "position", land, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		t.tween_interval(0.1)
+		t.tween_property(shard, "scale", Vector3.ZERO, 0.12)
+		t.tween_callback(shard.queue_free)
 
 
 ## A ring that expands and fades. Used for Overdrive and Detonation -- the two moments
@@ -274,12 +259,13 @@ func _unshaded_billboard(colour: Color, energy: float) -> StandardMaterial3D:
 	return material
 
 
-## Streaks of hot metal thrown from a point, falling under gravity: sparks, not confetti.
+## Sparks thrown from a point, falling under gravity. 066: drawn sparks -- a flat sliver with an
+## ink edge, tinted by `colour`, shrinking to nothing (no glow: the game is a comic, not a photo).
 func sparks(at: Vector3, colour: Color, count: int, force: float = 1.0) -> void:
 	var burst := CPUParticles3D.new()
 	burst.one_shot = true
 	burst.amount = maxi(2, count)
-	burst.lifetime = 0.55
+	burst.lifetime = 0.45
 	burst.explosiveness = 0.95
 	burst.direction = Vector3(0, 1, 0)
 	burst.spread = 80.0
@@ -287,14 +273,16 @@ func sparks(at: Vector3, colour: Color, count: int, force: float = 1.0) -> void:
 	burst.initial_velocity_max = 3.6 * force
 	burst.gravity = Vector3(0, -9.0, 0)
 	burst.particle_flag_align_y = true
-	burst.scale_amount_min = 0.6
-	burst.scale_amount_max = 1.2
+	burst.scale_amount_min = 0.7
+	burst.scale_amount_max = 1.3
+	var shrink := Curve.new()
+	shrink.add_point(Vector2(0.0, 1.0))
+	shrink.add_point(Vector2(0.7, 0.8))
+	shrink.add_point(Vector2(1.0, 0.0))
+	burst.scale_amount_curve = shrink
 	var streak := QuadMesh.new()
-	streak.size = Vector2(0.025, 0.14)
-	var hot: StandardMaterial3D = _unshaded(colour.lerp(Color.WHITE, 0.45), 2.2)
-	hot.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	hot.billboard_keep_scale = true
-	streak.material = Ink.hold(hot)
+	streak.size = Vector2(0.06, 0.2)
+	streak.material = _drawn_particle("spark", _spark_texture(), colour.lerp(Color.WHITE, 0.3))
 	burst.mesh = streak
 	burst.position = at
 	add_child(burst)
@@ -302,73 +290,200 @@ func sparks(at: Vector3, colour: Color, count: int, force: float = 1.0) -> void:
 	get_tree().create_timer(0.9).timeout.connect(burst.queue_free)
 
 
-## A fuel drum going up (010): a fireball that swells from white-hot to dark red, a flash of
-## light on everything near, smoke rolling up after it, and a scorch left on the ground.
+## Something goes up (066: drawn): action lines burst out, a lumpy cartoon blast -- pale heart,
+## yellow, orange with half-tone dots, a thick ink edge -- pops big, holds a beat and shrinks
+## away into cartoon smoke balls; shards and sparks fly; a scorch is left on the ground.
 func fireball(at: Vector3, radius: float = 1.0) -> void:
-	for layer: int in 3:
-		var ball := MeshInstance3D.new()
-		ball.mesh = _flash_mesh
-		var hot: StandardMaterial3D = _unshaded_billboard(Color("fff1c8") if layer == 0 else Color("ff8a3c"), 2.6 - float(layer) * 0.6)
-		ball.material_override = Ink.hold(hot)
-		ball.position = at + Vector3(randf_range(-0.12, 0.12), 0.35 + float(layer) * 0.15, randf_range(-0.12, 0.12))
-		ball.scale = Vector3.ONE * 0.4
-		add_child(ball)
-		var grow := create_tween().set_parallel(true)
-		grow.tween_property(ball, "scale", Vector3.ONE * radius * (4.6 + 1.4 * float(layer)), 0.3 + float(layer) * 0.06) \
-			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		grow.tween_property(hot, "albedo_color", Color(0.6, 0.12, 0.04, 0.0), 0.42 + float(layer) * 0.08).set_delay(0.06)
-		grow.chain().tween_callback(ball.queue_free)
-	# No light (play-test 7): the toon ramp draws the key alone, so an omni lit nothing -- and
-	# every material in its range compiled an omni-light variant of its shader on the spot,
-	# which was most of the half-second freeze on a kill.
-	smoke(at + Vector3(0, 0.5, 0), 16, radius)
-	sparks(at + Vector3(0, 0.4, 0), Color("ffb060"), 24, 1.6)
+	var middle: Vector3 = at + Vector3(0, 0.5, 0)
+	var rays: Sprite3D = _sprite(_rays_texture(), middle, 0.011 * radius)
+	rays.scale = Vector3.ONE * 0.6
+	var r := create_tween()
+	r.tween_property(rays, "scale", Vector3.ONE * 1.35, 0.1).set_ease(Tween.EASE_OUT)
+	r.tween_property(rays, "modulate:a", 0.0, 0.08)
+	r.tween_callback(rays.queue_free)
+	for layer: int in 2:
+		var boom: Sprite3D = _sprite(_boom_texture(), middle + Vector3(randf_range(-0.15, 0.15), 0.12 * layer, 0),
+			(0.0085 if layer == 0 else 0.0055) * radius)
+		boom.flip_h = randf() < 0.5
+		boom.render_priority = 3 + layer
+		boom.scale = Vector3.ONE * 0.2
+		var t := create_tween()
+		t.tween_interval(0.05 * layer)
+		t.tween_property(boom, "scale", Vector3.ONE * 1.18, 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		t.tween_property(boom, "scale", Vector3.ONE, 0.05)
+		t.tween_interval(0.16)
+		t.tween_property(boom, "scale", Vector3.ZERO, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+		t.tween_callback(boom.queue_free)
+	get_tree().create_timer(0.24).timeout.connect(smoke.bind(middle + Vector3(0, 0.2, 0), 7, radius))
+	shards(middle, 5, radius * 1.4)
+	sparks(middle, Ink.ACTION, 16, 1.5)
 	scorch(at, radius)
 
 
-## Dark puffs rolling up and spreading, for fires and wrecks.
+## Cartoon smoke balls (066): flat grey, a shadow side, a highlight and an ink edge. Each pops in,
+## drifts up and SHRINKS out -- drawn smoke does not fade.
 func smoke(at: Vector3, count: int, size: float = 1.0) -> void:
-	var puffs := CPUParticles3D.new()
-	puffs.one_shot = true
-	puffs.amount = count
-	puffs.lifetime = 1.8
-	puffs.explosiveness = 0.7
-	puffs.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	puffs.emission_sphere_radius = 0.3 * size
-	puffs.direction = Vector3(0, 1, 0)
-	puffs.spread = 35.0
-	puffs.initial_velocity_min = 0.6
-	puffs.initial_velocity_max = 1.4
-	puffs.gravity = Vector3(0, 0.3, 0)
-	puffs.damping_min = 0.8
-	puffs.damping_max = 1.4
-	puffs.scale_amount_min = 0.7 * size
-	puffs.scale_amount_max = 1.6 * size
-	var grow := Curve.new()
-	grow.add_point(Vector2(0.0, 0.4))
-	grow.add_point(Vector2(1.0, 1.8))
-	puffs.scale_amount_curve = grow
-	var fade := Gradient.new()
-	fade.set_color(0, Color(1, 1, 1, 0.0))
-	fade.set_color(1, Color(1, 1, 1, 0.0))
-	fade.add_point(0.15, Color(1, 1, 1, 0.75))
-	puffs.color_ramp = fade
-	var quad := QuadMesh.new()
-	var grey := StandardMaterial3D.new()
-	grey.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	grey.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	grey.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	grey.billboard_keep_scale = true
-	grey.vertex_color_use_as_albedo = true
-	grey.albedo_texture = _soft
-	# Lighter than the ground it rises over, or dark smoke on a dark yard is invisible.
-	grey.albedo_color = Color(0.24, 0.22, 0.21, 0.6)
-	quad.material = Ink.hold(grey)
-	puffs.mesh = quad
-	puffs.position = at
-	add_child(puffs)
-	puffs.emitting = true
-	get_tree().create_timer(2.4).timeout.connect(puffs.queue_free)
+	var tex: Texture2D = _puff_texture()
+	for i: int in mini(count, 9):
+		var start: Vector3 = at + Vector3(randf_range(-0.3, 0.3), randf_range(-0.1, 0.2), randf_range(-0.3, 0.3)) * size
+		var puff: Sprite3D = _sprite(tex, start, randf_range(0.0035, 0.006) * size)
+		puff.flip_h = randf() < 0.5
+		puff.render_priority = 1
+		puff.scale = Vector3.ZERO
+		var rise: float = randf_range(0.9, 1.4)
+		var t := create_tween()
+		t.tween_interval(randf_range(0.0, 0.12))
+		t.tween_property(puff, "scale", Vector3.ONE, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		t.tween_property(puff, "position", start + Vector3(randf_range(-0.2, 0.2), randf_range(0.5, 0.9) * size, 0.0), rise) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		t.parallel().tween_property(puff, "scale", Vector3.ZERO, rise * 0.6).set_delay(rise * 0.4).set_ease(Tween.EASE_IN)
+		t.tween_callback(puff.queue_free)
+
+
+## A drawn effect: a flat billboard over the world (unshaded, in front of the machine it belongs to).
+func _sprite(tex: Texture2D, at: Vector3, px: float) -> Sprite3D:
+	var s := Sprite3D.new()
+	s.texture = tex
+	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	s.shaded = false
+	s.no_depth_test = true
+	s.render_priority = 2
+	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	s.pixel_size = px
+	s.position = at
+	add_child(s)
+	return s
+
+
+static var _particle_materials: Dictionary = {}
+
+
+## One held material per drawn particle and tint (a material made per burst recompiled, 024).
+func _drawn_particle(name: String, tex: Texture2D, tint: Color) -> StandardMaterial3D:
+	var key: String = name + tint.to_html()
+	if _particle_materials.has(key):
+		return _particle_materials[key]
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	m.billboard_keep_scale = true
+	m.albedo_texture = tex
+	m.albedo_color = tint
+	m.disable_receive_shadows = true
+	_particle_materials[key] = Ink.hold(m)
+	return m
+
+
+## The blast: lumpy lobes (a union of circles), a pale heart, yellow, orange with half-tone dots,
+## and a thick ink edge.
+func _boom_texture() -> ImageTexture:
+	return Ink.texture("comic_boom", Vector2i(256, 256), func(image: Image) -> void:
+		var c := Vector2(128, 128)
+		var lobes: Array = [[c, 64.0]]
+		for k: int in 9:
+			var ang: float = TAU * float(k) / 9.0 + 0.3
+			lobes.append([c + Vector2(cos(ang), sin(ang)) * (60.0 + 6.0 * float(k % 2)), 40.0 + 7.0 * float(k % 3)])
+		var orange := Color("ff7a1f")
+		var dots := Color("d8401c")
+		var pale := Color("fff4c2")
+		for y: int in 256:
+			for x: int in 256:
+				var p := Vector2(x, y)
+				var f: float = -INF
+				for lobe: Array in lobes:
+					f = maxf(f, float(lobe[1]) - p.distance_to(lobe[0]))
+				if f < 0.0:
+					image.set_pixel(x, y, Color(0, 0, 0, 0))
+					continue
+				if f < 9.0:
+					image.set_pixel(x, y, Ink.INK)
+					continue
+				# Bands follow the lumps: how deep inside the outline, not distance from the middle.
+				var depth: float = f / 64.0
+				var col: Color = orange
+				if depth > 0.62:
+					col = pale
+				elif depth > 0.36:
+					col = Ink.ACTION
+				else:
+					var cell := Vector2(fposmod(float(x), 11.0) - 5.5, fposmod(float(y), 11.0) - 5.5)
+					if cell.length() < (0.36 - depth) * 14.0:
+						col = dots
+				image.set_pixel(x, y, col))
+
+
+## Action lines: ink strokes bursting out of the middle, thick inside, sharp at the tip.
+func _rays_texture() -> ImageTexture:
+	return Ink.texture("comic_rays", Vector2i(256, 256), func(image: Image) -> void:
+		var c := Vector2(128, 128)
+		for y: int in 256:
+			for x: int in 256:
+				var d: Vector2 = Vector2(x, y) - c
+				var r: float = d.length()
+				var col := Color(0, 0, 0, 0)
+				if r > 72.0 and r < 126.0:
+					var n: float = d.angle() / TAU * 16.0
+					var off: float = absf(fposmod(n, 1.0) - 0.5) * 2.0
+					var spoke: int = int(floor(fposmod(n, 16.0)))
+					var outer: float = 126.0 if spoke % 2 == 0 else 108.0
+					if r < outer:
+						var width: float = 0.2 * (1.0 - (r - 72.0) / (outer - 72.0))
+						if 1.0 - off < width:
+							col = Ink.INK
+				image.set_pixel(x, y, col))
+
+
+## A smoke ball: grey with a shadow side (lower right), a highlight (upper left) and an ink edge.
+func _puff_texture() -> ImageTexture:
+	return Ink.texture("comic_puff", Vector2i(128, 128), func(image: Image) -> void:
+		var c := Vector2(64, 64)
+		for y: int in 128:
+			for x: int in 128:
+				var p := Vector2(x, y)
+				var r: float = p.distance_to(c)
+				var col := Color(0, 0, 0, 0)
+				if r < 60.0:
+					col = Ink.INK
+				if r < 54.0:
+					col = Color("8f887d")
+					if p.distance_to(c + Vector2(-16, -16)) > 50.0:
+						col = Color("5f5a53")
+					if p.distance_to(c + Vector2(-20, -22)) < 13.0:
+						col = Color("cfc6b5")
+				image.set_pixel(x, y, col))
+
+
+## A scrap shard: an uneven dark-rust triangle with an ink edge.
+func _shard_texture() -> ImageTexture:
+	return Ink.texture("comic_shard", Vector2i(64, 64), func(image: Image) -> void:
+		var tri := PackedVector2Array([Vector2(6, 52), Vector2(28, 6), Vector2(58, 42)])
+		var inner := PackedVector2Array([Vector2(15, 47), Vector2(28, 18), Vector2(48, 40)])
+		for y: int in 64:
+			for x: int in 64:
+				var p := Vector2(x, y)
+				var col := Color(0, 0, 0, 0)
+				if Geometry2D.is_point_in_polygon(p, tri):
+					col = Ink.INK
+				if Geometry2D.is_point_in_polygon(p, inner):
+					col = Color("8a5a3a") if p.y > 34.0 else Ink.MUSTARD
+				image.set_pixel(x, y, col))
+
+
+## A spark: a white sliver in an ink edge (tinted by the particle's material).
+func _spark_texture() -> ImageTexture:
+	return Ink.texture("comic_spark", Vector2i(32, 96), func(image: Image) -> void:
+		for y: int in 96:
+			for x: int in 32:
+				var u: float = absf(float(x) - 15.5) / 16.0
+				var v: float = absf(float(y) - 47.5) / 48.0
+				var col := Color(0, 0, 0, 0)
+				if u + v < 0.98:
+					col = Ink.INK
+				if u * 1.0 + v < 0.72 and u < 0.42:
+					col = Color.WHITE
+				image.set_pixel(x, y, col))
 
 
 ## A burn mark left where something blew up, fading over a few seconds.
