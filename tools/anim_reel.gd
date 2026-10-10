@@ -17,7 +17,7 @@ const CREW: Array = [
 ## `HEX_TIME`), with turns, and the death is played after two hits (light, heavy).
 const SCRIPT: Array = [
 	[0.6, "walk"], [1.6, "turn"], [2.3, "stop"], [3.0, "strike_r"], [4.4, "strike_l"], [5.8, "hit_light"],
-	[6.6, "hit"], [7.8, "die"], [10.0, "end"],
+	[6.6, "hit"], [7.8, "die"], [12.0, "end"],
 ]
 const HEX_DISTANCE: float = 1.351
 const HEX_TIME: float = 0.24
@@ -86,18 +86,25 @@ func _build() -> void:
 	var camera := Camera3D.new()
 	world.add_child(camera)
 	camera.current = true
-	camera.fov = 30.0 if only < 0 else 20.0
+	camera.fov = 30.0 if only < 0 else 24.0
 	_camera = camera
 	if only >= 0:
 		_follow = camera.position
 	var aim := Vector3(0.0, 0.4, 0.3) if only < 0 else Vector3(0.0, 0.35, 0.3)
-	camera.look_at_from_position(aim + (Vector3(0.0, 2.4, 8.5) if only < 0 else Vector3(2.6, 1.0, 2.3)), aim, Vector3.UP)
+	camera.look_at_from_position(aim + (Vector3(0.0, 2.4, 8.5) if only < 0 else Vector3(-2.9, 1.2, 2.6)), aim, Vector3.UP)
 	_follow = camera.position
 	process_frame.connect(_tick)
 
 
+## 060: `--slow K` plays everything at K times speed (0.4 = slow motion) so a fast motion can be read.
+var _slow: float = -1.0
+
+
 func _tick() -> void:
-	var delta: float = 1.0 / 30.0
+	if _slow < 0.0:
+		var args: PackedStringArray = OS.get_cmdline_user_args()
+		_slow = args[args.find("--slow") + 1].to_float() if args.has("--slow") else 1.0
+	var delta: float = 1.0 / 30.0 * _slow
 	_clock += delta
 	while _step < SCRIPT.size() and _clock >= float(SCRIPT[_step][0]):
 		_do(String(SCRIPT[_step][1]))
@@ -110,7 +117,7 @@ func _tick() -> void:
 			m.position += m.global_transform.basis.z * delta * HEX_DISTANCE / HEX_TIME
 	# Filming one machine, the camera follows it.
 	if _models.size() == 1:
-		var at: Vector3 = ((_models[0] as Node3D).get_parent() as Node3D).position
+		var at: Vector3 = (_models[0] as Node3D).global_position
 		_camera.position = _follow + Vector3(at.x, 0.0, at.z)
 
 

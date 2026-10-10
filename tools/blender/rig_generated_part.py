@@ -465,6 +465,21 @@ def chassis(obj, spec):
                 sign = 1.0 if v.co.x > 0 else -1.0
                 v.co.x = sign * (x0 + (abs(v.co.x) - x0) * k)
         print("squeezed: above %.2f, beyond %.2f, x%.2f" % (z0, x0, k))
+    if "leg_stretch" in spec:
+        # 060: longer legs (the user: the Brute's were too short). Between \`z_lo\` (above the feet)
+        # and the hips everything is stretched by \`k\`; above the hips it is lifted by what the legs
+        # gained, the hips and sockets with it. The feet keep their shape.
+        z_lo, k = spec["leg_stretch"]
+        hip0 = spec["hip_z"]
+        gain = (hip0 - z_lo) * (k - 1.0)
+        for v in obj.data.vertices:
+            if v.co.z > hip0:
+                v.co.z += gain
+            elif v.co.z > z_lo:
+                v.co.z = z_lo + (v.co.z - z_lo) * k
+        spec["hip_z"] = hip0 + gain
+        spec["sockets"] = {n: [at[0], at[1], at[2] + gain if at[2] > hip0 else at[2]] for n, at in spec["sockets"].items()}
+        print("legs stretched: %.2f..%.2f x%.2f (+%.3f)" % (z_lo, hip0, k, gain))
     profile(obj)
     if "cut_arms" in spec:
         ax, az = spec["cut_arms"]
