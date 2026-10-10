@@ -266,6 +266,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-09 | **Walk a skeleton by placing its feet (IK), never by swinging angles**: angle swings on a splayed leg went sideways and under the floor. A walking body dips into its steps; bobbing up lifts the feet off the ground (057) |
 | 2026-10-09 | **Anchor IK feet in the GROUND's frame, not the body's**: a leaning or recoiling body carried its feet under the floor. Take each knee's bend side from the drawn model (bird legs bend back) and forward from the machine's -Z (058) |
 | 2026-10-09 | **Animate pose to pose** (held keys, SNAP/SMEAR/STEP curves, additive layers), **turn bones about the MACHINE's axes** (front is +Z; a generated bone's own X points anywhere), let the torso carry the sockets, and **show a strike's effect at its impact** (`strike` returns the lead). The rigid roster's legs had cycled backwards since the start (059) |
+| 2026-10-10 | **Measure floor penetration on posed vertices** (`ConstructRig.lowest`, `tools/probe_floor.gd`), not bones or boxes. Solve a knee toward its DRAWN side and keep the foot flat to the ground, or the shin and toe go under. **A Packed array read from a Dictionary is a copy** (060) |
 
 ## Open questions
 

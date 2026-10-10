@@ -2,6 +2,17 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [060] Motion, second pass — 2026-10-10 ([detail](iterations/060-motion-pass2.md))
+
+### Fixed
+- No part of a machine goes under the floor (measured on its vertices; it was up to 22 cm): knees bend
+  as drawn, feet flat on the ground, legs and arms guarded, stiff legs splay to crouch.
+
+### Changed
+- The Brute's legs are 1.5x longer. Guns aim level at the target with the other arm braced, then kick,
+  per weapon. A death falls apart: an arm breaks off, it looks, reaches, drops its pack, kneels, falls,
+  its core rolls out; parts bounce and settle, with sparks and sound words.
+
 ## [059] Comic motion: every robot animation redone — 2026-10-09 ([detail](iterations/059-comic-motion.md))
 
 ### Changed
