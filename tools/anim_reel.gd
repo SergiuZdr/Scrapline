@@ -28,6 +28,7 @@ var _clock: float = 0.0
 var _step: int = 0
 var _walking: bool = false
 var _camera: Camera3D
+var _vfx: BattleVFX
 var _follow: Vector3 = Vector3.ZERO
 
 
@@ -83,6 +84,24 @@ func _build() -> void:
 				arm.free()
 		var rig := ConstructRig.new()
 		rig.bind(model)
+		# 065: the death's effects, as the fight draws them (no shake: the reel's camera is its own).
+		rig.on_break = func(at: Vector3, what: String) -> void:
+			if _vfx == null:
+				return
+			match what:
+				"explode_core":
+					_vfx.fireball(at - Vector3(0, 0.3, 0), 0.6)
+					_vfx.sparks(at, Color("ffd27a"), 26, 1.8)
+				"explode_module":
+					_vfx.fireball(at - Vector3(0, 0.35, 0), 0.4)
+					_vfx.sparks(at, Color("ffb070"), 18, 1.4)
+				"land":
+					_vfx.smoke(Vector3(at.x, 0.1, at.z), 10, 0.8)
+				"clank":
+					pass
+				_:
+					_vfx.sparks(at, Color("ffb070"), 14, 1.2)
+					_vfx.smoke(at, 4, 0.4)
 		var classes := PackedStringArray()
 		for k: int in [2, 3]:
 			classes.append(String((db.parts.get(parts[k], {}) as Dictionary).get("weapon_class", "")))
@@ -92,6 +111,9 @@ func _build() -> void:
 		_models.append(model)
 	var camera := Camera3D.new()
 	world.add_child(camera)
+	_vfx = BattleVFX.new()
+	world.add_child(_vfx)
+	_vfx.setup(Node3D.new())
 	camera.current = true
 	camera.fov = 30.0 if only < 0 else 24.0
 	_camera = camera
