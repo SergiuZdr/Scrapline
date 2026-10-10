@@ -249,7 +249,7 @@ func _start_fight() -> void:
 			fight = JSON.parse_string(FileAccess.get_file_as_string(OS.get_cmdline_user_args()[file_at + 1]))
 		if OS.get_cmdline_user_args().has("--reclaimer"):
 			fight["reclaimer"] = {"round": 2, "count": 2}
-		_setup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, _seed)
+		_setup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, _seed)
 	for error: String in _setup.errors:
 		push_error("fight %s: %s" % [_setup.fight_id, error])
 	_turn_start = 0
@@ -1109,14 +1109,6 @@ func _quad(x: int, y: int, height: float, size: float) -> MeshInstance3D:
 	quad.visible = false
 	_marks_root.add_child(quad)
 	return quad
-
-
-func _material(colour: Color, roughness: float, metallic: float = 0.0) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = colour
-	material.roughness = roughness
-	material.metallic = metallic
-	return material
 
 
 # --- Units ------------------------------------------------------------------

@@ -217,8 +217,7 @@ ZONE_COLOURS = {
     "dark":           "2b2b30",
     "tread":          "1b1a19",
     "hazard":         "d9a02b",
-    # Terrain zones. Shared with `make_terrain.py` so the battlefield and the machines
-    # standing on it are described by one vocabulary.
+    # Terrain zones (the old terrain generator, removed in 063, shared them).
     "rock":           "342d24",
     "scrapmetal":     "4a4036",
     "slag_crust":     "1a0c07",

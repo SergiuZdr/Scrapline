@@ -132,6 +132,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-08 | **A part wears its maker's paint and is patched with plates off other machines** (051) | The user: the robots must read as scrap, "made from different machines", and must not push one build |
 | 2026-10-08 | **A generated machine shows its level as rust wearing off** (`<part>_clean.png`, `ink_toon` `clean`), not the bolted kit (053) | The user: "i want the robots to have lesser rusty parts with each upgrade" |
 | 2026-10-09 | **Generated parts carry skeletons with standard bone names** (frame torso/hip/knee/ankle, arm shoulder/elbow/wrist), driven by ConstructRig; rest pose by weapon (056) | The user picked full skeletons, and hand weapons at the side, guns aimed |
+| 2026-10-10 | **The real-time battler's leftovers are deleted** (063): `legacy/`, `SimUnit`/`SimDefs`/`SimMath`/`SimEv`/`EventStream`/`Balance`, `data/balance.json` (the type wheel now lives in `data/combat/rules.json` `effectiveness`, read as `ContentDB.effectiveness`), and the unread `abilities`/`conditions`/`maps`/`linkages`/`bosses` tables. The content hash changed: runs saved before 063 refuse to resume | The user: "delete level 1 2 and 3" of the audit; dead code costs every reader and every session's context | |
 
 ## Lessons carried over from the old codebase
 
@@ -269,6 +270,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-10 | **Measure floor penetration on posed vertices** (`ConstructRig.lowest`, `tools/probe_floor.gd`), not bones or boxes. Solve a knee toward its DRAWN side and keep the foot flat to the ground, or the shin and toe go under. **A Packed array read from a Dictionary is a copy** (060) |
 | 2026-10-10 | **Parts that come off are physics bodies, on their own layer, kept on the hex**; the machine's motion stays authored. **Bind a foot plate to the ankle by height** (`foot_top`), or it stretches with the shin. Check a death from the SIDE: from the front a machine on its back looks like it kneels (061) |
 | 2026-10-10 | **Put a socket on the MEASURED centre of the visible mounting face** (`shot_machine.gd --marks`); a death goes by the arms still bolted on (2/1/0); a lying wreck must unbend its torso, close its legs and rest ON the floor (`probe_death.gd`) (062) |
+| 2026-10-10 | **Audit dead code by searching every name across game AND tools, then check the hits.** A first pass called `gradio_queue.py` dead; three generator scripts call it by path. A file the game never loads can still be a tool's input (063) |
 
 ## Open questions
 

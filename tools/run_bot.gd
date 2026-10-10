@@ -67,7 +67,7 @@ func _initialize() -> void:
 	var start_ms: int = Time.get_ticks_msec()
 	for r: int in runs:
 		var setup: RunSetup = RunSetup.create(db.parts, db.tiles, db.fights, db.run_rules,
-			db.combat_rules, db.balance.effectiveness, 1000 + first_seed + r)
+			db.combat_rules, db.effectiveness, 1000 + first_seed + r)
 		var state: RunState = RunSim.start(setup)
 		var guard: int = 0
 		while state.outcome == RunState.ONGOING and guard < 400:
@@ -129,7 +129,7 @@ func _initialize() -> void:
 	# 025: by act -- how many runs got there, and how many ended there.
 	var acts: PackedStringArray = []
 	for a: int in range(1, RunSim.act_count(RunSetup.create(db.parts, db.tiles, db.fights, db.run_rules,
-			db.combat_rules, db.balance.effectiveness, 1000)) + 1):
+			db.combat_rules, db.effectiveness, 1000)) + 1):
 		acts.append("act %d: reached %d, lost %d, at its gate %d" % [a, int(reached_act.get(a, 0)), int(ended_act.get(a, 0)), int(gate_lost.get(a, 0))])
 	print("  by act: %s" % ", ".join(acts))
 	print("  scrap held going into the last gate: %.1f avg over %d runs" % [float(last_gate_scrap) / maxf(1.0, last_gate_runs), last_gate_runs])

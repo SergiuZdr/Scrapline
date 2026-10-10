@@ -172,13 +172,6 @@ func objective() -> Dictionary:
 	return setup.objective
 
 
-func intent_of(ref: int) -> Dictionary:
-	for intent: Dictionary in intents:
-		if int(intent["ref"]) == ref:
-			return intent
-	return {}
-
-
 ## Piles in a fixed order (row, then column), since a Dictionary's order is not a rule.
 func pile_cells() -> Array:
 	var cells: Array = piles.keys()

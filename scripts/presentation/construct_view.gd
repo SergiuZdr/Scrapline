@@ -53,12 +53,9 @@ const LEVEL_SCALE: float = 0.035
 ##
 ## The core keeps its own damage-type colour, because that is the fastest read for what
 ## a construct actually does.
-static func build(unit: SimUnit, content: ContentDB, team_colour: Color) -> Node3D:
-	return build_parts(unit.part_ids, content, team_colour)
-
-
-## The same, from a bare loadout: chassis, core, arm_l, arm_r, module. The grid game's
-## units are not `SimUnit`s, and the view has no business caring which sim built them.
+##
+## From a bare loadout: chassis, core, arm_l, arm_r, module -- the view has no business
+## caring which sim built the unit.
 static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_colour: Color, level: int = 0) -> Node3D:
 	var root := Node3D.new()
 	# 053: Ink.dress_machine reads it -- a generated part's rust wears off as the machine levels.

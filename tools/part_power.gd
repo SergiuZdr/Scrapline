@@ -129,7 +129,7 @@ func _enemies(rng: SimRNG, template: Dictionary, count: int, hp: int, damage: in
 
 ## [won 0/1, enemy HP destroyed - crew HP lost].
 func _play(fight: Dictionary, seed_value: int) -> Array:
-	var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, seed_value)
+	var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, seed_value)
 	if not setup.errors.is_empty():
 		push_error("setup errors: %s" % [setup.errors])
 		return [0, 0]

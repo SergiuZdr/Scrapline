@@ -1,6 +1,6 @@
 # Plan — Salvage audit of the old codebase
 
-**Status:** CUT list executed in 001 (2026-09-24). ADAPT files that depended on cut code now sit in `legacy/`, and each is deleted once 002–006 replaces it.
+**Status:** done. CUT list executed in 001 (2026-09-24); the last ADAPT leftovers (`legacy/`, the real-time sim classes, `balance.json`) deleted in 063 (2026-10-10).
 
 Before anything is deleted, the current `main` is tagged **`archive/f2p-battler`**, so
 nothing is lost.

@@ -561,13 +561,6 @@ static func _clear_run(state: CombatState, path: Array[Vector2i], to: Vector2i, 
 	return path.size()
 
 
-static func _prop_struck(props: Array[Dictionary], cell: Vector2i) -> bool:
-	for p: Dictionary in props:
-		if p["cell"] == cell:
-			return true
-	return false
-
-
 static func _add_prop(state: CombatState, props: Array[Dictionary], cell: Vector2i, amount: int) -> void:
 	if amount > 0 and state.props.has(cell):
 		props.append({"cell": cell, "damage": amount})
@@ -589,13 +582,6 @@ static func type_pct(state: CombatState, u: GridUnit, target: GridUnit) -> int:
 	if u.damage_type < wheel.size() and target.armor_type < (wheel[u.damage_type] as Array).size():
 		return int(wheel[u.damage_type][target.armor_type])
 	return 100
-
-
-static func _already_hit(hits: Array[Dictionary], ref: int) -> bool:
-	for hit: Dictionary in hits:
-		if int(hit["ref"]) == ref:
-			return true
-	return false
 
 
 ## Final damage of `amount` from `u` to `target`: the type wheel, cover against shots,

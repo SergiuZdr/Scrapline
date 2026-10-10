@@ -1,5 +1,7 @@
 {
-  "_comment": "Grid combat tunables. Per-part numbers live on each part's `grid` block in data/parts/; terrain numbers on each tile's `grid` block in data/terrain/tiles.json. The damage-type wheel is `effectiveness` in data/balance.json.",
+  "_comment": "Grid combat tunables. Per-part numbers live on each part's `grid` block in data/parts/; terrain numbers on each tile's `grid` block in data/terrain/tiles.json. The damage-type wheel is `effectiveness` below.",
+  "_effectiveness": "Rows are damage types (kinetic, thermal, emp, corrosive); columns are armour types (plate, composite, reactive, shielded). Each damage type beats exactly one armour and is blunted by exactly one, so no single squad answers everything.",
+  "effectiveness": [[100, 130, 70, 100], [70, 100, 130, 100], [100, 70, 100, 130], [130, 100, 100, 70]],
   "max_rounds": 20,
   "min_damage": 1,
   "tear_threshold": 5,

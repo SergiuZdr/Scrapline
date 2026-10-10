@@ -142,7 +142,7 @@ func end_run() -> void:
 
 func _make_setup(seed_value: int, options: Dictionary = {}) -> RunSetup:
 	return RunSetup.create(db.parts, db.tiles, db.fights, db.run_rules, db.combat_rules,
-		db.balance.effectiveness, seed_value, options)
+		db.effectiveness, seed_value, options)
 
 
 func _save() -> void:
