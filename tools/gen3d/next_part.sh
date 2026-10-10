@@ -1,14 +1,18 @@
 #!/bin/zsh
-# A generated machine part (045): concept -> TRELLIS -> raw kept -> rigged into art/parts_gen/.
+# A generated machine part (045): concept -> TRELLIS -> raw kept -> rigged into art/parts_gen_scrap/.
 #
-#   tools/gen3d/next_part.sh ch_brute            # TRELLIS (one run of the allowance), then rig
-#   tools/gen3d/next_part.sh ch_brute --rig      # rig again from the kept raw model (no GPU)
+#   tools/gen3d/next_part.sh ch_brute_scrap        # TRELLIS (one run of the allowance), then rig
+#   tools/gen3d/next_part.sh ch_brute_scrap --rig  # rig again from the kept raw model (no GPU)
+#
+# The name is the concept's, raw model's and spec's (`ch_brute_scrap`); the part is written
+# without the `_scrap` (art/parts_gen_scrap/ch_brute.glb), as the game looks it up.
 #
 # The concept is art/concepts/machines/<id>.png (the one the user picked from part_concept.sh);
 # the rig is told where the hips, sockets and mount are by tools/gen3d/parts/<id>.json
 # (tools/blender/rig_generated_part.py). Exit 2 = no allowance left (a rolling 24 h).
 cd "$(dirname "$0")/../.." || exit 1
 id=$1
+part=${id%_scrap}
 GODOT=/Users/Sergiu/DevG/KingdomRebuilt/Godot.app/Contents/MacOS/Godot
 B=https://trellis-community-trellis.hf.space
 Q=tools/gen3d/gradio_queue.py
@@ -40,6 +44,6 @@ fi
 [ -f tools/gen3d/parts/$id.json ] || { echo "$id: write tools/gen3d/parts/$id.json, then: $0 $id --rig"; exit 0; }
 mkdir -p shots
 blender --background --python tools/blender/rig_generated_part.py -- --in $raw --spec tools/gen3d/parts/$id.json \
-  --out art/parts_gen/$id.glb --preview shots/045_$id 2>&1 | grep -E "^  |^rigged|^arms|^shadow|^cut|^floor|Error|no leg"
+  --out art/parts_gen_scrap/$part.glb --preview shots/045_$id 2>&1 | grep -E "^  |^rigged|^arms|^shadow|^cut|^floor|Error|no leg"
 [ -f project.godot ] && $GODOT --headless --path . --import 2>&1 | grep -i "error" | head -3
-echo "$id: art/parts_gen/$id.glb (previews shots/045_${id}_0..3.png)"
+echo "$id: art/parts_gen_scrap/$part.glb (previews shots/045_${id}_0..3.png)"

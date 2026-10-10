@@ -22,7 +22,7 @@ func _initialize() -> void:
 
 
 func _setup(db: ContentDB, options: Dictionary, seed_value: int = 5) -> RunSetup:
-	return RunSetup.create(db.parts, db.tiles, db.fights, db.run_rules, db.combat_rules, db.balance.effectiveness, seed_value, options)
+	return RunSetup.create(db.parts, db.tiles, db.fights, db.run_rules, db.combat_rules, db.effectiveness, seed_value, options)
 
 
 func _run() -> void:

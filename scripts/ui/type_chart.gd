@@ -4,7 +4,7 @@ extends RefCounted
 ## The damage-type wheel as a chart (play-test 11: "there is still no clear, visual explanation of
 ## how damage types work against armour"): damage types down the side, armour types across the
 ## top, each cell x1.3 (green, STRONG), x0.7 (red, WEAK) or an even dash. Read from the same
-## files the fight reads (`balance.json` effectiveness, `rules.json` type names), so the chart
+## files the fight reads (`rules.json`: the wheel and the type names), so the chart
 ## cannot disagree with a hit. A display class: it takes nothing from the `Run` autoload.
 
 const CELL := Vector2(150, 44)
@@ -12,10 +12,9 @@ const CELL := Vector2(150, 44)
 
 static func build() -> Control:
 	var rules: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/combat/rules.json"))
-	var balance: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/balance.json"))
 	var types: Array = rules.get("damage_types", [])
 	var armours: Array = rules.get("armor_types", [])
-	var wheel: Array = balance.get("effectiveness", [])
+	var wheel: Array = rules.get("effectiveness", [])
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	var grid := GridContainer.new()

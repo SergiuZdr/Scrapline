@@ -505,15 +505,6 @@ static func _sagittal(v: Vector3) -> float:
 	return atan2(v.z, -v.y)
 
 
-func has_skeleton() -> bool:
-	if _frame_skel != null:
-		return true
-	for arm: Dictionary in _arms.values():
-		if arm.has("skel"):
-			return true
-	return false
-
-
 # --- Driving --------------------------------------------------------------------
 
 func set_moving(moving: bool) -> void:

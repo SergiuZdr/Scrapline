@@ -10,7 +10,7 @@ var rng_seed: int = 0
 var rules: Dictionary = {}
 ## `data/combat/rules.json`.
 var combat_rules: Dictionary = {}
-## ContentDB.parts / tiles / fights, and `Balance.effectiveness`.
+## ContentDB.parts / tiles / fights, and `ContentDB.effectiveness`.
 var parts: Dictionary = {}
 var tiles: Array = []
 var fights: Dictionary = {}

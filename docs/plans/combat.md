@@ -156,7 +156,7 @@ option to push harder, and it always costs something.
 - Integer damage. **No hit rolls. Damage variance is 0 for the player** (determinism
   and readability). Enemies may have a small seeded variance that is shown as a range
   (e.g. 4–5).
-- **Damage-type × armour-type wheel** carried over from `data/balance.json`
+- **Damage-type × armour-type wheel** carried over from the old `data/balance.json` (now `data/combat/rules.json` `effectiveness`)
   (kinetic, thermal, emp, corrosive × plate, composite, reactive, shielded).
   The multiplier is **shown on the target preview** before you commit.
 - HP scale drops from the hundreds to single and double digits (e.g. Brute 14 HP,

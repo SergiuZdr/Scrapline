@@ -72,13 +72,10 @@ func _ready() -> void:
 
 	# A construct assembled from real parts through the game's own view code, so this
 	# tests what ships rather than a bespoke preview model.
-	var unit := SimUnit.new()
-	unit.unit_ref = 0
-	unit.team = SimDefs.TEAM_A
-	unit.part_ids = _loadout(db, chassis_id)
-	_weapon = String((db.parts.get(unit.part_ids[3], {}) as Dictionary).get("weapon_class", ""))
+	var part_ids := PackedStringArray(_loadout(db, chassis_id))
+	_weapon = String((db.parts.get(part_ids[3], {}) as Dictionary).get("weapon_class", ""))
 
-	var model: Node3D = ConstructView.build(unit, db, Color("4fa8d8"))
+	var model: Node3D = ConstructView.build_parts(part_ids, db, Color("4fa8d8"))
 	# Turned for the roster shot. Weapons project straight forward, so a dead-on front
 	# view points every one of them at the camera and a sheet of ten frames shows no
 	# weapons at all -- which is exactly the read the sheet exists to check.

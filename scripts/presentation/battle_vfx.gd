@@ -89,19 +89,6 @@ func is_frozen() -> bool:
 
 # --- Effects -----------------------------------------------------------------
 
-## Clears every transient effect immediately.
-##
-## Called when the Order Phase opens. Playback stops there, so anything still alive --
-## a muzzle flash mid-fade, a spark, a chunk of debris -- freezes on screen as a small
-## coloured shape sitting beside a construct, for as long as the player takes to think.
-## Frozen, an effect stops reading as an effect and starts reading as a piece of the
-## machine that has come off, which is exactly how it was being read.
-func clear_transients() -> void:
-	for child: Node in get_children():
-		if child is MeshInstance3D:
-			child.queue_free()
-
-
 ## Drops every effect in flight and any shake or freeze: after the fight's warm-up (play-test 7),
 ## which fires one of everything behind the opening card so its shaders compile there.
 func settle() -> void:

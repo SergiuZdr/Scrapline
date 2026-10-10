@@ -223,16 +223,6 @@ static func preview_machine(setup: RunSetup, member: Dictionary) -> GridUnit:
 	return CombatSetup.unit_from(machine_spec(setup, member), setup.combat_rules, setup.parts)
 
 
-## What a machine's levels add up to: `what` is "hp" or "damage" (`run.json` `levels.bonus`,
-## one entry per level).
-static func level_bonus(setup: RunSetup, member: Dictionary, what: String) -> int:
-	var steps: Array = (setup.rules.get("levels", {}) as Dictionary).get("bonus", [])
-	var total: int = 0
-	for n: int in mini(int(member.get("level", 0)), steps.size()):
-		total += int((steps[n] as Dictionary).get(what, 0))
-	return total
-
-
 ## What machine `index`'s NEXT level adds, `{ "hp", "damage" }` (empty at the top).
 static func next_level_bonus(state: RunState, setup: RunSetup, index: int) -> Dictionary:
 	var steps: Array = (setup.rules.get("levels", {}) as Dictionary).get("bonus", [])

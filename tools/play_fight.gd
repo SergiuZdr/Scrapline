@@ -29,7 +29,7 @@ func _initialize() -> void:
 			var out := FileAccess.open(args[args.find("--save-fight") + 1], FileAccess.WRITE)
 			out.store_string(JSON.stringify(fight))
 	var seed_value: int = args[args.find("--seed") + 1].to_int() if args.has("--seed") else 2026
-	var setup: CombatSetup = CombatSetup.build(fight, db.combat_rules, db.parts, db.tiles, db.balance.effectiveness, seed_value)
+	var setup: CombatSetup = CombatSetup.build(fight, db.combat_rules, db.parts, db.tiles, db.effectiveness, seed_value)
 	var actions: Array = []
 	if args.has("--log"):
 		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(args[args.find("--log") + 1]))

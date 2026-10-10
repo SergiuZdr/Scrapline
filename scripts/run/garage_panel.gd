@@ -43,7 +43,6 @@ const NUM_TEXT: int = 18
 
 ## The crew member on show.
 var selected: int = 0
-var _tab: String = "PARTS"
 var _sort: String = "NEWEST"
 ## What is being moved: `{ "from": "hold", "index" }` or `{ "from": "socket", "crew", "socket" }`.
 var _held: Dictionary = {}
@@ -545,18 +544,6 @@ func _rename(text: String) -> void:
 	if not Run.rename(selected, text):
 		_message = "A name is 1 to %d letters, digits, spaces or dashes." % RunSim.NAME_MAX
 	_rebuild()
-
-
-func _build_tabs() -> void:
-	var tabs := HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", UIKit.SPACE_SM)
-	_right.add_child(tabs)
-	for name: String in ["PARTS", "STATS"]:
-		var tab := _button(name, UIKit.choice() if name == _tab else UIKit.secondary(), UIKit.TEXT, Vector2(180, 48))
-		tab.pressed.connect(func() -> void:
-			_tab = name
-			_rebuild())
-		tabs.add_child(tab)
 
 
 # --- PARTS --------------------------------------------------------------------

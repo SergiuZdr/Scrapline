@@ -363,11 +363,7 @@ func _test_real_chassis_binds() -> void:
 		var part: Dictionary = db.parts[part_id]
 		if String(part.get("slot", "")) != "chassis" or PartTuning.is_tuned(part_id):
 			continue
-		var unit := SimUnit.new()
-		unit.unit_ref = 0
-		unit.team = SimDefs.TEAM_A
-		unit.part_ids = [part_id, "", "", "", ""]
-		var model: Node3D = ConstructView.build(unit, db, Color.WHITE)
+		var model: Node3D = ConstructView.build_parts(PackedStringArray([part_id, "", "", "", ""]), db, Color.WHITE)
 		var rig := ConstructRig.new()
 		rig.bind(model)
 		rig.set_moving(true)

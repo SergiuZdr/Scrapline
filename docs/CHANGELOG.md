@@ -2,6 +2,20 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [063] Cleanup — 2026-10-10 ([detail](iterations/063-cleanup.md))
+
+### Removed
+- `legacy/` (the old battler's code), the real-time sim classes (`SimUnit`, `SimDefs`, `SimMath`,
+  `SimEv`, `EventStream`, `Balance`), `data/balance.json` and the content tables nothing read
+  (`abilities/`, `conditions/`, `maps/`, `linkages.json`, `bosses.json`); 15 functions with no caller.
+- Unused art: nine Poly Haven sets and the HDRIs, the Blender part pictures (`art/thumbs`),
+  `art/terrain`, `art/hero`, `art/preview`, the 045 generated sets (`parts_gen`, `_a`, `_b`, `_c`),
+  the Big Shoulders font, the old fog shader; one-off shot tools, TripoSR and the terrain generator.
+
+### Changed
+- The damage-type wheel lives in `data/combat/rules.json`. **Runs saved before 063 cannot be
+  continued** (the content hash changed). `--models gen` draws `art/parts_gen_scrap` by default.
+
 ## [062] A death for each loadout; flat wrecks; arm mounts — 2026-10-10 ([detail](iterations/062-deaths-mounts.md))
 
 ### Added
