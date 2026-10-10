@@ -205,6 +205,7 @@ var _landed: int = 0
 var _buckle: float = 0.0
 var _lift: float = 0.0
 var _kneel_lift: float = 0.0
+var _slide: Vector2 = Vector2.ZERO
 var _frozen_legs: Dictionary = {}
 
 
@@ -492,6 +493,11 @@ func _set_stance(slot: String, weapon_class: String) -> void:
 	var sh: float = wrapf(aim.x - upper, -PI, PI)
 	var el: float = wrapf(aim.y - (fore + sh), -PI, PI)
 	arm["stance"] = Vector3(sh, el, 0.0)
+	# 062: the upper arm hangs straight down from its shoulder (a drawn arm slanting outward held
+	# the whole arm away from the frame).
+	var u: Vector3 = rests[1].origin - rests[0].origin
+	var lateral: float = atan2(u.x * float(arm["side"]), -u.y)
+	arm["stance_fl"] = clampf(-(lateral - 0.06), -0.7, 0.2)
 
 
 ## A direction's angle in the side view: 0 straight down, PI/2 forward, PI straight up.
@@ -843,7 +849,44 @@ func collapse(direction: Vector3) -> void:
 	_buckle = 0.0
 	_lift = 0.0
 	_kneel_lift = 0.0
+	_slide = Vector2.ZERO
 	_recoil_velocity += fall * 0.9
+	# 062: how it dies depends on what it still has. Two arms: it loses one, looks, reaches with the
+	# other and falls back. One arm: it stumbles back clutching its chest, reaches for its killer,
+	# the last arm drops off, and it falls on its face. No arms: it looks at both stumps, sways, a
+	# knee gives on one side and it topples over sideways.
+	var plan: Array
+	match _arms.size():
+		0:
+			plan = _death_none(fall)
+		1:
+			plan = _death_one(fall)
+		_:
+			plan = _death_two(fall)
+	var keys: Array = plan[0]
+	_death_hold = plan[1]
+	_fall_dir = plan[2]
+	_fall_axis = Vector3(_fall_dir.z, 0.0, -_fall_dir.x).normalized()
+	fall = _fall_dir
+	_stand_time = 0.0
+	for key: Array in keys:
+		_stand_time += float(key[0])
+	_layers.erase("react")
+	_layers.erase("move")
+	_layers.erase("act_arm_l")
+	_layers.erase("act_arm_r")
+	var now: PackedFloat32Array = _pose.duplicate() if _pose.size() == N_CH else _p({})
+	var rest: PackedFloat32Array = _rest_pose()
+	for i: int in N_CH:
+		now[i] -= rest[i]
+	_play("death", keys)
+	(_layers["death"] as Dictionary)["from"] = now
+	_pivot = fall * _reach(fall)
+
+
+## Two arms (060): one breaks off, it looks where it was, one step, the other arm reaches, the
+## backpack drops, the knees give, its head comes up once -- and it goes over backwards.
+func _death_two(fall: Vector3) -> Array:
 	# 060: it FALLS APART, and it minds. The killing hit snaps it; the arm on the side it was hit
 	# from breaks off; it reels from the lost weight and turns to look at where the arm was; it tries
 	# one step and reaches out with the arm it has left, shaking; the backpack drops off; the knees
@@ -893,21 +936,92 @@ func collapse(direction: Vector3) -> void:
 	keys.append([0.16, head_up, EASE])
 	keys.append([0.12, head_up, STEP])
 	keys.append([0.14, bow, SMEAR])
-	_death_hold = bow
-	_stand_time = 0.0
-	for key: Array in keys:
-		_stand_time += float(key[0])
-	_layers.erase("react")
-	_layers.erase("move")
-	_layers.erase("act_arm_l")
-	_layers.erase("act_arm_r")
-	var now: PackedFloat32Array = _pose.duplicate() if _pose.size() == N_CH else _p({})
-	var rest: PackedFloat32Array = _rest_pose()
-	for i: int in N_CH:
-		now[i] -= rest[i]
-	_play("death", keys)
-	(_layers["death"] as Dictionary)["from"] = now
-	_pivot = fall * _reach(fall)
+	return [keys, bow, fall]
+
+
+## One arm: knocked back two stumbling steps, it hunches and clutches its chest with the arm it
+## has; the backpack drops; it straightens to reach for whatever killed it, shaking -- and that arm
+## drops off too. It sags to its knees and falls forward, on its face.
+func _death_one(fall: Vector3) -> Array:
+	var kept: String = _arms.keys()[0]
+	var back: float = clampf(fall.z, -1.0, 1.0)
+	var jolt: PackedFloat32Array = _push_pose(fall, 1.0)
+	jolt[DROP] = 0.06
+	var step_a := _p({"surge": back * 0.10, "drop": 0.10, "tpitch": 0.15, "ff": back * 0.28, "fu": 0.22, "sh": 0.4, "fl": 0.3}, kept)
+	var plant_a := _p({"surge": back * 0.14, "drop": 0.14, "tpitch": 0.20, "ff": back * 0.28, "sh": 0.3}, kept)
+	var step_b := _p({"surge": back * 0.22, "drop": 0.12, "tpitch": 0.22, "ff": back * 0.28, "of": back * 0.30, "ofu": 0.2, "sh": 0.3}, kept)
+	var plant_b := _p({"surge": back * 0.26, "drop": 0.16, "tpitch": 0.25, "ff": back * 0.28, "of": back * 0.30}, kept)
+	var clutch := _plus(plant_b, _p({"tpitch": 0.18, "troll": 0.06, "sh": 0.85, "el": 1.15, "fl": -0.55, "drop": 0.04}, kept))
+	var reach := _plus(plant_b, _p({"tpitch": -0.18, "twist": 0.20, "pitch": 0.08, "sh": 1.35, "el": -0.70, "fl": 0.0}, kept))
+	var sag := _plus(plant_b, _p({"tpitch": 0.30, "drop": 0.10, "pitch": 0.10}, kept))
+	var kneel := _plus(sag, _p({"drop": 0.16, "tpitch": 0.12, "pitch": 0.06}, kept))
+	var keys: Array = [
+		[0.04, jolt, SNAP],
+		[0.10, jolt, STEP],
+		[0.12, step_a, SMEAR],
+		[0.07, plant_a, SNAP],
+		[0.12, step_b, SMEAR],
+		[0.07, plant_b, SNAP],
+		[0.16, clutch, EASE],
+	]
+	for i: int in 3:
+		var k: PackedFloat32Array = clutch.duplicate()
+		k[T_ROLL] += 0.05 if i % 2 == 0 else -0.05
+		k[T_PITCH] += 0.03 if i % 2 == 0 else 0.0
+		keys.append([0.08, k, STEP])
+	keys.append([0.0, clutch, STEP, _break_part.bind("part_module", Vector3(0, 0, -1), 1.0)])
+	keys.append([0.18, reach, EASE])
+	for i: int in 3:
+		var k: PackedFloat32Array = reach.duplicate()
+		var shake: float = 0.07 if i % 2 == 0 else -0.06
+		k[_ch(kept, "sh")] += shake
+		k[T_ROLL] += shake * 0.5
+		keys.append([0.07, k, STEP])
+	keys.append([0.0, reach, STEP, _break_arm.bind(kept, -fall)])
+	keys.append([0.10, sag, SNAP])
+	keys.append([0.20, kneel, SMEAR])
+	keys.append([0.18, kneel, STEP])
+	# Forward: toward what killed it.
+	return [keys, kneel, -fall]
+
+
+## No arms: it looks down at one stump, then the other; it sways, wider each time; a knee gives
+## on one side and it topples over that way.
+func _death_none(fall: Vector3) -> Array:
+	var side := Vector3(1, 0, 0) if fall.x >= 0.0 else Vector3(-1, 0, 0)
+	var s: float = side.x
+	var jolt: PackedFloat32Array = _push_pose(fall, 1.0)
+	jolt[DROP] = 0.06
+	var look_a := _p({"twist": 0.0, "tpitch": 0.28, "drop": 0.08})
+	look_a[T_TWIST] = 0.38
+	look_a[T_ROLL] = -0.08
+	var look_b := _p({"tpitch": 0.28, "drop": 0.08})
+	look_b[T_TWIST] = -0.38
+	look_b[T_ROLL] = 0.08
+	var keys: Array = [
+		[0.04, jolt, SNAP],
+		[0.12, jolt, STEP],
+		[0.16, look_a, EASE],
+		[0.18, look_a, STEP],
+		[0.16, look_b, EASE],
+		[0.18, look_b, STEP],
+	]
+	for i: int in 3:
+		var k := _p({"tpitch": 0.20, "drop": 0.10 + 0.03 * i})
+		var w: float = (0.08 + 0.05 * i) * (1.0 if i % 2 == 0 else -1.0)
+		k[SWAY] = w
+		k[ROLL] = -w * 0.8
+		keys.append([0.20, k, EASE])
+	keys.append([0.0, keys[keys.size() - 1][1], STEP, _break_part.bind("part_module", Vector3(0, 0, -1), 1.0)])
+	# The knee on the falling side gives: that foot slides out, the body drops and leans over it.
+	var give := _p({"tpitch": 0.25, "drop": 0.22})
+	give[SWAY] = s * 0.10
+	give[ROLL] = -s * 0.22
+	var foot: int = LF_F if s == _hip_side(0) else RF_F
+	give[foot + 2] = 0.18
+	keys.append([0.18, give, SMEAR])
+	keys.append([0.16, give, STEP])
+	return [keys, give, side]
 
 
 # --- 060/061: parts that break off -------------------------------------------------------
@@ -1089,11 +1203,14 @@ func _advance_loose(delta: float) -> void:
 		# It stays on its hex: past the edge it is turned back and slowed.
 		var flat := Vector3(body.global_position.x - centre.x, 0.0, body.global_position.z - centre.z)
 		if flat.length() > radius:
+			# Past the edge of its hex it is pulled back in (and the outward part of its run killed).
 			var v: Vector3 = body.linear_velocity
 			var outward: float = v.dot(flat.normalized())
 			if outward > 0.0:
-				v -= flat.normalized() * outward * 1.6
-			body.linear_velocity = Vector3(v.x * 0.7, v.y, v.z * 0.7)
+				v -= flat.normalized() * outward
+			v -= flat.normalized() * (flat.length() - radius) * 6.0
+			body.linear_velocity = Vector3(v.x * 0.9, v.y, v.z * 0.9)
+			body.sleeping = false
 		if on_break.is_valid() and body.get_contact_count() > 0 and body.linear_velocity.length() > 1.4 and not bool(part.get("clanked", false)):
 			part["clanked"] = true
 			on_break.call(body.global_position, "clank")
@@ -1243,6 +1360,7 @@ func _rest_pose() -> PackedFloat32Array:
 		p[_ch(slot, "sh")] = stance.x
 		p[_ch(slot, "el")] = stance.y
 		p[_ch(slot, "wr")] = stance.z
+		p[_ch(slot, "fl")] = float((_arms[slot] as Dictionary).get("stance_fl", 0.0))
 	return p
 
 
@@ -1542,14 +1660,15 @@ func _apply_legs(pose: PackedFloat32Array) -> void:
 			if _frozen_legs.is_empty():
 				for bone: String in ["hip_l", "knee_l", "ankle_l", "hip_r", "knee_r", "ankle_r"]:
 					var b: int = _frame_bones[bone]
-					_frozen_legs[b] = [_frame_skel.get_bone_pose_position(b), _frame_skel.get_bone_pose_rotation(b)]
-			# 061: and as it goes over they go slack toward straight, so it lies with its legs out
-			# along the ground instead of folded up at its chest.
+					_frozen_legs[b] = [_frame_skel.get_bone_pose_position(b), _frame_skel.get_bone_pose_rotation(b), _lying_pose(bone)]
+			# 061: and as it goes over they go slack, so it lies with its legs out along the ground
+			# instead of folded up at its chest. 062: brought together and the feet pointed along them
+			# (straight, a frame drawn standing wide lay with its legs open and its feet up like flaps).
 			var slack: float = smoothstep(0.0, 0.85, _fall / FALL_REST)
 			for b: int in _frozen_legs:
 				var rest: Transform3D = _frame_skel.get_bone_rest(b)
 				_frame_skel.set_bone_pose_position(b, (_frozen_legs[b][0] as Vector3).lerp(rest.origin, slack))
-				_frame_skel.set_bone_pose_rotation(b, (_frozen_legs[b][1] as Quaternion).slerp(rest.basis.get_rotation_quaternion(), slack))
+				_frame_skel.set_bone_pose_rotation(b, (_frozen_legs[b][1] as Quaternion).slerp(_frozen_legs[b][2], slack))
 			return
 		var to_now: Transform3D = _ground_to_skeleton()
 		for leg: int in 2:
@@ -1593,6 +1712,31 @@ func _apply_legs(pose: PackedFloat32Array) -> void:
 		# by L(1 - cos phi), which is what the body drops.
 		var crouch: float = clampf(pose[DROP], 0.0, 0.5) if not _dead else 0.0
 		node.rotation.z = _hip_side(leg) * acos(1.0 - crouch)
+
+
+## 062: a leg bone's local rotation lying down: the hip turned in until the leg hangs straight under
+## it, the knee straight, the foot pointed along the shin.
+func _lying_pose(bone: String) -> Quaternion:
+	var sk: Skeleton3D = _frame_skel
+	var b: int = _frame_bones[bone]
+	var tag: String = bone.right(1)
+	var rest_local: Quaternion = sk.get_bone_rest(b).basis.get_rotation_quaternion()
+	var hip: Transform3D = sk.get_bone_global_rest(_frame_bones["hip_" + tag])
+	var ankle: Transform3D = sk.get_bone_global_rest(_frame_bones["ankle_" + tag])
+	var m: Basis = _relative(sk).basis.orthonormalized()
+	if bone.begins_with("hip"):
+		var v: Vector3 = m * (ankle.origin - hip.origin)
+		var hip_side: float = signf((m * hip.origin).x)
+		var lateral: float = atan2(v.x * hip_side, -v.y)
+		var turn := Quaternion((m.inverse() * FWD).normalized(), -hip_side * lateral)
+		var parent: int = sk.get_bone_parent(b)
+		var parent_global: Quaternion = sk.get_bone_global_rest(parent).basis.get_rotation_quaternion() if parent >= 0 else Quaternion.IDENTITY
+		return parent_global.inverse() * turn * hip.basis.get_rotation_quaternion()
+	if bone.begins_with("ankle"):
+		var knee: Transform3D = sk.get_bone_global_rest(_frame_bones["knee_" + tag])
+		var point := Quaternion((m.inverse() * Vector3.RIGHT).normalized(), 1.3)
+		return knee.basis.get_rotation_quaternion().inverse() * point * ankle.basis.get_rotation_quaternion()
+	return rest_local
 
 
 ## The skeleton's frame as it would be with the body standing upright at its base, mapped into the
@@ -1652,17 +1796,20 @@ func _advance_death(delta: float) -> void:
 			# It goes over the edge of where it is NOW (a kneeling machine's shins reach back past
 			# its standing footprint), so nothing swings into the floor as it tips.
 			_pivot = _fall_dir * _reach_now(_fall_dir)
-		if _fall < FALL_REST:
+		if _landed == 0 or (_fall < FALL_REST - 0.002 and _fall_velocity > 0.0):
 			_fall_velocity += FALL_GRAVITY * delta
 			_fall = minf(_fall + _fall_velocity * delta, FALL_REST)
 			if _fall >= FALL_REST:
 				_fall_velocity = -_fall_velocity * FALL_BOUNCE
-				_recoil_velocity.y -= 0.6
+				# A bounce too small to see is no bounce: it lies still (it used to rattle forever).
+				if absf(_fall_velocity) < 0.3:
+					_fall_velocity = 0.0
+				_recoil_velocity.y -= 0.6 if _landed == 0 else 0.0
 				_landed += 1
 				# The landing rattles it, and the arms flop.
-				_shudder = 0.16
-				_shudder_amp = 0.06
 				if _landed == 1:
+					_shudder = 0.16
+					_shudder_amp = 0.06
 					# The core rolls out of its chest; the last arm comes loose.
 					_break_part("part_core", _fall_dir * 0.4 + Vector3(0, 0, 0.6), 0.9)
 					for slot: String in _arms.keys():
@@ -1677,6 +1824,11 @@ func _advance_death(delta: float) -> void:
 	else:
 		_buckle = move_toward(_buckle, 0.6, delta * 1.5) if _death_clock > _stand_time * 0.7 else _buckle
 	_add_shudder(delta, pose)
+	# 062: going over, the upper body unbends (a torso still bowed over its knees held the wreck
+	# 30 degrees off the floor) and the arms lie out: it ends FLAT.
+	var flat: float = smoothstep(0.0, 0.9, _fall / FALL_REST)
+	for ch: int in [T_PITCH, T_TWIST, T_ROLL]:
+		pose[ch] *= 1.0 - flat
 	# Body first (kneel height, toppled about the footprint's edge), then the pose on it (the feet
 	# are placed against the body as it is THIS frame), then kept above the floor.
 	var leg_m: float = _leg_len * _scale
@@ -1721,10 +1873,28 @@ func _keep_above_floor() -> void:
 		# (a short frame folding forward), it kneels less deep, settled over the next frames.
 		_kneel_lift = maxf(0.0, _kneel_lift + floor_y + 0.004 * _scale - lowest)
 		return
-	# Rises at once, lets go slowly (a bounce does not leave the wreck hovering).
-	_lift = maxf(floor_y + 0.004 * _scale - lowest, maxf(_lift - 1.5 * (1.0 / 60.0), 0.0))
-	if _lift > 0.0:
-		_body.global_position.y += _lift
+	var need: float = floor_y + 0.004 * _scale - lowest
+	if _fall >= FALL_REST - 0.05:
+		# 062: lying, it rests exactly ON the floor -- lifted or lowered (it hovered face-down).
+		_lift = need if need > _lift else move_toward(_lift, need, 1.2 * (1.0 / 30.0))
+	else:
+		# Rises at once, lets go slowly (a bounce does not leave the wreck hovering).
+		_lift = maxf(need, maxf(_lift - 1.5 * (1.0 / 60.0), 0.0))
+	_body.global_position.y += _lift
+	# 062: and it lies over its own hex: as it goes over, its middle slides back toward the hex's
+	# middle (lying full length from the edge of its feet, half of it was on the next hex).
+	if parent != null:
+		var mid := Vector3.ZERO
+		var n: int = 0
+		for entry: Array in _skin_points:
+			var sk: Skeleton3D = entry[0]
+			mid += (sk.global_transform * sk.get_bone_global_pose(int(entry[1]))).origin
+			n += 1
+		if n > 0:
+			mid /= float(n)
+			var off := Vector2(mid.x - parent.global_position.x, mid.z - parent.global_position.z)
+			_slide += off * -0.15 * smoothstep(0.2, 1.0, _fall / FALL_REST)
+		_body.global_position += Vector3(_slide.x, 0.0, _slide.y)
 
 
 func _probe_points() -> PackedVector3Array:

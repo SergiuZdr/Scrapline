@@ -74,6 +74,13 @@ func _build() -> void:
 		holder.rotation_degrees.y = -30.0 if only < 0 else -60.0
 		world.add_child(holder)
 		holder.add_child(model)
+		# 062: `--arms N` films a machine with only N of its arms left (its death differs).
+		var keep: int = args[args.find("--arms") + 1].to_int() if args.has("--arms") else 2
+		for slot: String in ["part_arm_l", "part_arm_r"].slice(0, 2 - keep):
+			var arm: Node = model.find_child(slot, true, false)
+			if arm != null:
+				arm.get_parent().remove_child(arm)
+				arm.free()
 		var rig := ConstructRig.new()
 		rig.bind(model)
 		var classes := PackedStringArray()
@@ -113,6 +120,9 @@ func _tick() -> void:
 		Engine.time_scale = _slow
 	var delta: float = 1.0 / 30.0 * _slow
 	_clock += delta
+	if _clock == delta and OS.get_cmdline_user_args().has("--death-only"):
+		_clock = 7.6
+		_step = 6
 	while _step < SCRIPT.size() and _clock >= float(SCRIPT[_step][0]):
 		_do(String(SCRIPT[_step][1]))
 		_step += 1

@@ -63,12 +63,41 @@ func _run() -> void:
 		for i: int in 60:
 			rig.update(walk / 60.0)
 
+	# 062: close-ups of the arm mounts. `--hide-arms` draws the bare frame, `--marks` a red ball on
+	# every socket, `--dist`/`--aim-y`/`--height` frame the camera, `--top` looks straight down.
+	if args.has("--hide-arms"):
+		for slot: String in ["part_arm_l", "part_arm_r"]:
+			var arm: Node = model.find_child(slot, true, false)
+			if arm != null:
+				(arm as Node3D).visible = false
+	if args.has("--marks"):
+		for name: String in ["socket_arm_l", "socket_arm_r", "socket_core", "socket_module"]:
+			var socket: Node3D = model.find_child(name, true, false) as Node3D
+			if socket == null:
+				continue
+			var ball := MeshInstance3D.new()
+			var sphere := SphereMesh.new()
+			sphere.radius = 0.015
+			sphere.height = 0.03
+			ball.mesh = sphere
+			var red := StandardMaterial3D.new()
+			red.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			red.albedo_color = Color.RED
+			red.no_depth_test = true
+			ball.material_override = red
+			socket.add_child(ball)
+	var distance: float = args[args.find("--dist") + 1].to_float() if args.has("--dist") else DISTANCE
+	var aim_y: float = args[args.find("--aim-y") + 1].to_float() if args.has("--aim-y") else 0.38
+	var height: float = args[args.find("--height") + 1].to_float() if args.has("--height") else 0.75
 	var camera := Camera3D.new()
 	world.add_child(camera)
 	camera.current = true
 	camera.fov = 26.0
-	var aim := Vector3(0.0, 0.38, 0.0)
-	camera.look_at_from_position(aim + Vector3(0.0, 0.75, DISTANCE), aim, Vector3.UP)
+	var aim := Vector3(0.0, aim_y, 0.0)
+	if args.has("--top"):
+		camera.look_at_from_position(aim + Vector3(0.0, distance, 0.001), aim, Vector3(0, 0, -1))
+	else:
+		camera.look_at_from_position(aim + Vector3(0.0, height, distance), aim, Vector3.UP)
 	for yaw: String in yaws:
 		model.rotation_degrees.y = -yaw.to_float()
 		await _settle()
