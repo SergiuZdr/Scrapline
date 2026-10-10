@@ -2,6 +2,13 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [061] Death on its hex, solid parts, Brute's feet — 2026-10-10 ([detail](iterations/061-death-feet.md))
+
+### Fixed
+- Broken-off parts are solid (they land on each other, the wreck and the floor) and stay on the
+  machine's hex; a dying machine kneels less deep and lies with its legs out; foot plates no longer
+  stretch (bound to the ankle); the Brute has no block between its legs and stands with its feet in.
+
 ## [060] Motion, second pass — 2026-10-10 ([detail](iterations/060-motion-pass2.md))
 
 ### Fixed

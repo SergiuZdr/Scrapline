@@ -1,5 +1,5 @@
 {
-  "_comment": "058: Relay's frame redrawn with the head facing forward and the body symmetric (the user: the head looked to the side), TRELLIS on Hugging Face. Width profile at 0.7 m: shoulders end at |x| 0.112 around z 0.45-0.56, legs part below 0.28.",
+  "_comment": "058: Relay's frame redrawn with the head facing forward and the body symmetric (the user: the head looked to the side), TRELLIS on Hugging Face. Width profile at 0.7 m: shoulders end at |x| 0.112 around z 0.45-0.56, legs part below 0.28. 061: foot_top 0.045 (the ankle at the top of the foot plate, the plate bound to it).",
   "slot": "chassis",
   "size": 0.7,
   "floor": 0.03,
@@ -35,5 +35,6 @@
     0.75,
     0.75
   ],
-  "skeleton": true
+  "skeleton": true,
+  "foot_top": 0.045
 }
