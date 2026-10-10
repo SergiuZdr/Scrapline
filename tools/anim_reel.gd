@@ -96,7 +96,7 @@ func _build() -> void:
 					_vfx.fireball(at - Vector3(0, 0.35, 0), 0.4)
 					_vfx.sparks(at, Color("ffb070"), 18, 1.4)
 				"land":
-					_vfx.smoke(Vector3(at.x, 0.1, at.z), 10, 0.8)
+					_vfx.smoke(Vector3(at.x, 0.1, at.z), 6, 0.45)
 				"clank":
 					pass
 				_:

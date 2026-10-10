@@ -2,6 +2,12 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [066] Comic effects — 2026-10-10 ([detail](iterations/066-comic-fx.md))
+
+### Changed
+- Explosions, smoke, sparks and debris are drawn in the comic style (ink edges, flat colour, half-tone
+  dots, action lines, cartoon smoke balls); they pop in and shrink out instead of glowing and fading.
+
 ## [065] Deaths: core and backpack explode, faster, with effects — 2026-10-10 ([detail](iterations/065-death-fx.md))
 
 ### Changed
