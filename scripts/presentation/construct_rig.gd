@@ -90,7 +90,7 @@ const GAITS: Dictionary = {
 	# reach: how far a foot steps, lift: knee-up, dip: how far the body sinks on landing, bounce: lift
 	# in the air, sway/roll: weight over the planted foot, twist: shoulders against hips, arms: swing,
 	# lean: into the run, cycle: leg lengths per cycle.
-	"brawler": {"reach": 0.42, "lift": 0.34, "dip": 0.14, "bounce": 0.04, "sway": 0.10, "roll": 0.07,
+	"brawler": {"feet_in": 0.32, "reach": 0.42, "lift": 0.34, "dip": 0.14, "bounce": 0.04, "sway": 0.10, "roll": 0.07,
 		"twist": 0.30, "arms": 0.55, "lean": 0.16, "cycle": 4.2},
 	"anchor": {"reach": 0.32, "lift": 0.22, "dip": 0.18, "bounce": 0.0, "sway": 0.16, "roll": 0.10,
 		"twist": 0.16, "arms": 0.30, "lean": 0.08, "cycle": 3.4},
@@ -865,7 +865,7 @@ func collapse(direction: Vector3) -> void:
 		"osh": 1.25, "oel": -0.70, "ofl": 0.05, "of": 0.20, "ofu": 0.22, "ff": -0.12}, lost)
 	var reach: PackedFloat32Array = _p({"surge": 0.12, "pitch": 0.12, "tpitch": -0.10, "twist": 0.18, "drop": 0.15,
 		"osh": 1.35, "oel": -0.75, "of": 0.30, "ff": -0.12}, lost)
-	var kneel: PackedFloat32Array = _plus(limp, _p({"drop": 0.52, "tpitch": 0.50, "pitch": 0.06, "surge": 0.05,
+	var kneel: PackedFloat32Array = _plus(limp, _p({"drop": 0.30, "tpitch": 0.40, "pitch": 0.06, "surge": 0.04,
 		"of": 0.30, "ff": -0.12}, lost))
 	var head_up: PackedFloat32Array = _plus(kneel, _p({"tpitch": -0.22, "osh": 0.25}, lost))
 	var bow: PackedFloat32Array = _plus(kneel, _p({"tpitch": 0.15}, lost))
@@ -910,16 +910,27 @@ func collapse(direction: Vector3) -> void:
 	_pivot = fall * _reach(fall)
 
 
-# --- 060: parts that break off -----------------------------------------------------------
+# --- 060/061: parts that break off -------------------------------------------------------
+# 061: a loose part is a SOLID body (RigidBody3D with a box from its own vertices): it lands on the
+# floor, on the wreck and on the other parts instead of through them. The wreck carries a box per
+# frame bone (`_wreck`, moved with the bones every frame); the floor is a plane under the hex.
+# Parts stay on the machine's hex (`LOOSE_RADIUS`): the board is hexes.
 
 ## Called with (world position, what broke) when a part comes off, for sparks and a sound word.
 var on_break: Callable = Callable()
 ## The held last pose of a death, and how long it stands before it goes over.
 var _death_hold: PackedFloat32Array = PackedFloat32Array()
 var _stand_time: float = DEATH_STAND
-## Loose parts: {node, vel, spin, skin, rigid, age, rest}.
+## Loose parts: {body: RigidBody3D, node, age, apart: bool (exception with the wreck lifted)}.
 var _loose: Array = []
-const LOOSE_GRAVITY: float = 11.0
+## The wreck's colliders: AnimatableBody3D and [CollisionShape3D, bone, local centre] per frame bone.
+var _wreck: AnimatableBody3D
+var _wreck_boxes: Array = []
+var _floor_body: StaticBody3D
+## Physics layer of loose parts, wrecks and their floors only (the board uses none).
+const LOOSE_LAYER: int = 1 << 19
+## How far from the middle of its hex a loose part may end up, in metres of a machine's size.
+const LOOSE_RADIUS: float = 0.42
 
 
 func _break_arm(slot: String, fall: Vector3) -> void:
@@ -927,9 +938,10 @@ func _break_arm(slot: String, fall: Vector3) -> void:
 		return
 	var node: Node3D = (_arms[slot] as Dictionary)["node"]
 	_arms.erase(slot)
-	# Flung out on its own side, up and back along the hit, turning over.
+	# Knocked off its shoulder: out on its own side a little, up, turning over. It falls by the
+	# machine, not across the board.
 	var out := Vector3(_side(slot), 0.0, 0.0)
-	_break_node(node, (out * 1.3 + fall * 0.9 + Vector3.UP * 1.6), Vector3(-4.5, 0.8, _side(slot) * 5.0), "arm")
+	_break_node(node, out * 0.55 + fall * 0.25 + Vector3.UP * 1.1, Vector3(-3.0, 0.5, _side(slot) * 3.5), "arm")
 	_recoil_velocity += -out * 0.4
 
 
@@ -937,18 +949,18 @@ func _break_part(name: String, push: Vector3, up: float) -> void:
 	var node: Node3D = _find(_body, name)
 	if node == null:
 		return
-	_break_node(node, push * 0.8 + Vector3.UP * up, Vector3(3.0, 1.5, -2.0), name.trim_prefix("part_"))
+	_break_node(node, push * 0.5 + Vector3.UP * up, Vector3(2.0, 1.0, -1.5), name.trim_prefix("part_"))
 
 
-## Takes `node` off the machine (it keeps where it is in the world) and lets it fall, bounce and
-## settle. `velocity` is in the machine's own space, per metre of its size.
+## Takes `node` off the machine (it keeps where it is in the world) as a solid body.
+## `velocity` is in the machine's own space, per metre of its size.
 func _break_node(node: Node3D, velocity: Vector3, spin: Vector3, what: String) -> void:
 	if node == null or not is_instance_valid(node) or not _body.is_inside_tree():
 		return
 	var holder: Node3D = _body.get_parent() as Node3D
 	if holder == null:
 		return
-	var keep: Transform3D = node.global_transform
+	_ensure_physics(holder)
 	var skin: Array = []
 	var rigid: Array = []
 	for entry: Array in _skin_points.duplicate():
@@ -959,51 +971,132 @@ func _break_node(node: Node3D, velocity: Vector3, spin: Vector3, what: String) -
 		if node == entry[0] or node.is_ancestor_of(entry[0]):
 			rigid.append(entry)
 			_rigid_points.erase(entry)
+	var keep: Transform3D = node.global_transform
+	var body := RigidBody3D.new()
+	body.collision_layer = LOOSE_LAYER
+	body.collision_mask = LOOSE_LAYER
+	body.continuous_cd = true
+	body.linear_damp = 0.4
+	body.angular_damp = 2.5
+	body.contact_monitor = true
+	body.max_contacts_reported = 2
+	var frame := Transform3D(keep.basis.orthonormalized(), keep.origin)
+	holder.add_child(body)
+	body.global_transform = frame
+	# A box around the part's own posed vertices, in the body's frame.
+	var inv: Transform3D = frame.affine_inverse()
+	var box := AABB()
+	var first: bool = true
+	for entry: Array in skin:
+		var sk: Skeleton3D = entry[0]
+		var g: Transform3D = inv * sk.global_transform * sk.get_bone_global_pose(int(entry[1]))
+		for p: Vector3 in entry[2]:
+			box = AABB(g * p, Vector3.ZERO) if first else box.expand(g * p)
+			first = false
+	for entry: Array in rigid:
+		var g: Transform3D = inv * (entry[0] as MeshInstance3D).global_transform
+		for p: Vector3 in entry[1]:
+			box = AABB(g * p, Vector3.ZERO) if first else box.expand(g * p)
+			first = false
+	if first:
+		box = AABB(Vector3(-0.05, -0.05, -0.05), Vector3(0.1, 0.1, 0.1))
+	var shape := CollisionShape3D.new()
+	var cube := BoxShape3D.new()
+	# A little smaller than the vertices: boxes are fatter than the pieces they stand for.
+	cube.size = (box.size * 0.85).max(Vector3.ONE * 0.03)
+	shape.shape = cube
+	shape.position = box.get_center()
+	body.add_child(shape)
+	body.mass = clampf(box.size.x * box.size.y * box.size.z * 400.0, 0.5, 8.0)
 	node.get_parent().remove_child(node)
-	holder.add_child(node)
+	body.add_child(node)
 	node.global_transform = keep
-	var world_v: Vector3 = _body.global_transform.basis.orthonormalized() * velocity * _scale * 0.9
-	_loose.append({"node": node, "vel": world_v, "spin": spin, "skin": skin, "rigid": rigid, "age": 0.0, "rest": false})
+	body.linear_velocity = _body.global_transform.basis.orthonormalized() * velocity * _scale * 0.9
+	body.angular_velocity = _body.global_transform.basis.orthonormalized() * spin
+	if _wreck != null:
+		body.add_collision_exception_with(_wreck)
+	_loose.append({"body": body, "node": node, "age": 0.0, "apart": false})
 	_shudder = maxf(_shudder, 0.12)
 	_shudder_amp = maxf(_shudder_amp, 0.07)
 	if on_break.is_valid():
 		on_break.call(node.global_position, what)
 
 
+## The floor under the hex and the wreck's own boxes, made once, the first time a part comes off.
+func _ensure_physics(holder: Node3D) -> void:
+	if _floor_body != null:
+		return
+	_floor_body = StaticBody3D.new()
+	_floor_body.collision_layer = LOOSE_LAYER
+	_floor_body.collision_mask = LOOSE_LAYER
+	var plane := CollisionShape3D.new()
+	plane.shape = WorldBoundaryShape3D.new()
+	_floor_body.add_child(plane)
+	holder.add_child(_floor_body)
+	_floor_body.global_position = Vector3(holder.global_position.x, _floor_y(), holder.global_position.z)
+	if _frame_skel == null:
+		return
+	_wreck = AnimatableBody3D.new()
+	_wreck.sync_to_physics = false
+	_wreck.collision_layer = LOOSE_LAYER
+	_wreck.collision_mask = 0
+	holder.add_child(_wreck)
+	_wreck.global_transform = Transform3D.IDENTITY
+	for entry: Array in _skin_points:
+		if entry[0] != _frame_skel:
+			continue
+		var pts: PackedVector3Array = entry[2]
+		if pts.size() < 4:
+			continue
+		var box := AABB(pts[0], Vector3.ZERO)
+		for p: Vector3 in pts:
+			box = box.expand(p)
+		var shape := CollisionShape3D.new()
+		var cube := BoxShape3D.new()
+		var units: float = _frame_skel.global_transform.basis.get_scale().y
+		cube.size = (box.size * units * 0.85).max(Vector3.ONE * 0.03)
+		shape.shape = cube
+		_wreck.add_child(shape)
+		_wreck_boxes.append([shape, int(entry[1]), box.get_center()])
+	_sync_wreck()
+
+
+## The wreck's boxes follow its bones.
+func _sync_wreck() -> void:
+	if _wreck == null or not is_instance_valid(_frame_skel):
+		return
+	for entry: Array in _wreck_boxes:
+		var g: Transform3D = _frame_skel.global_transform * _frame_skel.get_bone_global_pose(int(entry[1]))
+		(entry[0] as CollisionShape3D).global_transform = Transform3D(g.basis.orthonormalized(), g * (entry[2] as Vector3))
+
+
 func _advance_loose(delta: float) -> void:
+	_sync_wreck()
 	if _loose.is_empty() or not _body.is_inside_tree():
 		return
-	var floor_y: float = _floor_y()
+	var holder: Node3D = _body.get_parent() as Node3D
+	var centre: Vector3 = holder.global_position
+	var radius: float = LOOSE_RADIUS * _scale
 	for part: Dictionary in _loose:
-		var node: Node3D = part["node"]
-		if not is_instance_valid(node) or bool(part["rest"]):
+		var body: RigidBody3D = part["body"]
+		if not is_instance_valid(body):
 			continue
 		part["age"] = float(part["age"]) + delta
-		var v: Vector3 = part["vel"]
-		var spin: Vector3 = part["spin"]
-		v.y -= LOOSE_GRAVITY * delta
-		node.global_position += v * delta
-		if spin.length() > 0.001:
-			node.global_basis = Basis(spin.normalized(), spin.length() * delta) * node.global_basis
-		var low: float = _low_of(part["skin"], part["rigid"])
-		if low != INF and low < floor_y:
-			node.global_position.y += floor_y - low
-			if v.y < 0.0:
-				# A heavy, dull bounce: most of it goes, it skids, the spin dies.
-				v.y = -v.y * 0.28
-				v.x *= 0.55
-				v.z *= 0.55
-				spin *= 0.45
-				if on_break.is_valid() and v.length() > 1.2:
-					on_break.call(node.global_position, "clank")
-			if v.length() < 0.35:
-				v = Vector3.ZERO
-				spin = Vector3.ZERO
-				part["rest"] = true
-		if float(part["age"]) > 4.0:
-			part["rest"] = true
-		part["vel"] = v
-		part["spin"] = spin
+		# Clear of the wreck it came off, it may land on it.
+		if not bool(part["apart"]) and float(part["age"]) > 0.3 and _wreck != null:
+			body.remove_collision_exception_with(_wreck)
+			part["apart"] = true
+		# It stays on its hex: past the edge it is turned back and slowed.
+		var flat := Vector3(body.global_position.x - centre.x, 0.0, body.global_position.z - centre.z)
+		if flat.length() > radius:
+			var v: Vector3 = body.linear_velocity
+			var outward: float = v.dot(flat.normalized())
+			if outward > 0.0:
+				v -= flat.normalized() * outward * 1.6
+			body.linear_velocity = Vector3(v.x * 0.7, v.y, v.z * 0.7)
+		if on_break.is_valid() and body.get_contact_count() > 0 and body.linear_velocity.length() > 1.4 and not bool(part.get("clanked", false)):
+			part["clanked"] = true
+			on_break.call(body.global_position, "clank")
 
 
 ## Arms hanging dead (flex channels that undo the stance and let the forearm drop).
@@ -1450,9 +1543,13 @@ func _apply_legs(pose: PackedFloat32Array) -> void:
 				for bone: String in ["hip_l", "knee_l", "ankle_l", "hip_r", "knee_r", "ankle_r"]:
 					var b: int = _frame_bones[bone]
 					_frozen_legs[b] = [_frame_skel.get_bone_pose_position(b), _frame_skel.get_bone_pose_rotation(b)]
+			# 061: and as it goes over they go slack toward straight, so it lies with its legs out
+			# along the ground instead of folded up at its chest.
+			var slack: float = smoothstep(0.0, 0.85, _fall / FALL_REST)
 			for b: int in _frozen_legs:
-				_frame_skel.set_bone_pose_position(b, _frozen_legs[b][0])
-				_frame_skel.set_bone_pose_rotation(b, _frozen_legs[b][1])
+				var rest: Transform3D = _frame_skel.get_bone_rest(b)
+				_frame_skel.set_bone_pose_position(b, (_frozen_legs[b][0] as Vector3).lerp(rest.origin, slack))
+				_frame_skel.set_bone_pose_rotation(b, (_frozen_legs[b][1] as Quaternion).slerp(rest.basis.get_rotation_quaternion(), slack))
 			return
 		var to_now: Transform3D = _ground_to_skeleton()
 		for leg: int in 2:
@@ -1467,7 +1564,7 @@ func _apply_legs(pose: PackedFloat32Array) -> void:
 			inward -= _fwd * inward.dot(_fwd)
 			inward.y = 0.0
 			var out_dir: Vector3 = -inward.normalized() if inward.length() > 0.001 else Vector3.ZERO
-			foot += inward * FEET_IN
+			foot += inward * float(_gait.get("feet_in", FEET_IN))
 			foot += _fwd * pose[f] * length + Vector3.UP * maxf(pose[f + 1] * length, 0.0) + out_dir * pose[f + 2] * length
 			_solve_leg(tag, to_now * foot, to_now.basis.orthonormalized())
 			# 060: nothing of the leg below the floor. A bent knee swings the bottom of the shin
@@ -1599,7 +1696,7 @@ func _advance_death(delta: float) -> void:
 
 func _limp_kneel() -> PackedFloat32Array:
 	var p: PackedFloat32Array = _limp()
-	p[DROP] = 0.52
+	p[DROP] = 0.30
 	p[T_PITCH] = 0.45
 	p[PITCH] = 0.05
 	return p

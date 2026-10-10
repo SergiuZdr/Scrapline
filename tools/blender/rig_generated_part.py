@@ -422,6 +422,14 @@ def skeleton_frame(obj, spec):
         hip = Vector((side * hip_x, 0.0, hip_z))
         leg = [v.co.copy() for v in obj.data.vertices if v.co.z < hip_z and v.co.x * side > pelvis]
         (knee, ankle), toe = _chain(leg, hip, spec.get("leg_joints", [0.5, 0.86]))
+        if "foot_top" in spec:
+            # 061: the ankle sits at the TOP of the foot plate, and the whole plate is the ankle's:
+            # placed by share it sat at the sole, the plate was bound to the shin and stretched
+            # whenever the shin turned and the foot stayed flat.
+            ft = spec["foot_top"]
+            ring = [p for p in leg if abs(p.z - ft) < 0.012]
+            if ring:
+                ankle = sum(ring, Vector()) / len(ring)
         bones["hip_" + tag] = (hip, knee)
         bones["knee_" + tag] = (knee, ankle)
         bones["ankle_" + tag] = (ankle, Vector((ankle.x, toe.y, 0.0)))
@@ -431,11 +439,17 @@ def skeleton_frame(obj, spec):
         print("skeleton leg %s: knee %s ankle %s" % (tag, tuple(round(x, 3) for x in knee), tuple(round(x, 3) for x in ankle)))
     rig = build_armature(obj.name + "_rig", bones, parents)
 
+    foot_top = spec.get("foot_top", -1.0)
+
     def pick(c):
         if c.z >= hip_z or abs(c.x) <= pelvis:
             return "torso"
         tag = "l" if c.x < 0 else "r"
+        if c.z < foot_top:
+            return "ankle_" + tag
         hip, dk, da = cut_at[tag]
+        if foot_top > 0.0:
+            return "hip_" + tag if (c - hip).length < dk else "knee_" + tag
         d = (c - hip).length
         return "hip_" + tag if d < dk else ("knee_" + tag if d < da else "ankle_" + tag)
 
@@ -472,8 +486,11 @@ def chassis(obj, spec):
         z_lo, k = spec["leg_stretch"]
         hip0 = spec["hip_z"]
         gain = (hip0 - z_lo) * (k - 1.0)
+        keep_x = spec.get("stretch_keep_x", 0.0)
         for v in obj.data.vertices:
-            if v.co.z > hip0:
+            if v.co.z > hip0 or (v.co.z > z_lo and abs(v.co.x) < keep_x):
+                # 061: the crotch between the legs rides up whole (stretched, it hung between the
+                # legs like a boulder).
                 v.co.z += gain
             elif v.co.z > z_lo:
                 v.co.z = z_lo + (v.co.z - z_lo) * k

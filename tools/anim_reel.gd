@@ -91,7 +91,12 @@ func _build() -> void:
 	if only >= 0:
 		_follow = camera.position
 	var aim := Vector3(0.0, 0.4, 0.3) if only < 0 else Vector3(0.0, 0.35, 0.3)
-	camera.look_at_from_position(aim + (Vector3(0.0, 2.4, 8.5) if only < 0 else Vector3(-2.9, 1.2, 2.6)), aim, Vector3.UP)
+	# `--cam x,y,z`: where the camera sits relative to the machine (filming one machine).
+	var cam := Vector3(-2.9, 1.2, 2.6)
+	if args.has("--cam"):
+		var c: PackedStringArray = args[args.find("--cam") + 1].split(",")
+		cam = Vector3(c[0].to_float(), c[1].to_float(), c[2].to_float())
+	camera.look_at_from_position(aim + (Vector3(0.0, 2.4, 8.5) if only < 0 else cam), aim, Vector3.UP)
 	_follow = camera.position
 	process_frame.connect(_tick)
 
@@ -104,6 +109,8 @@ func _tick() -> void:
 	if _slow < 0.0:
 		var args: PackedStringArray = OS.get_cmdline_user_args()
 		_slow = args[args.find("--slow") + 1].to_float() if args.has("--slow") else 1.0
+		# Loose parts are physics bodies: slow the physics with the rest.
+		Engine.time_scale = _slow
 	var delta: float = 1.0 / 30.0 * _slow
 	_clock += delta
 	while _step < SCRIPT.size() and _clock >= float(SCRIPT[_step][0]):
