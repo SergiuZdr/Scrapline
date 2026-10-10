@@ -2,6 +2,13 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [065] Deaths: core and backpack explode, faster, with effects — 2026-10-10 ([detail](iterations/065-death-fx.md))
+
+### Changed
+- A dying machine's backpack (KA-BLAM) and core (BOOM, on landing) explode instead of dropping off,
+  so nothing passes through the falling frame. Landing throws dust (THUD); a lost arm sparks and smokes.
+- Deaths play 1.7x faster, the fall is quicker and the wreck is cleared after 2.6 s (was 3.6).
+
 ## [064] Generated machines by default; deaths that stay put — 2026-10-10 ([detail](iterations/064-default-gen.md))
 
 ### Changed

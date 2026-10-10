@@ -121,13 +121,15 @@ const HITCH_TIME: float = 0.34
 
 # --- Death ---------------------------------------------------------------------
 ## The wreck goes over about the edge of its footprint, away from what killed it.
-const FALL_GRAVITY: float = 13.0
+const FALL_GRAVITY: float = 24.0
 const FALL_REST: float = PI * 0.5
 const FALL_BOUNCE: float = 0.22
 const BUCKLE_ANGLE: float = 0.95
 const WRECK_SINK: float = 0.06
 ## The killing hit's snap, the sputter, the knees: how long before it goes over.
 const DEATH_STAND: float = 0.78
+## 065: how much faster than authored the death keys play.
+const DEATH_SPEED: float = 1.7
 
 ## Weapons swung by hand: they hang heavy at rest and their strikes are melee.
 const MELEE: PackedStringArray = ["hammer", "maul", "saw", "ripper", "lance"]
@@ -855,6 +857,9 @@ func collapse(direction: Vector3) -> void:
 		_:
 			plan = _death_two(fall)
 	var keys: Array = plan[0]
+	# 065: the user: faster. Every key of every death at DEATH_SPEED.
+	for key: Array in keys:
+		key[0] = float(key[0]) / DEATH_SPEED
 	_death_hold = plan[1]
 	_fall_dir = plan[2]
 	_fall_axis = Vector3(_fall_dir.z, 0.0, -_fall_dir.x).normalized()
@@ -921,7 +926,7 @@ func _death_two(fall: Vector3) -> Array:
 		k[_ch(kept, "el")] -= shake * 0.5
 		k[T_ROLL] += shake * 0.6
 		keys.append([0.07, k, STEP])
-	keys.append([0.0, reach, STEP, _break_part.bind("part_module", Vector3(0, 0, -1), 1.2)])
+	keys.append([0.0, reach, STEP, _explode_part.bind("part_module")])
 	keys.append([0.20, kneel, SMEAR])
 	keys.append([0.16, kneel, STEP])
 	keys.append([0.16, head_up, EASE])
@@ -961,7 +966,7 @@ func _death_one(fall: Vector3) -> Array:
 		k[T_ROLL] += 0.05 if i % 2 == 0 else -0.05
 		k[T_PITCH] += 0.03 if i % 2 == 0 else 0.0
 		keys.append([0.08, k, STEP])
-	keys.append([0.0, clutch, STEP, _break_part.bind("part_module", Vector3(0, 0, -1), 1.0)])
+	keys.append([0.0, clutch, STEP, _explode_part.bind("part_module")])
 	keys.append([0.18, reach, EASE])
 	for i: int in 3:
 		var k: PackedFloat32Array = reach.duplicate()
@@ -1002,7 +1007,7 @@ func _death_none(fall: Vector3) -> Array:
 		k[SWAY] = w
 		k[ROLL] = -w * 0.8
 		keys.append([0.20, k, EASE])
-	keys.append([0.0, keys[keys.size() - 1][1], STEP, _break_part.bind("part_module", Vector3(0, 0, -1), 1.0)])
+	keys.append([0.0, keys[keys.size() - 1][1], STEP, _explode_part.bind("part_module")])
 	# Both knees give: it drops straight down, head bowed, and sits back.
 	var give := _p({"tpitch": 0.30, "drop": 0.28, "surge": -0.04})
 	var sit := _plus(give, _p({"tpitch": -0.12, "pitch": -0.06}))
@@ -1045,6 +1050,27 @@ func _break_arm(slot: String, fall: Vector3) -> void:
 	var out := Vector3(_side(slot), 0.0, 0.0)
 	_break_node(node, out * 0.55 + fall * 0.25 + Vector3.UP * 1.1, Vector3(-3.0, 0.5, _side(slot) * 3.5), "arm")
 	_recoil_velocity += -out * 0.4
+
+
+## 065: the part blows apart where it is: it leaves the machine at once (nothing to fall through the
+## frame), and `on_break` gets "explode_<part>" for the fireball.
+func _explode_part(name: String) -> void:
+	var node: Node3D = _find(_body, name)
+	if node == null or not is_instance_valid(node):
+		return
+	for entry: Array in _skin_points.duplicate():
+		if node.is_ancestor_of(entry[0]):
+			_skin_points.erase(entry)
+	for entry: Array in _rigid_points.duplicate():
+		if node == entry[0] or node.is_ancestor_of(entry[0]):
+			_rigid_points.erase(entry)
+	var at: Vector3 = node.global_position if node.is_inside_tree() else Vector3.ZERO
+	node.get_parent().remove_child(node)
+	node.queue_free()
+	_shudder = maxf(_shudder, 0.16)
+	_shudder_amp = maxf(_shudder_amp, 0.09)
+	if on_break.is_valid():
+		on_break.call(at, "explode_" + name.trim_prefix("part_"))
 
 
 func _break_part(name: String, push: Vector3, up: float) -> void:
@@ -1799,7 +1825,10 @@ func _advance_death(delta: float) -> void:
 					_shudder = 0.16
 					_shudder_amp = 0.06
 					# The core rolls out of its chest; the last arm comes loose.
-					_break_part("part_core", _fall_dir * 0.4 + Vector3(0, 0, 0.6), 0.9)
+					# 065: and blows up -- a loose core rolled through the frame it fell out of.
+					_explode_part("part_core")
+					if on_break.is_valid():
+						on_break.call(_body.global_position + _body.global_transform.basis.orthonormalized() * (_fall_dir * 0.5), "land")
 					for slot: String in _arms.keys():
 						_break_arm(slot, _fall_dir * 0.3)
 		else:

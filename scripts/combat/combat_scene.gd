@@ -96,7 +96,7 @@ const T_ATTACK: float = 0.14
 const T_HIT: float = 0.16
 const T_DESTROY: float = 0.30
 ## 059: how long a wreck plays its death and lies there before it is crushed into scrap.
-const WRECK_LIES: float = 3.6
+const WRECK_LIES: float = 2.6
 const T_BANNER: float = 0.30
 ## The beat between consequences of one cause that are played together (play-test 7), and the
 ## events that are.
@@ -1696,7 +1696,31 @@ func _burst(view: Dictionary, push: Vector3) -> void:
 		if what == "clank":
 			Audio.play("hit_light", -14.0, 0.2)
 			return
+		# 065: the core and the backpack blow up where they are; the wreck lands in dust.
+		match what:
+			"explode_core":
+				_vfx.fireball(at - Vector3(0, 0.3, 0), 0.6)
+				_vfx.sparks(at, Color("ffd27a"), 26, 1.8)
+				_vfx.shake(0.8)
+				_vfx.hitstop(0.06)
+				_letters(at + Vector3(0, 0.7, 0), "BOOM!", Ink.PAPER, 96, -0.1)
+				Audio.play("destroy", -6.0, 0.1)
+				return
+			"explode_module":
+				_vfx.fireball(at - Vector3(0, 0.35, 0), 0.4)
+				_vfx.sparks(at, Color("ffb070"), 18, 1.4)
+				_vfx.shake(0.5)
+				_letters(at + Vector3(0, 0.5, 0), "KA-BLAM!", Ink.PAPER, 80, 0.12)
+				Audio.play("thump", -8.0, 0.15)
+				return
+			"land":
+				_vfx.smoke(Vector3(at.x, 0.1, at.z), 10, 0.8)
+				_vfx.shake(0.45)
+				_letters(Vector3(at.x, 0.6, at.z), "THUD!", Ink.PAPER, 70, -0.08)
+				Audio.play("thump", -6.0, 0.1)
+				return
 		_vfx.sparks(at, Color("ffb070"), 14, 1.2)
+		_vfx.smoke(at, 4, 0.4)
 		_letters(at + Vector3(0, 0.5, 0), "KRAK!" if what == "arm" else ("CLUNK!" if what == "module" else "TINK!"),
 			Ink.PAPER, 70, 0.12)
 		Audio.play("clang", -10.0, 0.15)
