@@ -105,7 +105,10 @@ static func build_parts(part_ids: PackedStringArray, _content: ContentDB, team_c
 			# puts them in PROFILE without making the machine look cross-eyed, and real
 			# hardpoints are never perfectly parallel anyway.
 			var outward: float = ARM_SPLAY if slot == "arm_r" else -ARM_SPLAY
-			piece.rotation = Vector3(ARM_CANT, outward, 0.0)
+			# 062: a generated arm is posed by its rig (aimed or hanging by weapon) from a socket set on
+			# its shoulder's face; splayed and canted on top, it stood off the frame at an angle.
+			var generated: bool = Models.part_path(chassis_id).contains("/parts_gen")
+			piece.rotation = Vector3.ZERO if generated else Vector3(ARM_CANT, outward, 0.0)
 			piece.scale = Vector3.ONE * ARM_SCALE
 		if slot == "arm_l":
 			# Mirrored so the pair reads as a left and a right arm rather than two

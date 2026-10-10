@@ -268,6 +268,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-09 | **Animate pose to pose** (held keys, SNAP/SMEAR/STEP curves, additive layers), **turn bones about the MACHINE's axes** (front is +Z; a generated bone's own X points anywhere), let the torso carry the sockets, and **show a strike's effect at its impact** (`strike` returns the lead). The rigid roster's legs had cycled backwards since the start (059) |
 | 2026-10-10 | **Measure floor penetration on posed vertices** (`ConstructRig.lowest`, `tools/probe_floor.gd`), not bones or boxes. Solve a knee toward its DRAWN side and keep the foot flat to the ground, or the shin and toe go under. **A Packed array read from a Dictionary is a copy** (060) |
 | 2026-10-10 | **Parts that come off are physics bodies, on their own layer, kept on the hex**; the machine's motion stays authored. **Bind a foot plate to the ankle by height** (`foot_top`), or it stretches with the shin. Check a death from the SIDE: from the front a machine on its back looks like it kneels (061) |
+| 2026-10-10 | **Put a socket on the MEASURED centre of the visible mounting face** (`shot_machine.gd --marks`); a death goes by the arms still bolted on (2/1/0); a lying wreck must unbend its torso, close its legs and rest ON the floor (`probe_death.gd`) (062) |
 
 ## Open questions
 

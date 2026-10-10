@@ -2,6 +2,16 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [062] A death for each loadout; flat wrecks; arm mounts — 2026-10-10 ([detail](iterations/062-deaths-mounts.md))
+
+### Added
+- Machines die by what they still carry: two arms fall back, one arm falls on its face reaching for
+  its killer, no arms topple sideways.
+
+### Fixed
+- Wrecks lie flat on the floor (upper body unbent, legs together, feet pointed, no hovering, no endless
+  bounce) and over their own hex; Needle's and Relay's arms are bolted to the centre of their shoulders.
+
 ## [061] Death on its hex, solid parts, Brute's feet — 2026-10-10 ([detail](iterations/061-death-feet.md))
 
 ### Fixed
