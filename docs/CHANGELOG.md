@@ -2,6 +2,16 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [064] Generated machines by default; deaths that stay put — 2026-10-10 ([detail](iterations/064-default-gen.md))
+
+### Changed
+- The game draws the generated scrap machines (`art/parts_gen_scrap`) with no flags; `--models new`
+  and `--models old` show the other sets.
+- Deaths fall forward or backward only (two arms and no arms: backwards; one arm: on its face).
+
+### Fixed
+- A wreck slid 6-9 m across the board after it landed (the hex-centring slide was summed every frame).
+
 ## [063] Cleanup — 2026-10-10 ([detail](iterations/063-cleanup.md))
 
 ### Removed
