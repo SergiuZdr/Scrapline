@@ -84,6 +84,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 057 | [IK walk](iterations/057-ik-walk.md) | Feet placed by IK (never under the floor), staged strikes, kneel-then-fall deaths | ✅ awaiting the user's look |
 | 058 | [Animation fixes](iterations/058-anim-fixes.md) | Ground-anchored feet, knees bend as drawn, slump deaths, Relay redrawn facing forward | ✅ awaiting the user's look |
 | 059 | [Comic motion](iterations/059-comic-motion.md) | Every robot animation redone pose to pose: run, strikes, hits, deaths; impact-timed shots; deaths played in the fight | ✅ awaiting the user's look |
+| 060 | [Motion, second pass](iterations/060-motion-pass2.md) | Feet never under the floor (measured), longer Brute legs, level-aimed guns, a death that falls apart | ✅ awaiting the user's look |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

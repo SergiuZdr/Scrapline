@@ -173,3 +173,7 @@ BACK / STEP curves and HELD. Anticipation is a held key before the action; the i
 then a rebound past rest and a settle; stepped keys (no in-betweens) for sputters, ticks and grinds.
 Each weapon class has its own strike; each chassis role its own run. The fight shows a strike's effect
 at its impact (`strike` returns the lead), and a death plays out before the wreck becomes scrap.
+
+060: a death FALLS APART (an arm breaks off first, the machine looks at it, reaches, kneels, goes over;
+its core rolls out), and nothing of a machine ever goes under the floor -- checked on its posed
+vertices by `tools/probe_floor.gd`.

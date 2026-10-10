@@ -96,7 +96,7 @@ const T_ATTACK: float = 0.14
 const T_HIT: float = 0.16
 const T_DESTROY: float = 0.30
 ## 059: how long a wreck plays its death and lies there before it is crushed into scrap.
-const WRECK_LIES: float = 2.0
+const WRECK_LIES: float = 3.6
 const T_BANNER: float = 0.30
 ## The beat between consequences of one cause that are played together (play-test 7), and the
 ## events that are.
@@ -1699,6 +1699,15 @@ func _burst(view: Dictionary, push: Vector3) -> void:
 	# 059: the death plays (snap, sputter, knees, over), the wreck lies a beat, then it is crushed
 	# into the scrap it leaves. `_dying` keeps the rig running after the view leaves `_views`.
 	var rig: ConstructRig = view["rig"]
+	# 060: a part breaking off throws sparks and a sound word; a loose part landing clanks.
+	rig.on_break = func(at: Vector3, what: String) -> void:
+		if what == "clank":
+			Audio.play("hit_light", -14.0, 0.2)
+			return
+		_vfx.sparks(at, Color("ffb070"), 14, 1.2)
+		_letters(at + Vector3(0, 0.5, 0), "KRAK!" if what == "arm" else ("CLUNK!" if what == "module" else "TINK!"),
+			Ink.PAPER, 70, 0.12)
+		Audio.play("clang", -10.0, 0.15)
 	rig.collapse(push)
 	_dying.append(rig)
 	var tween := create_tween()
