@@ -75,7 +75,7 @@ var errors: PackedStringArray = []
 
 ## `fight`: a `data/fights/*.json` record. `rules`: `data/combat/rules.json`.
 ## `parts`: ContentDB.parts. `tile_defs`: ContentDB.tiles (file order = tile id).
-## `wheel`: `Balance.effectiveness`.
+## `wheel`: `ContentDB.effectiveness` (`rules.json` `effectiveness`).
 static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_defs: Array,
 		wheel: Array, seed_value: int) -> CombatSetup:
 	var setup := CombatSetup.new()

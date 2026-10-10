@@ -87,7 +87,7 @@ func _new_stats() -> Dictionary:
 
 ## Plays one fight with the bot. Returns true on a win.
 func _play(fight: Dictionary, seed_value: int, stats: Dictionary) -> bool:
-	var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, seed_value)
+	var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, seed_value)
 	if not setup.errors.is_empty():
 		push_error("setup errors: %s" % [setup.errors])
 		return false

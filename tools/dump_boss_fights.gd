@@ -13,7 +13,7 @@ func _initialize() -> void:
 	var found: Dictionary = {}
 	for r: int in 40:
 		var setup: RunSetup = RunSetup.create(db.parts, db.tiles, db.fights, db.run_rules,
-			db.combat_rules, db.balance.effectiveness, 1000 + first + r)
+			db.combat_rules, db.effectiveness, 1000 + first + r)
 		var state: RunState = RunSim.start(setup)
 		var guard: int = 0
 		while state.outcome == RunState.ONGOING and guard < 400:

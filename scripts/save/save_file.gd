@@ -173,13 +173,3 @@ func _read(path: String) -> Variant:
 	if not (json.data is Dictionary):
 		return null
 	return json.data
-
-
-func status_name() -> String:
-	match status:
-		Status.OK: return "ok"
-		Status.MISSING: return "new profile"
-		Status.CORRUPT: return "corrupt"
-		Status.TOO_NEW: return "too new"
-		Status.MIGRATED: return "migrated"
-	return "unknown"

@@ -15,13 +15,9 @@ const DATA_ROOT: String = "res://data"
 
 ## Part id -> part definition, flattened across every part-type file.
 var parts: Dictionary = {}
-var abilities: Dictionary = {}
-var conditions: Dictionary = {}
-var maps: Dictionary = {}
 ## Terrain tile definitions, in file order -- the index IS the tile type id a map grid
 ## stores, so this array's order must stay stable.
 var tiles: Array = []
-var linkages: Array = []
 ## `data/combat/rules.json`: grid combat tunables.
 var combat_rules: Dictionary = {}
 ## Fight id -> fight definition, one file per fight in `data/fights/`.
@@ -36,7 +32,6 @@ var meta: Dictionary = {}
 ## `data/combat/abilities.json` and `data/combat/enemy_kinds.json`.
 var combat_abilities: Dictionary = {}
 var enemy_kinds: Dictionary = {}
-var bosses: Dictionary = {}
 ## `data/parts/makers.json`: who made each part, and what a set of theirs adds (011).
 var makers: Dictionary = {}
 ## `data/run/perks.json`: what a level-up can offer (011).
@@ -45,7 +40,9 @@ var perks: Dictionary = {}
 var glossary: Dictionary = {}
 ## `data/tutorial.json`: the shakedown's steps (012). Text and coaching, not rules.
 var tutorial: Dictionary = {}
-var balance: Balance = null
+## The damage-type wheel (`rules.json` `effectiveness`): rows are damage types, columns
+## armour types, percent.
+var effectiveness: Array[PackedInt32Array] = []
 
 var errors: PackedStringArray = []
 
@@ -65,22 +62,9 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	var maker_data: Variant = db._read_json("%s/parts/makers.json" % root)
 	if maker_data is Dictionary:
 		db.makers = _without_comments(maker_data as Dictionary)
-
-	db._load_into(db.abilities, "%s/abilities/abilities.json" % root, "id")
-	db._load_into(db.conditions, "%s/conditions/conditions.json" % root, "id")
-	db._load_into(db.maps, "%s/maps/foundry_yard.json" % root, "id")
-	db._load_into(db.bosses, "%s/bosses.json" % root, "id")
-
-
 	var tile_data: Variant = db._read_json("%s/terrain/tiles.json" % root)
 	if tile_data is Array:
 		db.tiles = tile_data as Array
-
-	var link_data: Variant = db._read_json("%s/linkages.json" % root)
-	if link_data is Array:
-		db.linkages = link_data as Array
-
-
 	var run_data: Variant = db._read_json("%s/run/run.json" % root)
 	if run_data is Dictionary:
 		db.run_rules = run_data as Dictionary
@@ -130,23 +114,13 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 		if fight is Dictionary:
 			db.fights[String((fight as Dictionary).get("id", file_name.get_basename()))] = fight
 
-	var balance_data: Variant = db._read_json("%s/balance.json" % root)
-	db.balance = Balance.from_dict(balance_data as Dictionary if balance_data is Dictionary else {})
+	for row: Variant in db.combat_rules.get("effectiveness", []):
+		var packed := PackedInt32Array()
+		for v: Variant in (row as Array):
+			packed.append(int(v))
+		db.effectiveness.append(packed)
 
 	return db
-
-
-## The bundle the simulation expects. Keeping this shape in one place means adding a
-## content category is a one-line change here rather than a hunt through callers.
-func to_sim_content() -> Dictionary:
-	return {
-		"parts": parts,
-		"abilities": abilities,
-		"conditions": conditions,
-		"linkages": linkages,
-		"maps": maps,
-		"tiles": tiles,
-	}
 
 
 ## A hash of everything the simulation reads. A saved run stores its seed and action
@@ -158,15 +132,14 @@ func to_sim_content() -> Dictionary:
 ## data and text change nothing about how a fight plays and must not invalidate a save.
 func content_version() -> String:
 	var hash_value: int = 0x811C9DC5
-	for section: Variant in ["parts", "abilities", "conditions", "linkages", "maps", "tiles"]:
+	for section: Variant in ["parts", "tiles"]:
 		hash_value = _hash_string(hash_value, String(section))
-		hash_value = _hash_value(hash_value, to_sim_content()[section])
+		hash_value = _hash_value(hash_value, parts if section == "parts" else tiles)
 	hash_value = _hash_value(hash_value, combat_rules)
 	hash_value = _hash_value(hash_value, fights)
 	hash_value = _hash_value(hash_value, run_rules)
 	hash_value = _hash_value(hash_value, combat_abilities)
 	hash_value = _hash_value(hash_value, enemy_kinds)
-	hash_value = _hash_value(hash_value, balance.to_dict())
 	return "%08x" % hash_value
 
 
@@ -209,10 +182,7 @@ func is_valid() -> bool:
 
 
 func summary() -> String:
-	return "content=%s parts=%d abilities=%d conditions=%d linkages=%d maps=%d tiles=%d bosses=%d" % [
-		content_version(), parts.size(), abilities.size(), conditions.size(),
-		linkages.size(), maps.size(), tiles.size(), bosses.size()
-	]
+	return "content=%s parts=%d tiles=%d fights=%d" % [content_version(), parts.size(), tiles.size(), fights.size()]
 
 
 func _load_into(target: Dictionary, path: String, key: String) -> void:

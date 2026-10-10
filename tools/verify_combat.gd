@@ -324,7 +324,7 @@ func _test_objectives_028() -> void:
 	var dusty: CombatState = _fight(_rows(), [_unit(LANCE, C)], [_unit(HAMMER, far)])
 	var clear_reach: int = CombatSim.weapon_reach(dusty, dusty.unit(0), 1)
 	var fight: Dictionary = {"id": "t", "rows": _rows(), "player": [_unit(LANCE, C)], "enemy": [_unit(HAMMER, far)], "modifiers": ["dust", "heat_wave", "scrap_rain"]}
-	var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 1)
+	var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 1)
 	var storm: CombatState = CombatSim.start(setup)
 	_check("DUST STORM: shots reach 1 less (%d -> %d)" % [clear_reach, CombatSim.weapon_reach(storm, storm.unit(0), 1)],
 		CombatSim.weapon_reach(storm, storm.unit(0), 1) == clear_reach - 1)
@@ -615,7 +615,7 @@ func _test_bosses_038() -> void:
 	f.unit(11).alive = false
 	var bare: int = CombatSim.damage_to(f, f.unit(0), f.unit(10), 8, false)
 	_check("the Core takes 2 less while a conduit stands (%d), not after (%d)" % [shielded, bare], bare == shielded + 2)
-	var setup: RunSetup = RunSetup.create(_db.parts, _db.tiles, _db.fights, _db.run_rules, _db.combat_rules, _db.balance.effectiveness, 3)
+	var setup: RunSetup = RunSetup.create(_db.parts, _db.tiles, _db.fights, _db.run_rules, _db.combat_rules, _db.effectiveness, 3)
 	var state: RunState = RunSim.start(setup)
 	state.act = 3
 	var gate: Dictionary = RunSim._make_gate_fight(state, setup, 0, RunSim.widen(_db.fights["the_core"], _db.run_rules.get("board", {})), SimRNG.new(1))
@@ -639,7 +639,7 @@ func _fight(rows: Array, players: Array, enemies: Array, objective: Dictionary =
 	var fight: Dictionary = {"id": "test", "rows": rows, "player": players, "enemy": enemies}
 	if not objective.is_empty():
 		fight["objective"] = objective
-	var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 1)
+	var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 1)
 	if not setup.errors.is_empty():
 		_check("test setup has no errors %s" % [setup.errors], false)
 	var state: CombatState = CombatSim.start(setup)
@@ -710,15 +710,15 @@ func _test_hex_geometry() -> void:
 func _test_fights_build() -> void:
 	for id: String in ["proto_yard", "slag_pit", "container_row"]:
 		var fight: Dictionary = _db.fights.get(id, {})
-		var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 7)
+		var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 7)
 		_check("%s builds with no errors %s" % [id, setup.errors], not fight.is_empty() and setup.errors.is_empty())
-	var defend: CombatSetup = CombatSetup.build(_db.fights["container_row"], _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 7)
+	var defend: CombatSetup = CombatSetup.build(_db.fights["container_row"], _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 7)
 	var cache_refs: Array = []
 	for u: GridUnit in defend.units:
 		if u.objective:
 			cache_refs.append(u.ref)
 	_check("a defend fight places its caches after the crew (refs 3, 4)", cache_refs == [3, 4])
-	var salvage: CombatSetup = CombatSetup.build(_db.fights["slag_pit"], _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 7)
+	var salvage: CombatSetup = CombatSetup.build(_db.fights["slag_pit"], _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 7)
 	_check("a salvage fight starts with scrap piles", salvage.start_piles.size() == 4)
 
 
@@ -1302,7 +1302,7 @@ func _test_gate_and_reclaimer() -> void:
 
 	var fight: Dictionary = {"id": "t", "rows": _rows(), "player": [_unit(RAIL, Vector2i(1, 3))],
 		"enemy": [_unit(HAMMER, Vector2i(4, 0), 40)], "reclaimer": {"round": 3, "count": 2}}
-	var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 5)
+	var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 5)
 	var r_state: CombatState = CombatSim.start(setup)
 	_check("no arrival is marked in round 1", r_state.arrivals.is_empty())
 	CombatSim.apply(r_state, [CombatSim.ACT_END, -1, 0, 0])
@@ -1322,7 +1322,7 @@ func _test_gate_and_reclaimer() -> void:
 		drones.size() == 1 and r_state.arrivals.is_empty() and not (drones[0] as GridUnit).carries_scrap)
 	var far: Dictionary = fight.duplicate(true)
 	far.erase("reclaimer")
-	var quiet: CombatState = CombatSim.start(CombatSetup.build(far, _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 5))
+	var quiet: CombatState = CombatSim.start(CombatSetup.build(far, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 5))
 	for r: int in 3:
 		CombatSim.apply(quiet, [CombatSim.ACT_END, -1, 0, 0])
 	_check("a fight without the Reclaimer's reach gets no arrivals", quiet.arrivals.is_empty()
@@ -1828,7 +1828,7 @@ func _test_dry_run_matches() -> void:
 # --- Whole fights -------------------------------------------------------------
 
 func _test_bot_fight(fight_id: String) -> void:
-	var setup: CombatSetup = CombatSetup.build(_db.fights[fight_id], _db.combat_rules, _db.parts, _db.tiles, _db.balance.effectiveness, 2026)
+	var setup: CombatSetup = CombatSetup.build(_db.fights[fight_id], _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 2026)
 	var state: CombatState = CombatSim.start(setup)
 	var actions: Array = []
 	var guard: int = 0

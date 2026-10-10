@@ -88,8 +88,3 @@ func pick(items: Array) -> Variant:
 	if items.is_empty():
 		return null
 	return items[range_int(0, items.size() - 1)]
-
-
-## Snapshot of the internal state, for debugging a divergence between two runs.
-func state_string() -> String:
-	return "%08x%08x%08x%08x/%d" % [_a, _b, _c, _d, draws]

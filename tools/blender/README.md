@@ -35,21 +35,6 @@ modular art projects collapse.
 which is nothing on the target hardware. The script prints the count for every part and
 lists anything over.
 
-## Terrain
-
-```bash
-blender --background --python tools/blender/make_terrain.py -- --out art/terrain
-```
-
-One 1x1 m prop per tile type in `data/terrain/tiles.json`, three seeded variants each so
-a field of rubble is not visibly stamped. **Height encodes function**: a ridge is tall
-because it grants reach, scrap is chest-high because it is the best cover, slag is a
-sunken pool because it is a hazard. A player should read the tactical value of ground
-from its shape without a legend.
-
-The slag rim must sit *above* y=0. The first version buried the whole basin under the
-ground slab and only stray crust poked through.
-
 ## Review renders
 
 ```bash
