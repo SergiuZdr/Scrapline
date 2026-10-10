@@ -1714,7 +1714,7 @@ func _burst(view: Dictionary, push: Vector3) -> void:
 				Audio.play("thump", -8.0, 0.15)
 				return
 			"land":
-				_vfx.smoke(Vector3(at.x, 0.1, at.z), 10, 0.8)
+				_vfx.smoke(Vector3(at.x, 0.1, at.z), 6, 0.45)
 				_vfx.shake(0.45)
 				_letters(Vector3(at.x, 0.6, at.z), "THUD!", Ink.PAPER, 70, -0.08)
 				Audio.play("thump", -6.0, 0.1)

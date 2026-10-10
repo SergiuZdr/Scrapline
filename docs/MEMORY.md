@@ -135,6 +135,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-10 | **The real-time battler's leftovers are deleted** (063): `legacy/`, `SimUnit`/`SimDefs`/`SimMath`/`SimEv`/`EventStream`/`Balance`, `data/balance.json` (the type wheel now lives in `data/combat/rules.json` `effectiveness`, read as `ContentDB.effectiveness`), and the unread `abilities`/`conditions`/`maps`/`linkages`/`bosses` tables. The content hash changed: runs saved before 063 refuse to resume | The user: "delete level 1 2 and 3" of the audit; dead code costs every reader and every session's context | |
 | 2026-10-10 | **The generated scrap machines are the default** (064, `Models._mode`); `--models new` / `old` show the other sets. **Deaths fall forward or backward, never on a side** | The user: "make the new models the default so I can see them in game live"; "I don't want to see the robots falling on a side" | |
 | 2026-10-10 | **A dying machine's core and backpack explode; deaths play 1.7x faster** (065, `ConstructRig._explode_part`, `DEATH_SPEED`) | The user: the core/back module went through the frame as it fell, "I want it to explode"; "the animations need to be faster and they need effects in game" | |
+| 2026-10-10 | **Effects are drawn, not realistic** (066, `BattleVFX`): ink edges, flat bands, half-tone dots, action lines; pop in, shrink out | The user: "I don't want realistic effects, but effects that match the style of the game (comics, Borderlands)" | |
 
 ## Lessons carried over from the old codebase
 
