@@ -32,49 +32,49 @@ func _initialize() -> void:
 	_db = ContentDB.load_all()
 	print("")
 	print("=== combat on hexes ===")
-	_test_hex_geometry()
-	_test_fights_build()
-	_test_stats_come_from_parts()
-	_test_movement()
-	_test_free_aim()
-	_test_melee_all_neighbours()
-	_test_pierce()
-	_test_lob()
-	_test_damage_wheel_and_cover()
-	_test_shove_and_bump()
-	_test_mark()
-	_test_heat()
-	_test_bonus_blocks()
-	_test_tearing()
-	_test_slag()
-	_test_intents_target_hexes()
-	_test_piles()
-	_test_playtest4()
-	_test_objectives()
-	_test_barrels_and_props()
-	_test_pits()
-	_test_abilities()
-	_test_enemy_kinds()
-	_test_dry_run_matches()
-	_test_gate_and_reclaimer()
-	_test_boss_tricks()
-	_test_playtest5()
-	_test_scrap_on_the_way()
-	_test_shot_leanings()
-	_test_act2_kinds()
-	_test_playtest7()
-	_test_act3()
-	_test_objectives_028()
-	_test_weapons_029()
-	_test_warlords_030()
-	_test_modules_033()
-	_test_playtest11()
-	_test_bosses_038()
-	_test_arms_047()
+	_timed(_test_hex_geometry)
+	_timed(_test_fights_build)
+	_timed(_test_stats_come_from_parts)
+	_timed(_test_movement)
+	_timed(_test_free_aim)
+	_timed(_test_melee_all_neighbours)
+	_timed(_test_pierce)
+	_timed(_test_lob)
+	_timed(_test_damage_wheel_and_cover)
+	_timed(_test_shove_and_bump)
+	_timed(_test_mark)
+	_timed(_test_heat)
+	_timed(_test_bonus_blocks)
+	_timed(_test_tearing)
+	_timed(_test_slag)
+	_timed(_test_intents_target_hexes)
+	_timed(_test_piles)
+	_timed(_test_playtest4)
+	_timed(_test_objectives)
+	_timed(_test_barrels_and_props)
+	_timed(_test_pits)
+	_timed(_test_abilities)
+	_timed(_test_enemy_kinds)
+	_timed(_test_dry_run_matches)
+	_timed(_test_gate_and_reclaimer)
+	_timed(_test_boss_tricks)
+	_timed(_test_playtest5)
+	_timed(_test_scrap_on_the_way)
+	_timed(_test_shot_leanings)
+	_timed(_test_act2_kinds)
+	_timed(_test_playtest7)
+	_timed(_test_act3)
+	_timed(_test_objectives_028)
+	_timed(_test_weapons_029)
+	_timed(_test_warlords_030)
+	_timed(_test_modules_033)
+	_timed(_test_playtest11)
+	_timed(_test_bosses_038)
+	_timed(_test_arms_047)
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
 			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core",
 		"warlord_grinder", "warlord_magnet", "warlord_twins"]:
-		_test_bot_fight(id)
+		_timed(_test_bot_fight.bind(id))
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
 	print("")
@@ -714,6 +714,23 @@ func _test_hex_geometry() -> void:
 	var ray: Array[Vector2i] = Hex.ray(C, Hex.neighbor(C, 0), 4)
 	_check("a ray carries on past its target to full reach", ray.size() == 4 and Hex.distance(C, ray[-1]) == 4)
 	_check("direction toward a neighbour is that neighbour's direction", Hex.neighbor(C, Hex.direction(C, ring[2])) == ring[2])
+	# 070: the fast paths agree with the cube maths they replaced, off the board's edges too.
+	var tables_ok: bool = true
+	var distance_ok: bool = true
+	for y: int in range(-3, 15):
+		for x: int in range(-3, 15):
+			var c := Vector2i(x, y)
+			for dir: int in 6:
+				tables_ok = tables_ok and Hex.neighbor(c, dir) == Hex.neighbor_by_cube(c, dir) \
+					and Hex.neighbors(c)[dir] == Hex.neighbor_by_cube(c, dir)
+			var d: Vector3i = Hex.to_cube(c) - Hex.to_cube(C)
+			distance_ok = distance_ok and Hex.distance(c, C) == maxi(absi(d.x), maxi(absi(d.y), absi(d.z)))
+	_check("neighbour tables match the cube walk on both row parities", tables_ok)
+	_check("the inlined distance matches the cube distance", distance_ok)
+	var cached: Array[Vector2i] = Hex.line(C, off_axis)
+	_check("a line asked for twice is the same line, and read-only", cached == Hex._walk(C, off_axis, 1)
+		and cached.is_read_only() and Hex.ray(C, off_axis, 5) == Hex._cast(C, off_axis, 5, 1)
+		and Hex.within(C, 3) == Hex._disc(C, 3))
 
 
 # --- Setup ------------------------------------------------------------------
@@ -1854,11 +1871,13 @@ func _test_bot_fight(fight_id: String) -> void:
 	print("    %s (%s): %s in %d rounds, crew %d/3, piles %d, damage player %d / enemy %d, hash %s" % [
 		fight_id, String(setup.objective["type"]), "WON" if state.outcome == CombatState.WON else "LOST",
 		state.round_number, state.crew(GridUnit.TEAM_PLAYER).size(), state.piles_collected, dealt[0], dealt[1], state.event_hash()])
+	# Twice: the second replay would catch anything the first left behind (070: the sim keeps
+	# static caches of pure geometry now).
 	var same: bool = true
-	for i: int in 3:
+	for i: int in 2:
 		if CombatSim.replay(setup, actions).event_hash() != state.event_hash():
 			same = false
-	_check("%s: replaying gives the same hash 3 times" % fight_id, same)
+	_check("%s: replaying gives the same hash twice" % fight_id, same)
 	var stable: bool = true
 	for cut: int in [1, actions.size() / 3, actions.size() / 2, actions.size() - 1]:
 		var partial: CombatState = CombatSim.replay(setup, actions.slice(0, cut))
@@ -1868,13 +1887,17 @@ func _test_bot_fight(fight_id: String) -> void:
 	_check("%s: every replayed prefix matches the full fight (undo is exact)" % fight_id, stable)
 	# Play-test 14: UNDO starts from a snapshot taken at the turn's start. Played on from any
 	# turn boundary, a snapshot must reach the full fight exactly -- and leave its source alone.
+	# 070: one walk through the fight, snapshotting at each boundary, instead of replaying every
+	# prefix from round 1 (the prefixes are checked above; this halved the suite's slowest part).
 	var turns_ok: bool = true
 	var boundaries: int = 0
+	var source: CombatState = CombatSim.start(setup)
 	for cut: int in range(-1, actions.size()):
-		if cut >= 0 and int(actions[cut][0]) != CombatSim.ACT_END:
-			continue
+		if cut >= 0:
+			CombatSim.apply(source, actions[cut])
+			if int(actions[cut][0]) != CombatSim.ACT_END:
+				continue
 		boundaries += 1
-		var source: CombatState = CombatSim.replay(setup, actions.slice(0, cut + 1))
 		var events_before: int = source.events.size()
 		var copy: CombatState = source.snapshot()
 		for a: Array in actions.slice(cut + 1):
@@ -1891,3 +1914,12 @@ func _check(label: String, ok: bool) -> void:
 	else:
 		_failed += 1
 		print("  FAIL  %s" % label)
+
+
+## Runs one test and names it if it took over a second, so a slow suite says where its time goes.
+func _timed(test: Callable) -> void:
+	var start: int = Time.get_ticks_msec()
+	test.call()
+	var ms: int = Time.get_ticks_msec() - start
+	if ms >= 1000:
+		print("  time  %5.1fs  %s%s" % [ms / 1000.0, test.get_method(), "" if test.get_bound_arguments().is_empty() else " " + str(test.get_bound_arguments()[0])])

@@ -2,7 +2,9 @@ extends SceneTree
 
 ## Bot fights in bulk: does the enemy threaten anything, and does the player ever lose?
 ##
-##   godot --headless --path . --script res://tools/balance_fights.gd -- [--fights 300]
+##   godot --headless --path . --script res://tools/balance_fights.gd -- [--fights 300] [--jobs N]
+##
+## `--jobs` (070): over N processes, one per core but one by default (`tools/jobs.gd`).
 ##
 ## Two kinds of fight:
 ##   authored  -- each fight file as written, once per seed (seeds only break ties, so
@@ -16,6 +18,8 @@ extends SceneTree
 ##   arm win rate  -- per weapon class on the PLAYER side, against the average. More than
 ##                    6 points off in random fights is a tuning target.
 
+const Jobs = preload("res://tools/jobs.gd")
+
 var _db: ContentDB
 
 
@@ -26,41 +30,64 @@ func _initialize() -> void:
 	var at: int = args.find("--fights")
 	if at >= 0 and at + 1 < args.size():
 		count = args[at + 1].to_int()
+	at = args.find("--jobs")
+	var jobs: int = args[at + 1].to_int() if at >= 0 and at + 1 < args.size() else Jobs.default_count()
+	var slice: Array = Jobs.slice(args)
 
 	var ids: Array = _db.fights.keys()
 	ids.sort()
-
-	print("")
-	print("=== authored fights (bot as player) ===")
-	for id: Variant in ids:
-		var stats: Dictionary = _new_stats()
-		for s: int in 5:
-			_play(_db.fights[id], 1000 + s, stats)
-		_report(String(id), stats)
-
-	print("")
-	print("=== random squads on authored maps (%d fights) ===" % count)
-	var total: Dictionary = _new_stats()
-	var arm_wins: Dictionary = {}
 	# The run's own maps only: the tutorial's board and the gate are not where squads meet
 	# at random (013), and counting them skews the comparison with earlier iterations.
 	var pool: Array = ids.filter(func(id: Variant) -> bool:
 		var map: Dictionary = _db.fights[id]
 		return not bool(map.get("tutorial", false)) and not bool(map.get("boss", false)))
-	for i: int in count:
-		var template: Dictionary = _db.fights[pool[i % pool.size()]]
-		var rng := SimRNG.new(7919 * (i + 1))
-		var fight: Dictionary = template.duplicate(true)
-		fight["player"] = _random_squad(rng, template["player"])
-		fight["enemy"] = _random_squad(rng, template["enemy"])
-		var won: bool = _play(fight, i, total)
-		for spec: Dictionary in fight["player"]:
-			for arm: String in [String(spec["parts"][2]), String(spec["parts"][3])]:
-				var cls: String = String((_db.parts[arm] as Dictionary).get("weapon_class", ""))
-				var row: Array = arm_wins.get(cls, [0, 0])
-				row[0] += 1 if won else 0
-				row[1] += 1
-				arm_wins[cls] = row
+	# Work items, numbered so `--jobs` (070) can share them out: five seeds of every authored fight,
+	# then the random fights.
+	var authored_items: int = ids.size() * 5
+	var numbers: Dictionary = {"authored": {}, "random": _new_stats(), "arms": {}}
+	if slice.is_empty() and jobs > 1:
+		for part: Dictionary in Jobs.run("res://tools/balance_fights.gd", args, jobs, authored_items + count, "won"):
+			Jobs.merge(numbers, part)
+	else:
+		for item: int in authored_items + count:
+			if not Jobs.mine(slice, item):
+				continue
+			var won: bool = false
+			if item < authored_items:
+				var id: String = String(ids[item / 5])
+				if not (numbers["authored"] as Dictionary).has(id):
+					numbers["authored"][id] = _new_stats()
+				won = _play(_db.fights[id], 1000 + item % 5, numbers["authored"][id])
+			else:
+				var i: int = item - authored_items
+				var template: Dictionary = _db.fights[pool[i % pool.size()]]
+				var rng := SimRNG.new(7919 * (i + 1))
+				var fight: Dictionary = template.duplicate(true)
+				fight["player"] = _random_squad(rng, template["player"])
+				fight["enemy"] = _random_squad(rng, template["enemy"])
+				won = _play(fight, i, numbers["random"])
+				for spec: Dictionary in fight["player"]:
+					for arm: String in [String(spec["parts"][2]), String(spec["parts"][3])]:
+						var cls: String = String((_db.parts[arm] as Dictionary).get("weapon_class", ""))
+						var row: Array = numbers["arms"].get(cls, [0, 0])
+						row[0] += 1 if won else 0
+						row[1] += 1
+						numbers["arms"][cls] = row
+			Jobs.progress(slice, ("+ " if won else "- ") + str(item))
+		if not slice.is_empty():
+			Jobs.finish(slice, numbers)
+			quit()
+			return
+
+	print("")
+	print("=== authored fights (bot as player) ===")
+	for id: Variant in ids:
+		if (numbers["authored"] as Dictionary).has(id):
+			_report(String(id), numbers["authored"][id])
+
+	print("")
+	print("=== random squads on authored maps (%d fights) ===" % count)
+	var total: Dictionary = numbers["random"]
 	_report("random", total)
 
 	print("")
@@ -69,6 +96,7 @@ func _initialize() -> void:
 	# matters is how far an arm moves the result from the average.
 	var average: float = 100.0 * total["won"] / maxf(1.0, total["fights"])
 	print("  player arm win rates (random fights), against the %.1f%% average:" % average)
+	var arm_wins: Dictionary = numbers["arms"]
 	var classes: Array = arm_wins.keys()
 	classes.sort()
 	for cls: Variant in classes:

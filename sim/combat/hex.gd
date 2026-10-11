@@ -31,20 +31,36 @@ static func from_cube(h: Vector3i) -> Vector2i:
 	return Vector2i(h.x + (r - (r & 1)) / 2, r)
 
 
+## `CUBE_DIRS` as offset steps, one table per row parity (odd rows sit half a hex right). The
+## same six in the same order; `verify_combat` checks them against the cube walk. Neighbours are
+## asked for millions of times in a bot batch, and the cube round trip was most of their cost.
+const _STEP_EVEN: Array[Vector2i] = [
+	Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, -1), Vector2i(-1, 0), Vector2i(-1, 1), Vector2i(0, 1),
+]
+const _STEP_ODD: Array[Vector2i] = [
+	Vector2i(1, 0), Vector2i(1, -1), Vector2i(0, -1), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(1, 1),
+]
+
+
 static func neighbor(c: Vector2i, dir: int) -> Vector2i:
-	return from_cube(to_cube(c) + CUBE_DIRS[dir])
+	return c + (_STEP_ODD[dir] if c.y & 1 else _STEP_EVEN[dir])
 
 
 static func neighbors(c: Vector2i) -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	for dir: int in 6:
-		out.append(neighbor(c, dir))
-	return out
+	var steps: Array[Vector2i] = _STEP_ODD if c.y & 1 else _STEP_EVEN
+	return [c + steps[0], c + steps[1], c + steps[2], c + steps[3], c + steps[4], c + steps[5]]
+
+
+## The cube walk the tables stand for (the reference `verify_combat` checks them against).
+static func neighbor_by_cube(c: Vector2i, dir: int) -> Vector2i:
+	return from_cube(to_cube(c) + CUBE_DIRS[dir])
 
 
 static func distance(a: Vector2i, b: Vector2i) -> int:
-	var d: Vector3i = to_cube(a) - to_cube(b)
-	return maxi(absi(d.x), maxi(absi(d.y), absi(d.z)))
+	# `to_cube` inlined: the hottest function in the sim.
+	var dq: int = (a.x - (a.y - (a.y & 1)) / 2) - (b.x - (b.y - (b.y & 1)) / 2)
+	var dr: int = a.y - b.y
+	return maxi(absi(dq), maxi(absi(dr), absi(dq + dr)))
 
 
 ## The hexes a straight line passes through from `a` to `b`, excluding `a`, including `b`.
@@ -55,6 +71,28 @@ static func distance(a: Vector2i, b: Vector2i) -> int:
 ## Play-test 4 found shots always leaning the same way -- into a scrap heap or an ally --
 ## so rules that care ask for both leanings and take the better (`CombatSim.best_line`).
 static func line(a: Vector2i, b: Vector2i, lean: int = 1) -> Array[Vector2i]:
+	var key: int = _line_key(a, b, 0, lean)
+	var known: Variant = _lines.get(key)
+	if known != null:
+		return known
+	var out: Array[Vector2i] = _walk(a, b, lean)
+	out.make_read_only()
+	_lines[key] = out
+	return out
+
+
+## Lines and rays already walked, read-only (a caller that tried to change one would change it for
+## every later caller). Pure geometry, so a cache cannot make two runs disagree; the AI asks for the
+## same few hundred lines thousands of times a fight.
+static var _lines: Dictionary = {}
+
+
+static func _line_key(a: Vector2i, b: Vector2i, reach: int, lean: int) -> int:
+	return (((((a.x & 255) << 8 | (a.y & 255)) << 8 | (b.x & 255)) << 8 | (b.y & 255)) << 8 | (reach & 255)) << 1 \
+		| (1 if lean > 0 else 0)
+
+
+static func _walk(a: Vector2i, b: Vector2i, lean: int) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	var n: int = distance(a, b)
 	if n == 0:
@@ -74,6 +112,17 @@ static func line(a: Vector2i, b: Vector2i, lean: int = 1) -> Array[Vector2i]:
 ## Extends the line from `a` through `b` out to `reach` hexes from `a`: where a piercing
 ## shot aimed at `b` actually travels.
 static func ray(a: Vector2i, b: Vector2i, reach: int, lean: int = 1) -> Array[Vector2i]:
+	var key: int = _line_key(a, b, reach + 1, lean)   # + 1: never a `line`'s key
+	var known: Variant = _lines.get(key)
+	if known != null:
+		return known
+	var out: Array[Vector2i] = _cast(a, b, reach, lean)
+	out.make_read_only()
+	_lines[key] = out
+	return out
+
+
+static func _cast(a: Vector2i, b: Vector2i, reach: int, lean: int) -> Array[Vector2i]:
 	var n: int = distance(a, b)
 	if n == 0:
 		return []
@@ -125,6 +174,21 @@ static func directions(a: Vector2i, b: Vector2i) -> Array[int]:
 
 ## Every hex within `radius` of `c` (excluding `c`), in a fixed order.
 static func within(c: Vector2i, radius: int) -> Array[Vector2i]:
+	var key: int = ((c.x & 1023) << 10 | (c.y & 1023)) << 8 | (radius & 255)
+	var known: Variant = _rings.get(key)
+	if known != null:
+		return known
+	var out: Array[Vector2i] = _disc(c, radius)
+	out.make_read_only()
+	_rings[key] = out
+	return out
+
+
+## `within`'s answers, read-only, cached like `_lines`.
+static var _rings: Dictionary = {}
+
+
+static func _disc(c: Vector2i, radius: int) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	var cc: Vector3i = to_cube(c)
 	for dq: int in range(-radius, radius + 1):

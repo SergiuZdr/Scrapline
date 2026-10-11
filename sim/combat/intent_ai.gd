@@ -150,16 +150,20 @@ static func _friendly_lines(state: CombatState, u: GridUnit) -> Dictionary:
 static func _best_shot(state: CombatState, u: GridUnit, ctx: Dictionary) -> Array:
 	var best: Array = [-1, Vector2i.ZERO, -1000000]
 	var best_tie: int = 0
+	var occupied: Array[Vector2i] = []
 	for w: int in u.weapons.size():
 		if not u.can_fire(w):
 			continue
 		var weapon: Dictionary = u.weapons[w]
 		var hot: bool = u.team == GridUnit.TEAM_PLAYER and u.heat + CombatSim.attack_heat(u, weapon) >= u.heat_cap
-		var lob: bool = String(weapon["shape"]) == "lob"
-		for aim: Vector2i in CombatSim.aim_options(state, u, w):
-			var prop: bool = state.props.has(aim)
-			if not lob and not prop and state.unit_at(aim.x, aim.y) == null:
-				continue
+		var aims: Array[Vector2i] = []
+		if String(weapon["shape"]) == "lob":
+			aims = CombatSim.aim_options(state, u, w)
+		else:
+			if occupied.is_empty():
+				occupied = _occupied(state, u)
+			aims = _aims_among(state, u, w, occupied)
+		for aim: Vector2i in aims:
 			var plan: Dictionary = CombatSim.strike_plan(state, u, w, aim)
 			if not bool(plan["legal"]) or ((plan["hits"] as Array).is_empty() and (plan["props"] as Array).is_empty() and not plan.has("mine")):
 				continue
@@ -169,6 +173,42 @@ static func _best_shot(state: CombatState, u: GridUnit, ctx: Dictionary) -> Arra
 				best = [w, aim, value]
 				best_tie = tie
 	return best
+
+
+## The hexes worth aiming a non-lob at: every other living machine and every prop.
+static func _occupied(state: CombatState, u: GridUnit) -> Array[Vector2i]:
+	var seen: Dictionary = {}
+	for other: GridUnit in state.units:
+		if other.alive and other != u:
+			seen[Vector2i(other.x, other.y)] = true
+	for cell: Variant in state.props:
+		seen[cell] = true
+	var out: Array[Vector2i] = []
+	out.assign(seen.keys())
+	return out
+
+
+## The cells of `cells` that `CombatSim.aim_options` would offer weapon `w` -- in its order, so
+## the search visits candidates exactly as it did when it walked every hex in reach and skipped
+## the empty ones (most of the bot's time went there).
+static func _aims_among(state: CombatState, u: GridUnit, w: int, cells: Array[Vector2i]) -> Array[Vector2i]:
+	var here := Vector2i(u.x, u.y)
+	var reach: int = CombatSim.aim_reach(state, u, w)
+	var minimum: int = CombatSim.min_range(u.weapons[w])
+	var keyed: Array = []
+	var hq: int = here.x - (here.y - (here.y & 1)) / 2
+	for cell: Vector2i in cells:
+		var d: int = Hex.distance(here, cell)
+		if d < minimum or d > reach or d == 0 or not state.inside(cell):
+			continue
+		# `Hex.within` walks dq, then dr.
+		var dq: int = cell.x - (cell.y - (cell.y & 1)) / 2 - hq
+		keyed.append([dq * 1024 + (cell.y - here.y), cell])
+	keyed.sort_custom(func(a: Array, b: Array) -> bool: return int(a[0]) < int(b[0]))
+	var out: Array[Vector2i] = []
+	for k: Array in keyed:
+		out.append(k[1])
+	return out
 
 
 ## How much `u` wants the outcome of `plan`.
@@ -215,10 +255,13 @@ static func plan_value(state: CombatState, u: GridUnit, weapon: Dictionary, plan
 ## The full consequence of `u` attacking from `cell`: the attack is executed on a copy and
 ## every change is scored, both sides.
 static func _dry_value(state: CombatState, u: GridUnit, cell: Vector2i, w: int, target: Vector2i, ctx: Dictionary) -> int:
-	var before: CombatState = state.clone()
-	var me: GridUnit = before.unit(u.ref)
-	me.x = cell.x
-	me.y = cell.y
+	# `u` stands on `cell` in the real state for the length of the function (as `plan` does), so
+	# one copy is enough: `before` IS the state, put back below.
+	var here := Vector2i(u.x, u.y)
+	u.x = cell.x
+	u.y = cell.y
+	var before: CombatState = state
+	var me: GridUnit = u
 	var after: CombatState = before.clone()
 	CombatSim._execute_attack(after, after.unit(u.ref), w, target)
 	var value: int = 0
@@ -264,6 +307,8 @@ static func _dry_value(state: CombatState, u: GridUnit, cell: Vector2i, w: int, 
 		value += _mine_value(before, me, CombatSim.strike_plan(before, me, w, target))
 	if u.team == GridUnit.TEAM_PLAYER and u.heat + CombatSim.attack_heat(u, weapon) >= u.heat_cap:
 		value += SCORE_OVERHEAT
+	u.x = here.x
+	u.y = here.y
 	return value
 
 
