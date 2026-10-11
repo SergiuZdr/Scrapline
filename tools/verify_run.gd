@@ -14,33 +14,33 @@ func _initialize() -> void:
 	_db = ContentDB.load_all()
 	print("")
 	print("=== run ===")
-	_test_generation()
-	_test_travel_and_front()
-	_test_sites()
-	_test_fight_feeds_the_run()
-	_test_wreck_and_rebuild()
-	_test_boss_held()
-	_test_acts()
-	_test_names()
-	_test_objectives_rolled()
-	_test_bigger_boards()
-	_test_legendaries()
-	_test_warlords()
-	_test_new_sites()
-	_test_levels()
-	_test_perks()
-	_test_tuning()
-	_test_sets()
-	_test_salvage()
-	_test_gate_and_reach()
-	_test_trader()
-	_test_tower()
-	_test_signals()
-	_test_recap_and_preview()
-	_test_assembly()
-	_test_refit()
-	_test_determinism_and_save()
-	_test_agent_playtest()
+	_timed(_test_generation)
+	_timed(_test_travel_and_front)
+	_timed(_test_sites)
+	_timed(_test_fight_feeds_the_run)
+	_timed(_test_wreck_and_rebuild)
+	_timed(_test_boss_held)
+	_timed(_test_acts)
+	_timed(_test_names)
+	_timed(_test_objectives_rolled)
+	_timed(_test_bigger_boards)
+	_timed(_test_legendaries)
+	_timed(_test_warlords)
+	_timed(_test_new_sites)
+	_timed(_test_levels)
+	_timed(_test_perks)
+	_timed(_test_tuning)
+	_timed(_test_sets)
+	_timed(_test_salvage)
+	_timed(_test_gate_and_reach)
+	_timed(_test_trader)
+	_timed(_test_tower)
+	_timed(_test_signals)
+	_timed(_test_recap_and_preview)
+	_timed(_test_assembly)
+	_timed(_test_refit)
+	_timed(_test_determinism_and_save)
+	_timed(_test_agent_playtest)
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
 	print("")
@@ -977,20 +977,30 @@ func _test_determinism_and_save() -> void:
 		actions.append(action)
 		guard += 1
 	_check("a bot run finishes", state.outcome != RunState.ONGOING)
-	var again: RunState = RunSim.replay(_setup(99), actions)
+	# Replayed by hand so the halfway point is kept for the save check below.
+	var half: Array = actions.slice(0, actions.size() / 2)
+	var again_setup: RunSetup = _setup(99)
+	var again: RunState = RunSim.start(again_setup)
+	var half_print: String = again.fingerprint()
+	for i: int in actions.size():
+		RunSim.apply(again, again_setup, actions[i])
+		if i + 1 == half.size():
+			half_print = again.fingerprint()
 	_check("replaying the run's actions reproduces it exactly", again.fingerprint() == state.fingerprint())
 	_check("and its feats (%s)" % [state.feats], not state.feats.is_empty() and again.feats == state.feats)
 
 	# The save format: the actions through JSON and back. JSON turns every int into a
 	# float, and a run must survive that or no save would ever load.
+	# 070: compared as text, which tells 1 from 1.0 (`==` does not) -- stricter than replaying the
+	# whole run again, and the replay above already shows the same actions give the same run.
 	var text: String = RunStore.encode(99, "test", actions, [])
 	var loaded: Dictionary = RunStore.decode(text)
-	var reloaded: RunState = RunSim.replay(_setup(int(loaded["seed"])), loaded["actions"])
-	_check("a run survives the JSON round trip", reloaded.fingerprint() == state.fingerprint())
-	var partial: RunState = RunSim.replay(setup, actions.slice(0, actions.size() / 2))
-	var partial_text: String = RunStore.encode(99, "test", actions.slice(0, actions.size() / 2), [])
-	var partial_loaded: RunState = RunSim.replay(setup, RunStore.decode(partial_text)["actions"])
-	_check("a run saved halfway resumes at the same point", partial.fingerprint() == partial_loaded.fingerprint())
+	_check("a run survives the JSON round trip (every action, every int)",
+		int(loaded["seed"]) == 99 and var_to_str(loaded["actions"]) == var_to_str(actions))
+	var partial_text: String = RunStore.encode(99, "test", half, [])
+	var partial_loaded: RunState = RunSim.replay(_setup(99), RunStore.decode(partial_text)["actions"])
+	_check("a run saved halfway resumes at the same point", partial_loaded.fingerprint() == half_print
+		and var_to_str(RunStore.decode(partial_text)["actions"]) == var_to_str(half))
 
 
 func _check(label: String, ok: bool) -> void:
@@ -1074,3 +1084,12 @@ func _test_agent_playtest() -> void:
 	var hauler_at: int = st.cargo.find("ch_hauler")
 	RunSim.apply(st, setup2, [RunSim.REFIT, 1, 0, hauler_at])
 	_check("and one 4 short stays 4 short on the way back", int(needle["hp"]) == RunSim.max_hp(setup2, needle) - 4)
+
+
+## Runs one test and names it if it took over a second, so a slow suite says where its time goes.
+func _timed(test: Callable) -> void:
+	var start: int = Time.get_ticks_msec()
+	test.call()
+	var ms: int = Time.get_ticks_msec() - start
+	if ms >= 1000:
+		print("  time  %5.1fs  %s%s" % [ms / 1000.0, test.get_method(), "" if test.get_bound_arguments().is_empty() else " " + str(test.get_bound_arguments()[0])])
