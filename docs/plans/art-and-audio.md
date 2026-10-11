@@ -166,6 +166,14 @@ titles (`UIKit.caption_title`), inked models (hatching in the shade band, a rim 
 in `ink_outline.gdshader`), and story strips (`ComicStrip`, `CombatHUD.show_opening_strip`).
 Every new effect is drawn once behind the opening card. Contrast 2.92.
 
+## Machines printed, deaths drawn (067-068)
+Every machine surface is `Ink.comic_machine`: a generated part's texture is posterised into four flat
+steps (hue kept), its darkest texels inked, ink lines drawn wherever its value changes sharply (plate
+edges, bolts, rust borders; 068), the shade band cross-hatched and the lit silhouette rimmed in white.
+The world behind stays quieter so machines read first. A death uses the hit's vocabulary
+(`BattleVFX.on_break`): impact stars, cartoon blasts, shards, drawn dust and floor action lines; nothing
+glows or fades.
+
 ## Motion (059)
 Machines move **pose to pose, like comic panels** (`ConstructRig`): every motion is a clip of key poses
 over named channels (body, upper body, each arm's joints, each foot), reached with SNAP / SMEAR / EASE /

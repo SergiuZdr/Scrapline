@@ -454,6 +454,17 @@ func _test_arms_047() -> void:
 	CombatSim.apply(empty, [CombatSim.ACT_END, 0, 0, 0])
 	_check("a mine on an empty hex stays, and the AI reads it as a hazard", empty.mines.has(spot) and empty.hazard(spot.x, spot.y) > 0)
 	_check("a mine cannot be laid on a mine", not bool(CombatSim.strike_plan(empty, empty.unit(10), 0, spot)["legal"]))
+	# 068: a hex another of the side already mines this volley is worth nothing to a second layer.
+	var two: CombatState = _fight(_rows(), [_unit(HAMMER, spot, 30)], [_unit(layer, C, 30), _unit(layer, Hex.neighbor(C, 0), 30)])
+	_place(two, 0, spot)
+	_place(two, 10, C)
+	two.intents = [{"ref": 10, "w": 0, "x": spot.x, "y": spot.y, "order": 1}]
+	var second: Dictionary = CombatSim.strike_plan(two, two.unit(11), 0, spot)
+	_check("a second mine layer does not value a hex already being mined",
+		bool(second["legal"]) and IntentAI._mine_value(two, two.unit(11), second) == 0)
+	two.intents = []
+	_check("but values it when nobody else mines it",
+		bool(second["legal"]) and IntentAI._mine_value(two, two.unit(11), second) > 0)
 	# Replay: the same actions, the same fight.
 	var again: CombatState = CombatSim.replay(empty.setup, [[CombatSim.ACT_END, 0, 0, 0]])
 	_check("a fight with mines replays the same", again.event_hash() == CombatSim.replay(empty.setup, [[CombatSim.ACT_END, 0, 0, 0]]).event_hash())

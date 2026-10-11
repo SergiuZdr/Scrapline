@@ -1,0 +1,23 @@
+{
+  "id": "mines",
+  "name": "Mines",
+  "_comment": "068: a staged board for checking mines (NOT content). Knuckles carries a Mine Layer; two enemies carry one too.",
+  "rows": [
+    "......",
+    "......",
+    "......",
+    "......",
+    "......",
+    "......"
+  ],
+  "player": [
+    {"name": "Knuckles", "parts": ["ch_hauler", "co_dynamo", "ar_minelayer", "ar_hammer", "mo_scavenger"], "x": 2, "y": 5},
+    {"name": "Needle", "parts": ["ch_hauler", "co_furnace", "ar_pulse", "ar_lance", "mo_ablative"], "x": 4, "y": 5},
+    {"name": "Relay", "parts": ["ch_strider", "co_arc", "ar_scanner", "ar_scatter", "mo_governor"], "x": 0, "y": 5}
+  ],
+  "enemy": [
+    {"name": "Sapper", "parts": ["ch_hauler", "co_dynamo", "ar_minelayer", "ar_hammer", "mo_scavenger"], "x": 2, "y": 1},
+    {"name": "Sapper", "parts": ["ch_hauler", "co_dynamo", "ar_minelayer", "ar_hammer", "mo_scavenger"], "x": 4, "y": 1}
+  ],
+  "objective": {"type": "rout"}
+}

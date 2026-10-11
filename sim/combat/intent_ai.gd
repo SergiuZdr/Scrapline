@@ -276,6 +276,16 @@ static func _mine_value(state: CombatState, u: GridUnit, plan: Dictionary) -> in
 	var t: GridUnit = state.unit_at(cell.x, cell.y)
 	if t == null or not t.alive or t.team == u.team:
 		return 0
+	# 068: a hex another of `u`'s side will already mine this volley is worth nothing: the second
+	# mine cannot be laid (one per hex), and two Sappers both promised "a mine under Needle".
+	for intent: Dictionary in state.intents:
+		var other: GridUnit = state.unit(int(intent["ref"]))
+		if other == null or other == u or not other.alive or other.team != u.team:
+			continue
+		var w: int = int(intent["w"])
+		if w >= 0 and w < other.weapons.size() and String(other.weapons[w]["shape"]) == "mine" \
+				and CombatSim.intent_target(state, intent) == cell:
+			return 0
 	var dmg: int = int((plan["mine"] as Dictionary)["damage"])
 	return dmg * 10 + SCORE_HIT + (SCORE_KILL if dmg >= t.hp else 0) + (SCORE_OBJECTIVE if t.objective else 0)
 

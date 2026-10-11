@@ -92,6 +92,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 065 | [Death effects](iterations/065-death-fx.md) | Core and backpack explode instead of falling through the frame; deaths 1.7x faster; KA-BLAM/BOOM/THUD effects in the fight | ✅ |
 | 066 | [Comic effects](iterations/066-comic-fx.md) | Explosions, smoke, sparks and debris drawn in the comic style instead of realistic | ✅ |
 | 067 | [Comic deaths](iterations/067-comic-deaths.md) | Death effects in the hit/blast style; machines posterised, inked, hatched and rimmed | ✅ |
+| 068 | [Ink edges, mine fixes](iterations/068-ink-edges-mines.md) | Ink lines from texture edges; mines stay drawn, explain themselves, never doubled by the AI | ✅ |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
