@@ -2,6 +2,16 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [068] Ink lines from the texture; mine fixes — 2026-10-12 ([detail](iterations/068-ink-edges-mines.md))
+
+### Changed
+- Machines get ink lines drawn on every sharp edge of their painted texture (plates, bolts, rust).
+
+### Fixed
+- Mines no longer vanish while moves or the enemy volley play; a mine that goes off disappears at once.
+- Aiming a Mine Layer says what it does instead of "Nothing there is affected".
+- Two enemy mine layers no longer plan a mine on the same hex (the second could never be laid).
+
 ## [067] Comic deaths and comic-printed machines — 2026-10-12 ([detail](iterations/067-comic-deaths.md))
 
 ### Changed
