@@ -2,6 +2,15 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [067] Comic deaths and comic-printed machines — 2026-10-12 ([detail](iterations/067-comic-deaths.md))
+
+### Changed
+- A death speaks the hit's language: the killing blow is a big impact star in focus lines; every arm
+  break, explosion and landing pops a star, shards and drawn dust (action lines on the floor); the
+  wreck is crushed with a small cartoon blast and CRUNCH! instead of a glowing ring.
+- Machines are printed like a comic: their painted texture is posterised into flat steps, the
+  darkest texels are inked, the shade band is cross-hatched and the lit silhouette has a white rim.
+
 ## [066] Comic effects — 2026-10-10 ([detail](iterations/066-comic-fx.md))
 
 ### Changed

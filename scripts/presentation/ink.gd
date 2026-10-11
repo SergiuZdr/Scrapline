@@ -491,7 +491,7 @@ static func _dress_node(node: Node, part_id: String, slots: Dictionary, part_ids
 		var mesh: MeshInstance3D = node
 		var livery: Color = paint if paint.a > 0.0 else livery_of(here)
 		if mesh.material_override != null:
-			mesh.material_override = zone_material(String(kit.get(mesh.material_override, "metal")), livery, team)
+			mesh.material_override = comic_machine(zone_material(String(kit.get(mesh.material_override, "metal")), livery, team))
 		elif mesh.mesh != null:
 			for s: int in mesh.mesh.get_surface_count():
 				var source: Material = mesh.mesh.surface_get_material(s)
@@ -499,14 +499,26 @@ static func _dress_node(node: Node, part_id: String, slots: Dictionary, part_ids
 				# (a boss's one livery tints it).
 				if source is BaseMaterial3D and (source as BaseMaterial3D).albedo_texture != null:
 					var tint: Color = paint.lerp(Color.WHITE, 0.45) if paint.a > 0.0 else Color.WHITE
-					mesh.set_surface_override_material(s, textured((source as BaseMaterial3D).albedo_texture, tint, "clean",
-						clean_texture(here), clean_of(mesh)))
+					mesh.set_surface_override_material(s, comic_machine(textured((source as BaseMaterial3D).albedo_texture, tint,
+						"clean", clean_texture(here), clean_of(mesh))))
 					continue
 				var zone: String = PartMaterials.zone_of(source)
-				mesh.set_surface_override_material(s, zone_material(zone, livery, team))
+				mesh.set_surface_override_material(s, comic_machine(zone_material(zone, livery, team)))
 		line(mesh, LINE_MACHINE)
 	for child: Node in node.get_children():
 		_dress_node(child, here, slots, part_ids, team, kit, paint)
+
+
+## 067: a machine's surface printed as a comic -- a posterised texture with inked darks (`comic`),
+## cross-hatching in the shade band and a white rim stroke on the lit silhouette. Machines only: the
+## world behind them stays quieter, so they read first. Glows (eyes, lenses) are left as they are.
+static func comic_machine(m: Material) -> Material:
+	if m is ShaderMaterial and (m as ShaderMaterial).shader == TOON:
+		var s: ShaderMaterial = m
+		s.set_shader_parameter("comic", 1.0)
+		s.set_shader_parameter("hatch", 1.0)
+		s.set_shader_parameter("rim", 0.45)
+	return m
 
 
 ## Scenery (the arena kit): pushed down into the night, a thinner line, lamps kept lit.

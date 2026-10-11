@@ -130,24 +130,30 @@ func impact(at: Vector3, colour: Color, severity: float) -> void:
 
 	# 023: the hit is DRAWN -- a spiked star, flat amber in an ink edge, that pops and is gone.
 	# The glow flash it replaces belonged to the photographed look.
-	var star := Sprite3D.new()
-	star.texture = _star_texture()
-	star.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	star.shaded = false
-	star.no_depth_test = true
-	star.render_priority = 3
-	star.flip_h = _star_flip
+	star(origin, lerpf(0.0035, 0.0075, clampf(severity, 0.0, 1.0)))
+
+
+## The impact star at `at`, `px` metres per texel (067: deaths use the hit's own star).
+func star(at: Vector3, px: float, hold: float = 0.07) -> void:
+	var s := Sprite3D.new()
+	s.texture = _star_texture()
+	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	s.shaded = false
+	s.no_depth_test = true
+	s.render_priority = 3
+	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	s.flip_h = _star_flip
 	_star_flip = not _star_flip
-	star.pixel_size = lerpf(0.0035, 0.0075, clampf(severity, 0.0, 1.0))
-	star.position = origin
-	star.scale = Vector3.ONE * 0.5
-	add_child(star)
+	s.pixel_size = px
+	s.position = at
+	s.scale = Vector3.ONE * 0.5
+	add_child(s)
 	var pop := create_tween()
-	pop.tween_property(star, "scale", Vector3.ONE * 1.15, 0.06)
-	pop.tween_property(star, "scale", Vector3.ONE, 0.05)
-	pop.tween_interval(0.07)
-	pop.tween_property(star, "modulate:a", 0.0, 0.06)
-	pop.tween_callback(star.queue_free)
+	pop.tween_property(s, "scale", Vector3.ONE * 1.15, 0.06)
+	pop.tween_property(s, "scale", Vector3.ONE, 0.05)
+	pop.tween_interval(hold)
+	pop.tween_property(s, "scale", Vector3.ZERO, 0.08).set_ease(Tween.EASE_IN)
+	pop.tween_callback(s.queue_free)
 
 
 var _star_flip: bool = false
@@ -203,6 +209,78 @@ func shards(at: Vector3, count: int, force: float = 1.0) -> void:
 		t.tween_interval(0.1)
 		t.tween_property(shard, "scale", Vector3.ZERO, 0.12)
 		t.tween_callback(shard.queue_free)
+
+
+## 067: a death in the hit's language. `what` is what ConstructRig.on_break reports: an arm or
+## a part snapping off, the module or the core blowing, the wreck landing, a loose part clanking.
+## The fight adds the sound word and the shake; the reel calls this alone.
+func on_break(at: Vector3, what: String) -> void:
+	match what:
+		"clank":
+			star(at + Vector3(0, 0.15, 0), 0.0016, 0.02)
+		"explode_core":
+			star(at, 0.0085, 0.1)
+			fireball(at - Vector3(0, 0.3, 0), 0.6)
+			sparks(at, Color("ffd27a"), 26, 1.8)
+			shards(at, 6, 1.3)
+		"explode_module":
+			star(at, 0.006, 0.08)
+			fireball(at - Vector3(0, 0.35, 0), 0.4)
+			sparks(at, Color("ffb070"), 18, 1.4)
+		"land":
+			var floor_at := Vector3(at.x, 0.06, at.z)
+			ground_lines(floor_at, 1.0)
+			dust(floor_at, 7, 0.55)
+			shards(floor_at + Vector3(0, 0.15, 0), 4, 0.8)
+		_:
+			star(at, 0.0045)
+			sparks(at, Color("ffb070"), 14, 1.2)
+			shards(at, 3, 0.8)
+
+
+## The last beat of a death (067, replacing a glowing ring): the wreck is crushed into the scrap it
+## leaves -- a small cartoon blast low on the hex, shards, dust and a star.
+func crush(at: Vector3) -> void:
+	star(at + Vector3(0, 0.35, 0), 0.0045)
+	fireball(at - Vector3(0, 0.2, 0), 0.3)
+	dust(Vector3(at.x, 0.06, at.z), 5, 0.45)
+	shards(at + Vector3(0, 0.2, 0), 6, 0.9)
+
+
+## Drawn dust (067): pale paper-brown balls with an ink edge thrown out sideways along the floor,
+## low and wide -- landing smoke that does not hide the wreck. They shrink out, never fade.
+func dust(at: Vector3, count: int, size: float = 1.0) -> void:
+	var tex: Texture2D = _dust_texture()
+	for i: int in mini(count, 9):
+		var ang: float = TAU * (float(i) + randf_range(-0.3, 0.3)) / float(count)
+		var dir := Vector3(cos(ang), 0.0, sin(ang))
+		var puff: Sprite3D = _sprite(tex, at + dir * 0.15 * size, randf_range(0.0032, 0.005) * size)
+		puff.flip_h = randf() < 0.5
+		puff.render_priority = 1
+		puff.scale = Vector3.ZERO
+		var life: float = randf_range(0.45, 0.65)
+		var t := create_tween()
+		t.tween_property(puff, "scale", Vector3.ONE, 0.08).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		t.parallel().tween_property(puff, "position", at + dir * randf_range(0.7, 1.1) * size + Vector3(0, 0.18 * size, 0), life) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		t.parallel().tween_property(puff, "scale", Vector3.ZERO, life * 0.55).set_delay(life * 0.45).set_ease(Tween.EASE_IN)
+		t.tween_callback(puff.queue_free)
+
+
+## Action lines drawn FLAT on the floor (067): the impact of something heavy landing, read from
+## above the way a hit's lines are read from the front.
+func ground_lines(at: Vector3, radius: float = 1.0) -> void:
+	var s: Sprite3D = _sprite(_rays_texture(), at, 0.009 * radius)
+	s.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	s.rotation = Vector3(-PI / 2.0, randf() * TAU, 0.0)
+	s.render_priority = 0
+	s.scale = Vector3.ONE * 0.4
+	var t := create_tween()
+	t.tween_property(s, "scale", Vector3.ONE * 1.3, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.tween_interval(0.06)
+	t.tween_property(s, "scale", Vector3.ONE * 1.5, 0.08)
+	t.parallel().tween_property(s, "modulate:a", 0.0, 0.08)
+	t.tween_callback(s.queue_free)
 
 
 ## A ring that expands and fades. Used for Overdrive and Detonation -- the two moments
@@ -452,6 +530,28 @@ func _puff_texture() -> ImageTexture:
 						col = Color("5f5a53")
 					if p.distance_to(c + Vector2(-20, -22)) < 13.0:
 						col = Color("cfc6b5")
+				image.set_pixel(x, y, col))
+
+
+## A dust ball: the smoke ball's shape in dry paper-brown, an ink edge, a lit top.
+func _dust_texture() -> ImageTexture:
+	return Ink.texture("comic_dust", Vector2i(128, 128), func(image: Image) -> void:
+		var c := Vector2(64, 70)
+		for y: int in 128:
+			for x: int in 128:
+				var p := Vector2(x, y)
+				var col := Color(0, 0, 0, 0)
+				# Flattened: dust hugs the ground.
+				var q := Vector2(p.x - c.x, (p.y - c.y) * 1.35)
+				var r: float = q.length()
+				if r < 58.0:
+					col = Ink.INK
+				if r < 51.0:
+					col = Color("b49c78")
+					if (q + Vector2(10, 14)).length() > 46.0:
+						col = Color("8a7558")
+					if (q + Vector2(-14, 22)).length() < 14.0:
+						col = Color("e3d4b4")
 				image.set_pixel(x, y, col))
 
 
