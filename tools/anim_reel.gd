@@ -88,20 +88,7 @@ func _build() -> void:
 		rig.on_break = func(at: Vector3, what: String) -> void:
 			if _vfx == null:
 				return
-			match what:
-				"explode_core":
-					_vfx.fireball(at - Vector3(0, 0.3, 0), 0.6)
-					_vfx.sparks(at, Color("ffd27a"), 26, 1.8)
-				"explode_module":
-					_vfx.fireball(at - Vector3(0, 0.35, 0), 0.4)
-					_vfx.sparks(at, Color("ffb070"), 18, 1.4)
-				"land":
-					_vfx.smoke(Vector3(at.x, 0.1, at.z), 6, 0.45)
-				"clank":
-					pass
-				_:
-					_vfx.sparks(at, Color("ffb070"), 14, 1.2)
-					_vfx.smoke(at, 4, 0.4)
+			_vfx.on_break(at, what)
 		var classes := PackedStringArray()
 		for k: int in [2, 3]:
 			classes.append(String((db.parts.get(parts[k], {}) as Dictionary).get("weapon_class", "")))

@@ -344,6 +344,10 @@ func _opening(objective: String) -> void:
 	_vfx.burst(at, hot, 1.2)
 	_vfx.fireball(at, 0.6)
 	_vfx.destruction(at, hot)
+	# 067: every drawn piece of a death compiles here too (the flat floor lines, the dust).
+	for what: String in ["arm", "explode_core", "land", "clank"]:
+		_vfx.on_break(at, what)
+	_vfx.crush(at)
 	_tracer(at + Vector3(0, 0.7, 0), at + Vector3(1.5, 0.6, 0), hot)
 	_float_text(at, "-1", UIKit.RED)
 	_letters(at, "BOOM!", Ink.ACTION)
@@ -1693,37 +1697,30 @@ func _burst(view: Dictionary, push: Vector3) -> void:
 	var rig: ConstructRig = view["rig"]
 	# 060: a part breaking off throws sparks and a sound word; a loose part landing clanks.
 	rig.on_break = func(at: Vector3, what: String) -> void:
-		if what == "clank":
-			Audio.play("hit_light", -14.0, 0.2)
-			return
-		# 065: the core and the backpack blow up where they are; the wreck lands in dust.
+		# 067: the drawn effects are BattleVFX.on_break (shared with the reel); the fight adds the
+		# sound word, the shake and the sound.
+		_vfx.on_break(at, what)
 		match what:
+			"clank":
+				Audio.play("hit_light", -14.0, 0.2)
 			"explode_core":
-				_vfx.fireball(at - Vector3(0, 0.3, 0), 0.6)
-				_vfx.sparks(at, Color("ffd27a"), 26, 1.8)
 				_vfx.shake(0.8)
 				_vfx.hitstop(0.06)
+				_focus_lines(at)
 				_letters(at + Vector3(0, 0.7, 0), "BOOM!", Ink.PAPER, 96, -0.1)
 				Audio.play("destroy", -6.0, 0.1)
-				return
 			"explode_module":
-				_vfx.fireball(at - Vector3(0, 0.35, 0), 0.4)
-				_vfx.sparks(at, Color("ffb070"), 18, 1.4)
 				_vfx.shake(0.5)
 				_letters(at + Vector3(0, 0.5, 0), "KA-BLAM!", Ink.PAPER, 80, 0.12)
 				Audio.play("thump", -8.0, 0.15)
-				return
 			"land":
-				_vfx.smoke(Vector3(at.x, 0.1, at.z), 6, 0.45)
 				_vfx.shake(0.45)
 				_letters(Vector3(at.x, 0.6, at.z), "THUD!", Ink.PAPER, 70, -0.08)
 				Audio.play("thump", -6.0, 0.1)
-				return
-		_vfx.sparks(at, Color("ffb070"), 14, 1.2)
-		_vfx.smoke(at, 4, 0.4)
-		_letters(at + Vector3(0, 0.5, 0), "KRAK!" if what == "arm" else ("CLUNK!" if what == "module" else "TINK!"),
-			Ink.PAPER, 70, 0.12)
-		Audio.play("clang", -10.0, 0.15)
+			_:
+				_letters(at + Vector3(0, 0.5, 0), "KRAK!" if what == "arm" else ("CLUNK!" if what == "module" else "TINK!"),
+					Ink.PAPER, 70, 0.12)
+				Audio.play("clang", -10.0, 0.15)
 	rig.collapse(push)
 	_dying.append(rig)
 	var tween := create_tween()
@@ -1731,7 +1728,8 @@ func _burst(view: Dictionary, push: Vector3) -> void:
 	tween.tween_callback(func() -> void:
 		_dying.erase(rig)
 		if is_instance_valid(model):
-			_vfx.burst(root.position + Vector3(0, 0.3, 0), Color("ff9a5a"), 0.8))
+			_vfx.crush(root.position + Vector3(0, 0.3, 0))
+			_letters(root.position + Vector3(0, 0.9, 0), "CRUNCH!", Ink.PAPER, 64, 0.1))
 	tween.tween_property(model, "scale", Vector3(model.scale.x * 1.15, model.scale.y * 0.08, model.scale.z * 1.15), 0.12).set_ease(Tween.EASE_IN)
 	tween.tween_callback(root.queue_free)
 
@@ -2557,7 +2555,11 @@ func _destroyed(killer: int, victim: int) -> void:
 	if not _views.has(victim):
 		return
 	var view: Dictionary = _views[victim]
-	_vfx.destruction((view["root"] as Node3D).position + Vector3(0, 0.5, 0), Color("ff9a5a"))
+	var at: Vector3 = (view["root"] as Node3D).position + Vector3(0, 0.5, 0)
+	# 067: the killing blow is a hit's star, bigger, in its focus lines, then the blast.
+	_vfx.star(at + Vector3(0, 0.25, 0), 0.0085, 0.1)
+	_focus_lines(at + Vector3(0, 0.2, 0))
+	_vfx.destruction(at, Color("ff9a5a"))
 	_vfx.shake(0.3)
 	_burst(view, _local_push(killer, victim) if killer >= 0 and _views.has(killer) else Vector3(0, 0, 1))
 	_views.erase(victim)
