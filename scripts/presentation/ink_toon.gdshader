@@ -38,6 +38,14 @@ uniform float stripe = 0.0;
 uniform float hatch = 0.0;
 uniform float hatch_px = 6.0;
 uniform float rim = 0.0;
+// 067, the machines as a comic (the user: "a filter so they look as close as possible to a comic"):
+// a generated part's painted texture is PRINTED -- its colour read a little blurred (so photo grain
+// does not speckle), its value posterised into `comic_levels` flat steps with the hue kept and
+// pushed, and its darkest texels (rust pits, seams, recesses) inked solid.
+uniform float comic = 0.0;
+uniform float comic_levels = 4.0;
+uniform float comic_ink = 0.15;
+uniform float comic_sat = 1.15;
 
 // 0 none, 1 stipple dots, 2 diagonal hatching.
 uniform int pattern = 0;
@@ -59,12 +67,24 @@ float hash(vec2 p) {
 }
 
 void fragment() {
-	vec3 c = use_tex ? texture(albedo_tex, UV).rgb * albedo : albedo;
+	vec3 c = use_tex ? texture(albedo_tex, UV, comic > 0.0 ? 1.2 : 0.0).rgb : albedo;
 	if (use_tex && use_clean) {
 		vec4 k = texture(clean_tex, UV);
 		if (k.a < 0.999 && k.a <= clean) {
-			c = k.rgb * albedo;
+			c = texture(clean_tex, UV, comic > 0.0 ? 1.2 : 0.0).rgb;
 		}
+	}
+	if (use_tex && comic > 0.0) {
+		float l = dot(c, vec3(0.299, 0.587, 0.114));
+		float q = (floor(l * comic_levels) + 0.55) / comic_levels;
+		vec3 printed = clamp(mix(vec3(q), c / max(l, 0.001) * q, comic_sat), 0.0, 1.0);
+		if (l < comic_ink) {
+			printed = vec3(0.078, 0.067, 0.059);
+		}
+		c = mix(c, printed, comic);
+	}
+	if (use_tex) {
+		c *= albedo;
 	}
 	if (pattern == 1) {
 		vec2 p = world_pos.xz * pattern_scale;
