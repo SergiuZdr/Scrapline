@@ -78,7 +78,7 @@ changing what the AI picks.
   (135 s against 182 s for 30 runs).
 - **A long suite names its slow tests** (`time` lines over a second): that is how the snapshot check's
   O(n^2) replays and the save test's three extra whole-run replays were found.
-- Open: should `_test_agent_playtest` watch two runs instead of four (it would halve `check.sh`)?
+- ~~Open: should `_test_agent_playtest` watch two runs instead of four?~~ The user, 2026-10-12: leave it as it is (four runs).
 
 ## Next
 Run `tools/check.sh` after any change, `--bot 150` after content or rules changes (about 15 min now),
