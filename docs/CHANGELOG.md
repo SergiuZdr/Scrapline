@@ -2,6 +2,19 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [070] Faster tests and bot tools — 2026-10-12 ([detail](iterations/070-fast-tools.md))
+
+### Changed
+- The sim plays the same game about twice as fast on one core (identical moves, proved by a
+  fingerprint of how the bot plays): hex neighbours, distances and lines, the AI's target search.
+- `run_bot.gd`, `balance_fights.gd` and the new `sim_fingerprint.gd` split themselves over every core
+  (`--jobs`, default one per core but one) and print progress: 45 bot runs in under 5 minutes.
+- `verify_combat` 250 s -> 60 s, `verify_run` 349 s -> 115 s, with the same checks or stricter.
+
+### Added
+- `tools/check.sh`: every test suite at once, one line each (`--bot N`, `--fingerprint`).
+- `tools/profile_bot.gd`: where a bot fight's time goes.
+
 ## [068] Ink lines from the texture; mine fixes — 2026-10-12 ([detail](iterations/068-ink-edges-mines.md))
 
 ### Changed

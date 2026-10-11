@@ -54,6 +54,12 @@ them. The old `event_stream.gd`/`events.gd` pattern is kept and the vocabulary c
 | `run_bot.gd` | **built**: a bot plays N full runs; reports win rate, loss causes and columns, fights per run. **The equivalent of the old `verify_loop.gd`** |
 | `verify_assembly.gd` | kept: art export contract |
 | `verify_animation.gd` | kept: rig behaviour |
+| `check.sh` | **built** (070): every suite above in parallel, one line each; `--bot N`, `--fingerprint` |
+| `sim_fingerprint.gd` | **built** (070): how the bot plays every fight file and four runs, hashed -- unchanged by any change meant only for speed |
+| `profile_bot.gd` | **built** (070): a bot fight's time by phase, and the AI's hottest calls |
+
+Bot tools (`run_bot`, `balance_fights`, `sim_fingerprint`) take `--jobs N` and split themselves over
+child processes (`tools/jobs.gd`); the default is one per core but one.
 
 ## Build targets
 

@@ -626,11 +626,10 @@ static func open_toward(state: CombatState, target: GridUnit, from: Vector2i) ->
 ## A conduit (025, the Foundry Mind's) lends every ally next to it `boost` damage on each
 ## attack -- not itself. Through `strike_plan`, so the telegraphed number already has it.
 static func conduit_boost(state: CombatState, u: GridUnit) -> int:
-	for n: Vector2i in Hex.neighbors(Vector2i(u.x, u.y)):
-		if not state.inside(n):
-			continue
-		var other: GridUnit = state.unit_at(n.x, n.y)
-		if other != null and other != u and other.team == u.team and other.kind == "conduit":
+	# Asked for every attack the AI weighs: the kind is checked before the distance.
+	for other: GridUnit in state.units:
+		if other.kind == "conduit" and other.alive and other != u and other.team == u.team \
+				and Hex.distance(Vector2i(u.x, u.y), Vector2i(other.x, other.y)) == 1:
 			return int((state.setup.kinds.get("conduit", {}) as Dictionary).get("boost", 1))
 	return 0
 
@@ -679,11 +678,9 @@ static func has_pylon(state: CombatState) -> bool:
 
 ## A warden takes damage off every hit on its neighbours (not on itself).
 static func _warden_cover(state: CombatState, target: GridUnit) -> int:
-	for n: Vector2i in Hex.neighbors(Vector2i(target.x, target.y)):
-		if not state.inside(n):
-			continue
-		var other: GridUnit = state.unit_at(n.x, n.y)
-		if other != null and other.team == target.team and other.kind == "warden":
+	for other: GridUnit in state.units:
+		if other.kind == "warden" and other.alive and other.team == target.team \
+				and Hex.distance(Vector2i(target.x, target.y), Vector2i(other.x, other.y)) == 1:
 			return int((state.setup.kinds.get("warden", {}) as Dictionary).get("armor", 2))
 	return 0
 
