@@ -46,6 +46,11 @@ uniform float comic = 0.0;
 uniform float comic_levels = 4.0;
 uniform float comic_ink = 0.15;
 uniform float comic_sat = 1.15;
+// 068: ink lines DRAWN where the texture's value changes sharply (panel seams, plate edges, rust
+// borders): a value gradient read across `comic_edge_px` screen pixels, so the line keeps its width
+// at any distance; above `comic_edge` it is inked.
+uniform float comic_edge = 0.09;
+uniform float comic_edge_px = 1.6;
 
 // 0 none, 1 stipple dots, 2 diagonal hatching.
 uniform int pattern = 0;
@@ -78,7 +83,12 @@ void fragment() {
 		float l = dot(c, vec3(0.299, 0.587, 0.114));
 		float q = (floor(l * comic_levels) + 0.55) / comic_levels;
 		vec3 printed = clamp(mix(vec3(q), c / max(l, 0.001) * q, comic_sat), 0.0, 1.0);
-		if (l < comic_ink) {
+		vec2 du = dFdx(UV) * comic_edge_px;
+		vec2 dv = dFdy(UV) * comic_edge_px;
+		vec3 w = vec3(0.299, 0.587, 0.114);
+		float gx = dot(texture(albedo_tex, UV + du, 1.2).rgb - texture(albedo_tex, UV - du, 1.2).rgb, w);
+		float gy = dot(texture(albedo_tex, UV + dv, 1.2).rgb - texture(albedo_tex, UV - dv, 1.2).rgb, w);
+		if (l < comic_ink || length(vec2(gx, gy)) > comic_edge) {
 			printed = vec3(0.078, 0.067, 0.059);
 		}
 		c = mix(c, printed, comic);

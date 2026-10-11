@@ -136,6 +136,9 @@ var _turn_start: int = 0
 var _turn_state: CombatState
 ## Slag pools on flooded hexes, by cell (play-test 14).
 var _flood_views: Dictionary = {}
+## 068: mines are part of the floor like the slag pools: intent marks are cleared for every
+## playback, and the mines vanished whenever anything moved. `{ cell: Node3D }`.
+var _mine_views: Dictionary = {}
 ## Events already animated.
 var _shown: int = 0
 var _busy: bool = false
@@ -359,7 +362,7 @@ func _opening(objective: String) -> void:
 	_spawn_marker(-1, cell)
 	_arrival_marker(cell)
 	_flood_marker(cell, false)
-	_mine_marker(cell)
+	_mine_marker(cell, false)
 	_terminal(Hex.neighbor(cell, 3) if _state.inside(Hex.neighbor(cell, 3)) else cell, false)
 	_throw_arrow(cell, Hex.neighbor(cell, 0))
 	_intent_marker_bar(at, at + Vector3(1.5, 0, 0))
@@ -646,6 +649,7 @@ func _build_board() -> void:
 	_threat_quads.clear()
 	_pile_views.clear()
 	_flood_views.clear()
+	_mine_views.clear()
 	_origin = Vector2(SQRT3 * HEX * (float(_setup.width) - 0.5) * 0.5, 1.5 * HEX * float(_setup.height - 1) * 0.5)
 	var arena: bool = _is_arena()
 
@@ -2102,12 +2106,18 @@ func _animate(e: Array) -> void:
 			await _wait(0.2)
 		GridEv.MINE_LAID:
 			_mine_marker(cell)
+			_mine_views[cell].scale = Vector3.ONE * 0.2
+			create_tween().tween_property(_mine_views[cell], "scale", Vector3.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.2, 0), "MINE", COL_PAD_DANGER)
 			Audio.play("warn", -10.0)
 			await _wait(0.12)
 		GridEv.MINE_BLEW:
 			var blast: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y) + 0.2, 0)
-			_vfx.burst(blast, Color("ff7a3c"), 1.3)
+			# 068: the mine that went off is gone at once (it stayed drawn until the next refresh).
+			if _mine_views.has(cell):
+				(_mine_views[cell] as Node).queue_free()
+				_mine_views.erase(cell)
+			_vfx.star(blast + Vector3(0, 0.3, 0), 0.006, 0.08)
 			_vfx.fireball(blast, 0.5)
 			_letters(blast, "BOOM!", Ink.ACTION)
 			Audio.play("thump", -5.0)
@@ -2893,7 +2903,11 @@ func _refresh() -> void:
 			_flood_views.erase(cell)
 	for cell: Variant in _state.flooded:
 		_flood_marker(cell)
-	# 047: mines waiting on the board.
+	# 047: mines waiting on the board (068: kept as floor, reconciled with the state -- undo too).
+	for cell: Variant in _mine_views.keys():
+		if not _state.mines.has(cell):
+			(_mine_views[cell] as Node).queue_free()
+			_mine_views.erase(cell)
 	for cell: Variant in _state.mines:
 		_mine_marker(cell)
 	for cell: Vector2i in _state.pour_marks:
@@ -3184,6 +3198,13 @@ func _preview_text(preview: Dictionary) -> String:
 		var at_p: Vector2i = _pending["cell"]
 		act = [CombatSim.ACT_ATTACK, sel_p.ref, int(_pending["i"]), at_p.x, at_p.y]
 	var text: String = _effects_text(preview.get("effects", []), preview, act)
+	if preview.has("mine"):
+		# 068: a mine is not a hit now ("Nothing there is affected" read as a miss).
+		var spot: Vector2i = (preview["mine"] as Dictionary)["cell"]
+		var under: GridUnit = _state.unit_at(spot.x, spot.y)
+		text = "Lays a mine (-%d). It goes off under whatever STARTS the next round on this hex%s." % [
+			int((preview["mine"] as Dictionary)["damage"]),
+			(": %s stands on it now" % under.name) if under != null and under.alive else ""]
 	if preview.has("shield"):
 		var guarded: GridUnit = _state.unit(int((preview["shield"] as Dictionary)["ref"]))
 		text = "%s takes %d less from every hit until your next turn." % [guarded.name, int((preview["shield"] as Dictionary)["amount"])]
@@ -3691,11 +3712,16 @@ func _spawn_marker(hive_ref: int, cell: Vector2i) -> void:
 
 ## A mine on the board (047): a squat ink disc with a lit red cap and a hatched danger ring --
 ## it reads in grey (a dark disc, a pale ring) and says "do not start a round here".
-func _mine_marker(cell: Vector2i) -> void:
+func _mine_marker(cell: Vector2i, as_floor: bool = true) -> void:
+	if as_floor and _mine_views.has(cell):
+		return
 	var at: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
 	var root := Node3D.new()
 	root.position = at
-	root.set_meta("intent", true)
+	if as_floor:
+		_mine_views[cell] = root
+	else:
+		root.set_meta("intent", true)
 	var body := MeshInstance3D.new()
 	var disc := CylinderMesh.new()
 	disc.top_radius = 0.2
@@ -3715,8 +3741,19 @@ func _mine_marker(cell: Vector2i) -> void:
 	cap.position.y = 0.12
 	cap.material_override = Ink.glow(COL_PAD_DANGER, 2.0)
 	root.add_child(cap)
+	# The danger ring belongs to the mine (it was an intent mark and vanished with the others).
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = HEX * (0.9 - 0.12 * 0.8)
+	torus.outer_radius = HEX * 0.9
+	torus.ring_segments = 6
+	torus.rings = 6
+	ring.mesh = torus
+	ring.scale = Vector3(1, 0.3, 1)
+	ring.position.y = 0.05
+	ring.material_override = Ink.glow(COL_PAD_DANGER, 0.5)
+	root.add_child(ring)
 	_marks_root.add_child(root)
-	_zone_ring(cell, COL_PAD_DANGER, 0.8)
 
 
 ## A hex The Pour has flooded (021): a pool of slag over the tile, for the rest of the fight.
