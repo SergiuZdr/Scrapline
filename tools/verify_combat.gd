@@ -71,6 +71,7 @@ func _initialize() -> void:
 	_timed(_test_playtest11)
 	_timed(_test_bosses_038)
 	_timed(_test_arms_047)
+	_timed(_test_bot_abilities_073)
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
 			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core",
 		"warlord_grinder", "warlord_magnet", "warlord_twins"]:
@@ -1854,6 +1855,99 @@ func _test_dry_run_matches() -> void:
 
 
 # --- Whole fights -------------------------------------------------------------
+
+## 073: the bot plays every ability and the Shield Caster, each where it is plainly right, and
+## not at all with `CombatBot.use_abilities` off (the bot as it was before).
+func _test_bot_abilities_073() -> void:
+	var caster_parts: Array = ["ch_lancer", "co_dynamo", "ar_shieldcaster", "ar_hammer", "mo_scavenger"]
+	var snarer: Array = ["ch_lancer", "co_dynamo", "ar_snare", "ar_snare", "mo_scavenger"]
+	var ally_at: Vector2i = _off(C, 2, -2, 0)
+	var foe_at: Vector2i = _off(C, 3, -3, 0)
+	for on: bool in [true, false]:
+		CombatBot.use_abilities = on
+		var s: CombatState = _bot_frame([_unit(caster_parts, C), _unit(HAMMER, ally_at)], [_unit(HAMMER, foe_at, 20)], [0, 1])
+		s.intents = [{"ref": 10, "w": _shape_index(s.unit(10), "melee"), "x": ally_at.x, "y": ally_at.y, "order": 1}]
+		var cast: bool = false
+		for a: Array in CombatBot.plan_unit(s, 0, true):
+			cast = cast or (int(a[0]) == CombatSim.ACT_ATTACK and String(s.unit(0).weapons[int(a[2])]["shape"]) == "shield")
+		if on:
+			_check("the bot casts its Shield Caster on an ally about to be hit", cast and s.unit(1).shield >= 3)
+		else:
+			_check("with abilities off it does not (the bot before 073)", not cast and s.unit(1).shield == 0)
+	CombatBot.use_abilities = true
+
+	var n1: Vector2i = _off(C, 1, -1, 0)
+	var guard: CombatState = _bot_frame([_unit(GUARD, C), _unit(HAMMER, n1)], [_unit(HAMMER, _off(C, 2, -2, 0), 20)], [0, 1])
+	guard.intents = [{"ref": 10, "w": _shape_index(guard.unit(10), "melee"), "x": n1.x, "y": n1.y, "order": 1}]
+	_check("the bot raises Shield over the ally next to it", _used(guard, 0, "shield") and guard.unit(1).shield == 2)
+	_check("a machine that protects moves last", Array(CombatBot.turn_order(guard)) == [1, 0])
+
+	var wall: CombatState = _bot_frame([_unit(["ch_bulwark", "co_dynamo", "ar_hammer", "ar_saw", "mo_scavenger"], _off(C, 1, 0, -1)),
+		_unit(HAMMER, C)], [_unit(snarer, foe_at, 20)], [0, 1])
+	wall.intents = [{"ref": 10, "w": 0, "x": C.x, "y": C.y, "order": 1}]
+	_check("the bot drops a Barricade across a shot at an ally", _used(wall, 0, "barricade") and wall.props.has(n1))
+
+	var hot: CombatState = _bot_frame([_unit(DASHER, C)], [_unit(HAMMER, n1, 20)], [0])
+	hot.unit(0).heat = hot.unit(0).heat_cap - 1
+	var hot_actions: Array = CombatBot.plan_unit(hot, 0, true)
+	_check("the bot Flushes before an attack that would overheat it, then attacks",
+		_used_in(hot, hot_actions, 0, "flush") and int(hot_actions[1][0]) == CombatSim.ACT_ATTACK and not hot.unit(0).overheated)
+
+	var run: CombatState = _bot_frame([_unit(DASHER, C)], [_unit(HAMMER, n1, 20)], [0])
+	run.intents = [{"ref": 10, "w": _shape_index(run.unit(10), "melee"), "x": C.x, "y": C.y, "order": 1}]
+	var run_actions: Array = CombatBot.plan_unit(run, 0, true)
+	_check("the bot attacks, then Dashes off the hex about to be hit",
+		int(run_actions[0][0]) == CombatSim.ACT_ATTACK and _used_in(run, run_actions, 0, "dash") and _at(run, 0) != C)
+
+	var pile: Vector2i = _off(C, 1, 1, -2)
+	var pull: CombatState = _bot_frame([_unit(HAMMER, C)], [_unit(HAMMER, Vector2i(0, 0), 20)], [0],
+		{"type": "rout", "piles": [{"x": pile.x, "y": pile.y}]})
+	_check("the bot Magnets in a pile in reach", _used(pull, 0, "magnet") and pull.piles_collected == 1)
+
+	var hook: CombatState = _bot_frame([_unit(LANCE, C)], [_unit(HAMMER, foe_at, 20)], [0], {}, {_off(C, 2, -2, 0): "o"})
+	_check("the bot Grapples a machine across a pit rather than shoot it", _used(hook, 0, "grapple") and not hook.unit(10).alive)
+
+	var still: CombatState = _bot_frame([_unit(GUARD, C), _unit(HAMMER, n1)], [_unit(HAMMER, _off(C, 2, -2, 0), 20)], [0, 1])
+	still.intents = [{"ref": 10, "w": 0, "x": n1.x, "y": n1.y, "order": 1}]
+	var events: int = still.events.size()
+	var planned: Array = CombatBot.plan_unit(still, 0, false)
+	_check("planning without applying leaves the fight as it was", not planned.is_empty() and still.events.size() == events
+		and still.unit(1).shield == 0 and still.unit(0).ability_ready(1))
+
+
+## A fight for the bot tests: the listed crew refs have already moved (so the test controls where
+## they stand), and `marks` draws pits.
+func _bot_frame(players: Array, enemies: Array, moved: Array, objective: Dictionary = {}, marks: Dictionary = {}) -> CombatState:
+	var s: CombatState = _fight(_rows(marks), players, enemies, objective)
+	for i: int in players.size():
+		_place(s, i, Vector2i(int(players[i]["x"]), int(players[i]["y"])))
+	for i: int in enemies.size():
+		_place(s, 10 + i, Vector2i(int(enemies[i]["x"]), int(enemies[i]["y"])))
+	for ref: int in moved:
+		s.unit(ref).moved = true
+	for i: int in range(1, players.size()):
+		s.unit(i).acted = true
+	return s
+
+
+func _shape_index(u: GridUnit, shape: String) -> int:
+	for w: int in u.weapons.size():
+		if String(u.weapons[w]["shape"]) == shape:
+			return w
+	return -1
+
+
+## Whether the bot, playing `ref`'s turn, used an ability of `kind`.
+func _used(state: CombatState, ref: int, kind: String) -> bool:
+	return _used_in(state, CombatBot.plan_unit(state, ref, true), ref, kind)
+
+
+func _used_in(state: CombatState, actions: Array, ref: int, kind: String) -> bool:
+	for a: Array in actions:
+		if int(a[0]) == CombatSim.ACT_ABILITY and String(state.unit(ref).abilities[int(a[2])]["kind"]) == kind:
+			return true
+	return false
+
 
 func _test_bot_fight(fight_id: String) -> void:
 	var setup: CombatSetup = CombatSetup.build(_db.fights[fight_id], _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 2026)
