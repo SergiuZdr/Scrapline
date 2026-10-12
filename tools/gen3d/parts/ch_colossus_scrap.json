@@ -1,0 +1,36 @@
+{
+  "_comment": "069: Colossus Frame (bucket-wheel shoulders, truck-cab head, crane legs on tracks), ChatGPT concept art/concepts/machines/ch_colossus_scrap.png (approved by the user), TRELLIS on Colab. Numbers from its width profile at 0.70 m (legs part below the crotch; arm sockets at the centre of each shoulder's outer face).",
+  "slot": "chassis",
+  "size": 0.7,
+  "floor": 0.01,
+  "budget": 8000,
+  "posterize": 12,
+  "rust_map": true,
+  "hip_z": 0.29,
+  "hip_x": 0.155,
+  "pelvis_x": 0.07,
+  "sockets": {
+    "socket_arm_l": [
+      -0.32,
+      0.02,
+      0.53
+    ],
+    "socket_arm_r": [
+      0.32,
+      0.02,
+      0.53
+    ],
+    "socket_core": [
+      0,
+      -0.12,
+      0.5
+    ],
+    "socket_module": [
+      0,
+      0.15,
+      0.52
+    ]
+  },
+  "skeleton": true,
+  "foot_top": 0.1
+}

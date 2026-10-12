@@ -2,6 +2,14 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [069, part 1] Kessler's parts as comic scrap — 2026-10-12 ([detail](iterations/069-roster-scrap.md))
+
+### Added
+- 13 more generated models in `art/parts_gen_scrap/`, so these parts no longer fall back to the scripted
+  set: Maul and Harpoon arms; Citadel, Dredge and Colossus frames; Bile and Mag cores; Spikes, Plating,
+  Reactive, Hooks, Gyro and Ram modules. Each from a concept the user approved, with its rig spec in
+  `tools/gen3d/parts/`. The other makers' parts follow when Colab's GPU allows.
+
 ## [072] The arm trial — 2026-10-12 ([detail](iterations/072-arm-trial.md))
 
 ### Added
