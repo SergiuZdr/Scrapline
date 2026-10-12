@@ -31,14 +31,14 @@ static func rate(k: int, n: int) -> String:
 
 
 ## Mean and half-width of the interval for a mean, from the sum and the sum of squares.
-static func mean_ci(total: float, squares: float, n: int) -> Array:
+static func mean_ci(total: float, squares: float, n: int, z: float = Z) -> Array:
 	if n <= 0:
 		return [0.0, 0.0]
 	var mean: float = total / n
 	if n < 2:
 		return [mean, 0.0]
 	var variance: float = maxf(0.0, (squares - total * total / n) / (n - 1))
-	return [mean, Z * sqrt(variance / n)]
+	return [mean, z * sqrt(variance / n)]
 
 
 ## "13.7 +-0.6"
