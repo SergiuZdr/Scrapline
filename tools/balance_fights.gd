@@ -2,37 +2,53 @@ extends SceneTree
 
 ## Bot fights in bulk: does the enemy threaten anything, and does the player ever lose?
 ##
-##   godot --headless --path . --script res://tools/balance_fights.gd -- [--fights 300] [--jobs N]
+##   godot --headless --path . --script res://tools/balance_fights.gd -- [--fights 300] [--seeds 5]
+##       [--jobs N] [--set path=json ...] [--b path=json ...]
 ##
 ## `--jobs` (070): over N processes, one per core but one by default (`tools/jobs.gd`).
+## `--set` changes a number for this batch (`combat.<path>`, `fight.<id>.<path>`, as `run_bot.gd`);
+## `--b` (071) plays a variant B on exactly the same fights and squads and reports B - A.
 ##
 ## Two kinds of fight:
-##   authored  -- each fight file as written, once per seed (seeds only break ties, so
-##                this is close to one sample per fight; it is a smoke test, not a rate)
+##   authored  -- each fight file as written, `--seeds` times. Seeds break ties, so they do change
+##                the fight (different rounds, different events), but the squads are fixed: a
+##                small sample of one fight each, with its interval.
 ##   random    -- each fight file's MAP and positions, with both squads rolled from the
 ##                whole parts pool by SimRNG. This is the real measurement.
 ##
 ## The numbers that matter:
 ##   enemy share   -- enemy damage / player damage. Iteration 002 measured 6/42 = 14%.
 ##   loss causes   -- a lost objective means the pressure works; all-timeout means stalemate.
-##   arm win rate  -- per weapon class on the PLAYER side, against the average. More than
-##                    6 points off in random fights is a tuning target.
+##   arms          -- per weapon class on the PLAYER side (071): the win rate of the random fights
+##                    with that arm against those without it, flagged only when the difference is
+##                    bigger than its own noise (the old fixed "6 points" flagged noise at n = 38).
+## Every rate carries its 95% interval (`tools/stats.gd`).
 
 const Jobs = preload("res://tools/jobs.gd")
+const Stats = preload("res://tools/stats.gd")
 
 var _db: ContentDB
 
 
 func _initialize() -> void:
-	_db = ContentDB.load_all()
 	var args: PackedStringArray = OS.get_cmdline_user_args()
-	var count: int = 300
-	var at: int = args.find("--fights")
-	if at >= 0 and at + 1 < args.size():
-		count = args[at + 1].to_int()
-	at = args.find("--jobs")
-	var jobs: int = args[at + 1].to_int() if at >= 0 and at + 1 < args.size() else Jobs.default_count()
+	var count: int = _arg_int(args, "--fights", 300)
+	var seeds: int = _arg_int(args, "--seeds", 5)
 	var slice: Array = Jobs.slice(args)
+	var quiet: bool = not slice.is_empty()
+	var dbs: Array[ContentDB] = [ContentDB.load_all()]
+	for setting: String in Stats.all_after(args, "--set"):
+		Stats.override(dbs[0], setting, quiet)
+	var b_settings: PackedStringArray = Stats.all_after(args, "--b")
+	if not b_settings.is_empty():
+		dbs.append(ContentDB.load_all())
+		for setting: String in Stats.all_after(args, "--set"):
+			Stats.override(dbs[1], setting, true)
+		if not quiet:
+			print("  variant B:")
+		for setting: String in b_settings:
+			Stats.override(dbs[1], setting, quiet)
+	_db = dbs[0]
 
 	var ids: Array = _db.fights.keys()
 	ids.sort()
@@ -41,44 +57,74 @@ func _initialize() -> void:
 	var pool: Array = ids.filter(func(id: Variant) -> bool:
 		var map: Dictionary = _db.fights[id]
 		return not bool(map.get("tutorial", false)) and not bool(map.get("boss", false)))
-	# Work items, numbered so `--jobs` (070) can share them out: five seeds of every authored fight,
-	# then the random fights.
-	var authored_items: int = ids.size() * 5
-	var numbers: Dictionary = {"authored": {}, "random": _new_stats(), "arms": {}}
+	# Work items, numbered so `--jobs` (070) can share them out: `seeds` of every authored fight,
+	# then the random fights; each played once per variant.
+	var authored_items: int = ids.size() * seeds
+	var base_items: int = authored_items + count
+	var items: int = base_items * dbs.size()
+	var jobs: int = _arg_int(args, "--jobs", Jobs.default_count())
+	var numbers: Dictionary = {"A": _new_numbers(), "B": _new_numbers(), "pairs": {}}
 	if slice.is_empty() and jobs > 1:
-		for part: Dictionary in Jobs.run("res://tools/balance_fights.gd", args, jobs, authored_items + count, "won"):
+		for part: Dictionary in Jobs.run("res://tools/balance_fights.gd", args, jobs, items, "won"):
 			Jobs.merge(numbers, part)
 	else:
-		for item: int in authored_items + count:
+		for item: int in items:
 			if not Jobs.mine(slice, item):
 				continue
+			var base: int = item / dbs.size()
+			var v: int = item % dbs.size()
+			var db: ContentDB = dbs[v]
+			var mine: Dictionary = numbers["A" if v == 0 else "B"]
 			var won: bool = false
-			if item < authored_items:
-				var id: String = String(ids[item / 5])
-				if not (numbers["authored"] as Dictionary).has(id):
-					numbers["authored"][id] = _new_stats()
-				won = _play(_db.fights[id], 1000 + item % 5, numbers["authored"][id])
+			if base < authored_items:
+				var id: String = String(ids[base / seeds])
+				if not (mine["authored"] as Dictionary).has(id):
+					mine["authored"][id] = _new_stats()
+				won = _play(db, db.fights[id], 1000 + base % seeds, mine["authored"][id])
 			else:
-				var i: int = item - authored_items
-				var template: Dictionary = _db.fights[pool[i % pool.size()]]
+				var i: int = base - authored_items
+				var template: Dictionary = db.fights[pool[i % pool.size()]]
 				var rng := SimRNG.new(7919 * (i + 1))
 				var fight: Dictionary = template.duplicate(true)
 				fight["player"] = _random_squad(rng, template["player"])
 				fight["enemy"] = _random_squad(rng, template["enemy"])
-				won = _play(fight, i, numbers["random"])
+				won = _play(db, fight, i, mine["random"])
+				# 071: by FIGHT -- did the crew carry this arm class at all -- so a fight counts once.
+				var carried: Dictionary = {}
 				for spec: Dictionary in fight["player"]:
 					for arm: String in [String(spec["parts"][2]), String(spec["parts"][3])]:
-						var cls: String = String((_db.parts[arm] as Dictionary).get("weapon_class", ""))
-						var row: Array = numbers["arms"].get(cls, [0, 0])
-						row[0] += 1 if won else 0
-						row[1] += 1
-						numbers["arms"][cls] = row
+						carried[String((db.parts[arm] as Dictionary).get("weapon_class", ""))] = true
+				for cls: Variant in carried:
+					var row: Array = mine["arms"].get(cls, [0, 0])
+					row[0] += 1 if won else 0
+					row[1] += 1
+					mine["arms"][cls] = row
+			var pair: Array = [0, 0]
+			pair[v] = 1 if won else 0
+			numbers["pairs"][str(base)] = pair
 			Jobs.progress(slice, ("+ " if won else "- ") + str(item))
 		if not slice.is_empty():
 			Jobs.finish(slice, numbers)
 			quit()
 			return
 
+	if dbs.size() == 1:
+		_report_all(ids, numbers["A"], count)
+	else:
+		print("")
+		print("##### A: the game%s" % ("" if Stats.all_after(args, "--set").is_empty() else " with the --set overrides"))
+		_report_all(ids, numbers["A"], count)
+		print("##### B: A with %s" % ", ".join(b_settings))
+		_report_all(ids, numbers["B"], count)
+		_compare(numbers, authored_items, count)
+	quit()
+
+
+func _new_numbers() -> Dictionary:
+	return {"authored": {}, "random": _new_stats(), "arms": {}}
+
+
+func _report_all(ids: Array, numbers: Dictionary, count: int) -> void:
 	print("")
 	print("=== authored fights (bot as player) ===")
 	for id: Variant in ids:
@@ -91,31 +137,59 @@ func _initialize() -> void:
 	_report("random", total)
 
 	print("")
-	# Relative to the overall rate: with the player bot winning most fights every arm's raw
-	# rate sits near that average, and a fixed 40-60 band would flag all of them. What
-	# matters is how far an arm moves the result from the average.
-	var average: float = 100.0 * total["won"] / maxf(1.0, total["fights"])
-	print("  player arm win rates (random fights), against the %.1f%% average:" % average)
+	var fights: int = int(total["fights"])
 	var arm_wins: Dictionary = numbers["arms"]
 	var classes: Array = arm_wins.keys()
 	classes.sort()
+	# Judged together: with ten arms, ten 95% intervals flag one by chance most batches.
+	var z: float = Stats.z_for(classes.size())
+	print("  player arms (random fights): win rate with the arm, and its difference from the fights without it")
+	print("  (intervals sized for %d arms judged at once, so a \"real\" is wrong at most 1 batch in 20):" % classes.size())
 	for cls: Variant in classes:
 		var row: Array = arm_wins[cls]
-		var rate: float = 100.0 * row[0] / maxf(1.0, row[1])
-		print("    %-11s %5.1f%%  %+5.1f  (%d)%s" % [cls, rate, rate - average, row[1],
-			"   <- more than 6 points off" if absf(rate - average) > 6.0 else ""])
+		var with_won: int = int(row[0])
+		var with_n: int = int(row[1])
+		var d: Array = Stats.unpaired(with_won, with_n, int(total["won"]) - with_won, fights - with_n, z)
+		var real: bool = Stats.is_real(d) and fights - with_n > 0
+		print("    %-11s %-18s %+5.1f (%+.1f to %+.1f)  in %d fights%s" % [cls, Stats.rate(with_won, with_n),
+			100.0 * d[0], 100.0 * d[1], 100.0 * d[2], with_n, "   <- real" if real else ""])
 	print("")
-	quit()
+
+
+## B - A over the same fights and squads (071).
+func _compare(numbers: Dictionary, authored_items: int, count: int) -> void:
+	var tallies: Array = [[0, 0, 0], [0, 0, 0]]   # authored, random: only A, only B, pairs
+	for key: Variant in numbers["pairs"]:
+		var pair: Array = numbers["pairs"][key]
+		var t: Array = tallies[0 if int(key) < authored_items else 1]
+		t[2] += 1
+		if int(pair[0]) == 1 and int(pair[1]) == 0:
+			t[0] += 1
+		elif int(pair[1]) == 1 and int(pair[0]) == 0:
+			t[1] += 1
+	var a: Dictionary = numbers["A"]["random"]
+	var b: Dictionary = numbers["B"]["random"]
+	print("=== B - A on the same fights ===")
+	print("  random fights won: A %s, B %s" % [Stats.rate(int(a["won"]), int(a["fights"])), Stats.rate(int(b["won"]), int(b["fights"]))])
+	print("  B - A: %s" % Stats.verdict(Stats.paired(tallies[1][1], tallies[1][0], tallies[1][2])))
+	print("  authored fights, B - A: %s" % Stats.verdict(Stats.paired(tallies[0][1], tallies[0][0], tallies[0][2])))
+	print("  crew HP lost per random fight: A %s, B %s" % [
+		Stats.mean_text(a["crew_hp_lost"], a["crew_hp_lost_sq"], int(a["fights"])),
+		Stats.mean_text(b["crew_hp_lost"], b["crew_hp_lost_sq"], int(b["fights"]))])
+	print("  enemy share of the damage: A %d%%, B %d%%" % [int(100.0 * a["enemy_dmg"] / maxf(1.0, a["player_dmg"])),
+		int(100.0 * b["enemy_dmg"] / maxf(1.0, b["player_dmg"]))])
+	print("")
 
 
 func _new_stats() -> Dictionary:
 	return {"fights": 0, "won": 0, "lost_objective": 0, "lost_crew": 0, "timeout": 0, "rounds": 0,
-		"player_dmg": 0, "enemy_dmg": 0, "crew_hp_lost": 0, "intents": 0, "intents_hit": 0}
+		"player_dmg": 0, "enemy_dmg": 0, "crew_hp_lost": 0,
+		"crew_hp_lost_sq": 0, "intents": 0, "intents_hit": 0}
 
 
 ## Plays one fight with the bot. Returns true on a win.
-func _play(fight: Dictionary, seed_value: int, stats: Dictionary) -> bool:
-	var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, seed_value)
+func _play(db: ContentDB, fight: Dictionary, seed_value: int, stats: Dictionary) -> bool:
+	var setup: CombatSetup = CombatSetup.build(fight, db.combat_rules, db.parts, db.tiles, db.effectiveness, seed_value)
 	if not setup.errors.is_empty():
 		push_error("setup errors: %s" % [setup.errors])
 		return false
@@ -126,9 +200,12 @@ func _play(fight: Dictionary, seed_value: int, stats: Dictionary) -> bool:
 		guard += 1
 	stats["fights"] += 1
 	stats["rounds"] += state.round_number
+	var lost_hp: int = 0
 	for u: GridUnit in state.units:
 		if u.team == GridUnit.TEAM_PLAYER and not u.objective:
-			stats["crew_hp_lost"] += u.max_hp - (u.hp if u.alive else 0)
+			lost_hp += u.max_hp - (u.hp if u.alive else 0)
+	stats["crew_hp_lost"] += lost_hp
+	stats["crew_hp_lost_sq"] += lost_hp * lost_hp
 	if state.outcome == CombatState.WON:
 		stats["won"] += 1
 	elif state.crew(GridUnit.TEAM_PLAYER).is_empty():
@@ -158,12 +235,18 @@ func _play(fight: Dictionary, seed_value: int, stats: Dictionary) -> bool:
 
 
 func _report(label: String, s: Dictionary) -> void:
-	var n: float = maxf(1.0, s["fights"])
-	print("  %-14s win %5.1f%%  | lost: objective %d, crew %d, timeout %d | rounds %.1f | dmg player %.1f enemy %.1f (share %d%%) | intents landing %d%% | crew HP lost per fight %.1f" % [
-		label, 100.0 * s["won"] / n, s["lost_objective"], s["lost_crew"], s["timeout"],
-		s["rounds"] / n, s["player_dmg"] / n, s["enemy_dmg"] / n,
+	var n: int = maxi(1, int(s["fights"]))
+	print("  %-15s win %-17s | lost: objective %d, crew %d, timeout %d | rounds %.1f | dmg player %.1f enemy %.1f (share %d%%) | intents landing %d%% | crew HP lost per fight %s" % [
+		label, Stats.rate(int(s["won"]), int(s["fights"])), s["lost_objective"], s["lost_crew"], s["timeout"],
+		float(s["rounds"]) / n, float(s["player_dmg"]) / n, float(s["enemy_dmg"]) / n,
 		int(100.0 * s["enemy_dmg"] / maxf(1.0, s["player_dmg"])),
-		int(100.0 * s["intents_hit"] / maxf(1.0, s["intents"])), s["crew_hp_lost"] / n])
+		int(100.0 * s["intents_hit"] / maxf(1.0, s["intents"])),
+		Stats.mean_text(s["crew_hp_lost"], s["crew_hp_lost_sq"], int(s["fights"]))])
+
+
+func _arg_int(args: PackedStringArray, name: String, fallback: int) -> int:
+	var at: int = args.find(name)
+	return args[at + 1].to_int() if at >= 0 and at + 1 < args.size() else fallback
 
 
 ## A squad the same size and positions as `template`, every part rolled from the pool.
