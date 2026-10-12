@@ -95,6 +95,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 068 | [Ink edges, mine fixes](iterations/068-ink-edges-mines.md) | Ink lines from texture edges; mines stay drawn, explain themselves, never doubled by the AI | ✅ |
 | 070 | [Faster tools](iterations/070-fast-tools.md) | Same sim, ~2x faster per core; bot tools on every core (`--jobs`); `check.sh` runs every suite in 2 minutes | ✅ |
 | 071 | [Numbers you can trust](iterations/071-trustworthy-numbers.md) | 95% intervals on every bot rate; `--b` A/B on the same seeds with a verdict; arms flagged only beyond the noise | ✅ |
+| 072 | [The arm trial](iterations/072-arm-trial.md) | Every arm ranked on the same 150 hard fights; Mortar and Snare weak, Shield Caster and abilities unused by the bot | ✅ |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
