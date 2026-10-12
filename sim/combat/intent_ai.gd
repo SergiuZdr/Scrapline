@@ -42,9 +42,10 @@ const SCORE_ZONE: int = 45
 const SCORE_TERMINAL: int = 80
 
 
-## Returns `{ "dest", "path", "w" (-1 = no attack), "target": Vector2i, "score" }`.
+## Returns `{ "dest", "path", "w" (-1 = no attack), "target": Vector2i, "score", "attack" }` --
+## `attack` is what the attack alone is worth (0 with none), for the bot to weigh an ability against.
 ## `ctx` is empty for enemies. The bot passes `"danger": {cell: damage}` and
-## `"shield": {cell: value}` -- see `CombatBot`.
+## `"shield": {cell: value}` -- see `CombatBot` -- and `"guard"` when it casts shield arms (073).
 static func plan(state: CombatState, u: GridUnit, ctx: Dictionary) -> Dictionary:
 	var here := Vector2i(u.x, u.y)
 	var options: Dictionary = {}
@@ -112,6 +113,7 @@ static func plan(state: CombatState, u: GridUnit, ctx: Dictionary) -> Dictionary
 			best = {"dest": c[2], "path": options[c[2]], "w": int(choice[0]), "target": choice[1], "score": refined}
 
 	if best_attack >= SCORE_HIT / 2:
+		best["attack"] = best_attack
 		return best
 
 	# Nothing worth shooting from anywhere reachable: close to a useful distance instead.
@@ -126,7 +128,7 @@ static func plan(state: CombatState, u: GridUnit, ctx: Dictionary) -> Dictionary
 		if score > best_score or (score == best_score and tie < best_tie):
 			best_score = score
 			best_tie = tie
-			best = {"dest": cell, "path": options[cell], "w": -1, "target": Vector2i.ZERO, "score": score}
+			best = {"dest": cell, "path": options[cell], "w": -1, "target": Vector2i.ZERO, "score": score, "attack": 0}
 	return best
 
 
@@ -165,7 +167,8 @@ static func _best_shot(state: CombatState, u: GridUnit, ctx: Dictionary) -> Arra
 			aims = _aims_among(state, u, w, occupied)
 		for aim: Vector2i in aims:
 			var plan: Dictionary = CombatSim.strike_plan(state, u, w, aim)
-			if not bool(plan["legal"]) or ((plan["hits"] as Array).is_empty() and (plan["props"] as Array).is_empty() and not plan.has("mine")):
+			if not bool(plan["legal"]) or ((plan["hits"] as Array).is_empty() and (plan["props"] as Array).is_empty() \
+					and not plan.has("mine") and not (plan.has("shield") and ctx.has("guard"))):
 				continue
 			var value: int = plan_value(state, u, weapon, plan, ctx) + (SCORE_OVERHEAT if hot else 0)
 			var tie: int = mix(state.setup.rng_seed, u.ref, w * 4096 + aim.y * 64 + aim.x, state.round_number)
@@ -242,6 +245,7 @@ static func plan_value(state: CombatState, u: GridUnit, weapon: Dictionary, plan
 	if any_foe:
 		value += SCORE_HIT
 	value += _mine_value(state, u, plan)
+	value += _guard_guess(state, plan, ctx)
 	# A barrel in the line is worth a look: the dry run decides whether it is worth it.
 	for prop: Dictionary in (plan.get("props", []) as Array):
 		var kind: String = String((state.props[prop["cell"]] as Dictionary)["kind"])
@@ -276,6 +280,8 @@ static func _dry_value(state: CombatState, u: GridUnit, cell: Vector2i, w: int, 
 		me.x = cell.x
 		me.y = cell.y
 		value += _mine_value(before, me, CombatSim.strike_plan(before, me, w, target))
+	if String(weapon["shape"]) == "shield" and ctx.has("guard"):
+		value += CombatBot.protection(before, after)
 	if u.team == GridUnit.TEAM_PLAYER and u.heat + CombatSim.attack_heat(u, weapon) >= u.heat_cap:
 		value += SCORE_OVERHEAT
 	u.x = here.x
@@ -320,6 +326,18 @@ static func effects_value(before: CombatState, after: CombatState, u: GridUnit, 
 	if any_foe:
 		value += SCORE_HIT
 	return [value, any_foe]
+
+
+## 073: the quick guess at a shield cast (the bot's side only): the ally's hex is about to take
+## `danger`, and the field takes up to its amount off. The dry run then measures it for real
+## (`CombatBot.protection`).
+static func _guard_guess(state: CombatState, plan: Dictionary, ctx: Dictionary) -> int:
+	if not plan.has("shield") or not ctx.has("guard"):
+		return 0
+	var ally: GridUnit = state.unit(int((plan["shield"] as Dictionary)["ref"]))
+	var incoming: int = int((ctx["danger"] as Dictionary).get(Vector2i(ally.x, ally.y), 0))
+	var saved: int = mini(incoming, maxi(0, int((plan["shield"] as Dictionary)["amount"]) - ally.shield))
+	return saved * 10 + (SCORE_HIT if saved > 0 else 0)
 
 
 ## 047: a mine laid under a foe is valued like the hit it will be at the start of the round --
