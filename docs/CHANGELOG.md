@@ -2,6 +2,22 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [073] The bot uses shields and abilities — 2026-10-12 ([detail](iterations/073-bot-abilities.md))
+
+### Changed
+- The bot plays every part it is given: it casts the Shield Caster on a threatened ally and uses
+  Charge, Grapple, Barricade, Shield, Dash, Flush and Magnet when the real rules, played on a copy,
+  say it is worth more than the plain attack. Machines that protect move last. The enemies play
+  exactly as before (abilities are the player's only).
+- Measured on the same seeds: runs won 54.7% -> 67.3% (+12.7, real). The arm trial now casts the
+  Shield Caster (36.7% -> 48.7% won; still among the weakest arms).
+
+### Added
+- `--set bot.abilities=false` / `--b bot.abilities=false` on the bot tools: the bot as it was, for A/B.
+
+### Fixed
+- 072's docs: the Saw ties the Cleaver because their fight numbers are the same, not because of Rend.
+
 ## [069, part 1] Kessler's parts as comic scrap — 2026-10-12 ([detail](iterations/069-roster-scrap.md))
 
 ### Added
