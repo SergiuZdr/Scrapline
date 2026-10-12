@@ -128,6 +128,7 @@ func _new_stats() -> Dictionary:
 func _play(db: ContentDB, seed_value: int, stats: Dictionary) -> String:
 	var setup: RunSetup = RunSetup.create(db.parts, db.tiles, db.fights, db.run_rules,
 		db.combat_rules, db.effectiveness, seed_value)
+	Stats.bot_for(db)
 	var state: RunState = RunSim.start(setup)
 	var guard: int = 0
 	while state.outcome == RunState.ONGOING and guard < 400:

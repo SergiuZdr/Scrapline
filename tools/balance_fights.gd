@@ -151,9 +151,11 @@ func _arm_trial(args: PackedStringArray, slice: Array) -> void:
 	var items: int = scenarios * arms.size()
 	var jobs: int = _arg_int(args, "--jobs", Jobs.default_count())
 	var results: Dictionary = {}
+	var uses: Dictionary = {}
 	if slice.is_empty() and jobs > 1:
 		for part: Dictionary in Jobs.run("res://tools/balance_fights.gd", args, jobs, items, "won"):
 			results.merge(part["trial"])
+			Jobs.merge(uses, part.get("uses", {}))
 	else:
 		for item: int in items:
 			if not Jobs.mine(slice, item):
@@ -172,11 +174,12 @@ func _arm_trial(args: PackedStringArray, slice: Array) -> void:
 				spec["parts"][2] = arm
 			var stats: Dictionary = _new_stats()
 			var won: bool = _play(_db, fight, s, stats)
+			Jobs.merge(uses, stats["uses"])
 			var cause: int = 0 if won else (1 if int(stats["lost_crew"]) > 0 else (2 if int(stats["timeout"]) > 0 else 3))
 			results[str(item)] = [1 if won else 0, int(stats["crew_hp_lost"]), int(stats["rounds"]), cause]
 			Jobs.progress(slice, ("+ " if won else "- ") + str(item))
 		if not slice.is_empty():
-			Jobs.finish(slice, {"trial": results})
+			Jobs.finish(slice, {"trial": results, "uses": uses})
 			quit()
 			return
 
@@ -235,6 +238,7 @@ func _arm_trial(args: PackedStringArray, slice: Array) -> void:
 	print("  the crew won %s of all fights; %d of %d scenarios went either way depending on the arm" % [
 		Stats.rate(won_total, scenarios * a_n), decisive, scenarios])
 	print("  losses: crew wrecked %d, out of rounds %d, objective lost %d" % [causes[1], causes[2], causes[3]])
+	print("  the bot used: %s" % _uses_text(uses))
 	print("  (a crew win rate of 50-75% separates arms best: tune with --arm-hp / --arm-damage; intervals are sized")
 	print("   for %d arms judged at once, so a verdict is wrong at most 1 batch in 20)" % a_n)
 	print("")
@@ -275,6 +279,7 @@ func _report_all(ids: Array, numbers: Dictionary, count: int) -> void:
 	print("=== random squads on authored maps (%d fights) ===" % count)
 	var total: Dictionary = numbers["random"]
 	_report("random", total)
+	print("  the bot used: %s" % _uses_text(total["uses"]))
 
 	print("")
 	var fights: int = int(total["fights"])
@@ -319,13 +324,27 @@ func _compare(numbers: Dictionary, authored_items: int, count: int) -> void:
 		Stats.mean_text(b["crew_hp_lost"], b["crew_hp_lost_sq"], int(b["fights"]))])
 	print("  enemy share of the damage: A %d%%, B %d%%" % [int(100.0 * a["enemy_dmg"] / maxf(1.0, a["player_dmg"])),
 		int(100.0 * b["enemy_dmg"] / maxf(1.0, b["player_dmg"]))])
+	print("  the bot used: A %s" % _uses_text(a["uses"]))
+	print("                B %s" % _uses_text(b["uses"]))
 	print("")
+
+
+## "charge 41, dash 230, ..." -- abilities by kind and casts of a shield arm (073), per fight played.
+func _uses_text(uses: Dictionary) -> String:
+	if uses.is_empty():
+		return "no ability"
+	var kinds: Array = uses.keys()
+	kinds.sort()
+	var parts: PackedStringArray = []
+	for kind: Variant in kinds:
+		parts.append("%s %d" % [kind, int(uses[kind])])
+	return ", ".join(parts)
 
 
 func _new_stats() -> Dictionary:
 	return {"fights": 0, "won": 0, "lost_objective": 0, "lost_crew": 0, "timeout": 0, "rounds": 0,
 		"player_dmg": 0, "enemy_dmg": 0, "crew_hp_lost": 0,
-		"crew_hp_lost_sq": 0, "intents": 0, "intents_hit": 0}
+		"crew_hp_lost_sq": 0, "intents": 0, "intents_hit": 0, "uses": {}}
 
 
 ## Plays one fight with the bot. Returns true on a win.
@@ -334,10 +353,19 @@ func _play(db: ContentDB, fight: Dictionary, seed_value: int, stats: Dictionary)
 	if not setup.errors.is_empty():
 		push_error("setup errors: %s" % [setup.errors])
 		return false
+	Stats.bot_for(db)
 	var state: CombatState = CombatSim.start(setup)
 	var guard: int = 0
+	var uses: Dictionary = stats["uses"]
 	while state.outcome == CombatState.ONGOING and guard < 60:
-		CombatBot.take_turn(state)
+		for action: Array in CombatBot.take_turn(state):
+			# 073: what the bot used, by ability kind (and casts of a shield arm).
+			var u: GridUnit = state.unit(int(action[1]))
+			if int(action[0]) == CombatSim.ACT_ABILITY:
+				var kind: String = String(u.abilities[int(action[2])]["kind"])
+				uses[kind] = int(uses.get(kind, 0)) + 1
+			elif int(action[0]) == CombatSim.ACT_ATTACK and String(u.weapons[int(action[2])]["shape"]) == "shield":
+				uses["shield arm"] = int(uses.get("shield arm", 0)) + 1
 		guard += 1
 	stats["fights"] += 1
 	stats["rounds"] += state.round_number

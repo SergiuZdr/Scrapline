@@ -108,10 +108,19 @@ static func runs_needed(p: float, half: float) -> int:
 
 
 ## `path=json` into run.json; `combat.path=json` into the combat rules (enemy kinds included);
-## `fight.<id>.path=json` into one fight map (014). The one parser behind every tool's `--set`/`--b`.
+## `fight.<id>.path=json` into one fight map (014); `bot.abilities=false` plays the bot as it was
+## before 073 (kept on the db, set by the tool before each game). The one parser behind every tool's
+## `--set`/`--b`.
 static func override(db: ContentDB, setting: String, quiet: bool = false) -> void:
 	var pair: PackedStringArray = setting.split("=", true, 1)
 	var keys: PackedStringArray = pair[0].split(".")
+	if keys[0] == "bot":
+		if pair[0] != "bot.abilities":
+			push_error("override %s: the bot has only bot.abilities" % pair[0])
+		db.set_meta("bot_abilities", bool(JSON.parse_string(pair[1])))
+		if not quiet:
+			print("  override %s = %s" % [pair[0], pair[1]])
+		return
 	var node: Dictionary = db.run_rules
 	var first: int = 0
 	if keys[0] == "combat":
@@ -128,6 +137,11 @@ static func override(db: ContentDB, setting: String, quiet: bool = false) -> voi
 	node[last] = JSON.parse_string(pair[1])
 	if not quiet:
 		print("  override %s = %s" % [pair[0], pair[1]])
+
+
+## Puts the bot in the mode `db` was given (`--set bot.abilities=false`); call before each game.
+static func bot_for(db: ContentDB) -> void:
+	CombatBot.use_abilities = bool(db.get_meta("bot_abilities", true))
 
 
 ## Every value following `flag` in `args`.
