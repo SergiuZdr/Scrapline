@@ -264,11 +264,34 @@ static func _dry_value(state: CombatState, u: GridUnit, cell: Vector2i, w: int, 
 	var me: GridUnit = u
 	var after: CombatState = before.clone()
 	CombatSim._execute_attack(after, after.unit(u.ref), w, target)
+	var scored: Array = effects_value(before, after, u, ctx)
+	var value: int = int(scored[0])
+	var any_foe: bool = bool(scored[1])
+	var weapon: Dictionary = u.weapons[w]
+	if bool(weapon["mark"]) and any_foe:
+		value += SCORE_MARK
+	if int(weapon.get("snare", 0)) > 0 and any_foe:
+		value += SCORE_MARK
+	if String(weapon["shape"]) == "mine":
+		me.x = cell.x
+		me.y = cell.y
+		value += _mine_value(before, me, CombatSim.strike_plan(before, me, w, target))
+	if u.team == GridUnit.TEAM_PLAYER and u.heat + CombatSim.attack_heat(u, weapon) >= u.heat_cap:
+		value += SCORE_OVERHEAT
+	u.x = here.x
+	u.y = here.y
+	return value
+
+
+## What `u`'s side gains from the change from `before` to `after` (the same fight, one action
+## apart): damage and kills on the other side, falls, a broken pylon, minus its own losses.
+## Returns `[value, any_foe]` -- any_foe is whether a foe was hurt at all.
+static func effects_value(before: CombatState, after: CombatState, u: GridUnit, ctx: Dictionary) -> Array:
 	var value: int = 0
 	var any_foe: bool = false
 	var intents: Dictionary = {}
 	if ctx.has("danger"):
-		for intent: Dictionary in state.intents:
+		for intent: Dictionary in before.intents:
 			intents[int(intent["ref"])] = true
 	for effect: Dictionary in CombatSim.diff(before, after):
 		if effect.has("prop") and bool(effect["broken"]) and u.team == GridUnit.TEAM_PLAYER \
@@ -296,20 +319,7 @@ static func _dry_value(state: CombatState, u: GridUnit, cell: Vector2i, w: int, 
 			value += SCORE_DISRUPT
 	if any_foe:
 		value += SCORE_HIT
-	var weapon: Dictionary = u.weapons[w]
-	if bool(weapon["mark"]) and any_foe:
-		value += SCORE_MARK
-	if int(weapon.get("snare", 0)) > 0 and any_foe:
-		value += SCORE_MARK
-	if String(weapon["shape"]) == "mine":
-		me.x = cell.x
-		me.y = cell.y
-		value += _mine_value(before, me, CombatSim.strike_plan(before, me, w, target))
-	if u.team == GridUnit.TEAM_PLAYER and u.heat + CombatSim.attack_heat(u, weapon) >= u.heat_cap:
-		value += SCORE_OVERHEAT
-	u.x = here.x
-	u.y = here.y
-	return value
+	return [value, any_foe]
 
 
 ## 047: a mine laid under a foe is valued like the hit it will be at the start of the round --
