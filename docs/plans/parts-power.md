@@ -25,8 +25,14 @@ damage carried between fights, which a single fight cannot see; the run bot meas
 `balance_fights --arms 150` finally separates the arms that `part_power.gd` could not: tougher enemies
 (+40 HP +5 damage) so the crew wins about 63%, every arm on the same 150 scenarios. Against the
 average arm: Sunspear +28 points, God Hammer +23, Railgun +15, Coilgun +10 (all real); Pulse -12,
-Mortar -15, Snare -25, Shield Caster -27 (all real); the rest within the noise. The Shield Caster
-and the Saw's ability are never used by the bot, so those two read low or flat for the bot's sake.
+Mortar -15, Snare -25, Shield Caster -27 (all real); the rest within the noise. The bot never cast
+the Shield Caster then (073 fixed that). The Saw and the Cleaver tie because their fight numbers are
+the same: an arm's `"ability"` (`ab_rend`, ...) is from the archived game and the hex fight ignores it.
+
+With the bot playing every part (073; the crew wins 67%): the Lance joins the arms that win more
+(+12.9); the Shield Caster, now cast about twice a fight, rises from -26.5 to -18.4 but still wins
+less; the Mine Layer drops into "wins less" (-10.4); Snare (-22.4), Mortar (-16.4) and Pulse (-12.4)
+stay at the bottom. Table: `docs/iterations/073-bot-abilities.md`.
 Detail and the full table: `docs/iterations/072-arm-trial.md`.
 
 ## What it found (031 roster)

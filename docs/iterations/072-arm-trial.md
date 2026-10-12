@@ -61,8 +61,10 @@ What it says:
 - **The Mortar and the Snare are weak for rarity 2**: they lose to every common melee arm.
 - **Two results are the BOT, not the arm.** The Shield Caster is never cast: `IntentAI._best_shot`
   skips any attack that hits nobody, and a shield hits nobody, so a crew carrying it fights one-armed.
-  The Saw differs from the Cleaver only by its ability (Rend), and the bot uses no ability but boosts,
-  so the two measure exactly the same. An arm whose worth is an ability or a support effect is
+  The Saw and the Cleaver measure exactly the same because their numbers in the fight ARE the same
+  (melee, 4 damage, 1 heat; they differ only in their tunings). *Corrected in 073: this said the Saw's
+  ability, Rend, made the difference -- but an arm's `"ability": "ab_rend"` is left over from the
+  archived real-time game and the hex fight never reads it.* An arm whose worth is an ability or a support effect is
   under-rated by this trial until the bot uses it.
 
 Checks: `stats.gd` self-check all good; `balance_fights --fights 60` unchanged (95.0%); no sim file
@@ -72,8 +74,9 @@ touched.
 - **Arms are ranked by the arm trial** (`--arms 150`): paired scenarios, toughened enemies (+40 HP +5
   damage by default) so the crew wins about 63%, ranking against the per-scenario average, intervals
   for 20 at once. Rank arms, never weapon classes.
-- **A tie to the decimal between two parts means the test cannot see what separates them** (Saw and
-  Cleaver: the bot never uses Rend). Read a trial against what the bot can do.
+- **A tie to the decimal between two parts means the test cannot see what separates them** -- or that
+  nothing does (Saw and Cleaver have the same numbers; corrected in 073). Read a trial against what
+  the bot can do, and check the parts' numbers before blaming the bot.
 - Open: should the bot cast shields and use abilities (it would change the enemy AI too -- the same
   `IntentAI` plays both sides)? Should the Mortar and the Snare get stronger?
 
