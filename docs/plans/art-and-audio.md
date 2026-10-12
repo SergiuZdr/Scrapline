@@ -185,3 +185,274 @@ at its impact (`strike` returns the lead), and a death plays out before the wrec
 060: a death FALLS APART (an arm breaks off first, the machine looks at it, reaches, kneels, goes over;
 its core rolls out), and nothing of a machine ever goes under the floor -- checked on its posed
 vertices by `tools/probe_floor.gd`.
+
+## Appendix: Rust & Sodium (010) and the procedural roster
+
+Moved here from the agent notes on 2026-10-12. Ink & Rust (015-016) replaced this look; kept for its reasons.
+
+
+The look is a working scrapyard at night: **warm sodium key light, cold blue fill, cool
+neutral surfaces**. Warmth comes from the LIGHT, never from the pigment. A warm albedo
+under a warm key put every pixel in the same orange band and the palette stopped being
+two colours — constructs, terrain and berm all measured the same.
+
+**A part is tagged with a material ZONE, not a colour.** `tools/blender/make_parts.py`
+tags every piece (`paint`, `metal`, `rust`, `dark`, `tread`, `hazard`, `glow_*`) and the
+name survives into the `.glb` as `mat_<zone>`. `scripts/presentation/part_materials.gd`
+is the other half of that contract and the only place a construct's look is decided.
+
+| Zone | What it is |
+|---|---|
+| `paint` | Large armour surfaces. **The only team-tinted zone.** |
+| `metal` | Worn structural gunmetal: legs, barrels, frames |
+| `rust` | Ground contact and heat stain: feet, toes |
+| `dark` | Recesses and exposed mechanism: pistons, bolts, vents, rails |
+| `alu` | Dirty aluminium: the machines' one LIGHT value (hydraulic rods). Wired in 010, **not yet exported** — see below |
+| `hazard` | Warning ochre. **Overdrive modules and nothing else** |
+| `glow_*` | Emissive: visors, and one per damage type for the core lens |
+
+**A 0.9-metallic zone is lit by what it REFLECTS, so it needs something to reflect.**
+`metal` at albedo `6b6259` was tuned when it was a minority zone on a mostly-`paint`
+model. The scrap bridge made it the majority — head, arms and legs — and two thirds of
+every construct rendered as a featureless black void, geometry and all. The albedo and
+roughness are lifted now (`8a8074`, 0.52), and `gait_preview.tscn` was given a real sky:
+against `BG_COLOR` there is no radiance map at all, so the scene that exists to judge
+the models was hiding most of each one. **A preview lit differently from the battle is a
+preview that lies.**
+
+**Paint wears, and the wear is TRIPLANAR noise, not a texture map.** None of this
+geometry has UVs — the generator makes raw bevelled boxes and the exporter deliberately
+writes no texcoords, because a single float of UV drift was breaking export
+reproducibility. `uv1_triplanar` needs none, the mask is a `NoiseTexture2D` built at
+load, and nothing new ships. Two settings decide whether it reads as wear or as
+camouflage: the noise has to be FINE (0.12, not 0.035 — panel-sized blotches read as
+disruptive pattern) and the ramp has to be heavily biased toward intact paint, so only
+the darkest fifth shows as worn through. A 50/50 mask is a different machine.
+
+**Piece ORDER decides the whole component's transform.** `prim.join` makes the first
+piece the active object and the joined mesh inherits ITS transform, so a first piece
+carrying the 90 degree rotation an x-axis cylinder needs turns the component and every
+socket on it a quarter turn. An arm's `WeaponSocket` landed at (0.62, 0.10, 0.00)
+instead of (0.00, 0.10, -0.62). Put an unrotated piece first.
+
+**`verify_scrap_exports.py` restates the contract by hand, and that is the point.** When
+`TORSO_HEAD_Z` moved, the external checker failed all four torsos -- correctly. Updating
+its restated number is a second person signing off a deliberate contract change, not a
+formality; a checker that imported `sockets.py` would have agreed with the move
+silently and caught nothing.
+
+**Five structural things separate a machine from a mannequin**, all read off
+`art/reference/` and all now built for every archetype rather than for some:
+
+- **The head sits BETWEEN the shoulders.** `config.TORSO_HEAD_Z` — it used to mount at
+  `TORSO_HEIGHT - 0.02`, which is 0.18 above the shoulder plane before the neck post,
+  and a box on a stalk above the shoulder line is one of the strongest cues a silhouette
+  can give that it is a PERSON. The neck post shortened with it.
+- **The chest carries one big feature** (`torso._chest_feature`) — a rad core in a
+  recessed frame. Mechanical, not emissive: the GAME mounts a lit core on that same face
+  through `socket_core`, and two glowing things on one chest means neither is the
+  damage-type signal any more.
+- **The back carries a pack** (`torso._backpack`) — tank, stacks, hoses. Half the units
+  on screen are facing away, so the back needs to be something.
+- **The elbow BREAKS, and a ram drives it.** The elbow sat 2-6 cm behind the
+  shoulder-wrist line, which is inside the width of the arm, so every archetype was one
+  straight pole with a bearing on the middle of it.
+- **Legs are heavy columns.** 6-10 cm tubes under a torso widened to 0.60 across read as
+  stilts.
+
+**Anything derived from a contract position must READ it, not repeat it.** `_neck_mount`
+hardcoded 0.700/0.755/0.735 against a socket at 0.780, so moving the head meant finding
+four numbers in two files — and missing one leaves the collar behind in mid-air.
+
+**A machine STANDS differently from a person, and the rest pose is most of the read.**
+Every leg archetype planted its ankle at x=0 — directly under the hip — with a knee
+straight to within 2 cm, and the arm hung vertically with the weapon modelled along +Y
+sticking horizontally out of the bottom of it. Feet together, knees locked, one arm held
+out: that is a person standing at attention holding something, and it is what made the
+roster read as people rather than as machinery dumped in an arena.
+
+- `config.STANCE_WIDTH` plants each foot outboard of its hip; `config.KNEE_FORWARD`
+  breaks the knee forward so the leg carries weight instead of locking.
+- `make_scrap_parts.WEAPON_REST_PITCH` droops the weapon at the wrist. Melee hangs
+  further than a gun, because a barrel angled at the floor reads as unloaded — and the
+  droop pivots on the MOUNT, which is safe only because the generator authors every
+  weapon with its mount at the origin.
+
+**Silhouette weight comes from the shoulders, the feet and the width — in that order.**
+Measured against `art/reference/`, the roster was too light everywhere:
+
+- **Every arm carries a pauldron now**, not one archetype in four. It is the biggest
+  single object in a shoulder's outline, so three quarters of the roster having a bare
+  joint read as three quarters of the machines being lighter than their stats say. What
+  varies by archetype is the mechanism visible UNDER it.
+- **A pauldron is seated OVER the joint, not above it**, and wears the machine's own
+  livery. Perched high and painted rust it read as orange wings.
+- **Feet are wide flat plates** — the overhang past the shank is what stops a heavy
+  frame reading as balanced on sticks.
+- **Torsos are wider and deeper.** A narrow body under big pauldrons is a head on a
+  coat hanger.
+
+**Paint is LIVERY. The team lives in markers that do nothing else.**
+See `art/reference/STYLE.md` — the reference sheets carry no blue at all, and forcing a
+construct's largest surface to answer "whose is it" is what made every machine a flat
+block of UI blue or UI red. Now:
+
+- `PartMaterials.LIVERY` — worn yellow, oxide red, olive, primer grey, worn orange,
+  chosen per PART id, so a Brute is the same colour everywhere and a scavenged arm does
+  not match the frame it is bolted to.
+- `PartMaterials.TEAM_ZONES` — currently `glow_visor` alone. The eyes ARE the team.
+- A ring on the board under every machine (the combat scene).
+
+**Two channels, because each one alone has a blind spot.** Lit eyes are the strongest
+read at distance, but a machine turned away or buried in a six-on-six melee shows none;
+a ground ring is visible from every angle and is never occluded by its own unit. Neither
+channel may ever be used for decoration — the moment a ring or an eye means something
+else, the team read is gone.
+
+**A thumbnail must wear the same livery the game draws.** `make_scrap_parts.livery_of`
+mirrors `PartMaterials.livery_of` — the same FNV-1a over the same list. When the game
+stopped painting parts team blue and the thumbnails did not, every card in the garage
+became a picture of a machine that does not exist.
+
+**Never apply `material_override` to a whole construct.** That was the original bug: one
+flat team colour on every mesh threw away every bevel, rib, piston and vent the generator
+exists to produce, and twelve machines rendered as twelve monochrome silhouettes in red
+and blue. Tinting is per-SURFACE, and only `paint` takes the team colour. Terrain works
+the same way — slag's basin is cooled rock and only its pool is molten.
+
+
+**`scripts/ui/ui_kit.gd` is the only description of the interface.** Every screen and
+the in-fight HUD build from it. Two screens that style themselves independently drift on
+exactly the details a player reads as polish. Colour is a signal, not decoration:
+
+- **Amber** — the primary action. **One per screen**, or it stops meaning anything. It is
+  also the selection marker.
+- **Blue** information, **green** gains, **red** costs and danger, **gold** premium only.
+
+**"One per screen" has to survive screens that repeat an action**: where a screen offers
+several equal choices there is no primary at all; those use `UIKit.choice` (an amber
+outline, obviously pressable, not a saturated block).
+
+Godot's default theme is the loudest "prototype" signal an interface can send, and it
+reaches controls no call site touches — scrollbar grabbers, tooltips, disabled states.
+`UIKit.apply(root)` is called once per screen root to catch all of them.
+
+**The fonts are bundled, with their licences, in `art/fonts/`** (all SIL OFL 1.1):
+Barlow Semi Condensed for everything a player reads (`UIKit.font()`, `font_strong()`,
+`font_numbers()` with tabular figures), Anton for titles (`font_comic()`, also
+`font_display()`), Bangers for sound effects only. Any new face needs its OFL (or equivalent)
+licence file beside it in the same commit.
+
+The palette is the reference sheets' material list, not a UI palette: warm dark steel
+surfaces, dirty aluminium text, and the `AMBER` constant is now construction yellow
+(`e5b33d`). The constant names are unchanged so no call site moved.
+
+Regenerate art after touching either generator:
+
+```bash
+# THE ROSTER IN art/parts/ COMES FROM make_scrap_parts.py, NOT make_parts.py.
+blender --background --python tools/blender/make_scrap_parts.py -- --out art/parts
+$GODOT --path . --script res://tools/make_ink_thumbs.gd   # the part pictures (art/thumbs_ink)
+$GODOT --headless --path . --import   # register new class_name / reimport .glb
+```
+
+**The style bible is `docs/plans/art-and-audio.md`** (010): named references, value layers,
+the **reserved-colour registry** (blue = yours, red = danger, amber = your action, copper =
+machine condition, green = a gain, purple = being built, ochre = overdrive, lens = damage
+type, rarity colours on parts only) and a read contract per element. A new colour use
+goes through that table first.
+
+**Contrast is measured, not argued**: `tools/measure_contrast.gd -- --fight <id> [--json f]`
+renders a fight whole and machines-only and prints machines vs. surround luminance. 1.8-1.9
+before 010, 2.1-2.3 after. **That ratio may only grow.**
+
+**Machine paint wears through a baked map**,
+`art/textures/paint_wear.png` (`tools/make_wear_texture.py`: white where paint survives,
+rust-orange where worn), multiplied by the livery -- a photographed red-rust texture
+multiplied by yellow livery comes out brown, so the photo is baked hue-free first. Object
+triplanar, because the parts have no UVs. **No numbers are painted on the machines** (the
+user, play-test 7: `ConstructView._stencil` is gone); crew machines carry their crew's NAMES
+instead (`run.json` `starting_crew`, `meta.json` crews), never their frame's.
+
+**The title screen is a scene** (`scripts/ui/title_stage.gd`): the default crew numbered
+01-03 on a hardstand, kit props, a floodlight, and the Reclaimer's red beacons on the
+horizon. Display classes take `db`, never the `Run` autoload.
+
+**`make_scrap_parts.py` does NOT reproduce the committed roster** (found in 010): a
+regeneration changed the heads and dropped most pauldrons (`builders/arm.py`'s
+`SHOULDER_STYLE` gives a pauldron to one archetype in seven; the shipped roster has one on
+every arm, as this file says). It was rolled back with `git checkout -- art/parts`. **Do not regenerate the roster until that is settled** (open question in
+`docs/MEMORY.md`); the `alu` zone ships with the next export.
+
+
+## Appendix: animation notes
+
+Moved here from the agent notes on 2026-10-12.
+
+
+Chassis are **not** one welded mesh. Each leg exports as a child object named
+`limb_leg_l` / `limb_leg_r` with its **origin on the hip joint**, so rotating the object
+is the hip articulating — no armature, and a new chassis needs no rigging pass.
+`ConstructRig` drives it and never computes an outcome: it is told a unit is moving,
+told when it strikes, and told it was hit from a direction.
+
+**Attack shape comes from `weapon_class`** in `data/parts/arms.json` — the same field
+that picks the weapon's model, so the motion and the silhouette can never describe two
+different weapons. Note that arms have **no `damage_type`** (that is on cores); an
+earlier attempt to vary arms by damage type silently did nothing at all.
+
+**The gait is not a sine.** A sine spends half its cycle either side of neutral and
+moves fastest through the middle, which is backwards: the planted foot should be still
+while the body travels over it, and the free leg is what moves quickly. `STANCE_FRACTION`
+(0.42 now) — stance is a straight ramp, swing is a fast smoothstep. Two opposed sines read
+as marching in place, which is what the roster did for a long time.
+
+**A wreck topples; it does not flatten.** Destruction used to squash a construct to 5%
+of its height where it stood — completely legible as "this unit is gone", and not a
+physical event at all. The fall is angular about the FEET, which is free because the
+body's origin is already at ground level: nothing has to be moved, and it cannot sink
+through the floor on the way down. `collapse` is idempotent, because SKIP drains the
+whole event queue in one frame and `DESTROYED` can arrive twice.
+
+**`reset_transients` must not resurrect the dead.** Without a guard it stands every
+wreck back up while the player studies the board.
+
+**Reactions are a spring, not a tween**, and the three reasons are all load-bearing:
+tweens do not COMPOSE (six units focusing one target produce six competing animations
+and the last one wins, so a focused volley looks exactly like a single hit); a tween
+caught mid-flight when playback stops FREEZES a construct leaning at 20°; and a spring scales honestly with severity. Firing
+uses the same mechanism — to the body, a railgun's kick and a hit from the front are the
+same event.
+
+**The reaction integrator runs at a fixed 120 Hz**, not once per frame. Stepped per
+frame it damps per frame, so the same hit travelled 3.5 cm at 60 fps and 0.4 cm at 15 —
+the reaction quietly vanishing on exactly the phones least able to spare frames. Testing
+each frame rate in isolation calls all three "stable"; only comparing them finds it.
+
+**A reaction can be correct and invisible.** The first stagger was stable, correctly
+signed, well damped and moved a construct 3.5 cm — about two pixels at battle distance.
+Every test passed. `verify_animation.gd` now asserts a floor on how far a heavy hit
+actually moves the machine, because "it animates" and "you can see it animate" are
+different claims.
+
+The combat scene converts the attacker's position into the **target's own space**
+before handing it to the rig. The rig animates a model already turned to face its
+heading, so a world direction makes every construct lurch toward world north.
+
+```bash
+# The ONLY honest way to check a walk cycle: hold a construct moving and film it.
+$GODOT --path . res://tools/gait_preview.tscn --resolution 560x560 -- \
+    --shot /tmp/gait --frames 8 --every 6 [--chassis ch_strider] [--strike]
+# Same for a stagger. --stagger-from front|back|left|right, so the SIGN can be checked
+# rather than assumed from the fact that something moved.
+$GODOT --path . res://tools/gait_preview.tscn --resolution 460x460 -- \
+    --shot /tmp/stag --frames 6 --every 3 --still --stagger --stagger-from left
+python3 tools/blender/compose_sheet.py /tmp/gait /tmp/gait.png 8
+```
+
+Catching a walking unit in a live battle screenshot does not work — every attempt
+photographed a construct standing still, and "no errors in the log" is not evidence that
+a limb moved. **`--still` names its frame after the chassis** so a shell loop can build a
+roster sheet; that is right for one frame and wrong for a sequence, where all eight
+renders write to one file and compose as a one-frame sheet that looks like the animation
+never played.
