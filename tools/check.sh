@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.." || exit 1
 GODOT="${GODOT:-/Users/Sergiu/DevG/KingdomRebuilt/Godot.app/Contents/MacOS/Godot}"
 LOGS=shots/check
 LIMIT=900
-SUITES="verify_combat verify_combat_input verify_run verify_run_ui verify_save verify_onboarding verify_meta verify_assembly verify_animation"
+SUITES="verify_combat verify_combat_input verify_run verify_run_ui verify_save verify_onboarding verify_meta verify_assembly verify_animation stats"
 
 BOT=0
 PRINT=0

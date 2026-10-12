@@ -2,6 +2,19 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [071] Numbers you can trust — 2026-10-12 ([detail](iterations/071-trustworthy-numbers.md))
+
+### Changed
+- `run_bot.gd` and `balance_fights.gd` print every rate with its 95% interval, and how many runs it
+  would take to pin the win rate down to +-5 or +-10 points.
+- An arm is flagged only when its difference from the rest is bigger than the noise, allowing for all
+  ten being judged at once (the old fixed "6 points off" flagged noise).
+
+### Added
+- `--b path=json` on both tools: plays a variant B on the same seeds or fights and says whether B - A is
+  real or how big it could still be. `balance_fights` gains `--set` and `--seeds`.
+- `tools/stats.gd`: the statistics, with a self-check that `tools/check.sh` runs.
+
 ## [070] Faster tests and bot tools — 2026-10-12 ([detail](iterations/070-fast-tools.md))
 
 ### Changed

@@ -58,7 +58,8 @@ them. The old `event_stream.gd`/`events.gd` pattern is kept and the vocabulary c
 | `sim_fingerprint.gd` | **built** (070): how the bot plays every fight file and four runs, hashed -- unchanged by any change meant only for speed |
 | `profile_bot.gd` | **built** (070): a bot fight's time by phase, and the AI's hottest calls |
 
-Bot tools (`run_bot`, `balance_fights`, `sim_fingerprint`) take `--jobs N` and split themselves over
+Their rates carry 95% intervals and `--b path=json` compares a variant on the same seeds or fights
+(071, `tools/stats.gd`). Bot tools (`run_bot`, `balance_fights`, `sim_fingerprint`) take `--jobs N` and split themselves over
 child processes (`tools/jobs.gd`); the default is one per core but one.
 
 ## Build targets
