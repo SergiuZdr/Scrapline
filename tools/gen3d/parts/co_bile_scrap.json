@@ -1,0 +1,14 @@
+{
+  "_comment": "069: Bile Core, ChatGPT concept art/concepts/machines/co_bile_scrap.png (approved by the user), TRELLIS on Colab.",
+  "slot": "core",
+  "size": 0.13,
+  "mount": "back",
+  "budget": 2500,
+  "posterize": 12,
+  "rust_map": true,
+  "rotate": [
+    0,
+    0,
+    -90
+  ]
+}

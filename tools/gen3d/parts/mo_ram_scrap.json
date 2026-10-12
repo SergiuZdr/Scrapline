@@ -1,0 +1,14 @@
+{
+  "_comment": "069: Hydraulic Ram (pneumatic booster), ChatGPT concept art/concepts/machines/mo_ram_scrap.png (approved by the user), TRELLIS on Colab.",
+  "slot": "module",
+  "size": 0.2,
+  "mount": "front",
+  "budget": 2500,
+  "posterize": 12,
+  "rust_map": true,
+  "rotate": [
+    0,
+    0,
+    180
+  ]
+}
