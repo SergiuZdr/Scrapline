@@ -2,6 +2,14 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [072] The arm trial — 2026-10-12 ([detail](iterations/072-arm-trial.md))
+
+### Added
+- `balance_fights.gd --arms 150`: every arm plays the same 150 fights against tougher enemies (the
+  crew wins about 63%) and is ranked against the average arm, with a verdict: wins more or less,
+  ends fights faster or slower. First result: the two legendaries and two rares on top; the Mortar,
+  Snare and Shield Caster at the bottom (the Shield Caster because the bot never casts it).
+
 ## [071] Numbers you can trust — 2026-10-12 ([detail](iterations/071-trustworthy-numbers.md))
 
 ### Changed

@@ -23,9 +23,20 @@ extends SceneTree
 ##                    with that arm against those without it, flagged only when the difference is
 ##                    bigger than its own noise (the old fixed "6 points" flagged noise at n = 38).
 ## Every rate carries its 95% interval (`tools/stats.gd`).
+##
+## `--arms N` (072) runs the ARM TRIAL instead: N scenarios (a map, a random crew, a random enemy
+## squad made tougher by `--arm-hp` / `--arm-damage` so the crew can lose), each played once per arm
+## with that arm fitted to every crew machine's left socket and nothing else changed. Every arm meets
+## the same scenarios, so each is ranked against the average of all arms on the same fights.
 
 const Jobs = preload("res://tools/jobs.gd")
 const Stats = preload("res://tools/stats.gd")
+
+## The arm trial's default enemy toughening (072). Measured over 15 scenarios: +8 HP +2 damage still
+## let the crew win 93% (the bot dodges nearly every telegraphed shot); +40 HP +5 damage, 66%, with
+## 14 of 15 scenarios going either way by the arm -- where one arm against another shows most.
+const ARM_HP: int = 40
+const ARM_DAMAGE: int = 5
 
 var _db: ContentDB
 
@@ -49,6 +60,9 @@ func _initialize() -> void:
 		for setting: String in b_settings:
 			Stats.override(dbs[1], setting, quiet)
 	_db = dbs[0]
+	if args.has("--arms"):
+		_arm_trial(args, slice)
+		return
 
 	var ids: Array = _db.fights.keys()
 	ids.sort()
@@ -120,6 +134,132 @@ func _initialize() -> void:
 	quit()
 
 
+## The arm trial (072). Item `s * arms + a`: scenario `s` with arm `a` on every crew machine's left.
+func _arm_trial(args: PackedStringArray, slice: Array) -> void:
+	var scenarios: int = _arg_int(args, "--arms", 100)
+	var bonus: Dictionary = {"hp": _arg_int(args, "--arm-hp", ARM_HP), "damage": _arg_int(args, "--arm-damage", ARM_DAMAGE)}
+	var arms: Array = []
+	for id: Variant in _db.parts:
+		if String((_db.parts[id] as Dictionary).get("slot", "")) == "arm" and not PartTuning.is_tuned(String(id)):
+			arms.append(String(id))
+	arms.sort()
+	var ids: Array = _db.fights.keys()
+	ids.sort()
+	var pool: Array = ids.filter(func(id: Variant) -> bool:
+		var map: Dictionary = _db.fights[id]
+		return not bool(map.get("tutorial", false)) and not bool(map.get("boss", false)))
+	var items: int = scenarios * arms.size()
+	var jobs: int = _arg_int(args, "--jobs", Jobs.default_count())
+	var results: Dictionary = {}
+	if slice.is_empty() and jobs > 1:
+		for part: Dictionary in Jobs.run("res://tools/balance_fights.gd", args, jobs, items, "won"):
+			results.merge(part["trial"])
+	else:
+		for item: int in items:
+			if not Jobs.mine(slice, item):
+				continue
+			var s: int = item / arms.size()
+			var arm: String = arms[item % arms.size()]
+			var template: Dictionary = _db.fights[pool[s % pool.size()]]
+			# The scenario's dice are the scenario's alone: every arm meets the same crew and enemy.
+			var rng := SimRNG.new(104729 * (s + 1))
+			var fight: Dictionary = template.duplicate(true)
+			fight["player"] = _random_squad(rng, template["player"])
+			fight["enemy"] = _random_squad(rng, template["enemy"])
+			for spec: Dictionary in fight["enemy"]:
+				spec["bonus"] = bonus
+			for spec: Dictionary in fight["player"]:
+				spec["parts"][2] = arm
+			var stats: Dictionary = _new_stats()
+			var won: bool = _play(_db, fight, s, stats)
+			var cause: int = 0 if won else (1 if int(stats["lost_crew"]) > 0 else (2 if int(stats["timeout"]) > 0 else 3))
+			results[str(item)] = [1 if won else 0, int(stats["crew_hp_lost"]), int(stats["rounds"]), cause]
+			Jobs.progress(slice, ("+ " if won else "- ") + str(item))
+		if not slice.is_empty():
+			Jobs.finish(slice, {"trial": results})
+			quit()
+			return
+
+	# Per scenario, the average over every arm; each arm is scored by how far it sits from it.
+	var a_n: int = arms.size()
+	var won_total: int = 0
+	var decisive: int = 0
+	var base_win: Array = []
+	var base_hp: Array = []
+	var base_rounds: Array = []
+	var causes: Array = [0, 0, 0, 0]
+	for s: int in scenarios:
+		var w: float = 0.0
+		var h: float = 0.0
+		var rd: float = 0.0
+		for a: int in a_n:
+			var r: Array = results.get(str(s * a_n + a), [0, 0, 0, 0])
+			w += int(r[0])
+			h += int(r[1])
+			rd += int(r[2])
+			causes[int(r[3])] += 1
+		base_win.append(w / a_n)
+		base_hp.append(h / a_n)
+		base_rounds.append(rd / a_n)
+		won_total += int(w)
+		decisive += 1 if w > 0.0 and w < a_n else 0
+	var z: float = Stats.z_for(a_n)
+	var rows: Array = []
+	for a: int in a_n:
+		var won: int = 0
+		var dw: float = 0.0
+		var dw2: float = 0.0
+		var dh: float = 0.0
+		var dh2: float = 0.0
+		var dr: float = 0.0
+		var dr2: float = 0.0
+		for s: int in scenarios:
+			var r: Array = results.get(str(s * a_n + a), [0, 0, 0, 0])
+			var q: float = int(r[2]) - float(base_rounds[s])
+			dr += q
+			dr2 += q * q
+			won += int(r[0])
+			var x: float = int(r[0]) - float(base_win[s])
+			dw += x
+			dw2 += x * x
+			var y: float = int(r[1]) - float(base_hp[s])
+			dh += y
+			dh2 += y * y
+		var win_ci: Array = Stats.mean_ci(dw, dw2, scenarios, z)
+		var hp_ci: Array = Stats.mean_ci(dh, dh2, scenarios, z)
+		var rounds_ci: Array = Stats.mean_ci(dr, dr2, scenarios, z)
+		rows.append([win_ci[0], arms[a], won, win_ci[1], hp_ci[0], hp_ci[1], rounds_ci[0], rounds_ci[1]])
+	rows.sort_custom(func(x: Array, y: Array) -> bool: return float(x[0]) > float(y[0]) or (float(x[0]) == float(y[0]) and String(x[1]) < String(y[1])))
+	print("")
+	print("=== arm trial: %d scenarios x %d arms, enemies +%d HP +%d damage ===" % [scenarios, a_n, bonus["hp"], bonus["damage"]])
+	print("  the crew won %s of all fights; %d of %d scenarios went either way depending on the arm" % [
+		Stats.rate(won_total, scenarios * a_n), decisive, scenarios])
+	print("  losses: crew wrecked %d, out of rounds %d, objective lost %d" % [causes[1], causes[2], causes[3]])
+	print("  (a crew win rate of 50-75% separates arms best: tune with --arm-hp / --arm-damage; intervals are sized")
+	print("   for %d arms judged at once, so a verdict is wrong at most 1 batch in 20)" % a_n)
+	print("")
+	print("  %-15s %-6s %-20s %-30s %-20s %s" % ["arm", "rarity", "won", "won vs the average", "rounds vs average", "crew HP lost vs average"])
+	for row: Array in rows:
+		var id: String = row[1]
+		var part: Dictionary = _db.parts[id]
+		# Wins first; failing that, how fast it ends the fight (fewer rounds is stronger).
+		var marks: PackedStringArray = []
+		if float(row[0]) - float(row[3]) > 0.0:
+			marks.append("wins more")
+		elif float(row[0]) + float(row[3]) < 0.0:
+			marks.append("wins less")
+		if float(row[6]) + float(row[7]) < 0.0:
+			marks.append("faster")
+		elif float(row[6]) - float(row[7]) > 0.0:
+			marks.append("slower")
+		var verdict: String = "" if marks.is_empty() else "   <- " + ", ".join(marks)
+		print("  %-15s r%-5d %-20s %+6.1f pts (%+5.1f to %+5.1f)  %+5.2f (+-%.2f)      %+5.1f HP (+-%.1f)%s" % [id, int(part.get("rarity", 0)),
+			Stats.rate(int(row[2]), scenarios), 100.0 * row[0], 100.0 * (row[0] - row[3]), 100.0 * (row[0] + row[3]),
+			row[6], row[7], row[4], row[5], verdict])
+	print("")
+	quit()
+
+
 func _new_numbers() -> Dictionary:
 	return {"authored": {}, "random": _new_stats(), "arms": {}}
 
@@ -144,7 +284,8 @@ func _report_all(ids: Array, numbers: Dictionary, count: int) -> void:
 	# Judged together: with ten arms, ten 95% intervals flag one by chance most batches.
 	var z: float = Stats.z_for(classes.size())
 	print("  player arms (random fights): win rate with the arm, and its difference from the fights without it")
-	print("  (intervals sized for %d arms judged at once, so a \"real\" is wrong at most 1 batch in 20):" % classes.size())
+	print("  (intervals sized for %d arms judged at once, so a \"real\" is wrong at most 1 batch in 20;" % classes.size())
+	print("   a class mixes unlike arms and the crew rarely loses here: rank arms with --arms 150):")
 	for cls: Variant in classes:
 		var row: Array = arm_wins[cls]
 		var with_won: int = int(row[0])

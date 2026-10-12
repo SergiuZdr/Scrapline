@@ -20,6 +20,15 @@ wins anyway). Its loudest signals agree with the model -- the Flamer and Shield 
 common arm, the Lance and Coilgun on top -- and those were acted on. Losses in the game come from
 damage carried between fights, which a single fight cannot see; the run bot measures that.
 
+## Measured by the arm trial (072)
+
+`balance_fights --arms 150` finally separates the arms that `part_power.gd` could not: tougher enemies
+(+40 HP +5 damage) so the crew wins about 63%, every arm on the same 150 scenarios. Against the
+average arm: Sunspear +28 points, God Hammer +23, Railgun +15, Coilgun +10 (all real); Pulse -12,
+Mortar -15, Snare -25, Shield Caster -27 (all real); the rest within the noise. The Shield Caster
+and the Saw's ability are never used by the bot, so those two read low or flat for the bot's sake.
+Detail and the full table: `docs/iterations/072-arm-trial.md`.
+
 ## What it found (031 roster)
 
 Mean points by rarity:
