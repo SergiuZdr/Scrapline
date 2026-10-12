@@ -4432,9 +4432,12 @@ func _next_ready_unit() -> int:
 
 ## `--bot`: plays each unit's actions through the same `_act` path a tap reaches.
 func _bot_turn() -> void:
-	for u: GridUnit in _state.crew(GridUnit.TEAM_PLAYER):
+	for ref: int in CombatBot.turn_order(_state):
+		var u: GridUnit = _state.unit(ref)
 		if _state.outcome != CombatState.ONGOING:
 			return
+		if not u.alive:
+			continue
 		_selected = u.ref
 		_refresh()
 		for action: Array in CombatBot.plan_unit(_state, u.ref, false):
