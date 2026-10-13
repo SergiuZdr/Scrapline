@@ -120,7 +120,7 @@ static func rarity_colour(parts: Dictionary, id: String) -> Color:
 
 ## A tuned part wears its base part's picture: a tuning is a number, not a new model.
 static func thumb(id: String) -> Texture2D:
-	id = PartTuning.model_of(id)
+	id = Models.draw_id(id)
 	if id.is_empty():
 		return null
 	if not _thumbs.has(id):
