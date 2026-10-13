@@ -1,0 +1,9 @@
+{
+  "_comment": "069: Heat Fins, ChatGPT concept art/concepts/machines/mo_fins_scrap.png (approved by the user), TRELLIS on Colab.",
+  "slot": "module",
+  "size": 0.2,
+  "mount": "front",
+  "budget": 2500,
+  "posterize": 12,
+  "rust_map": true
+}

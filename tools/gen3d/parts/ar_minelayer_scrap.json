@@ -1,0 +1,15 @@
+{
+  "_comment": "069: Mine Layer, ChatGPT concept art/concepts/machines/ar_minelayer_scrap.png (approved by the user), TRELLIS on Colab.",
+  "slot": "arm",
+  "rotate": [
+    0,
+    0,
+    -135
+  ],
+  "size": 0.44,
+  "mount": "ring",
+  "budget": 4000,
+  "posterize": 12,
+  "rust_map": true,
+  "skeleton": true
+}

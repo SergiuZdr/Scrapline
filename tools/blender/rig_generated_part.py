@@ -619,8 +619,14 @@ def attachment(obj, spec):
         # 15% of it in the upper half -- so the arm hangs OUTSIDE the frame, not under its shoulder.
         span = hi.x - lo.x
         near = [v.co for v in obj.data.vertices if v.co.x < lo.x + 0.15 * span and v.co.z > mid.z]
+        inner = lo.x
+        if not near:
+            # 069: a tool wider than the shoulder (a flail's two heads, a claw) reaches further in
+            # than the ring; then the ring is the innermost x of the upper half.
+            inner = min(v.co.x for v in obj.data.vertices if v.co.z > mid.z)
+            near = [v.co for v in obj.data.vertices if v.co.x < inner + 0.15 * span and v.co.z > mid.z]
         if near:
-            ring = Vector((lo.x, sum(c.y for c in near) / len(near), sum(c.z for c in near) / len(near)))
+            ring = Vector((inner,sum(c.y for c in near) / len(near), sum(c.z for c in near) / len(near)))
             obj.data.transform(Matrix.Translation(-ring + Vector(spec.get("offset", [0, 0, 0]))))
             print("ring mount at %s" % (tuple(round(x, 3) for x in ring),))
             return [obj], (skeleton_arm(obj, spec) if spec.get("skeleton", False) and spec["slot"] == "arm" else None)

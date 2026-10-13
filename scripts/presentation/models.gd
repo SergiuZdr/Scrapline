@@ -60,6 +60,15 @@ static func use_new(on: bool) -> void:
 	_new = 1 if on else 0
 
 
+## The part whose model is DRAWN for `id`: a part that borrows another's model (`"model"`, 029)
+## wears its own once the generated set has one (069: the Chain Flail no longer draws as the Maul).
+static func draw_id(id: String) -> String:
+	var base: String = PartTuning.base_of(id)
+	if gen_models() and not base.is_empty() and ResourceLoader.exists("%s/%s.glb" % [gen_dir(), base]):
+		return base
+	return PartTuning.model_of(id)
+
+
 ## The model file for a part: the generated one if asked for and it exists, then the new one,
 ## else the shipped one.
 static func part_path(part_id: String) -> String:

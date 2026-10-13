@@ -114,7 +114,8 @@ Parts stay in `data/parts/*.json`. Add fields for the grid game (`move`, `grid_h
 Shapes now: melee, shot, lob, **cone** (flamer: the aimed neighbour and three beyond), **shield**
 (aimed at an ally). A shot may **pull** (harpoon). Rarity 4 is LEGENDARY: from a gate's hoard and,
 rarely, Act 3 salvage. A part with `"model"` borrows that part's model and picture until it has its
-own (`PartTuning.model_of`); `"enemy": false` keeps a part off enemies.
+own (`PartTuning.model_of`; 069: with the generated set on, `Models.draw_id` draws a part's own
+generated model as soon as it exists); `"enemy": false` keeps a part off enemies.
 
 ## Modules with mechanics (033)
 

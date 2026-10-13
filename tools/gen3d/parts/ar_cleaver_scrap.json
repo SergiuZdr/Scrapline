@@ -1,0 +1,16 @@
+{
+  "_comment": "069: Scrap Cleaver, ChatGPT concept art/concepts/machines/ar_cleaver_scrap.png (approved by the user), TRELLIS on Colab.",
+  "slot": "arm",
+  "rotate": [
+    0,
+    0,
+    90
+  ],
+  "mirror_x": true,
+  "size": 0.46,
+  "mount": "ring",
+  "budget": 4000,
+  "posterize": 12,
+  "rust_map": true,
+  "skeleton": true
+}

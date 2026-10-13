@@ -1,0 +1,10 @@
+{
+  "_comment": "069: Rail Driver, ChatGPT concept art/concepts/machines/ar_railgun_scrap.png (approved by the user), TRELLIS on Colab.",
+  "slot": "arm",
+  "size": 0.48,
+  "mount": "ring",
+  "budget": 4000,
+  "posterize": 12,
+  "rust_map": true,
+  "skeleton": true
+}

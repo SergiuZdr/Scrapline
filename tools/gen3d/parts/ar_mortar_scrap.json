@@ -1,0 +1,10 @@
+{
+  "_comment": "069: Slag Mortar, ChatGPT concept art/concepts/machines/ar_mortar_scrap.png (approved by the user), TRELLIS on Colab.",
+  "slot": "arm",
+  "size": 0.46,
+  "mount": "ring",
+  "budget": 4000,
+  "posterize": 12,
+  "rust_map": true,
+  "skeleton": true
+}
