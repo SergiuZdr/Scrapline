@@ -53,6 +53,31 @@ from a concept the user approved, so no machine mixes generated and scripted par
   Flux, Servo, Targeting, Jump Jets, Sprint Pistons, Spotter); cut into `shots/069/colab_in3`. Heat Fins
   redrawn as a cut-down radiator and approved (15 in `colab_in3`). Belt Feeder: the ammo-can idea was
   rejected twice; two new ideas without bullets (`vektor_4`), A (dart rack) approved: 16 in `colab_in3`.
+- Arclight: 11 concepts drawn in the same chat; 9 approved at once, the Aegis Rig and Arc Relay redrawn as
+  backpacks that hang on the back (A picked for both).
+
+**Part 2 (2026-10-13).** The GPU came back for about an hour and a half. Cell 2 now runs from a file
+(`tools/gen3d/colab_gen.py`, `%run -i`): a part that runs out of GPU memory goes to `/content/skip` and the loop
+goes on, and the zip is rewritten after every model.
+- In the game: all 14 Cinder parts (Cleaver, Flail, Flamer, Godhammer, Mine Layer, Ripper; Reaper and Scrapper
+  frames; Ember and Solvent cores; Bypass, Leech, Overclock, Phoenix modules), and 15 more: the Arclight Aegis
+  Caster and Arc Coilgun, Skirmisher and Bulwark frames, Null core, Capacitor, Coolant and Repair modules, and
+  the Vektor modules Heat Fins, Belt Feeder, Jump Jets, Servo, Spotter, Sprint Pistons and Targeting Rig.
+- `verify_assembly.gd -- --dir res://art/parts_gen_scrap` 191 passed, 0 failed; `tools/check.sh` every suite
+  green (verify_assembly 168/0, verify_animation 34/0, verify_combat 370/0, verify_run 187/0). Thumbnails
+  remade for the 29 (`make_ink_thumbs.gd --only`). Look sheets: `shots/069/machines_cinder.png`,
+  `shots/069/machines_arclight.png`.
+- The Chain Flail and Mine Layer still BORROWED the Maul's and Mortar's models (`"model"` in arms.json), so
+  the new models never showed. `Models.draw_id`: with the generated set on, a part that has its own generated
+  model draws it; the shipped sets keep the borrowed one.
+- `rig_generated_part.py`: a tool wider than the shoulder (the flail's two heads, the ripper's claw) reached
+  further in than the ring, so the ring mount found nothing; it now falls back to the innermost x of the upper
+  half.
+- Lost again: the third batch (9 Vektor parts -- Mortar, Rail Driver, Scattergun, Snare, Sunspear, Lancer,
+  Courier, Flywheel, Flux -- and the Aegis Rig and Arc Relay) finished, but the daily GPU limit took the runtime
+  while the Cinder parts were being rigged, before the zip was downloaded. The Tesla core ran out of GPU memory
+  like the Crucible.
+- Not run: `run_bot.gd` (no content or rules changed; models and drawing only).
 
 ## Decisions, lessons, open questions
 - **Each part its own salvage origin, palette and joinery; the maker only as a small plate** (the user).
@@ -63,7 +88,17 @@ from a concept the user approved, so no machine mixes generated and scripted par
 - Lesson: no fire, smoke or liquid in a concept -- TRELLIS makes it solid.
 - Lesson: **download Colab's zip after every few models**, not at the end: an OOM or the daily GPU limit takes the
   runtime and every model on it. A dense, boxy, ornate object (the Crucible) can exceed the T4 even alone.
+- **Modules hang on the machine's back** (the user, 2026-10-13): no feet, base or stand, never wider than the
+  frame's torso.
+- Lesson: **download each batch the moment it finishes**, before any local work: the free GPU's daily allowance
+  (about an hour and a half of T4) ends without warning and takes every file on the runtime.
+- Lesson: a part with `"model"` keeps drawing the borrowed model until something says otherwise -- check the
+  parts' JSON when a new model does not show.
 - Lesson: ChatGPT drifts from the ink style to photo renders over a long chat; ask for "bold black ink outlines,
   flat cel colour" again.
 
 ## Next
+- Colab, next allowance: the 11 lost (Mortar, Rail Driver, Scattergun, Snare, Sunspear, Lancer, Courier, Flywheel,
+  Flux, Aegis Rig, Arc Relay; inputs in `shots/069/colab_in3`, `colab_in4`); frames Lancer and Courier need their
+  width profiles. Tesla and Crucible need simpler concepts (too dense for the T4).
+- The Chain Flail's arc attack animation (the user, later).

@@ -1,0 +1,16 @@
+{
+  "_comment": "069: Arc Coilgun, ChatGPT concept art/concepts/machines/ar_coilgun_scrap.png (approved by the user), TRELLIS on Colab.",
+  "slot": "arm",
+  "rotate": [
+    0,
+    0,
+    90
+  ],
+  "mirror_x": true,
+  "size": 0.48,
+  "mount": "ring",
+  "budget": 4000,
+  "posterize": 12,
+  "rust_map": true,
+  "skeleton": true
+}

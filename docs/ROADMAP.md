@@ -93,6 +93,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 066 | [Comic effects](iterations/066-comic-fx.md) | Explosions, smoke, sparks and debris drawn in the comic style instead of realistic | ✅ |
 | 067 | [Comic deaths](iterations/067-comic-deaths.md) | Death effects in the hit/blast style; machines posterised, inked, hatched and rimmed | ✅ |
 | 068 | [Ink edges, mine fixes](iterations/068-ink-edges-mines.md) | Ink lines from texture edges; mines stay drawn, explain themselves, never doubled by the AI | ✅ |
+| 069 | [The rest of the roster as comic scrap](iterations/069-roster-scrap.md) | Every part from a concept the user approved, made 3D on Colab: Kessler 13, Cinder 14, Arclight 8, Vektor 7 so far; 11 more wait for the GPU | 🔨 in progress |
 | 070 | [Faster tools](iterations/070-fast-tools.md) | Same sim, ~2x faster per core; bot tools on every core (`--jobs`); `check.sh` runs every suite in 2 minutes | ✅ |
 | 071 | [Numbers you can trust](iterations/071-trustworthy-numbers.md) | 95% intervals on every bot rate; `--b` A/B on the same seeds with a verdict; arms flagged only beyond the noise | ✅ |
 | 072 | [The arm trial](iterations/072-arm-trial.md) | Every arm ranked on the same 150 hard fights; Mortar and Snare weak, Shield Caster and abilities unused by the bot | ✅ |

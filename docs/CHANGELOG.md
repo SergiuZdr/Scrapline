@@ -18,6 +18,20 @@ Newest first. One entry per iteration; link to the iteration file for detail.
 ### Fixed
 - 072's docs: the Saw ties the Cleaver because their fight numbers are the same, not because of Rend.
 
+## [069, part 2] Cinder and Arclight as comic scrap — 2026-10-13 ([detail](iterations/069-roster-scrap.md))
+
+### Added
+- 29 more generated models in `art/parts_gen_scrap/`, each from a concept the user approved: all 14 Cinder
+  parts; 8 Arclight parts (Aegis Caster, Arc Coilgun, Skirmisher, Bulwark, Null core, Capacitor, Coolant,
+  Repair); 7 Vektor modules (Heat Fins, Belt Feeder, Jump Jets, Servo, Spotter, Sprint Pistons, Targeting Rig).
+- `tools/gen3d/colab_gen.py`: the Colab generation step as a file; skips a part that runs out of GPU memory
+  and keeps the zip current after every model.
+
+### Fixed
+- The Chain Flail and Mine Layer drew the Maul's and Mortar's models even with their own made
+  (`Models.draw_id`).
+- The rig could not mount an arm whose tool is wider than its shoulder.
+
 ## [069, part 1] Kessler's parts as comic scrap — 2026-10-12 ([detail](iterations/069-roster-scrap.md))
 
 ### Added

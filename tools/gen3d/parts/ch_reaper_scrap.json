@@ -1,0 +1,36 @@
+{
+  "_comment": "069: Reaper Frame (lean taloned legs), ChatGPT concept art/concepts/machines/ch_reaper_scrap.png (approved by the user), TRELLIS on Colab. Numbers from its width profile at 0.58 m (legs part below the crotch; arm sockets at the centre of each shoulder's outer face).",
+  "slot": "chassis",
+  "size": 0.58,
+  "floor": 0.01,
+  "budget": 8000,
+  "posterize": 12,
+  "rust_map": true,
+  "hip_z": 0.25,
+  "hip_x": 0.105,
+  "pelvis_x": 0.06,
+  "sockets": {
+    "socket_arm_l": [
+      -0.14,
+      0.03,
+      0.48
+    ],
+    "socket_arm_r": [
+      0.14,
+      0.03,
+      0.48
+    ],
+    "socket_core": [
+      0,
+      -0.12,
+      0.44
+    ],
+    "socket_module": [
+      0,
+      0.17,
+      0.46
+    ]
+  },
+  "skeleton": true,
+  "foot_top": 0.06
+}

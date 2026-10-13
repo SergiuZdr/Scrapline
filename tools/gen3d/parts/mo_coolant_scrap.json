@@ -1,0 +1,14 @@
+{
+  "_comment": "069: Coolant Loop, ChatGPT concept art/concepts/machines/mo_coolant_scrap.png (approved by the user), TRELLIS on Colab.",
+  "slot": "module",
+  "rotate": [
+    0,
+    0,
+    90
+  ],
+  "size": 0.2,
+  "mount": "front",
+  "budget": 2500,
+  "posterize": 12,
+  "rust_map": true
+}

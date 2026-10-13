@@ -1,0 +1,9 @@
+{
+  "_comment": "069: Flywheel Core, ChatGPT concept art/concepts/machines/co_dynamo_scrap.png (approved by the user), TRELLIS on Colab.",
+  "slot": "core",
+  "size": 0.13,
+  "mount": "back",
+  "budget": 2500,
+  "posterize": 12,
+  "rust_map": true
+}

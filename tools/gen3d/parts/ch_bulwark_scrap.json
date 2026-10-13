@@ -1,0 +1,36 @@
+{
+  "_comment": "069: Bulwark Frame (vault-hatch head, transformer torso, outrigger legs), ChatGPT concept art/concepts/machines/ch_bulwark_scrap.png (approved by the user), TRELLIS on Colab. Numbers from its width profile at 0.56 m (legs part below the crotch; arm sockets at the centre of each shoulder's outer face).",
+  "slot": "chassis",
+  "size": 0.56,
+  "floor": 0.01,
+  "budget": 8000,
+  "posterize": 12,
+  "rust_map": true,
+  "hip_z": 0.21,
+  "hip_x": 0.21,
+  "pelvis_x": 0.12,
+  "sockets": {
+    "socket_arm_l": [
+      -0.235,
+      -0.02,
+      0.44
+    ],
+    "socket_arm_r": [
+      0.235,
+      -0.02,
+      0.44
+    ],
+    "socket_core": [
+      0,
+      -0.12,
+      0.42
+    ],
+    "socket_module": [
+      0,
+      0.08,
+      0.44
+    ]
+  },
+  "skeleton": true,
+  "foot_top": 0.06
+}

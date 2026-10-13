@@ -290,7 +290,7 @@ static func _find_named(node: Node, name: String) -> Node3D:
 ## while its parts loaded). `_instance` collects them.
 static func warm(part_ids: Array) -> void:
 	for id: Variant in part_ids:
-		var part_id: String = PartTuning.model_of(String(id))
+		var part_id: String = Models.draw_id(String(id))
 		if part_id.is_empty() or _warming.has(part_id):
 			continue
 		var path: String = Models.part_path(part_id)
@@ -402,7 +402,7 @@ static func height_of(node: Node3D) -> float:
 static func _part_id(part_ids: PackedStringArray, index: int) -> String:
 	if index >= part_ids.size():
 		return ""
-	return PartTuning.model_of(part_ids[index])
+	return Models.draw_id(part_ids[index])
 
 
 static func _instance(part_id: String) -> Node3D:
