@@ -23,6 +23,24 @@ func _run() -> void:
 	ShotFX.warm(holder, vfx, Vector3.ZERO)
 	for i: int in 4:
 		Grit.smoke_texture(i)
+	# 078: every BattleVFX drawing too (their colours as the fight uses them).
+	var at := Vector3.ZERO
+	# The fight's damage colours (`combat_scene.DAMAGE_COLOURS`) and every colour it bursts in.
+	var damage: Array = [Color("ffcf9a"), Color("ff7a3c"), Color("7fd4ff"), Color("b5e05a")]
+	for colour: Color in damage:
+		vfx.muzzle_flash(at, at + Vector3(1, 0, 0), colour.lightened(0.5))
+		vfx.burst(at, colour, 1.0)
+	for colour: Color in [Color("ff7a3c"), Color("ff8a3c"), Color("ffb060"), Color("c9a2ff"), Color("e8f0ee"),
+			Ink.ACTION, Ink.DANGER]:
+		vfx.muzzle_flash(at, at + Vector3(1, 0, 0), colour)
+		vfx.burst(at, colour, 1.0)
+	vfx.impact(at, Color("ffb070"), 1.0)
+	vfx.fireball(at, 1.0)
+	vfx.dust(at, 6, 1.0)
+	vfx.ground_lines(at, 1.0)
+	for i: int in 3:
+		Grit.blast_texture(i)
+		Grit.shard_texture(i)
 	# Fire the tweens that paint later (a mine's lit eye).
 	for i: int in 90:
 		await process_frame
