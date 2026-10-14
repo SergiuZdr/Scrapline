@@ -5,5 +5,10 @@
   "mount": "front",
   "budget": 2500,
   "posterize": 12,
-  "rust_map": true
+  "rust_map": true,
+  "rotate": [
+    0,
+    0,
+    90
+  ]
 }
