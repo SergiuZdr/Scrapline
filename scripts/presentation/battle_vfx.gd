@@ -398,24 +398,24 @@ func fireball(at: Vector3, radius: float = 1.0) -> void:
 	scorch(at, radius)
 
 
-## Cartoon smoke balls (066): flat grey, a shadow side, a highlight and an ink edge. Each pops in,
-## drifts up and SHRINKS out -- drawn smoke does not fade.
+## Smoke (076, the user: round cartoon balls were "too cartoony"): jagged billows in sooty greys with
+## hatched shade and an ink edge (`Grit.smoke_texture`). Each puffs out, drifts up and swells -- and
+## ERODES into grit instead of shrinking.
 func smoke(at: Vector3, count: int, size: float = 1.0) -> void:
-	var tex: Texture2D = _puff_texture()
 	for i: int in mini(count, 9):
 		var start: Vector3 = at + Vector3(randf_range(-0.3, 0.3), randf_range(-0.1, 0.2), randf_range(-0.3, 0.3)) * size
-		var puff: Sprite3D = _sprite(tex, start, randf_range(0.0035, 0.006) * size)
+		var puff: Sprite3D = _sprite(Grit.smoke_texture(randi() % 4), start, randf_range(0.0045, 0.0075) * size)
 		puff.flip_h = randf() < 0.5
 		puff.render_priority = 1
-		puff.scale = Vector3.ZERO
-		var rise: float = randf_range(0.9, 1.4)
+		puff.scale = Vector3.ONE * 0.4
+		var rise: float = randf_range(0.8, 1.2)
 		var t := create_tween()
-		t.tween_interval(randf_range(0.0, 0.12))
-		t.tween_property(puff, "scale", Vector3.ONE, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		t.tween_interval(randf_range(0.0, 0.1))
+		t.tween_property(puff, "scale", Vector3.ONE * 0.9, 0.09).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		t.tween_property(puff, "position", start + Vector3(randf_range(-0.2, 0.2), randf_range(0.5, 0.9) * size, 0.0), rise) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-		t.parallel().tween_property(puff, "scale", Vector3.ZERO, rise * 0.6).set_delay(rise * 0.4).set_ease(Tween.EASE_IN)
-		t.tween_callback(puff.queue_free)
+		t.parallel().tween_property(puff, "scale", Vector3.ONE * 1.25, rise)
+		Grit.erode(self, puff, rise * 0.35 + 0.2, rise * 0.65)
 
 
 ## A drawn effect: a flat billboard over the world (unshaded, in front of the machine it belongs to).
@@ -510,26 +510,6 @@ func _rays_texture() -> ImageTexture:
 						var width: float = 0.2 * (1.0 - (r - 72.0) / (outer - 72.0))
 						if 1.0 - off < width:
 							col = Ink.INK
-				image.set_pixel(x, y, col))
-
-
-## A smoke ball: grey with a shadow side (lower right), a highlight (upper left) and an ink edge.
-func _puff_texture() -> ImageTexture:
-	return Ink.texture("comic_puff", Vector2i(128, 128), func(image: Image) -> void:
-		var c := Vector2(64, 64)
-		for y: int in 128:
-			for x: int in 128:
-				var p := Vector2(x, y)
-				var r: float = p.distance_to(c)
-				var col := Color(0, 0, 0, 0)
-				if r < 60.0:
-					col = Ink.INK
-				if r < 54.0:
-					col = Color("8f887d")
-					if p.distance_to(c + Vector2(-16, -16)) > 50.0:
-						col = Color("5f5a53")
-					if p.distance_to(c + Vector2(-20, -22)) < 13.0:
-						col = Color("cfc6b5")
 				image.set_pixel(x, y, col))
 
 
