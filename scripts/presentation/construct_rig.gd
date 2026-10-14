@@ -298,9 +298,16 @@ func _bind_arm(slot: String) -> void:
 	_set_stance(slot, "")
 
 
-## 074: the gun's tip -- the arm vertex furthest forward at rest -- kept in the frame of the bone it is
-## skinned to (or of its mesh, on a rigid arm), so `muzzle` finds it in any pose.
+## 074: the gun's tip, kept in the frame of the bone it is skinned to (or of its mesh, on a rigid arm), so
+## `muzzle` finds it in any pose. 078: the MIDDLE of the gun's mouth -- the mean of the arm's vertices
+## within MUZZLE_DEPTH of its furthest forward one (on the same bone) -- not that one vertex, which was a
+## lip of the barrel.
+const MUZZLE_DEPTH: float = 0.02
+
+
 func _bind_muzzle(arm: Dictionary) -> void:
+	# [forward, holder, bone, point in the holder's frame] for every vertex.
+	var points: Array = []
 	var best: float = -INF
 	for mesh: MeshInstance3D in ConstructView.meshes_of(arm["node"]):
 		if mesh.mesh == null:
@@ -315,11 +322,9 @@ func _bind_muzzle(arm: Dictionary) -> void:
 			var per: int = (bones.size() / verts.size()) if verts.size() > 0 and bones.size() > 0 else 0
 			for i: int in verts.size():
 				var d: float = (to_body * verts[i]).dot(_fwd)
-				if d <= best:
-					continue
-				best = d
+				best = maxf(best, d)
 				if sk == null or per == 0:
-					arm["muzzle"] = [mesh, -1, verts[i]]
+					points.append([d, mesh, -1, verts[i]])
 					continue
 				var top: int = 0
 				for j: int in per:
@@ -329,7 +334,25 @@ func _bind_muzzle(arm: Dictionary) -> void:
 				var bone: int = mesh.skin.get_bind_bone(bind)
 				if bone < 0:
 					bone = sk.find_bone(String(mesh.skin.get_bind_name(bind)))
-				arm["muzzle"] = [sk, bone, mesh.skin.get_bind_pose(bind) * verts[i]] if bone >= 0 else [mesh, -1, verts[i]]
+				if bone < 0:
+					points.append([d, mesh, -1, verts[i]])
+				else:
+					points.append([d, sk, bone, mesh.skin.get_bind_pose(bind) * verts[i]])
+	var front: Array = []
+	for p: Array in points:
+		if float(p[0]) >= best - MUZZLE_DEPTH:
+			front.append(p)
+	if front.is_empty():
+		return
+	front.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) > float(b[0]))
+	var lead: Array = front[0]
+	var sum := Vector3.ZERO
+	var n: int = 0
+	for p: Array in front:
+		if p[1] == lead[1] and int(p[2]) == int(lead[2]):
+			sum += p[3] as Vector3
+			n += 1
+	arm["muzzle"] = [lead[1], int(lead[2]), sum / float(n)]
 
 
 ## 074: where the shot leaves `slot`'s gun now, in world space (the machine's chest when it has no arm).
