@@ -1,6 +1,6 @@
 # Iteration 069 — The rest of the roster as comic scrap
 
-**Status:** in progress
+**Status:** done (2026-10-14); the user plays and judges
 **Started:** 2026-10-12 · **Finished:**
 **Answers:** the user: make the models for all the remaining robot parts with ChatGPT images and
 Colab's GPU, somewhat similar to the ones already made; every concept image approved by them before a
@@ -79,6 +79,23 @@ goes on, and the zip is rewritten after every model.
   like the Crucible.
 - Not run: `run_bot.gd` (no content or rules changed; models and drawing only).
 
+**Part 3 (2026-10-14).** A fresh T4: install, then the 11 lost parts in one batch (about 50 s each, none
+skipped), downloaded the moment they finished.
+- In the game: Vektor's Mortar, Rail Driver, Scattergun, Snare, Sunspear, Lancer and Courier frames, Flywheel and
+  Flux cores; Arclight's Aegis Rig and Arc Relay. Frames measured with the width profile at 0.58 m (Lancer hips
+  0.29, shoulders +-0.085; Courier hips 0.30, shoulders +-0.12). Six came out turned (Mortar -90, Scattergun and
+  Sunspear 90 + mirror, Snare 180, Aegis 180, Arc Relay 90) and were re-rigged.
+- Tesla Core and Crucible Heart redrawn simple (few big shapes, no chains, pipes, bolts or feet); the user picked
+  Tesla A (tall coil can, one lens, one insulator) and Crucible B (egg-shaped furnace, one glowing slot). Both
+  ran on the T4 in about a minute. Crucible turned -90.
+- **All 55 parts now have a generated comic-scrap model.**
+- `verify_assembly.gd -- --dir res://art/parts_gen_scrap` 229 passed, 0 failed. `tools/check.sh` all green:
+  verify_combat 370/0, verify_combat_input 27/0, verify_run 187/0, verify_run_ui 51/0, verify_save 15/0,
+  verify_onboarding 39/0, verify_meta 77/0, verify_assembly 168/0, verify_animation 34/0. Thumbnails remade for
+  the 13. Look sheets: `shots/069/machines_vektor.png`, `shots/069/machines_cores.png`.
+- Seen: the Aegis Rig is about as wide as the Lancer's shoulders (its torso is narrow); shown to the user.
+- Not run: `run_bot.gd` (models only).
+
 ## Decisions, lessons, open questions
 - **Each part its own salvage origin, palette and joinery; the maker only as a small plate** (the user).
 - **Always say what a part does when showing it**; modules get two variants to pick from.
@@ -94,11 +111,12 @@ goes on, and the zip is rewritten after every model.
   (about an hour and a half of T4) ends without warning and takes every file on the runtime.
 - Lesson: a part with `"model"` keeps drawing the borrowed model until something says otherwise -- check the
   parts' JSON when a new model does not show.
+- Lesson: **a simple concept fixes a T4 out-of-memory**: the dense Tesla and Crucible failed every time, their
+  redraws with a few large smooth shapes took a minute each.
 - Lesson: ChatGPT drifts from the ink style to photo renders over a long chat; ask for "bold black ink outlines,
   flat cel colour" again.
 
 ## Next
-- Colab, next allowance: the 11 lost (Mortar, Rail Driver, Scattergun, Snare, Sunspear, Lancer, Courier, Flywheel,
-  Flux, Aegis Rig, Arc Relay; inputs in `shots/069/colab_in3`, `colab_in4`); frames Lancer and Courier need their
-  width profiles. Tesla and Crucible need simpler concepts (too dense for the T4).
 - The Chain Flail's arc attack animation (the user, later).
+- Modules that read as standing on the ground, if they do in play; the Aegis Rig's width on narrow frames.
+- Reaper and Scrapper read dark under the rust map.
