@@ -2,6 +2,18 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [074] Arms on their shoulders, a look for every shot — 2026-10-14 ([detail](iterations/074-arms-and-shots.md))
+
+### Added
+- Each of the 13 ranged arms fires with its own animation and leaves its own trail (`data/fx/weapons.json`,
+  `WeaponFX`, `ShotFX`, eight new `ConstructRig` firing styles); shots leave from the gun's tip
+  (`ConstructRig.muzzle`).
+- `tools/shot_trails.gd`: a picture of every ranged arm firing.
+
+### Fixed
+- Generated arms stood a few centimetres off their frames' shoulders; they are now seated by their
+  silhouette (`ConstructView._snug_arms`).
+
 ## [073] The bot uses shields and abilities — 2026-10-12 ([detail](iterations/073-bot-abilities.md))
 
 ### Changed

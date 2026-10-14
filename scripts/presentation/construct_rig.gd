@@ -293,8 +293,63 @@ func _bind_arm(slot: String) -> void:
 		arm["m"] = m
 		arm["m_inv"] = m.affine_inverse()
 		arm["rests"] = rests
+	_bind_muzzle(arm)
 	_arms[slot] = arm
 	_set_stance(slot, "")
+
+
+## 074: the gun's tip -- the arm vertex furthest forward at rest -- kept in the frame of the bone it is
+## skinned to (or of its mesh, on a rigid arm), so `muzzle` finds it in any pose.
+func _bind_muzzle(arm: Dictionary) -> void:
+	var best: float = -INF
+	for mesh: MeshInstance3D in ConstructView.meshes_of(arm["node"]):
+		if mesh.mesh == null:
+			continue
+		var to_body: Transform3D = _relative_to(mesh, _body)
+		var sk: Skeleton3D = mesh.get_node_or_null(mesh.skeleton) as Skeleton3D if mesh.skin != null else null
+		for surface: int in mesh.mesh.get_surface_count():
+			var arrays: Array = mesh.mesh.surface_get_arrays(surface)
+			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES] if arrays[Mesh.ARRAY_BONES] != null else PackedInt32Array()
+			var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS] if arrays[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
+			var per: int = (bones.size() / verts.size()) if verts.size() > 0 and bones.size() > 0 else 0
+			for i: int in verts.size():
+				var d: float = (to_body * verts[i]).dot(_fwd)
+				if d <= best:
+					continue
+				best = d
+				if sk == null or per == 0:
+					arm["muzzle"] = [mesh, -1, verts[i]]
+					continue
+				var top: int = 0
+				for j: int in per:
+					if weights[i * per + j] > weights[i * per + top]:
+						top = j
+				var bind: int = bones[i * per + top]
+				var bone: int = mesh.skin.get_bind_bone(bind)
+				if bone < 0:
+					bone = sk.find_bone(String(mesh.skin.get_bind_name(bind)))
+				arm["muzzle"] = [sk, bone, mesh.skin.get_bind_pose(bind) * verts[i]] if bone >= 0 else [mesh, -1, verts[i]]
+
+
+## 074: where the shot leaves `slot`'s gun now, in world space (the machine's chest when it has no arm).
+func muzzle(slot: String) -> Vector3:
+	if _body == null or not is_instance_valid(_body):
+		return Vector3.ZERO
+	var tip: Array = (_arms.get(slot, {}) as Dictionary).get("muzzle", [])
+	if tip.is_empty() or not is_instance_valid(tip[0]):
+		return _world(_body) * Vector3(0, _torso_pivot.y, 0)
+	if int(tip[1]) < 0:
+		return _world(tip[0]) * (tip[2] as Vector3)
+	var sk: Skeleton3D = tip[0]
+	return _world(sk) * sk.get_bone_global_pose(int(tip[1])) * (tip[2] as Vector3)
+
+
+## `node`'s world transform, also before the machine is in a tree (a tool, a test).
+func _world(node: Node3D) -> Transform3D:
+	if node.is_inside_tree():
+		return node.global_transform
+	return _body.transform * _relative_to(node, _body) if node != _body else _body.transform
 
 
 ## Top corners of the chassis meshes (in the chassis frame): with the bones and sockets, the points
@@ -625,12 +680,14 @@ func _push_pose(push: Vector3, force: float) -> PackedFloat32Array:
 
 ## Plays one arm's strike, shaped by `weapon_class`. Returns the seconds until the IMPACT, so the
 ## fight can show the shot, the flash and the sound when the weapon actually lands.
-func strike(slot: String, weapon_class: String, _tree: SceneTree = null) -> float:
+## 074: `style` (`WeaponFX.fire_style`, `data/fx/weapons.json`) gives a ranged arm its own way of
+## firing; "" plays its weapon class's.
+func strike(slot: String, weapon_class: String, _tree: SceneTree = null, style: String = "") -> float:
 	if _body == null or not is_instance_valid(_body) or _dead or not _arms.has(slot):
 		return 0.0
 	_striking[slot] = true
 	var lead: String = slot
-	var keys: Array = _strike_keys(weapon_class, lead)
+	var keys: Array = _strike_keys(weapon_class, lead, style)
 	var impact: float = 0.0
 	for key: Array in keys:
 		impact += float(key[0])
@@ -642,11 +699,15 @@ func strike(slot: String, weapon_class: String, _tree: SceneTree = null) -> floa
 
 ## The key poses of each weapon's strike. A key is [seconds, pose, curve, (callable at arrival)];
 ## the first key with a callable is the impact.
-func _strike_keys(weapon_class: String, lead: String) -> Array:
+func _strike_keys(weapon_class: String, lead: String, style: String = "") -> Array:
 	var hit := func(kick: Vector3, shake: float) -> void:
 		_recoil_velocity += kick
 		_shudder = maxf(_shudder, 0.12)
 		_shudder_amp = maxf(_shudder_amp, shake)
+	if STYLES_BY_CLASS.has(style):
+		weapon_class = STYLES_BY_CLASS[style]
+	elif FIRE_STYLES.has(style):
+		return _fire_keys(style, lead, hit)
 	match weapon_class:
 		"hammer", "maul":
 			# Up and back over the head, held (the tell), then brought down with the whole body,
@@ -800,6 +861,138 @@ func _strike_keys(weapon_class: String, lead: String) -> Array:
 				[0.16, settled, STEP],
 				[0.30, _p({}), EASE],
 			]
+
+
+## 074: firing styles that are a weapon class's strike as it is (`pump` is the plain gun's).
+const STYLES_BY_CLASS: Dictionary = {"railgun": "railgun", "mortar": "mortar", "coil": "coil",
+	"scanner": "scanner", "pump": ""}
+## 074: firing styles of their own, one per ranged arm that shared its class's (`_fire_keys`).
+const FIRE_STYLES: PackedStringArray = ["lance_shot", "pulse", "flamer", "harpoon", "cast", "sunspear",
+	"snare", "toss"]
+
+
+## 074: the key poses of each firing style of its own. Same contract as `_strike_keys`: the first key
+## with a callable is the moment the shot leaves.
+func _fire_keys(style: String, lead: String, hit: Callable) -> Array:
+	match style:
+		"lance_shot":
+			# The Rail Lance: levelled and drawn back an inch, a beat -- then PUNCHED forward with the
+			# whole body as the needle goes (the recoil goes INTO the target), held, drawn back.
+			var aim: PackedFloat32Array = _gun_aim(lead, {"surge": -0.06, "twist": -0.10})
+			var punch: PackedFloat32Array = _plus(aim, _p({"surge": 0.16, "pitch": 0.10, "tpitch": 0.10,
+				"twist": 0.18, "sh": 0.10, "el": 0.05, "ff": 0.20}, lead))
+			return [
+				[0.12, aim, BACK],
+				[0.10, aim, STEP],
+				[0.05, punch, SMEAR, hit.bind(Vector3(0, 0, 0.4), 0.03)],
+				[0.14, punch, STEP],
+				[0.12, _plus(aim, _p({"surge": -0.04}, lead)), BACK],
+				[0.28, _p({}), EASE],
+			]
+		"pulse":
+			# The Pulse Emitter: three quick bolts, a small buck for each, the barrel back on target
+			# between them.
+			var aim: PackedFloat32Array = _gun_aim(lead, {"tpitch": 0.06})
+			var kick: PackedFloat32Array = _plus(aim, _p({"sh": 0.14, "el": 0.16, "tpitch": -0.08, "surge": -0.03}, lead))
+			var keys: Array = [[0.10, aim, BACK], [0.06, aim, STEP, hit.bind(Vector3(0, 0, -0.4), 0.03)]]
+			for i: int in 3:
+				keys.append([0.03, kick, SNAP])
+				keys.append([0.06, aim, EASE])
+			keys.append([0.14, aim, STEP])
+			keys.append([0.26, _p({}), EASE])
+			return keys
+		"flamer":
+			# The Slag Flamer: held low at the hip, nozzle down, HOSED across the wedge -- the upper
+			# body sweeping side to side while it burns.
+			var aim: PackedFloat32Array = _gun_aim(lead, {"drop": 0.10, "ff": 0.18, "tpitch": 0.10}, -0.15, 0.55)
+			var keys: Array = [[0.12, aim, BACK], [0.0, aim, STEP, hit.bind(Vector3(0, 0, -0.3), 0.03)]]
+			for t: float in [-0.22, 0.22, -0.14, 0.14]:
+				keys.append([0.09, _plus(aim, _p({"twist": t, "troll": t * 0.15, "drop": 0.02}, lead)), EASE])
+			keys.append([0.10, aim, EASE])
+			keys.append([0.28, _p({}), EASE])
+			return keys
+		"harpoon":
+			# The Hook Harpoon: fired with a kick, held while the line pays out -- then YANKED back
+			# twice, the body leaning away, hauling.
+			var aim: PackedFloat32Array = _gun_aim(lead, {"ff": 0.16, "of": -0.16})
+			var fire: PackedFloat32Array = _plus(aim, _p({"sh": 0.20, "el": 0.20, "tpitch": -0.12, "surge": -0.06}, lead))
+			var yank: PackedFloat32Array = _plus(aim, _p({"surge": -0.12, "pitch": -0.10, "tpitch": -0.16,
+				"sh": -0.25, "el": 0.55, "ff": -0.08, "of": -0.22}, lead))
+			return [
+				[0.12, aim, BACK],
+				[0.08, aim, STEP, hit.bind(Vector3(0, 0, -0.6), 0.04)],
+				[0.04, fire, SNAP],
+				[0.14, fire, STEP],
+				[0.08, yank, SNAP],
+				[0.06, aim, EASE],
+				[0.08, yank, SNAP],
+				[0.14, yank, STEP],
+				[0.30, _p({}), EASE],
+			]
+		"cast":
+			# The Aegis Caster: the arm raised high, the machine drawing itself up, a held shimmer --
+			# then the ward PUSHED out level, palm first.
+			var up: PackedFloat32Array = _gun_aim(lead, {"drop": -0.04, "tpitch": -0.12}, 0.7, 1.35)
+			var push: PackedFloat32Array = _gun_aim(lead, {"surge": 0.12, "tpitch": 0.12, "pitch": 0.06, "ff": 0.20}, 0.0, 0.80)
+			var keys: Array = [[0.16, up, BACK]]
+			for i: int in 3:
+				var s: float = 1.0 if i % 2 == 0 else -1.0
+				keys.append([0.05, _plus(up, _p({"troll": 0.02 * s, "sh": 0.04 * s}, lead)), STEP])
+			keys.append([0.07, push, SMEAR, hit.bind(Vector3(0, 0, 0.3), 0.02)])
+			keys.append([0.20, push, STEP])
+			keys.append([0.30, _p({}), EASE])
+			return keys
+		"sunspear":
+			# The Sunspear: set low and wide, a long charge that lifts the machine on its toes and
+			# shivers harder and harder; the beam goes and keeps going, SHOVING the machine back
+			# along the ground the whole time it burns.
+			var aim: PackedFloat32Array = _gun_aim(lead, {"drop": 0.12, "fs": 0.14, "ofs": 0.14, "ff": 0.14, "of": -0.20})
+			var keys: Array = [[0.14, aim, BACK]]
+			for i: int in 6:
+				var k: PackedFloat32Array = aim.duplicate()
+				var s: float = (1.0 if i % 2 == 0 else -1.0) * (0.008 + 0.008 * i)
+				k[T_ROLL] += s
+				k[_ch(lead, "sh")] += s
+				k[DROP] -= 0.012 * i
+				keys.append([0.04, k, STEP])
+			var blast: PackedFloat32Array = _plus(aim, _p({"surge": -0.10, "tpitch": -0.18, "pitch": -0.06, "sh": 0.10,
+				"el": 0.10, "ff": -0.10, "of": -0.10}, lead))
+			var pushed: PackedFloat32Array = _plus(aim, _p({"surge": -0.28, "tpitch": -0.22, "pitch": -0.10, "sh": 0.14,
+				"el": 0.12, "ff": -0.26, "of": -0.26}, lead))
+			keys.append([0.0, aim, STEP, hit.bind(Vector3(0, 0, -1.0), 0.06)])
+			keys.append([0.05, blast, SNAP])
+			keys.append([0.30, pushed, EASE])
+			keys.append([0.14, pushed, STEP])
+			keys.append([0.36, _p({}), EASE])
+			return keys
+		"snare":
+			# The Snare Launcher: the bola whirled twice round the shoulder, then FLICKED out.
+			var aim: PackedFloat32Array = _gun_aim(lead, {})
+			var keys: Array = [[0.08, aim, BACK]]
+			for i: int in 2:
+				keys.append([0.06, _plus(aim, _p({"sh": 0.45, "el": -0.10, "fl": 0.25, "twist": -0.10}, lead)), EASE])
+				keys.append([0.06, _plus(aim, _p({"sh": -0.20, "el": 0.30, "fl": -0.10, "twist": 0.06}, lead)), EASE])
+			var flick: PackedFloat32Array = _plus(aim, _p({"sh": 0.20, "el": -0.30, "wr": -0.25, "surge": 0.10,
+				"twist": 0.20, "ff": 0.20}, lead))
+			keys.append([0.05, flick, SMEAR, hit.bind(Vector3(0, 0, 0.3), 0.02)])
+			keys.append([0.14, flick, STEP])
+			keys.append([0.28, _p({}), EASE])
+			return keys
+		"toss":
+			# The Mine Layer: crouched, the launcher swung low and back -- then an underarm LOB, the
+			# body coming up with it; it watches the mine land.
+			var low: PackedFloat32Array = _p({"drop": 0.16, "pitch": 0.14, "tpitch": 0.10, "sh": -0.35, "el": 0.30,
+				"ff": 0.20, "of": -0.10, "twist": -0.15}, lead)
+			var swing: PackedFloat32Array = _p({"drop": 0.06, "pitch": 0.06, "tpitch": -0.04, "sh": 0.95, "el": -0.30,
+				"wr": -0.2, "ff": 0.22, "twist": 0.18, "surge": 0.06}, lead)
+			return [
+				[0.14, low, SNAP],
+				[0.08, low, STEP],
+				[0.07, swing, SMEAR, hit.bind(Vector3(0, 0.2, 0.2), 0.02)],
+				[0.16, swing, STEP],
+				[0.30, _p({}), EASE],
+			]
+	return []
 
 
 ## The shooting stance (060): the gun arm raised forward to shoulder height with the forearm kept
