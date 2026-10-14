@@ -290,6 +290,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-12 | **The bot's skill is part of every number it reports**: with no rule changed, the run win rate went 54.7% -> 67.3% (+12.7, 95% +3.4 to +22.0) when the bot started using Charge, Dash and the support parts. In single fights it barely shows (98.7 vs 98.3%) -- the gain is HP carried between fights. Re-measure before tuning against an older report (073) |
 | 2026-10-13 | **Download each Colab batch the moment it finishes.** The free T4's daily allowance (about 1.5 h) ends without warning and takes the runtime's files: 11 finished models lost while rigging the previous batch |
 | 2026-10-13 | A part whose JSON has `"model"` keeps drawing the borrowed model; check the data when a new model does not show |
+| 2026-10-14 | **A T4 out-of-memory on one object is a concept problem**: the dense Tesla and Crucible failed every run; redrawn with a few large smooth shapes, each took a minute |
 
 ## Open questions
 
@@ -349,6 +350,6 @@ All six questions raised on 2026-09-23 were answered on 2026-09-24 (see Decision
 | 2026-10-06 | **047: Act 1 is harder (16.0% lost, was 11.3%) but Acts 2-3 jumped 9 points each (bot 43.3% overall). Ease the later acts back (no snares/mines in their rolls, more arrival repair, mine damage 3)?** | The user plays | |
 | 2026-10-06 | **048: which direction for the run map** -- A ink atlas, B signal board, C hex diorama, D comic route, E floodlit yard (the mockup page)? | The user picks | C, with the battle's comic look (049) |
 | 2026-10-07 | **050: Act 3 got much easier for the bot with the boss tricks (17.4% lost, was 31.4%; gate 4 losses, was 12). Core `open_bonus` 2, or turn two sixths?** | The user plays | |
-| 2026-10-07 | **Do the rest of the machines the 045 way?** About 60 parts: an hour of Colab, a concept pick each, and a rig spec per part | The user looks at the generated Brute first | Yes (069): ChatGPT concepts the user approves, Colab TRELLIS; 42 of 55 made by 2026-10-13 |
+| 2026-10-07 | **Do the rest of the machines the 045 way?** About 60 parts: an hour of Colab, a concept pick each, and a rig spec per part | The user looks at the generated Brute first | Yes (069): ChatGPT concepts the user approves, Colab TRELLIS; all 55 made by 2026-10-14 |
 | 2026-10-08 | **052: the Magnet King's trick works by itself -- should the crew's Magnet ability pull fuel drums (so a drum can be set up)? And the bot is at 55.3% after the AI fixes: tune harder?** | The user | |
 | 2026-10-08 | **Maker set bonuses reward matching parts, while the scrap look says any mix is right** -- keep, soften, or reward mixing? | The user decides | |

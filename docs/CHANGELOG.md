@@ -18,6 +18,17 @@ Newest first. One entry per iteration; link to the iteration file for detail.
 ### Fixed
 - 072's docs: the Saw ties the Cleaver because their fight numbers are the same, not because of Rend.
 
+## [069, part 3] Vektor and the last cores as comic scrap — 2026-10-14 ([detail](iterations/069-roster-scrap.md))
+
+### Added
+- The last 13 generated models: Vektor's Mortar, Rail Driver, Scattergun, Snare, Sunspear, Lancer, Courier,
+  Flywheel, Flux; Arclight's Aegis Rig, Arc Relay and Tesla Core; Cinder's Crucible Heart. Every one of the 55
+  parts now has a comic-scrap model.
+
+### Changed
+- Tesla Core and Crucible Heart concepts redrawn simpler (the user picked them); the old ones were too dense
+  for the free T4.
+
 ## [069, part 2] Cinder and Arclight as comic scrap — 2026-10-13 ([detail](iterations/069-roster-scrap.md))
 
 ### Added
