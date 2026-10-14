@@ -2480,6 +2480,12 @@ func _shot_trail(u: GridUnit, weapon: Dictionary, trail: String, muzzle: Vector3
 					cells.append(_to_world(n.x, n.y) + Vector3(0, 0.3, 0))
 		"shield":
 			to = _to_world(aim.x, aim.y) + Vector3(0, 0.8, 0)
+		"sweep":
+			# 079: the flail's arc -- the hexes at the aim's distance round the aim.
+			var d: int = Hex.distance(Vector2i(u.x, u.y), aim)
+			for n: Vector2i in [aim] + Hex.neighbors(aim):
+				if _state.inside(n) and Hex.distance(Vector2i(u.x, u.y), n) == d:
+					cells.append(_to_world(n.x, n.y) + Vector3(0, 0.3, 0))
 		"lob":
 			to = _to_world(aim.x, aim.y) + Vector3(0, 0.4, 0)
 		"mine":
@@ -2487,7 +2493,8 @@ func _shot_trail(u: GridUnit, weapon: Dictionary, trail: String, muzzle: Vector3
 	var sound: Array = WeaponFX.sound(String(weapon.get("id", "")))
 	if sound.size() >= 2:
 		Audio.play(String(sound[0]), float(sound[1]))
-	var travel: float = ShotFX.play(trail, _marks_root, _vfx, muzzle, to, colour, {"cells": cells})
+	var centre: Vector3 = _unit_pos(u.ref) if _views.has(u.ref) else muzzle
+	var travel: float = ShotFX.play(trail, _marks_root, _vfx, muzzle, to, colour, {"cells": cells, "centre": centre})
 	await _wait(travel)
 	match shape:
 		"cone":

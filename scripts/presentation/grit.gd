@@ -258,9 +258,10 @@ static func shard_texture(variant: int) -> ImageTexture:
 				if Geometry2D.is_point_in_polygon(p, poly):
 					col = Ink.INK
 				if Geometry2D.is_point_in_polygon(p, inner):
-					col = Ink.MUSTARD if variant == 0 else (Ink.RUST if variant == 1 else Ink.STEEL)
+					# 079 (the user): the metal a little darker.
+					col = (Ink.MUSTARD if variant == 0 else (Ink.RUST if variant == 1 else Ink.STEEL)).darkened(0.3)
 					if p.y > 34.0:
-						col = col.darkened(0.4)
+						col = col.darkened(0.45)
 						if hatch(x, y, 5.0, 1.5):
 							col = Ink.INK
 					if speck(x, y, 0.12, 34 + variant):

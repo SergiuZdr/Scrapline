@@ -54,6 +54,9 @@ func _run() -> void:
 	camera.current = true
 	camera.fov = 30.0
 	camera.look_at_from_position(Vector3(6.2, 2.6, -RANGE * 0.5 + 0.6), Vector3(0.0, 0.6, -RANGE * 0.5), Vector3.UP)
+	if args.has("--high"):
+		# 079: from above and behind, like the fight's camera: arcs and sweeps read as arcs.
+		camera.look_at_from_position(Vector3(2.4, 6.4, 2.2), Vector3(0.0, 0.3, -RANGE * 0.45), Vector3.UP)
 	vfx.setup(camera)
 
 	var target: Node3D = ConstructView.build_parts(PackedStringArray(TARGET), db, Ink.DANGER)
@@ -104,13 +107,23 @@ func _run() -> void:
 		var shape: String = String(((db.parts.get(id, {}) as Dictionary).get("grid", {}) as Dictionary).get("shape", "shot"))
 		if shape == "lob" or shape == "mine":
 			to = target.position + Vector3(0, 0.3, 0.6)
-		var cells: Array = [to + Vector3(-0.8, -0.3, 0.3), to + Vector3(0, -0.3, 0), to + Vector3(0.8, -0.3, 0.3)] if shape == "cone" else []
+		var cells: Array = []
+		if shape == "cone" or shape == "sweep":
+			# The wedge / the arc: three hexes across the aim, at its distance from the shooter.
+			for b: float in [-0.45, 0.0, 0.45]:
+				var flat := Vector3(to.x - model.position.x, 0.0, to.z - model.position.z).rotated(Vector3.UP, b)
+				cells.append(model.position + flat + Vector3(0, 0.3, 0))
+		if shape == "sweep":
+			to = target.position + Vector3(0, 0.6, 1.8)
+			cells = []
+			for b: float in [-0.5, 0.0, 0.5]:
+				cells.append(model.position + Vector3(0, 0.3, -1.6).rotated(Vector3.UP, b))
 		var travel: float = 0.0
 		if legacy:
 			travel = _legacy(shape, marks, vfx, model.position + Vector3(0, 0.7, 0), to, Color("ffcf9a"), cells)
 		else:
 			travel = ShotFX.play(WeaponFX.trail(id), marks, vfx, _rig.muzzle("arm_r"), to,
-				WeaponFX.colour(id, Color("ffcf9a")), {"cells": cells})
+				WeaponFX.colour(id, Color("ffcf9a")), {"cells": cells, "centre": model.position})
 		await _run_for(clampf(travel * 0.6, 0.03, 0.4))
 		await _save("%s_%s.png" % [out, id])
 		await _run_for(maxf(0.12, travel * 0.4 + 0.1))

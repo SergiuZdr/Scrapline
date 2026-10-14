@@ -17,25 +17,27 @@ signal closed
 
 const SOCKET_NAMES: PackedStringArray = ["FRAME", "CORE", "LEFT ARM", "RIGHT ARM", "MODULE"]
 const SOCKET_NODES: PackedStringArray = ["part_chassis", "part_core", "part_arm_l", "part_arm_r", "part_module"]
-const HOLD_CARD := Vector2(184, 196)
+const HOLD_CARD := Vector2(184, 186)
 const SORTS: PackedStringArray = ["NEWEST", "RARITY", "SLOT"]
 const SLOT_ORDER: PackedStringArray = ["chassis", "core", "arm", "module"]
 const TEAM := Color("4fa8d8")
 const REST_YAW: float = 0.6
-const VIEW_SIZE := Vector2i(600, 360)
+const VIEW_SIZE := Vector2i(600, 420)
 ## Width of the lines lettered over the bay (name, sets, perks, LEVEL UP), fitted to it.
 const INFO_W: float = 560.0
 ## The layout (027, play-test 9: "the garage NEEDS a new design"): three columns over the hold --
 ## THE MACHINE (the bay, then its name, level and LEVEL UP), LOADOUT (its five sockets), and
 ## DETAILS (everything the fight will read off it; NUMBERS until play-test 11). Each answers one question.
-const LOADOUT_W: float = 570.0
-const NUMBERS_W: float = 600.0
+## 079 (the user, on a screenshot): LOADOUT a little narrower, DETAILS wider, the hold lower so the three
+## panels above it have more room, the machine filling its bay.
+const LOADOUT_W: float = 500.0
+const NUMBERS_W: float = 672.0
 ## Play-test 10 ("issues with the panels' alignment"): one grid. Three captions on one line,
 ## three columns that start at COLUMN_TOP and end at COLUMN_BOTTOM, the hold under all three.
 const CAPTION_Y: float = 106.0
 const COLUMN_TOP: float = 146.0
-const COLUMN_BOTTOM: float = 690.0
-const COLUMN_X: Array = [40.0, 660.0, 1252.0]
+const COLUMN_BOTTOM: float = 750.0
+const COLUMN_X: Array = [40.0, 660.0, 1180.0]
 ## NUMBERS in sections at a readable size (play-test 10: "hard to read").
 const NUM_HEAD: int = 22
 const NUM_NAME: int = 20
@@ -312,10 +314,10 @@ func _rebuild_model() -> void:
 	Ink.dress_machine(_model, PackedStringArray(member["parts"]), Ink.YOURS)
 	_pivot.add_child(_model)
 	# Framed by the machine's own height, so a squat anchor and a tall marksman both fill
-	# the stage; nudged right because the name sits over the left of it.
+	# the stage (079: closer -- the machine fills most of its bay).
 	var h: float = ConstructView.height_of(_model)
-	_camera.position = Vector3(-0.3 * h, 0.62 * h + 0.15, 3.4 * h)
-	_camera.look_at(Vector3(-0.28 * h, 0.5 * h, 0))
+	_camera.position = Vector3(-0.08 * h, 0.6 * h + 0.1, 2.35 * h)
+	_camera.look_at(Vector3(-0.08 * h, 0.47 * h, 0))
 	if not bool(member["alive"]):
 		_model.rotation_degrees = Vector3(0, 0, 78)
 	_focus = -1

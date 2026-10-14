@@ -891,7 +891,7 @@ const STYLES_BY_CLASS: Dictionary = {"railgun": "railgun", "mortar": "mortar", "
 	"scanner": "scanner", "pump": ""}
 ## 074: firing styles of their own, one per ranged arm that shared its class's (`_fire_keys`).
 const FIRE_STYLES: PackedStringArray = ["lance_shot", "pulse", "flamer", "harpoon", "cast", "sunspear",
-	"snare", "toss"]
+	"snare", "toss", "flail"]
 
 
 ## 074: the key poses of each firing style of its own. Same contract as `_strike_keys`: the first key
@@ -1013,6 +1013,27 @@ func _fire_keys(style: String, lead: String, hit: Callable) -> Array:
 				[0.08, low, STEP],
 				[0.07, swing, SMEAR, hit.bind(Vector3(0, 0.2, 0.2), 0.02)],
 				[0.16, swing, STEP],
+				[0.30, _p({}), EASE],
+			]
+		"flail":
+			# 079, the Chain Flail: an ARC, not a slam -- the arm thrown out sideways and back, the head
+			# whirled twice round over the shoulder (stepped), then swept round flat across the front
+			# with the whole upper body, the hit at the middle of the sweep; it follows through to the
+			# far side, held, and is reeled back.
+			var wind: PackedFloat32Array = _p({"twist": -0.65, "drop": 0.08, "fl": 1.1, "sh": 0.35, "el": -0.15,
+				"osh": -0.2, "ff": -0.05, "of": 0.15}, lead)
+			var across: PackedFloat32Array = _p({"twist": 0.1, "drop": 0.14, "pitch": 0.08, "fl": 1.15, "sh": 0.6,
+				"el": -0.25, "ff": 0.25, "osh": -0.3}, lead)
+			var follow: PackedFloat32Array = _p({"twist": 0.75, "drop": 0.12, "pitch": 0.05, "fl": 0.9, "sh": 0.7,
+				"el": -0.2, "ff": 0.3, "of": -0.1}, lead)
+			return [
+				[0.10, wind, SNAP],
+				[0.07, _plus(wind, _p({"sh": 0.3, "fl": -0.15}, lead)), STEP],
+				[0.07, _plus(wind, _p({"sh": -0.15, "fl": 0.15}, lead)), STEP],
+				[0.06, wind, STEP],
+				[0.06, across, SMEAR, hit.bind(Vector3(0.6, 0, 0.3), 0.05)],
+				[0.07, follow, SNAP],
+				[0.14, follow, STEP],
 				[0.30, _p({}), EASE],
 			]
 	return []

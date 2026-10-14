@@ -83,8 +83,12 @@ static func part_path(part_id: String) -> String:
 	return "%s/%s.glb" % [ConstructView.PARTS_DIR, part_id]
 
 
-## The picture of a new part, or "" to use the shipped pictures.
+## The picture of a new part, or "" to use the shipped pictures. 079: a part drawn from the generated set
+## uses the game-rendered picture (`art/thumbs_ink`, `tools/make_ink_thumbs.gd`) -- the new set's older
+## pictures showed models the game no longer draws.
 static func thumb_path(part_id: String) -> String:
+	if gen_models() and ResourceLoader.exists("%s/%s.glb" % [gen_dir(), part_id]):
+		return ""
 	if new_models():
 		var path: String = "%s/%s.png" % [NEW_THUMBS, part_id]
 		if ResourceLoader.exists(path):
