@@ -189,8 +189,9 @@ vertices by `tools/probe_floor.gd`.
 074: **every ranged arm fires its own way and leaves its own trail** (`data/fx/weapons.json`, read by
 `WeaponFX`; presentation only, not in the content hash). `fire` is a `ConstructRig.strike` style (a class's
 strike, or one of `FIRE_STYLES`), `trail` a `ShotFX` kind drawn from the gun's real tip
-(`ConstructRig.muzzle`). Trails are additive glow pieces held through `Ink.hold` and warmed behind the
-opening card. A new ranged arm needs a row there, or `verify_animation` fails. Sheets:
+(`ConstructRig.muzzle`). 075: trails are DRAWN like the rest of the fight (ink edge, flat bands, half-tone,
+pop-hold-shrink; ribbons turned to the camera for beams and chains), painted per colour and warmed behind
+the opening card. A new ranged arm needs a row there, or `verify_animation` fails. Sheets:
 `tools/shot_trails.gd`.
 
 074: a generated arm sits ON its shoulder: `ConstructView._snug_arms` draws it in until the inner edge of

@@ -7,7 +7,7 @@ extends SceneTree
 ##   godot --path . --resolution 900x600 --script res://tools/shot_trails.gd -- \
 ##       --models gen --gen-dir res://art/parts_gen_scrap --out shots/074_trail [--only ar_scatter,ar_railgun]
 ##
-## Writes `<out>_<arm>.png` (the trail in flight) and `<out>_<arm>_fire.png` (the frame it leaves).
+## Writes `<out>_<arm>_fire.png` (the frame it leaves), `<out>_<arm>.png` (in flight) and `<out>_<arm>_land.png`.
 ## Not headless: it has to render.
 
 const FRAME: Array = ["ch_skirmisher", "co_null", "ar_hammer", "", "mo_capacitor"]
@@ -86,7 +86,9 @@ func _run() -> void:
 			WeaponFX.colour(id, Color("ffcf9a")), {"cells": cells})
 		await _run_for(clampf(travel * 0.6, 0.03, 0.4))
 		await _save("%s_%s.png" % [out, id])
-		await _run_for(1.4)
+		await _run_for(maxf(0.12, travel * 0.4 + 0.1))
+		await _save("%s_%s_land.png" % [out, id])
+		await _run_for(1.2)
 		model.queue_free()
 		for child: Node in marks.get_children():
 			child.queue_free()

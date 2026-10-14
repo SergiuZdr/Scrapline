@@ -145,6 +145,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-13 | **A part that has its own generated model draws it, even when its JSON borrows another's** (`Models.draw_id`); the shipped sets keep the borrowed one | The Chain Flail and Mine Layer were made and still drew as the Maul and Mortar |
 | 2026-10-13 | **Modules hang on the machine's back**: no feet or stand, never wider than the frame's torso | The user |
 | 2026-10-14 | **How a shot looks is presentation data** (`data/fx/weapons.json`: firing style, trail, colour, sound per ranged arm), outside the content hash | 074: the user asked for a look per gun; a new look must never refuse a saved run |
+| 2026-10-14 | **Effects are drawings, not light**: shots are ink-edged flat colour that pops and shrinks (`ShotFX`, 075) | The user: the glowing 074 trails did not match the game's style |
 
 ## Lessons carried over from the old codebase
 

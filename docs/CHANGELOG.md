@@ -2,6 +2,13 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [075] Shots drawn in ink — 2026-10-14 ([detail](iterations/075-drawn-shots.md))
+
+### Changed
+- Every ranged arm's trail is drawn in the game's ink style -- ink edges, flat bands, half-tone shade,
+  speed lines, muzzle stars, the game's impact star and sparks -- with more detail per gun (a barbed hook
+  on a chain, a hex bubble, a net, a mine that blinks). `ShotFX` rewritten; nothing glows or fades.
+
 ## [074] Arms on their shoulders, a look for every shot — 2026-10-14 ([detail](iterations/074-arms-and-shots.md))
 
 ### Added
