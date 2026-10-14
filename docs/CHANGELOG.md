@@ -2,6 +2,12 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [077] Every effect, before and after — 2026-10-14 ([detail](iterations/077-effects-catalogue.md))
+
+### Added
+- `tools/shot_effects.gd` (every `BattleVFX` effect beside a machine) and `tools/shot_trails.gd --legacy`
+  (the shots as drawn before 074): named before/after sheets.
+
 ## [076] Gritty shots and smoke — 2026-10-14 ([detail](iterations/076-gritty-shots.md))
 
 ### Changed
