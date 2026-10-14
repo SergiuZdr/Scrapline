@@ -352,6 +352,8 @@ func _opening(objective: String) -> void:
 		_vfx.on_break(at, what)
 	_vfx.crush(at)
 	_tracer(at + Vector3(0, 0.7, 0), at + Vector3(1.5, 0.6, 0), hot)
+	# 074: every arm's trail too.
+	ShotFX.warm(_marks_root, _vfx, at)
 	_float_text(at, "-1", UIKit.RED)
 	_letters(at, "BOOM!", Ink.ACTION)
 	# 039: the comic effects compile here too, behind the card.
@@ -2408,10 +2410,19 @@ func _attack(ref: int, aim: Vector2i, w: int, end: Vector2i) -> void:
 	_face(root, _to_world(aim.x, aim.y))
 	await _wait(0.05)
 	# 059: the wind-up plays first; the shot, the flash and the sound land on the strike's IMPACT.
-	var lead: float = (view["rig"] as ConstructRig).strike("arm_l" if w == GridUnit.ARM_L else "arm_r", String(weapon["class"]), get_tree())
+	# 074: a ranged arm fires its own way and leaves its own trail (`data/fx/weapons.json`).
+	var slot: String = "arm_l" if w == GridUnit.ARM_L else "arm_r"
+	var arm_id: String = String(weapon.get("id", ""))
+	var rig: ConstructRig = view["rig"]
+	var lead: float = rig.strike(slot, String(weapon["class"]), get_tree(), WeaponFX.fire_style(arm_id))
 	await _wait(lead)
 	var colour: Color = DAMAGE_COLOURS[clampi(u.damage_type, 0, DAMAGE_COLOURS.size() - 1)]
 	var muzzle: Vector3 = root.position + Vector3(0, 0.7, 0)
+	var trail: String = WeaponFX.trail(arm_id)
+	if not trail.is_empty():
+		await _shot_trail(u, weapon, trail, rig.muzzle(slot), aim, end, WeaponFX.colour(arm_id, colour))
+		await _wait(T_ATTACK)
+		return
 	match String(weapon["shape"]):
 		"shot":
 			var hit_point: Vector3 = _to_world(end.x, end.y) + Vector3(0, 0.6, 0)
@@ -2451,6 +2462,42 @@ func _attack(ref: int, aim: Vector2i, w: int, end: Vector2i) -> void:
 		_:
 			Audio.play("saw" if String(weapon["class"]) == "saw" or String(weapon["class"]) == "ripper" else "clang", -8.0)
 	await _wait(T_ATTACK)
+
+
+## 074: a ranged arm's own trail from its gun's tip, its sound, and what lands where it lands (the
+## wedge a flamer burns, the blast a shell makes).
+func _shot_trail(u: GridUnit, weapon: Dictionary, trail: String, muzzle: Vector3, aim: Vector2i, end: Vector2i,
+		colour: Color) -> void:
+	var shape: String = String(weapon["shape"])
+	var to: Vector3 = _to_world(aim.x, aim.y) + Vector3(0, 0.6, 0)
+	var cells: Array = []
+	match shape:
+		"shot":
+			to = _to_world(end.x, end.y) + Vector3(0, 0.6, 0)
+		"cone":
+			for n: Vector2i in [aim] + Hex.neighbors(aim):
+				if _state.inside(n) and (n == aim or Hex.distance(Vector2i(u.x, u.y), n) == 2):
+					cells.append(_to_world(n.x, n.y) + Vector3(0, 0.3, 0))
+		"shield":
+			to = _to_world(aim.x, aim.y) + Vector3(0, 0.8, 0)
+		"lob":
+			to = _to_world(aim.x, aim.y) + Vector3(0, 0.4, 0)
+		"mine":
+			to = _to_world(aim.x, aim.y) + Vector3(0, 0.2, 0)
+	var sound: Array = WeaponFX.sound(String(weapon.get("id", "")))
+	if sound.size() >= 2:
+		Audio.play(String(sound[0]), float(sound[1]))
+	var travel: float = ShotFX.play(trail, _marks_root, _vfx, muzzle, to, colour, {"cells": cells})
+	await _wait(travel)
+	match shape:
+		"cone":
+			for at: Variant in cells:
+				_vfx.burst(at, colour, 1.0)
+		"lob":
+			_vfx.burst(to, colour, 1.2)
+			Audio.play("thump", -5.0)
+		"mine":
+			Audio.play("clang", -9.0)
 
 
 ## A shell arcing to its tile, so a mortar reads as going OVER things.

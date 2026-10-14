@@ -49,6 +49,7 @@ func _init() -> void:
 	_test_collapse_is_idempotent()
 	_test_collapse_survives_order_phase()
 	_test_real_chassis_binds()
+	_test_fire_styles()
 
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
@@ -376,6 +377,53 @@ func _test_real_chassis_binds() -> void:
 		model.free()
 	_check("every chassis has legs the rig can drive (%d/%d)" % [walked, checked],
 		checked > 0 and walked == checked)
+
+
+## 074: every ranged arm fires its own way and leaves its own trail; each firing style reaches its
+## shot, comes back to rest, and the shot leaves from the gun's tip, in front of the machine.
+func _test_fire_styles() -> void:
+	var db: ContentDB = ContentDB.load_all()
+	var ranged: Array = []
+	for part_id: String in db.parts:
+		var part: Dictionary = db.parts[part_id]
+		if String(part.get("slot", "")) != "arm" or PartTuning.is_tuned(part_id):
+			continue
+		if not ["melee", "sweep"].has(String((part.get("grid", {}) as Dictionary).get("shape", "melee"))):
+			ranged.append(part_id)
+	ranged.sort()
+	var styles: Dictionary = {}
+	var trails: Dictionary = {}
+	var missing: Array = []
+	for id: String in ranged:
+		var style: String = WeaponFX.fire_style(id)
+		var trail: String = WeaponFX.trail(id)
+		if not (ConstructRig.FIRE_STYLES.has(style) or ConstructRig.STYLES_BY_CLASS.has(style)) or not ShotFX.KINDS.has(trail):
+			missing.append(id)
+		styles[style] = true
+		trails[trail] = true
+	_check("every ranged arm has a firing style and a trail (%d arms; missing %s)" % [ranged.size(), missing],
+		ranged.size() > 0 and missing.is_empty())
+	_check("no two ranged arms fire alike (%d styles, %d arms)" % [styles.size(), ranged.size()], styles.size() == ranged.size())
+	_check("no two ranged arms leave the same trail (%d trails)" % trails.size(), trails.size() == ranged.size())
+	var bad: Array = []
+	for id: String in ranged:
+		var parts := PackedStringArray(["ch_skirmisher", "co_null", "ar_hammer", id, "mo_capacitor"])
+		var model: Node3D = ConstructView.build_parts(parts, db, Color.WHITE)
+		root.add_child(model)
+		var rig := ConstructRig.new()
+		rig.bind(model)
+		var cls: String = String(db.parts[id].get("weapon_class", ""))
+		rig.set_stances(PackedStringArray(["hammer", cls]))
+		_run(rig, 0.3)
+		var impact: float = rig.strike("arm_r", cls, null, WeaponFX.fire_style(id))
+		_run(rig, impact)
+		var tip: Vector3 = rig.muzzle("arm_r")
+		_run(rig, 3.0)
+		var home: bool = rig._striking.is_empty() and model.position.length() < 0.02
+		if impact <= 0.0 or tip.z <= 0.05 or not home:
+			bad.append("%s (impact %.2f, tip z %.2f, home %s)" % [id, impact, tip.z, home])
+		model.free()
+	_check("each style shoots from the gun's tip and comes home (%s)" % ("all" if bad.is_empty() else str(bad)), bad.is_empty())
 
 
 # --- Helpers -----------------------------------------------------------------

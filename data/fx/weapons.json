@@ -1,0 +1,16 @@
+{
+  "_comment": "074: how each ranged arm LOOKS when it fires -- presentation only, not in the content hash (ContentDB never reads it). fire: ConstructRig.strike style; trail: ShotFX kind; colour: the trail's ink (empty = the core's damage colour); sound: Audio bank and volume. Read by WeaponFX.",
+  "ar_lance": {"fire": "lance_shot", "trail": "needle", "colour": "e8f6ff", "sound": ["shot", -8.0]},
+  "ar_scanner": {"fire": "scanner", "trail": "scan", "colour": "9cff6a", "sound": ["cycle", -6.0]},
+  "ar_pulse": {"fire": "pulse", "trail": "pulse", "colour": "7fd4ff", "sound": ["zap", -8.0]},
+  "ar_scatter": {"fire": "pump", "trail": "pellets", "colour": "ffd28a", "sound": ["shot", -5.0]},
+  "ar_mortar": {"fire": "mortar", "trail": "shell", "colour": "ff7a3c", "sound": ["lob", -7.0]},
+  "ar_railgun": {"fire": "railgun", "trail": "rail", "colour": "bfe8ff", "sound": ["detonate", -6.0]},
+  "ar_flamer": {"fire": "flamer", "trail": "flame", "colour": "ff7a3c", "sound": ["flood", -7.0]},
+  "ar_harpoon": {"fire": "harpoon", "trail": "hook", "colour": "d9c39a", "sound": ["clang", -7.0]},
+  "ar_shieldcaster": {"fire": "cast", "trail": "aegis", "colour": "6fc2ff", "sound": ["shield", -7.0]},
+  "ar_coilgun": {"fire": "coil", "trail": "arc", "colour": "a8e4ff", "sound": ["zap", -5.0]},
+  "ar_sunspear": {"fire": "sunspear", "trail": "sun", "colour": "ffd25a", "sound": ["overdrive", -6.0]},
+  "ar_snare": {"fire": "snare", "trail": "bola", "colour": "c9d66a", "sound": ["cycle", -7.0]},
+  "ar_minelayer": {"fire": "toss", "trail": "mine", "colour": "ff4a3c", "sound": ["lob", -9.0]}
+}
