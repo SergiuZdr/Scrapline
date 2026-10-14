@@ -2,6 +2,17 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [076] Gritty shots and smoke — 2026-10-14 ([detail](iterations/076-gritty-shots.md))
+
+### Changed
+- Trails redrawn like a Borderlands comic: jagged edges, thick wobbling ink, hatched shade, grit;
+  muzzle flashes and flames erode into grain (`Grit`, `ShotFX`).
+- The game's smoke is jagged hatched billows that erode, no longer round cartoon balls (`BattleVFX.smoke`).
+
+### Added
+- `tools/bake_fx.gd` and `art/fx/`: effect drawings are baked to PNGs and loaded (`Ink.texture`); the
+  fight's warm-up went from 3.3 s of painting to 44 ms.
+
 ## [075] Shots drawn in ink — 2026-10-14 ([detail](iterations/075-drawn-shots.md))
 
 ### Changed

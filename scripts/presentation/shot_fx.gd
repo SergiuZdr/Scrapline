@@ -8,7 +8,8 @@ extends RefCounted
 ## sparks of `BattleVFX` -- an ink edge, flat bands of colour, half-tone dots in the shade, a paper
 ## highlight -- and nothing glows or fades: a piece pops in, holds, and shrinks or snaps away. Beams,
 ## tails and chains are ribbons turned to the camera about their own line; balls, stars and nets are
-## sprites. Textures are painted once per colour (`Ink.texture`), materials held (`Ink.hold`), and one of
+## sprites. 076 ("too cartoony -- like Borderlands and comics"): drawn in the `Grit` vocabulary --
+## jagged edges, hatched shade, grain; flashes, fire and smoke erode into grit. Textures are painted once per colour (`Ink.texture`), materials held (`Ink.hold`), and one of
 ## every trail in every arm's colour is fired behind the opening card (`warm`).
 ##
 ## `play` returns the seconds until the shot ARRIVES, so the fight shows the hit then.
@@ -234,9 +235,7 @@ static func _flame(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, c
 		t.tween_method(func(k: float) -> void:
 			lick.position = from.lerp(end, k) + Vector3(0, sin(k * PI) * (0.14 + wobble), 0)
 			lick.scale = Vector3.ONE * (1.0 + 3.2 * k), 0.0, 1.0, travel)
-		t.tween_interval(0.06)
-		t.tween_property(lick, "scale", Vector3.ZERO, 0.1).set_ease(Tween.EASE_IN)
-		t.tween_callback(lick.queue_free)
+		t.tween_callback(func() -> void: Grit.erode(parent, lick, 0.02, 0.16))
 	_later(parent, travel * 0.5, func() -> void: vfx.sparks(from.lerp(to, 0.5), colour, 6, 0.9))
 	_later(parent, travel + 0.2, func() -> void: vfx.smoke(to, 4, 0.7))
 	return travel
@@ -406,9 +405,13 @@ static func _mine(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, co
 
 ## The muzzle: a spiky drawn star in the shot's colour that pops and is gone.
 static func _muzzle(parent: Node3D, at: Vector3, colour: Color, size: float) -> void:
-	var star: Sprite3D = _sprite(parent, _tex_muzzle(colour), at, size)
+	var star: Sprite3D = _sprite(parent, _tex_muzzle(colour), at, size * 1.3)
 	star.flip_h = randf() < 0.5
-	_pop(parent, star, 0.0, 0.05, 1.0)
+	star.rotate_z(randf_range(-0.5, 0.5))
+	star.scale = Vector3.ONE * 0.5
+	var t := parent.create_tween()
+	t.tween_property(star, "scale", Vector3.ONE * 1.1, 0.04).set_ease(Tween.EASE_OUT)
+	Grit.erode(parent, star, 0.05, 0.12)
 
 
 ## Where it lands: the game's impact star and drawn sparks, `delay` seconds from now.
@@ -592,225 +595,276 @@ static func _later(parent: Node3D, delay: float, what: Callable, always: bool = 
 
 
 # --- Drawings ------------------------------------------------------------------
-# Painted once per colour. The vocabulary of `BattleVFX`'s drawings: INK edges, flat bands, a darker
-# band of the colour with half-tone dots in the shade, PAPER where it is hottest.
+# 076: painted once per colour in the `Grit` vocabulary -- jagged edges, a thick wobbling ink line,
+# hatched shade (crossed where darkest), grain in the fills, the colour in hard saturated bands with a
+# white-hot heart. Fire and flashes are erodible (`Grit.erode_alpha`).
 
 static func _shade(c: Color) -> Color:
-	return c.darkened(0.42)
+	return c.darkened(0.45)
 
 
 static func _hot(c: Color) -> Color:
-	return c.lerp(Ink.PAPER_CARD, 0.6)
+	return c.lerp(Color("fff6dc"), 0.62)
 
 
-## True on a half-tone dot: a grid of `period` px, dots of `amount` (0..1) of the cell.
-static func _dot(x: float, y: float, period: float, amount: float) -> bool:
-	var cell := Vector2(fposmod(x, period) - period * 0.5, fposmod(y, period) - period * 0.5)
-	return cell.length() < amount * period * 0.5
-
-
-## A beam, tiling along x: ink edges, the colour with dotted shade at its rim, a hot core, and ink
-## notches every half tile so it reads as moving.
+## A beam, tiling along x: a wobbling ink edge, the colour hatched toward its rim, a crackle line
+## running through it, a grainy hot core and a white heart.
 static func _tex_beam(c: Color) -> ImageTexture:
-	return Ink.texture("shot_beam_" + c.to_html(), Vector2i(128, 48), func(image: Image) -> void:
-		for y: int in 48:
-			for x: int in 128:
-				var d: float = absf(float(y) - 23.5)
-				var col := Color(0, 0, 0, 0)
-				if d < 23.5:
-					col = Ink.INK
-				if d < 19.0:
-					col = c
-					if d > 13.0 and _dot(x, y, 6.0, 0.7):
-						col = _shade(c)
-					if d < 8.0:
-						col = _hot(c)
-					if d < 3.5:
-						col = Color.WHITE
-				if d > 13.0 and d < 19.0 and x % 64 < 5:
-					col = Ink.INK
-				image.set_pixel(x, y, col))
-
-
-## A spiky muzzle star: ten uneven spikes, ink edge, the colour, a hot heart.
-static func _tex_muzzle(c: Color) -> ImageTexture:
-	return Ink.texture("shot_muzzle_" + c.to_html(), Vector2i(128, 128), func(image: Image) -> void:
-		var centre := Vector2(64, 64)
-		for y: int in 128:
-			for x: int in 128:
-				var d: Vector2 = Vector2(x, y) - centre
-				var turn: float = d.angle() / TAU * 10.0 + 10.0
-				var spike: float = absf(fposmod(turn, 1.0) - 0.5) * 2.0
-				var reach: float = lerpf(62.0 if int(floor(turn)) % 2 == 0 else 46.0, 26.0, spike)
-				var r: float = d.length()
-				var col := Color(0, 0, 0, 0)
-				if r < reach:
-					col = Ink.INK
-				if r < reach - 6.0:
-					col = c
-				if r < (reach - 6.0) * 0.55:
-					col = _hot(c)
-				if r < 12.0:
-					col = Color.WHITE
-				image.set_pixel(x, y, col))
-
-
-## A ball: ink edge, the colour, a dotted shadow side, a paper highlight.
-static func _tex_ball(c: Color) -> ImageTexture:
-	return Ink.texture("shot_ball_" + c.to_html(), Vector2i(64, 64), func(image: Image) -> void:
-		var centre := Vector2(32, 32)
+	return Ink.texture("shot2_beam_" + c.to_html(), Vector2i(256, 64), func(image: Image) -> void:
 		for y: int in 64:
-			for x: int in 64:
-				var p := Vector2(x, y)
-				var r: float = p.distance_to(centre)
+			for x: int in 256:
+				var u: float = TAU * float(x) / 256.0
+				var h: float = 25.0 + 3.0 * sin(u * 3.0) + 2.0 * sin(u * 7.0 + 1.0) + 1.2 * sin(u * 17.0)
+				var d: float = absf(float(y) - 31.5)
 				var col := Color(0, 0, 0, 0)
-				if r < 30.0:
+				if d < h:
 					col = Ink.INK
-				if r < 25.0:
+				if d < h - 5.0:
 					col = c
-					if p.distance_to(centre + Vector2(-8, -8)) > 24.0 and _dot(x, y, 5.0, 0.75):
+					if d > h * 0.55 and Grit.hatch(x, y, 8.0, 2.2):
 						col = _shade(c)
-					if p.distance_to(centre + Vector2(-9, -9)) < 7.0:
-						col = Color.WHITE
-				image.set_pixel(x, y, col))
-
-
-## A comet tail: thin at the back (left), full at the head (right); ink edge, colour, a hot core line.
-static func _tex_tail(c: Color) -> ImageTexture:
-	return Ink.texture("shot_tail_" + c.to_html(), Vector2i(128, 32), func(image: Image) -> void:
-		for y: int in 32:
-			for x: int in 128:
-				var half: float = 15.0 * pow(float(x) / 127.0, 0.8)
-				var d: float = absf(float(y) - 15.5)
-				var col := Color(0, 0, 0, 0)
-				if d < half:
-					col = Ink.INK
-				if d < half - 3.5:
-					col = c
-					if d < (half - 3.5) * 0.4:
+					if d < h * 0.4:
 						col = _hot(c)
-				image.set_pixel(x, y, col))
-
-
-## A dart: a long needle, pointed at the head (right), fletch notches at the tail.
-static func _tex_dart(c: Color) -> ImageTexture:
-	return Ink.texture("shot_dart_" + c.to_html(), Vector2i(128, 32), func(image: Image) -> void:
-		for y: int in 32:
-			for x: int in 128:
-				var u: float = float(x) / 127.0
-				var half: float = 9.0 if u < 0.8 else 9.0 * (1.0 - (u - 0.8) / 0.2)
-				if u < 0.15:
-					half = 13.0 if x % 6 < 3 else 9.0
-				var d: float = absf(float(y) - 15.5)
-				var col := Color(0, 0, 0, 0)
-				if d < half + 1.0:
-					col = Ink.INK
-				if d < half - 2.5:
-					col = _hot(c)
-					if d < 2.0:
+						if Grit.speck(x, y, 0.1):
+							col = c
+					if d < h * 0.14:
 						col = Color.WHITE
+					var crack: float = h * 0.62 + 4.0 * sin(u * 11.0) + 2.0 * sin(u * 23.0)
+					if absf(d - crack) < 0.9 and sin(u * 5.0) > -0.2:
+						col = Ink.INK
 				image.set_pixel(x, y, col))
 
 
-## A pellet slug: a short rounded slug at the head (right), a tapering streak behind.
-static func _tex_slug(c: Color) -> ImageTexture:
-	return Ink.texture("shot_slug_" + c.to_html(), Vector2i(96, 24), func(image: Image) -> void:
-		for y: int in 24:
-			for x: int in 96:
-				var d: float = absf(float(y) - 11.5)
-				var half: float = 10.0 * minf(1.0, float(x) / 70.0)
-				if x > 84:
-					half = sqrt(maxf(0.0, 100.0 - pow(float(x) - 84.0, 2.0) * 0.8))
+## The muzzle flash: a jagged star of uneven spikes (a fixed hand-drawn layout), ink edge, the colour
+## hatched in its spikes, a hot heart; loose ink shards around it. Erodible.
+static func _tex_muzzle(c: Color) -> ImageTexture:
+	return Ink.texture("shot2_muzzle_" + c.to_html(), Vector2i(192, 192), func(image: Image) -> void:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 991
+		var spikes: Array = []
+		for k: int in 9:
+			spikes.append([TAU * float(k) / 9.0 + rng.randf_range(-0.25, 0.25), rng.randf_range(58.0, 92.0)])
+		var shards: Array = []
+		for k: int in 5:
+			var a: float = rng.randf_range(0.0, TAU)
+			shards.append(Vector2(96, 96) + Vector2(cos(a), sin(a)) * rng.randf_range(70.0, 88.0))
+		var centre := Vector2(96, 96)
+		for y: int in 192:
+			for x: int in 192:
+				var d: Vector2 = Vector2(x, y) - centre
+				var r: float = d.length()
+				var ang: float = fposmod(d.angle(), TAU)
+				var reach: float = 26.0
+				for s: Array in spikes:
+					var off: float = absf(wrapf(ang - float(s[0]), -PI, PI))
+					reach = maxf(reach, float(s[1]) * (1.0 - off / 0.34))
+				reach += Grit.noise(x, y, 0.09, 5) * 5.0
 				var col := Color(0, 0, 0, 0)
-				if d < half:
+				var depth: float = reach - r
+				if depth > 0.0:
 					col = Ink.INK
-				if d < half - 3.0:
-					col = c if x < 74 else _hot(c)
+				if depth > 6.0:
+					col = c
+					if r > 34.0 and Grit.hatch(x, y, 7.0, 2.0, -1.0):
+						col = _shade(c)
+				if r < 34.0 + Grit.noise(x, y, 0.1, 6) * 4.0 and depth > 6.0:
+					col = _hot(c)
+				if r < 15.0:
+					col = Color.WHITE
+				for s: Vector2 in shards:
+					var q: Vector2 = Vector2(x, y) - s
+					if absf(q.x) + absf(q.y) * 1.8 < 7.0:
+						col = Ink.INK
+						depth = 6.0
+				if col.a > 0.0:
+					col.a = Grit.erode_alpha(maxf(depth, 0.0), 40.0, x, y)
 				image.set_pixel(x, y, col))
 
 
-## A ring: a band of the colour between two ink lines, notched in four places.
-static func _tex_ring(c: Color) -> ImageTexture:
-	return Ink.texture("shot_ring_" + c.to_html(), Vector2i(96, 96), func(image: Image) -> void:
+## An energy bolt: a hot core in a crackling spiky corona, ink edge, hatched shade.
+static func _tex_ball(c: Color) -> ImageTexture:
+	return Ink.texture("shot2_ball_" + c.to_html(), Vector2i(96, 96), func(image: Image) -> void:
 		var centre := Vector2(48, 48)
 		for y: int in 96:
 			for x: int in 96:
 				var d: Vector2 = Vector2(x, y) - centre
 				var r: float = d.length()
+				var spike: float = absf(sin(d.angle() * 6.0 + 0.7)) * 9.0 + absf(Grit.noise(x, y, 0.12, 9)) * 8.0
+				var edge: float = 28.0 + spike
 				var col := Color(0, 0, 0, 0)
-				if r < 46.0 and r > 30.0:
+				if r < edge:
 					col = Ink.INK
-				if r < 42.0 and r > 34.0:
+				if r < edge - 5.0:
 					col = c
-					if fposmod(d.angle() / TAU * 4.0, 1.0) < 0.06:
-						col = Ink.INK
-				image.set_pixel(x, y, col))
-
-
-## A hexagon ring (the Aegis): a hex band of the colour between ink lines, a hot inner edge.
-static func _tex_hex(c: Color) -> ImageTexture:
-	return Ink.texture("shot_hex_" + c.to_html(), Vector2i(96, 96), func(image: Image) -> void:
-		for y: int in 96:
-			for x: int in 96:
-				var q := Vector2(absf(float(x) - 47.5), absf(float(y) - 47.5))
-				var h: float = maxf(q.x * 0.866 + q.y * 0.5, q.y)
-				var col := Color(0, 0, 0, 0)
-				if h < 44.0 and h > 28.0:
-					col = Ink.INK
-				if h < 40.0 and h > 32.0:
-					col = c if h > 34.0 else _hot(c)
-				image.set_pixel(x, y, col))
-
-
-## The Aegis bubble: an ink rim, a band of the colour, a hex mesh inside in thin lines, a paper glint at
-## the top left; the rest open.
-static func _tex_bubble(c: Color) -> ImageTexture:
-	return Ink.texture("shot_bubble_" + c.to_html(), Vector2i(192, 192), func(image: Image) -> void:
-		var centre := Vector2(96, 96)
-		for y: int in 192:
-			for x: int in 192:
-				var p := Vector2(x, y)
-				var r: float = p.distance_to(centre)
-				var col := Color(0, 0, 0, 0)
-				if r < 94.0:
-					var on: bool = false
-					for k: int in 3:
-						var a: float = PI / 3.0 * k
-						var s: float = (p - centre).dot(Vector2(cos(a), sin(a)))
-						if absf(fposmod(s, 28.0) - 14.0) > 12.6:
-							on = true
-					if on:
-						col = c if r < 70.0 else _shade(c)
-				if r < 94.0 and r > 82.0:
-					col = c
-					if r > 88.0 and _dot(x, y, 6.0, 0.8):
+					if Vector2(x, y).distance_to(centre + Vector2(-8, -8)) > 26.0 and Grit.hatch(x, y, 6.0, 1.8):
 						col = _shade(c)
-				if r < 94.0 and (r > 91.0 or (r > 79.0 and r < 82.0)):
-					col = Ink.INK
-				if p.distance_to(centre + Vector2(-44, -48)) < 12.0 and r < 82.0:
+				if r < 18.0:
+					col = _hot(c)
+				if r < 8.0 or Vector2(x, y).distance_to(centre + Vector2(-7, -7)) < 4.0:
 					col = Color.WHITE
 				image.set_pixel(x, y, col))
 
 
-## A diamond: a small dot of a sight line or a dotted path, ink-edged.
+## A tail: a jagged streak, thin and broken at the back (left), full at the head (right).
+static func _tex_tail(c: Color) -> ImageTexture:
+	return Ink.texture("shot2_tail_" + c.to_html(), Vector2i(192, 32), func(image: Image) -> void:
+		for y: int in 32:
+			for x: int in 192:
+				var u: float = float(x) / 191.0
+				var half: float = 15.0 * pow(u, 0.75) + Grit.noise(x, 0.0, 0.08, 12) * 3.0 * u
+				var d: float = absf(float(y) - 15.5)
+				var broken: bool = u < 0.45 and Grit.noise(x, 0.0, 0.15, 13) > 0.25
+				var col := Color(0, 0, 0, 0)
+				if d < half and not broken:
+					col = Ink.INK
+					if d < half - 3.5:
+						col = c
+						if float(y) > 16.0 and Grit.hatch(x, y, 6.0, 1.6):
+							col = _shade(c)
+						if d < (half - 3.5) * 0.35:
+							col = _hot(c)
+				image.set_pixel(x, y, col))
+
+
+## A dart: a long steel-and-colour needle, pointed at the head (right), notched fletches at the tail,
+## hatched underside, a white glint along its top.
+static func _tex_dart(c: Color) -> ImageTexture:
+	return Ink.texture("shot2_dart_" + c.to_html(), Vector2i(192, 32), func(image: Image) -> void:
+		for y: int in 32:
+			for x: int in 192:
+				var u: float = float(x) / 191.0
+				var half: float = 8.0 if u < 0.78 else 8.0 * (1.0 - (u - 0.78) / 0.22)
+				if u < 0.16:
+					half = 14.0 - fposmod(float(x), 10.0) * 0.6
+				var d: float = float(y) - 15.5
+				var col := Color(0, 0, 0, 0)
+				if absf(d) < half + 1.5:
+					col = Ink.INK
+				if absf(d) < half - 2.0:
+					col = _hot(c)
+					if d > 1.0 and Grit.hatch(x, y, 5.0, 1.5):
+						col = _shade(c)
+					if d < -half * 0.4 and d > -half + 3.0:
+						col = Color.WHITE
+				image.set_pixel(x, y, col))
+
+
+## A bullet slug: a hard pointed slug at the head (right) and a ragged streak behind.
+static func _tex_slug(c: Color) -> ImageTexture:
+	return Ink.texture("shot2_slug_" + c.to_html(), Vector2i(128, 32), func(image: Image) -> void:
+		for y: int in 32:
+			for x: int in 128:
+				var u: float = float(x) / 127.0
+				var d: float = float(y) - 15.5
+				var half: float = 12.0 * minf(1.0, u / 0.7) + Grit.noise(x, 0.0, 0.2, 14) * 2.5 * (1.0 - u)
+				if u > 0.86:
+					half = 12.0 * (1.0 - (u - 0.86) / 0.14) + 2.0
+				var col := Color(0, 0, 0, 0)
+				if absf(d) < half:
+					col = Ink.INK
+				if absf(d) < half - 3.0:
+					col = c if u < 0.72 else _hot(c)
+					if d > 1.0 and Grit.hatch(x, y, 5.0, 1.5):
+						col = _shade(c)
+					if u > 0.72 and d < -3.0:
+						col = Color.WHITE
+				image.set_pixel(x, y, col))
+
+
+## A shock ring: a jagged band of the colour between wobbling ink lines, broken in three places,
+## hatched.
+static func _tex_ring(c: Color) -> ImageTexture:
+	return Ink.texture("shot2_ring_" + c.to_html(), Vector2i(128, 128), func(image: Image) -> void:
+		var centre := Vector2(64, 64)
+		for y: int in 128:
+			for x: int in 128:
+				var d: Vector2 = Vector2(x, y) - centre
+				var r: float = d.length() + Grit.noise(x, y, 0.1, 15) * 4.0
+				var gap: bool = fposmod(d.angle() / TAU * 3.0 + 0.1, 1.0) < 0.08
+				var col := Color(0, 0, 0, 0)
+				if r < 60.0 and r > 40.0 and not gap:
+					col = Ink.INK
+					if r < 55.0 and r > 45.0:
+						col = c
+						if Grit.hatch(x, y, 6.0, 1.6):
+							col = _shade(c)
+						if r > 52.0:
+							col = _hot(c)
+				image.set_pixel(x, y, col))
+
+
+## A hexagon ring (the Aegis): a hex band of the colour between ink lines, hatched, a hot inner edge.
+static func _tex_hex(c: Color) -> ImageTexture:
+	return Ink.texture("shot2_hex_" + c.to_html(), Vector2i(128, 128), func(image: Image) -> void:
+		for y: int in 128:
+			for x: int in 128:
+				var q := Vector2(absf(float(x) - 63.5), absf(float(y) - 63.5))
+				var h: float = maxf(q.x * 0.866 + q.y * 0.5, q.y) + Grit.noise(x, y, 0.12, 16) * 2.0
+				var col := Color(0, 0, 0, 0)
+				if h < 60.0 and h > 38.0:
+					col = Ink.INK
+				if h < 55.0 and h > 43.0:
+					col = c
+					if h > 50.0 and Grit.hatch(x, y, 6.0, 1.6):
+						col = _shade(c)
+					if h < 46.0:
+						col = _hot(c)
+				image.set_pixel(x, y, col))
+
+
+## The Aegis bubble: a thick hatched rim, a hex lattice of plates inside (some filled, some open), a
+## white glint; grainy.
+static func _tex_bubble(c: Color) -> ImageTexture:
+	return Ink.texture("shot2_bubble_" + c.to_html(), Vector2i(224, 224), func(image: Image) -> void:
+		var centre := Vector2(112, 112)
+		for y: int in 224:
+			for x: int in 224:
+				var p := Vector2(x, y)
+				var r: float = p.distance_to(centre) + Grit.noise(x, y, 0.05, 17) * 3.0
+				var col := Color(0, 0, 0, 0)
+				if r < 108.0:
+					var line: bool = false
+					var cell: int = 0
+					for k: int in 3:
+						var a: float = PI / 3.0 * k
+						var s: float = (p - centre).dot(Vector2(cos(a), sin(a)))
+						cell += int(floor(s / 30.0)) * (k + 3)
+						if absf(fposmod(s, 30.0) - 15.0) > 13.2:
+							line = true
+					if line:
+						col = Ink.INK
+					elif posmod(cell, 5) == 0 and r < 90.0:
+						col = c if Grit.hatch(x, y, 7.0, 2.4) else Color(0, 0, 0, 0)
+				if r < 108.0 and r > 92.0:
+					col = c
+					if r > 99.0 and Grit.hatch(x, y, 6.0, 2.0):
+						col = _shade(c)
+				if r < 108.0 and (r > 104.0 or (r > 89.0 and r < 93.0)):
+					col = Ink.INK
+				if p.distance_to(centre + Vector2(-48, -54)) < 11.0 and r < 90.0:
+					col = Color.WHITE
+				image.set_pixel(x, y, col))
+
+
+## A diamond: a sharp point of a sight line or a dotted path, ink-edged.
 static func _tex_diamond(c: Color) -> ImageTexture:
-	return Ink.texture("shot_diamond_" + c.to_html(), Vector2i(32, 32), func(image: Image) -> void:
+	return Ink.texture("shot2_diamond_" + c.to_html(), Vector2i(32, 32), func(image: Image) -> void:
 		for y: int in 32:
 			for x: int in 32:
-				var m: float = absf(float(x) - 15.5) + absf(float(y) - 15.5)
+				var m: float = absf(float(x) - 15.5) * 1.4 + absf(float(y) - 15.5)
 				var col := Color(0, 0, 0, 0)
 				if m < 15.0:
 					col = Ink.INK
-				if m < 10.0:
+				if m < 9.5:
 					col = c
 				if m < 4.0:
 					col = _hot(c)
 				image.set_pixel(x, y, col))
 
 
-## A dashed sight line, tiling along x.
+## A dashed sight line, tiling along x: hard dashes, ink-edged.
 static func _tex_dash(c: Color) -> ImageTexture:
-	return Ink.texture("shot_dash_" + c.to_html(), Vector2i(64, 16), func(image: Image) -> void:
+	return Ink.texture("shot2_dash_" + c.to_html(), Vector2i(64, 16), func(image: Image) -> void:
 		for y: int in 16:
 			for x: int in 64:
 				var d: float = absf(float(y) - 7.5)
@@ -823,102 +877,115 @@ static func _tex_dash(c: Color) -> ImageTexture:
 				image.set_pixel(x, y, col))
 
 
-## The reticle: a ring in the colour between ink lines, four ticks pointing in, a gap at the middle.
+## The reticle: a broken ring with corner brackets and four ticks, ink-edged, the colour inside the lines.
 static func _tex_reticle(c: Color) -> ImageTexture:
-	return Ink.texture("shot_reticle_" + c.to_html(), Vector2i(128, 128), func(image: Image) -> void:
-		var centre := Vector2(64, 64)
-		for y: int in 128:
-			for x: int in 128:
+	return Ink.texture("shot2_reticle_" + c.to_html(), Vector2i(160, 160), func(image: Image) -> void:
+		var centre := Vector2(80, 80)
+		for y: int in 160:
+			for x: int in 160:
 				var d: Vector2 = Vector2(x, y) - centre
 				var r: float = d.length()
+				var quarter: float = fposmod(d.angle() / TAU * 4.0 + 0.125, 1.0)
+				var ring: bool = r > 56.0 and r < 72.0 and absf(quarter - 0.5) < 0.38
+				var tick: bool = r > 26.0 and r < 62.0 and (absf(d.x) < 5.0 or absf(d.y) < 5.0)
 				var col := Color(0, 0, 0, 0)
-				var ring: bool = r > 44.0 and r < 60.0
-				var tick: bool = r > 24.0 and r < 50.0 and (absf(d.x) < 5.0 or absf(d.y) < 5.0)
 				if ring or tick:
 					col = Ink.INK
-				if (r > 48.0 and r < 56.0) or (r > 27.0 and r < 47.0 and (absf(d.x) < 2.0 or absf(d.y) < 2.0)):
+				if (r > 60.0 and r < 68.0 and absf(quarter - 0.5) < 0.34) or (r > 29.0 and r < 59.0 and (absf(d.x) < 2.0 or absf(d.y) < 2.0)):
 					col = c
 				image.set_pixel(x, y, col))
 
 
-## A flame tongue: a lumpy teardrop pointing up, bands from dark red at the edge to a paper heart,
-## half-tone in the outer band, ink edge.
+## A flame: a ragged tongue with several licking tips, dark red at the edge (hatched), orange, yellow,
+## a white heart; ink edge; erodible.
 static func _tex_flame(c: Color) -> ImageTexture:
-	return Ink.texture("shot_flame_" + c.to_html(), Vector2i(96, 96), func(image: Image) -> void:
-		var lobes: Array = [[Vector2(48, 60), 30.0], [Vector2(34, 62), 18.0], [Vector2(62, 58), 20.0],
-			[Vector2(46, 38), 20.0], [Vector2(52, 22), 12.0], [Vector2(44, 12), 7.0]]
-		for y: int in 96:
-			for x: int in 96:
-				var p := Vector2(x, y)
-				var f: float = -INF
-				for lobe: Array in lobes:
-					f = maxf(f, float(lobe[1]) - p.distance_to(lobe[0]))
+	return Ink.texture("shot2_flame_" + c.to_html(), Vector2i(128, 128), func(image: Image) -> void:
+		for y: int in 128:
+			for x: int in 128:
+				var v: float = 1.0 - float(y) / 127.0
+				var lick: float = Grit.noise(float(x) * 0.6, float(y) * 0.25, 0.09, 18)
+				var half: float = 46.0 * pow(1.0 - v, 0.6) * (0.75 + 0.45 * lick) + 6.0
+				var cx: float = 64.0 + Grit.noise(0.0, float(y), 0.04, 19) * 14.0 * v
+				var depth: float = half - absf(float(x) - cx)
+				if v < 0.12:
+					depth = minf(depth, (v / 0.12) * 40.0 - 2.0)
 				var col := Color(0, 0, 0, 0)
-				if f >= 0.0:
+				if depth > 0.0:
 					col = Ink.INK
-				if f > 5.0:
-					col = Color("c23b1e")
-					if _dot(x, y, 6.0, 0.7):
-						col = Color("8f2414")
-				if f > 10.0:
+				if depth > 5.0:
+					col = Color("b0301a")
+					if Grit.hatch(x, y, 6.0, 2.0):
+						col = Color("6e1a0e")
+				if depth > 11.0:
 					col = c
-				if f > 17.0:
+				if depth > 18.0:
 					col = Ink.ACTION
-				if f > 23.0:
-					col = Ink.PAPER_CARD
+				if depth > 26.0:
+					col = Color("fff6dc")
+				if col.a > 0.0:
+					col.a = Grit.erode_alpha(maxf(depth, 0.0), 30.0, x, y)
 				image.set_pixel(x, y, col))
 
 
-## An iron shell (or a bola weight): steel with an ink edge, a band of the colour round it, a dotted
-## shadow side and a glint.
+## An iron shell (or a bola weight): riveted steel, its shade hatched and grainy, a band of the colour,
+## a glint, a wobbling ink edge.
 static func _tex_shell(c: Color) -> ImageTexture:
-	return Ink.texture("shot_shell_" + c.to_html(), Vector2i(64, 64), func(image: Image) -> void:
+	return Ink.texture("shot2_shell_" + c.to_html(), Vector2i(64, 64), func(image: Image) -> void:
 		var centre := Vector2(32, 32)
 		for y: int in 64:
 			for x: int in 64:
 				var p := Vector2(x, y)
-				var r: float = p.distance_to(centre)
+				var r: float = p.distance_to(centre) + Grit.noise(x, y, 0.2, 21) * 1.5
 				var col := Color(0, 0, 0, 0)
 				if r < 30.0:
 					col = Ink.INK
 				if r < 25.0:
 					col = Ink.STEEL
-					if p.distance_to(centre + Vector2(-8, -8)) > 24.0 and _dot(x, y, 5.0, 0.8):
-						col = Color("4a5257")
-					var band: float = absf(float(y) - 34.0)
+					if p.distance_to(centre + Vector2(-8, -8)) > 22.0:
+						col = Color("4f575c")
+						if Grit.hatch(x, y, 5.0, 1.6):
+							col = Ink.INK
+					if Grit.speck(x, y, 0.12, 22):
+						col = col.darkened(0.3)
+					var band: float = absf(float(y) - 35.0)
 					if band < 4.0:
 						col = c
 					elif band < 6.0:
 						col = Ink.INK
-					if p.distance_to(centre + Vector2(-9, -11)) < 5.0:
+					for rivet: Vector2 in [Vector2(20, 35), Vector2(32, 35), Vector2(44, 35)]:
+						if p.distance_to(rivet) < 2.2:
+							col = Ink.INK
+					if p.distance_to(centre + Vector2(-9, -11)) < 4.5:
 						col = Color.WHITE
 				image.set_pixel(x, y, col))
 
 
-## The harpoon head: a steel arrowhead pointing right with two swept barbs, a band of the colour on its
-## socket, ink edge.
+## The harpoon head: a barbed steel arrowhead pointing right, hatched underside, a band of the colour,
+## ink edge.
 static func _tex_hook(c: Color) -> ImageTexture:
-	return Ink.texture("shot_hook_" + c.to_html(), Vector2i(96, 48), func(image: Image) -> void:
-		var head := PackedVector2Array([Vector2(94, 24), Vector2(52, 6), Vector2(60, 20), Vector2(4, 20),
-			Vector2(4, 28), Vector2(60, 28), Vector2(52, 42)])
-		var inner := PackedVector2Array([Vector2(86, 24), Vector2(58, 12), Vector2(64, 22), Vector2(8, 22.5),
-			Vector2(8, 25.5), Vector2(64, 26), Vector2(58, 36)])
-		for y: int in 48:
-			for x: int in 96:
+	return Ink.texture("shot2_hook_" + c.to_html(), Vector2i(128, 64), func(image: Image) -> void:
+		var head := PackedVector2Array([Vector2(126, 32), Vector2(70, 6), Vector2(80, 26), Vector2(4, 26),
+			Vector2(4, 38), Vector2(80, 38), Vector2(70, 58)])
+		var inner := PackedVector2Array([Vector2(116, 32), Vector2(78, 13), Vector2(85, 29), Vector2(9, 29.5),
+			Vector2(9, 34.5), Vector2(85, 35), Vector2(78, 51)])
+		for y: int in 64:
+			for x: int in 128:
 				var p := Vector2(x, y)
 				var col := Color(0, 0, 0, 0)
 				if Geometry2D.is_point_in_polygon(p, head):
 					col = Ink.INK
 				if Geometry2D.is_point_in_polygon(p, inner):
-					col = Ink.STEEL if p.y < 24.0 else Color("5d676c")
-					if x > 14 and x < 30:
+					col = Color("aeb8bb") if p.y < 31.0 else Ink.STEEL
+					if p.y > 33.0 and Grit.hatch(x, y, 5.0, 1.6):
+						col = Ink.INK
+					if x > 18 and x < 40:
 						col = c
 				image.set_pixel(x, y, col))
 
 
-## A chain, tiling along x: an oval link side-on, then one edge-on.
+## A chain, tiling along x: a link side-on, then one edge-on; steel with hatched shade.
 static func _tex_chain() -> ImageTexture:
-	return Ink.texture("shot_chain", Vector2i(64, 24), func(image: Image) -> void:
+	return Ink.texture("shot2_chain", Vector2i(64, 24), func(image: Image) -> void:
 		for y: int in 24:
 			for x: int in 64:
 				var col := Color(0, 0, 0, 0)
@@ -927,7 +994,7 @@ static func _tex_chain() -> ImageTexture:
 				if r < 1.0 and r > 0.45:
 					col = Ink.INK
 					if r < 0.85 and r > 0.6:
-						col = Ink.STEEL
+						col = Ink.STEEL if y < 12 else Color("4f575c")
 				if x >= 36 and x < 62 and absf(float(y) - 11.5) < 5.0:
 					col = Ink.INK
 					if absf(float(y) - 11.5) < 2.0 and x > 38 and x < 60:
@@ -935,9 +1002,9 @@ static func _tex_chain() -> ImageTexture:
 				image.set_pixel(x, y, col))
 
 
-## A cord: a twisted rope line, ink-edged.
+## A cord: a twisted rope, ink-edged.
 static func _tex_cord(c: Color) -> ImageTexture:
-	return Ink.texture("shot_cord_" + c.to_html(), Vector2i(64, 16), func(image: Image) -> void:
+	return Ink.texture("shot2_cord_" + c.to_html(), Vector2i(64, 16), func(image: Image) -> void:
 		for y: int in 16:
 			for x: int in 64:
 				var d: float = absf(float(y) - 7.5)
@@ -949,50 +1016,53 @@ static func _tex_cord(c: Color) -> ImageTexture:
 				image.set_pixel(x, y, col))
 
 
-## A net: a round mesh of cords in the colour, knotted, an ink rim.
+## A net: a ragged mesh of cords in the colour, knotted, hung from a weighted rim.
 static func _tex_net(c: Color) -> ImageTexture:
-	return Ink.texture("shot_net_" + c.to_html(), Vector2i(160, 160), func(image: Image) -> void:
-		var centre := Vector2(80, 80)
-		for y: int in 160:
-			for x: int in 160:
+	return Ink.texture("shot2_net_" + c.to_html(), Vector2i(192, 192), func(image: Image) -> void:
+		var centre := Vector2(96, 96)
+		for y: int in 192:
+			for x: int in 192:
 				var p := Vector2(x, y)
-				var r: float = p.distance_to(centre)
+				var w: Vector2 = p + Vector2(Grit.noise(x, y, 0.03, 23), Grit.noise(x, y, 0.03, 24)) * 6.0
+				var r: float = p.distance_to(centre) + Grit.noise(x, y, 0.05, 25) * 4.0
 				var col := Color(0, 0, 0, 0)
-				if r < 76.0:
-					var u: float = fposmod(float(x + y), 22.0)
-					var v: float = fposmod(float(x - y) + 160.0, 22.0)
-					var near_u: bool = u < 4.0
-					var near_v: bool = v < 4.0
-					if near_u or near_v:
+				if r < 88.0:
+					var u: float = fposmod(w.x + w.y, 24.0)
+					var v: float = fposmod(w.x - w.y + 192.0, 24.0)
+					if u < 4.5 or v < 4.5:
 						col = Ink.INK
-					if (u > 0.8 and u < 3.2) or (v > 0.8 and v < 3.2):
+					if (u > 1.0 and u < 3.5) or (v > 1.0 and v < 3.5):
 						col = c
-					if near_u and near_v:
+					if u < 5.5 and v < 5.5:
 						col = Ink.INK
-				if r < 78.0 and r > 70.0:
+				if r < 92.0 and r > 82.0:
 					col = Ink.INK
-					if r > 72.5 and r < 75.5:
+					if r > 85.0 and r < 89.0:
 						col = c
 				image.set_pixel(x, y, col))
 
 
-## A mine: a dark dome with an ink edge and an eye, lit or not.
+## A mine: a squat riveted dome, hatched, an eye of the colour, lit or not.
 static func _tex_mine(c: Color, lit: bool) -> ImageTexture:
-	return Ink.texture("shot_mine_%s_%s" % [c.to_html(), "lit" if lit else "off"], Vector2i(64, 64), func(image: Image) -> void:
-		var centre := Vector2(32, 40)
+	return Ink.texture("shot2_mine_%s_%s" % [c.to_html(), "lit" if lit else "off"], Vector2i(64, 64), func(image: Image) -> void:
+		var centre := Vector2(32, 42)
 		for y: int in 64:
 			for x: int in 64:
 				var p := Vector2(x, y)
 				var col := Color(0, 0, 0, 0)
 				var q := Vector2(p.x - centre.x, (p.y - centre.y) * 1.3)
 				var r: float = q.length()
-				if r < 29.0 and p.y < 52.0:
+				if r < 30.0 and p.y < 54.0:
 					col = Ink.INK
-				if r < 24.0 and p.y < 48.0:
-					col = Color("3c3a37")
-					if p.y < 34.0 and _dot(x, y, 5.0, 0.6):
-						col = Color("5a5651")
-				var eye: float = p.distance_to(Vector2(32, 32))
+				if r < 25.0 and p.y < 50.0:
+					col = Color("4a4743")
+					if p.x > 34.0 and Grit.hatch(x, y, 5.0, 1.6):
+						col = Ink.INK
+					if Grit.speck(x, y, 0.1, 26):
+						col = col.darkened(0.3)
+				if p.y > 47.0 and p.y < 50.0 and absf(p.x - 32.0) < 26.0:
+					col = Ink.INK
+				var eye: float = p.distance_to(Vector2(32, 33))
 				if eye < 9.0:
 					col = Ink.INK
 				if eye < 6.0:
@@ -1002,34 +1072,42 @@ static func _tex_mine(c: Color, lit: bool) -> ImageTexture:
 				image.set_pixel(x, y, col))
 
 
-## A sunburst: long ink rays round a golden disc with a paper heart.
+## A sunburst: long jagged ink rays round a golden disc, hatched rim, white-hot heart.
 static func _tex_sunburst(c: Color) -> ImageTexture:
-	return Ink.texture("shot_sun_" + c.to_html(), Vector2i(160, 160), func(image: Image) -> void:
-		var centre := Vector2(80, 80)
-		for y: int in 160:
-			for x: int in 160:
+	return Ink.texture("shot2_sun_" + c.to_html(), Vector2i(192, 192), func(image: Image) -> void:
+		var centre := Vector2(96, 96)
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 77
+		var rays: Array = []
+		for k: int in 13:
+			rays.append([TAU * float(k) / 13.0 + rng.randf_range(-0.15, 0.15), rng.randf_range(62.0, 94.0)])
+		for y: int in 192:
+			for x: int in 192:
 				var d: Vector2 = Vector2(x, y) - centre
 				var r: float = d.length()
+				var ang: float = fposmod(d.angle(), TAU)
 				var col := Color(0, 0, 0, 0)
-				var turn: float = d.angle() / TAU * 14.0 + 14.0
-				var n: float = fposmod(turn, 1.0)
-				var reach: float = 78.0 if int(floor(turn)) % 2 == 0 else 60.0
-				if r < reach and absf(n - 0.5) < 0.18 * (1.0 - r / reach) + 0.02:
+				for ray: Array in rays:
+					var off: float = absf(wrapf(ang - float(ray[0]), -PI, PI))
+					if r < float(ray[1]) and off < 0.11 * (1.0 - r / float(ray[1])) + 0.012:
+						col = Ink.INK
+				var edge: float = 36.0 + Grit.noise(x, y, 0.1, 27) * 3.0
+				if r < edge:
 					col = Ink.INK
-				if r < 34.0:
-					col = Ink.INK
-				if r < 29.0:
+				if r < edge - 5.0:
 					col = c
-					if r > 22.0 and _dot(x, y, 5.0, 0.7):
+					if r > 22.0 and Grit.hatch(x, y, 6.0, 2.0, -1.0):
 						col = _shade(c)
-				if r < 15.0:
-					col = Ink.PAPER_CARD
+				if r < 18.0:
+					col = _hot(c)
+				if r < 9.0:
+					col = Color.WHITE
 				image.set_pixel(x, y, col))
 
 
-## Speed lines: three ink strokes, sharp at the back (left), thick at the front.
+## Speed lines: three ragged ink strokes, sharp at the back (left), thick at the front.
 static func _tex_speed() -> ImageTexture:
-	return Ink.texture("shot_speed", Vector2i(128, 32), func(image: Image) -> void:
+	return Ink.texture("shot2_speed", Vector2i(128, 32), func(image: Image) -> void:
 		for y: int in 32:
 			for x: int in 128:
 				var col := Color(0, 0, 0, 0)
@@ -1037,7 +1115,7 @@ static func _tex_speed() -> ImageTexture:
 					var start: float = float(line[1])
 					if float(x) < start:
 						continue
-					var half: float = 2.6 * (float(x) - start) / (128.0 - start)
-					if absf(float(y) - float(line[0])) < half:
+					var half: float = 2.8 * (float(x) - start) / (128.0 - start)
+					if absf(float(y) - float(line[0]) - Grit.noise(x, line[0], 0.1, 28) * 1.5) < half:
 						col = Ink.INK
 				image.set_pixel(x, y, col))
