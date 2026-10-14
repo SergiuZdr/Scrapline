@@ -191,7 +191,9 @@ vertices by `tools/probe_floor.gd`.
 strike, or one of `FIRE_STYLES`), `trail` a `ShotFX` kind drawn from the gun's real tip
 (`ConstructRig.muzzle`). 075: trails are DRAWN like the rest of the fight (ink edge, flat bands, half-tone,
 pop-hold-shrink; ribbons turned to the camera for beams and chains), painted per colour and warmed behind
-the opening card. A new ranged arm needs a row there, or `verify_animation` fails. Sheets:
+the opening card. 076: in the `Grit` vocabulary (Borderlands-like comic: jagged edges, hatched shade,
+grit; flashes, fire and smoke ERODE), baked to `art/fx/` by `tools/bake_fx.gd` -- rerun it after changing a
+drawing or a weapon's colour. A new ranged arm needs a row there, or `verify_animation` fails. Sheets:
 `tools/shot_trails.gd`.
 
 074: a generated arm sits ON its shoulder: `ConstructView._snug_arms` draws it in until the inner edge of

@@ -647,13 +647,32 @@ static func dress_set_piece(node: Node, livery: Color, width: float = LINE_WORLD
 
 ## A texture drawn in code, cached by name. `draw` fills a blank Image of `size`.
 static var _textures: Dictionary = {}
+## 076: drawings baked to `art/fx/<name>.png` (`tools/bake_fx.gd`) are loaded instead of painted: the
+## gritty effects paint in seconds, too slow for a fight's opening. A tool sets `bake_to` to write every
+## drawing it paints there; `painted` counts the ones painted this run (a test wants none for effects).
+const BAKED: String = "res://art/fx"
+static var bake_to: String = ""
+static var painted: PackedStringArray = PackedStringArray()
 
 
 static func texture(name: String, size: Vector2i, draw: Callable) -> ImageTexture:
 	if _textures.has(name):
 		return _textures[name]
-	var image := Image.create(size.x, size.y, true, Image.FORMAT_RGBA8)
-	draw.call(image)
+	var path: String = "%s/%s.png" % [BAKED, name]
+	var image: Image = null
+	if bake_to.is_empty() and ResourceLoader.exists(path):
+		image = (load(path) as Texture2D).get_image()
+		if image.is_compressed():
+			image.decompress()
+		image.convert(Image.FORMAT_RGBA8)
+	else:
+		image = Image.create(size.x, size.y, true, Image.FORMAT_RGBA8)
+		draw.call(image)
+		painted.append(name)
+		if bake_to.is_empty() and (name.begins_with("shot2_") or name.begins_with("grit_")):
+			push_warning("Ink.texture: %s painted at run time -- run tools/bake_fx.gd" % name)
+		if not bake_to.is_empty():
+			image.save_png("%s/%s.png" % [bake_to, name])
 	image.generate_mipmaps()
 	var t := ImageTexture.create_from_image(image)
 	_textures[name] = t

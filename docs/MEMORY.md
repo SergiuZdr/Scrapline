@@ -146,6 +146,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-13 | **Modules hang on the machine's back**: no feet or stand, never wider than the frame's torso | The user |
 | 2026-10-14 | **How a shot looks is presentation data** (`data/fx/weapons.json`: firing style, trail, colour, sound per ranged arm), outside the content hash | 074: the user asked for a look per gun; a new look must never refuse a saved run |
 | 2026-10-14 | **Effects are drawings, not light**: shots are ink-edged flat colour that pops and shrinks (`ShotFX`, 075) | The user: the glowing 074 trails did not match the game's style |
+| 2026-10-14 | **The look is Borderlands-like comic, not cartoon**: jagged inked shapes, hatched shade, grit; smoke and fire erode (`Grit`, 076) | The user: 075's round smoke and smooth trails were "too cartoony" |
 
 ## Lessons carried over from the old codebase
 
@@ -293,6 +294,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-13 | **Download each Colab batch the moment it finishes.** The free T4's daily allowance (about 1.5 h) ends without warning and takes the runtime's files: 11 finished models lost while rigging the previous batch |
 | 2026-10-13 | A part whose JSON has `"model"` keeps drawing the borrowed model; check the data when a new model does not show |
 | 2026-10-14 | "Nearest point touches" is not "looks attached": a generated arm mounted by its innermost vertex showed daylight; measure the silhouette band at shoulder height (074) |
+| 2026-10-14 | Noise-painted drawings cost seconds in GDScript (3.3 s at a fight's opening): bake them to `art/fx/` with `tools/bake_fx.gd`, rerun after any drawing or weapon-colour change |
 | 2026-10-14 | **A T4 out-of-memory on one object is a concept problem**: the dense Tesla and Crucible failed every run; redrawn with a few large smooth shapes, each took a minute |
 
 ## Open questions
