@@ -143,6 +143,7 @@ static func _seat_arms(root: Node3D, chassis: Node3D, chassis_id: String) -> voi
 	# 053: a generated frame's arm sockets are placed by hand on its own shoulders; pushing its
 	# arms out of the body's box left them hanging in the air.
 	if Models.part_path(chassis_id).contains("/parts_gen"):
+		_fit_parts(root, chassis_id)
 		_snug_arms(root, chassis_id)
 		return
 	var body := AABB()
@@ -181,6 +182,67 @@ static func _seat_arms(root: Node3D, chassis: Node3D, chassis_id: String) -> voi
 					parent_xf = (n as Node3D).transform * parent_xf
 				n = n.get_parent()
 			arm.position += parent_xf.basis.inverse() * offset
+
+
+## 079 (the user: "the arms, the core and the back module must be resizable by about 10% so they look
+## better on the frame"): on a generated frame each bolted part is scaled to its frame's torso, never more
+## than FIT_RANGE either way. Arms by the shoulder span (a slim marksman's guns smaller, a wide anchor's
+## bigger); the core to a share of the torso's width at its socket; the module to no wider than the torso
+## behind it. Measured on the rest geometry; cached per frame and part.
+const FIT_RANGE: float = 0.1
+## Shoulder spans (socket to socket, metres) that get the smallest and the largest arms.
+const FIT_SPAN: Vector2 = Vector2(0.18, 0.42)
+## A core's width as a share of the torso's at its socket; a module's at most this share.
+const FIT_CORE: float = 0.55
+const FIT_MODULE: float = 0.95
+static var _fit: Dictionary = {}
+
+
+static func _fit_parts(root: Node3D, chassis_id: String) -> void:
+	var chassis: Node3D = _find_named(root, "part_chassis")
+	if chassis == null:
+		return
+	for slot: String in ["arm_l", "arm_r", "core", "module"]:
+		var piece: Node3D = _find_named(root, "part_" + slot)
+		if piece == null:
+			continue
+		var socket: Node3D = piece.get_parent() as Node3D
+		var key: String = "%s|%s|%s|%s" % [chassis_id, String(piece.scene_file_path), slot, Models.part_path(chassis_id)]
+		if not _fit.has(key):
+			var at: Vector3 = _in_space(socket, root).origin
+			var factor: float = 1.0
+			if slot.begins_with("arm"):
+				factor = lerpf(1.0 - FIT_RANGE, 1.0 + FIT_RANGE, clampf((absf(at.x) * 2.0 - FIT_SPAN.x) / (FIT_SPAN.y - FIT_SPAN.x), 0.0, 1.0))
+			else:
+				var torso: float = _torso_width(chassis, root, at.y)
+				var points: PackedVector3Array = _vertices(piece, root)
+				var lo: float = INF
+				var hi: float = -INF
+				for v: Vector3 in points:
+					lo = minf(lo, v.x)
+					hi = maxf(hi, v.x)
+				var width: float = hi - lo
+				if torso > 0.0 and width > 0.0:
+					var want: float = torso * (FIT_CORE if slot == "core" else FIT_MODULE)
+					factor = clampf(want / width, 1.0 - FIT_RANGE, 1.0 + FIT_RANGE)
+					if slot == "module":
+						factor = minf(factor, 1.0) if width > torso else factor
+			_fit[key] = factor
+		piece.scale *= float(_fit[key])
+
+
+## The frame's width (metres) in a band round height `y`: its body only, no legs, nothing bolted on.
+static func _torso_width(chassis: Node3D, space: Node3D, y: float) -> float:
+	var lo: float = INF
+	var hi: float = -INF
+	for mesh: MeshInstance3D in _meshes(chassis):
+		if _under_leg(mesh, chassis):
+			continue
+		for v: Vector3 in _vertices(mesh, space, false):
+			if absf(v.y - y) < 0.04:
+				lo = minf(lo, v.x)
+				hi = maxf(hi, v.x)
+	return hi - lo if hi > lo else 0.0
 
 
 ## 074 (the user: "the arms must not be detached from the frames"): a generated arm is mounted by

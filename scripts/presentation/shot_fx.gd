@@ -15,7 +15,7 @@ extends RefCounted
 ## `play` returns the seconds until the shot ARRIVES, so the fight shows the hit then.
 
 const KINDS: PackedStringArray = ["needle", "scan", "pulse", "pellets", "shell", "rail", "flame", "hook",
-	"aegis", "arc", "sun", "bola", "mine"]
+	"aegis", "arc", "sun", "bola", "mine", "swing"]
 
 
 ## Draws trail `kind` from `from` to `to` under `parent`. `extra.cells` (world points) spreads a flame
@@ -38,6 +38,7 @@ static func play(kind: String, parent: Node3D, vfx: BattleVFX, from: Vector3, to
 		"sun": return _sun(parent, vfx, from, to, colour)
 		"bola": return _bola(parent, vfx, from, to, colour)
 		"mine": return _mine(parent, vfx, from, to, colour)
+		"swing": return _swing(parent, vfx, from, to, colour, extra.get("cells", []), extra.get("centre", from))
 	return 0.0
 
 
@@ -217,30 +218,48 @@ static func _rail(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, co
 	return 0.03
 
 
-## The Slag Flamer (078, the user: "the fire must not have vertical flames, it must go along the throw"):
-## a jet thrown OUT of the nozzle -- ragged flame tongues laid along the line of fire, swelling as they go,
-## licking ahead in waves over the wedge, each burning down into grit; embers, then smoke over it.
+## The Slag Flamer (078; 079, the user: "the attack in the shape of an ARC, not straight lines"): the
+## hose SWEEPS -- flame tongues thrown one after another across the wedge from one side to the other,
+## each on a curving path that bows against the sweep, so the fire draws an arc over the hexes it
+## burns; each tongue swells as it goes and burns down into grit; embers, then smoke.
 static func _flame(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color, cells: Array) -> float:
-	var travel: float = 0.24
-	var ends: Array = cells if not cells.is_empty() else [to]
+	var travel: float = 0.2
+	var count: int = 18
+	var sweep: float = 0.022
 	_muzzle(parent, from, colour, 0.3)
-	for i: int in 16:
-		var end: Vector3 = (ends[i % ends.size()] as Vector3) + Vector3(0, 0.22 + randf_range(-0.06, 0.06), 0)
+	# The arc: from the first cell's bearing to the last's (sorted round the muzzle), at the wedge's reach.
+	var flat_from := Vector3(from.x, 0.0, from.z)
+	var bearings: Array = []
+	for c: Variant in (cells if not cells.is_empty() else [to]):
+		var d: Vector3 = (c as Vector3) - flat_from
+		bearings.append(atan2(d.x, d.z))
+	var aim: Vector3 = to - flat_from
+	var mid: float = atan2(aim.x, aim.z)
+	var spread: float = 0.0
+	for b: Variant in bearings:
+		spread = maxf(spread, absf(wrapf(float(b) - mid, -PI, PI)))
+	spread = maxf(spread, 0.5) + 0.12
+	var reach: float = Vector2(aim.x, aim.z).length()
+	for i: int in count:
+		var s: float = float(i) / float(count - 1)
+		var bearing: float = mid - spread + 2.0 * spread * s
+		var end: Vector3 = flat_from + Vector3(sin(bearing), 0.0, cos(bearing)) * reach + Vector3(0, 0.25, 0)
 		var dir: Vector3 = (end - from).normalized()
+		var side: Vector3 = dir.cross(Vector3.UP).normalized()
+		# Bows against the sweep, the way a hose's stream lags behind its nozzle.
+		var bow: Vector3 = from.lerp(end, 0.5) + side * 0.22 * from.distance_to(end) + Vector3(0, 0.12, 0)
+		var path := func(k: float) -> Vector3: return from.lerp(bow, k).lerp(bow.lerp(end, k), k)
 		var tongue: MeshInstance3D = _ribbon(parent, _tex_jet(colour), from, from, 0.1)
 		tongue.visible = false
-		var reach: float = randf_range(0.45, 0.75)
 		var t := parent.create_tween()
-		t.tween_interval(0.02 * i)
+		t.tween_interval(sweep * i)
 		t.tween_method(func(k: float) -> void:
-			var head: Vector3 = from.lerp(end, k)
-			var tail: Vector3 = head - dir * minf(reach * (0.4 + k), head.distance_to(from))
-			tongue.set_meta("width", 0.1 + 0.32 * k)
-			_lay(tongue, tail, head), 0.0, 1.0, travel)
-		t.tween_callback(func() -> void: _burn(parent, tongue, 0.03, 0.16))
-	_later(parent, travel * 0.5, func() -> void: vfx.sparks(from.lerp(to, 0.5), colour, 6, 0.9))
-	_later(parent, travel + 0.2, func() -> void: vfx.smoke(to, 4, 0.7))
-	return travel
+			tongue.set_meta("width", 0.1 + 0.3 * k)
+			_lay(tongue, path.call(maxf(0.0, k - 0.35)), path.call(k)), 0.0, 1.0, travel)
+		t.tween_callback(func() -> void: _burn(parent, tongue, 0.03 + sweep * float(count - i) * 0.8, 0.16))
+	_later(parent, travel * 0.6, func() -> void: vfx.sparks(from.lerp(to, 0.5), colour, 6, 0.9))
+	_later(parent, travel + sweep * count, func() -> void: vfx.smoke(to, 4, 0.7))
+	return travel + sweep * count * 0.5
 
 
 ## The Hook Harpoon: an inked barbed head flies out paying a chain of drawn links behind it, bites with a
@@ -418,6 +437,46 @@ static func _mine(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, co
 		t.tween_interval(0.08)
 	t.tween_property(mine, "scale", Vector3.ZERO, 0.08)
 	t.tween_callback(mine.queue_free)
+	return travel
+
+
+## The Chain Flail (079): a swoosh drawn round the machine across the arc it sweeps -- a crescent of motion
+## strokes that grows from thin to thick as the head comes round, a star and a spray of grit on every
+## hex it crosses, burning down into grit behind it.
+static func _swing(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color, cells: Array,
+		centre: Vector3) -> float:
+	var travel: float = 0.16
+	var flat := Vector3(centre.x, 0.0, centre.z)
+	var aim: Vector3 = Vector3(to.x, 0.0, to.z) - flat
+	var mid: float = atan2(aim.x, aim.z)
+	var spread: float = 0.5
+	for c: Variant in cells:
+		var d: Vector3 = (c as Vector3) - flat
+		spread = maxf(spread, absf(wrapf(atan2(d.x, d.z) - mid, -PI, PI)) + 0.15)
+	var reach: float = maxf(0.6, Vector2(aim.x, aim.z).length())
+	var height: float = from.y
+	var pieces: int = 14
+	var arc := func(s: float) -> Vector3:
+		var b: float = mid - spread + 2.0 * spread * s
+		return flat + Vector3(sin(b), 0.0, cos(b)) * reach + Vector3(0, height - 0.25 * s, 0)
+	for i: int in pieces:
+		var s0: float = float(i) / pieces
+		var s1: float = float(i + 1) / pieces
+		var piece: MeshInstance3D = _ribbon(parent, _tex_swoosh(colour), arc.call(s0), arc.call(s1), 0.05 + 0.3 * s1)
+		piece.visible = false
+		var t := parent.create_tween()
+		t.tween_interval(travel * s0)
+		t.tween_callback(func() -> void: piece.visible = true)
+		t.tween_interval(0.08)
+		t.tween_callback(func() -> void: _burn(parent, piece, 0.0, 0.18))
+	for c: Variant in cells:
+		var at: Vector3 = c as Vector3
+		var d: Vector3 = at - flat
+		var s: float = clampf((wrapf(atan2(d.x, d.z) - mid, -PI, PI) + spread) / (2.0 * spread), 0.0, 1.0)
+		_later(parent, travel * s, func() -> void:
+			vfx.star(at + Vector3(0, 0.45, 0), 0.0045, 0.04)
+			vfx.sparks(at + Vector3(0, 0.4, 0), colour, 6, 1.1)
+			vfx.dust(Vector3(at.x, 0.06, at.z), 3, 0.5))
 	return travel
 
 
@@ -1127,4 +1186,27 @@ static func _tex_sunbeam(c: Color) -> ImageTexture:
 						col = _hot(c)
 					if d < 3.5:
 						col = Color.WHITE
+				image.set_pixel(x, y, col))
+
+
+## A swoosh, tiling along x (079): motion strokes in a band -- an ink edge, the colour streaked with ink
+## speed lines, a hot leading edge. Erodible.
+static func _tex_swoosh(c: Color) -> ImageTexture:
+	return Ink.texture("shot2_swoosh_" + c.to_html(), Vector2i(128, 48), func(image: Image) -> void:
+		for y: int in 48:
+			for x: int in 128:
+				var d: float = float(y) - 23.5
+				var h: float = 21.0 + Grit.noise(float(x), 0.0, 0.08, 43) * 2.5
+				var depth: float = h - absf(d)
+				var col := Color(0, 0, 0, 0)
+				if depth > 0.0:
+					col = Ink.INK
+				if depth > 4.0:
+					col = c.darkened(0.25)
+					if fposmod(float(y) * 1.0 + Grit.noise(float(x), float(y), 0.05, 44) * 3.0, 7.0) < 1.6:
+						col = Ink.INK
+					if d < -h * 0.45:
+						col = _hot(c)
+				if col.a > 0.0:
+					col.a = Grit.erode_alpha(maxf(depth, 0.0), 18.0, x, y)
 				image.set_pixel(x, y, col))

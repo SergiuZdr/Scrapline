@@ -103,6 +103,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 076 | [Gritty shots and smoke](iterations/076-gritty-shots.md) | Trails and smoke in a Borderlands-like comic style (jagged, hatched, eroding); drawings baked to `art/fx/` | ✅ |
 | 077 | [Every effect, before and after](iterations/077-effects-catalogue.md) | Named before/after sheets of all 18 effects and 13 shots; the user picks what to redraw | ✅ |
 | 078 | [Every effect gritty](iterations/078-gritty-effects.md) | All 18 effects redrawn; flamer along its throw; slimmer Sunspear; shots from the gun's mouth | ✅ |
+| 079 | [The flail's arc, real cards, fitted parts, a roomier garage](iterations/079-garage-and-flail.md) | Flail arc attack; arc flamer; darker shards; textured cards; parts ±10% to the frame; garage layout | ✅ |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
