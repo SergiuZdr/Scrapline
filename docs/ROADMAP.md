@@ -101,6 +101,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 074 | [Arms on their shoulders, a look for every shot](iterations/074-arms-and-shots.md) | Arms seated by their silhouette; 13 ranged arms each with their own firing animation and trail | ✅ |
 | 075 | [Shots drawn in ink](iterations/075-drawn-shots.md) | The 13 trails redrawn in the ink style, with more detail | ✅ |
 | 076 | [Gritty shots and smoke](iterations/076-gritty-shots.md) | Trails and smoke in a Borderlands-like comic style (jagged, hatched, eroding); drawings baked to `art/fx/` | ✅ |
+| 077 | [Every effect, before and after](iterations/077-effects-catalogue.md) | Named before/after sheets of all 18 effects and 13 shots; the user picks what to redraw | ✅ |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

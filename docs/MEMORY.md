@@ -146,6 +146,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-13 | **Modules hang on the machine's back**: no feet or stand, never wider than the frame's torso | The user |
 | 2026-10-14 | **How a shot looks is presentation data** (`data/fx/weapons.json`: firing style, trail, colour, sound per ranged arm), outside the content hash | 074: the user asked for a look per gun; a new look must never refuse a saved run |
 | 2026-10-14 | **Effects are drawings, not light**: shots are ink-edged flat colour that pops and shrinks (`ShotFX`, 075) | The user: the glowing 074 trails did not match the game's style |
+| 2026-10-14 | **Every effect change is shown as a named before/after sheet; the user picks which to redo** (`tools/shot_effects.gd`, `shot_trails.gd --legacy`) | The user, after 076 |
 | 2026-10-14 | **The look is Borderlands-like comic, not cartoon**: jagged inked shapes, hatched shade, grit; smoke and fire erode (`Grit`, 076) | The user: 075's round smoke and smooth trails were "too cartoony" |
 
 ## Lessons carried over from the old codebase
