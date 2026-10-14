@@ -99,6 +99,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 072 | [The arm trial](iterations/072-arm-trial.md) | Every arm ranked on the same 150 hard fights; Mortar and Snare weak, Shield Caster and abilities unused by the bot | ✅ |
 | 073 | [The bot uses shields and abilities](iterations/073-bot-abilities.md) | The bot plays every part: runs won 55% -> 67% (real); the Shield Caster is cast and still weak; `--set bot.abilities=false` plays the old bot | ✅ |
 | 074 | [Arms on their shoulders, a look for every shot](iterations/074-arms-and-shots.md) | Arms seated by their silhouette; 13 ranged arms each with their own firing animation and trail | ✅ |
+| 075 | [Shots drawn in ink](iterations/075-drawn-shots.md) | The 13 trails redrawn in the ink style, with more detail | ✅ |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

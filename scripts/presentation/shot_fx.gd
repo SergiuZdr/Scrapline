@@ -1,10 +1,15 @@
 class_name ShotFX
 extends RefCounted
 
-## 074: the trail each ranged arm leaves (`data/fx/weapons.json` `trail`), so a shot says which gun
-## fired it. Told where the shot leaves and where it lands; decides nothing. Every piece frees itself,
-## and every material goes through `Ink.hold` (one shader variant per kind of material, compiled behind
-## the opening card -- `warm`).
+## 074-075: the trail each ranged arm leaves (`data/fx/weapons.json` `trail`), so a shot says which gun
+## fired it. Told where the shot leaves and where it lands; decides nothing.
+##
+## 075 (the user: "more detailed, and in the game's style"): every piece is DRAWN, like the blasts and
+## sparks of `BattleVFX` -- an ink edge, flat bands of colour, half-tone dots in the shade, a paper
+## highlight -- and nothing glows or fades: a piece pops in, holds, and shrinks or snaps away. Beams,
+## tails and chains are ribbons turned to the camera about their own line; balls, stars and nets are
+## sprites. Textures are painted once per colour (`Ink.texture`), materials held (`Ink.hold`), and one of
+## every trail in every arm's colour is fired behind the opening card (`warm`).
 ##
 ## `play` returns the seconds until the shot ARRIVES, so the fight shows the hit then.
 
@@ -20,14 +25,14 @@ static func play(kind: String, parent: Node3D, vfx: BattleVFX, from: Vector3, to
 		return 0.0
 	match kind:
 		"needle": return _needle(parent, vfx, from, to, colour)
-		"scan": return _scan(parent, from, to, colour)
+		"scan": return _scan(parent, vfx, from, to, colour)
 		"pulse": return _pulse(parent, vfx, from, to, colour)
 		"pellets": return _pellets(parent, vfx, from, to, colour)
 		"shell": return _shell(parent, vfx, from, to, colour)
 		"rail": return _rail(parent, vfx, from, to, colour)
 		"flame": return _flame(parent, vfx, from, to, colour, extra.get("cells", []))
 		"hook": return _hook(parent, vfx, from, to, colour)
-		"aegis": return _aegis(parent, from, to, colour)
+		"aegis": return _aegis(parent, vfx, from, to, colour)
 		"arc": return _arc(parent, vfx, from, to, colour)
 		"sun": return _sun(parent, vfx, from, to, colour)
 		"bola": return _bola(parent, vfx, from, to, colour)
@@ -35,457 +40,546 @@ static func play(kind: String, parent: Node3D, vfx: BattleVFX, from: Vector3, to
 	return 0.0
 
 
-## One of every trail at `at`, under a holder of its own: their shaders compile behind the opening card,
-## and hiding the holder hides pieces a trail shows later (its tweens keep running). Freed in 3 s.
+## Every arm's trail, in its own colour, at `at`, under a holder of its own: the textures are painted and
+## the shaders compiled behind the opening card, and hiding the holder hides what a trail shows later
+## (its tweens keep running). Freed in 3 s.
 static func warm(parent: Node3D, vfx: BattleVFX, at: Vector3) -> Node3D:
 	var holder := Node3D.new()
 	parent.add_child(holder)
-	for kind: String in KINDS:
-		play(kind, holder, vfx, at + Vector3(0, 0.6, 0), at + Vector3(1.2, 0.6, 0.3), Color("ffd28a"),
-			{"cells": [at + Vector3(1.0, 0.3, 0.0)]})
+	var looks: Dictionary = WeaponFX.table()
+	for arm: Variant in looks:
+		var look: Dictionary = looks[arm]
+		play(String(look.get("trail", "")), holder, vfx, at + Vector3(0, 0.6, 0), at + Vector3(1.2, 0.6, 0.3),
+			WeaponFX.colour(String(arm), Ink.ACTION), {"cells": [at + Vector3(1.0, 0.3, 0.0)]})
 	_later(holder, 3.0, holder.queue_free, true)
 	return holder
 
 
 # --- The trails ----------------------------------------------------------------
 
-## The Rail Lance: a white-hot dart, gone in a blink, a hair-thin line left hanging and three rings
-## popping along it.
+## The Rail Lance: a white-hot dart with speed lines, gone in a blink; a hair-thin rail left hanging that
+## thins away, and three rings punched along it as the dart goes through.
 static func _needle(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color) -> float:
-	var travel: float = 0.07
-	_flash(parent, from, colour, 0.16)
-	var dart: MeshInstance3D = _bar(parent, from, from + (to - from).normalized() * 0.5, 0.05, colour, 3.0)
+	var travel: float = 0.08
+	var dir: Vector3 = (to - from).normalized()
+	_muzzle(parent, from, colour, 0.34)
+	var dart: MeshInstance3D = _ribbon(parent, _tex_dart(colour), from, from + dir * 0.55, 0.13)
 	var t := parent.create_tween()
 	t.tween_method(func(k: float) -> void:
 		var head: Vector3 = from.lerp(to, k)
-		_aim_bar(dart, head - (to - from).normalized() * 0.5, head), 0.0, 1.0, travel)
+		_lay(dart, head - dir * 0.55, head), 0.0, 1.0, travel)
 	t.tween_callback(dart.queue_free)
-	var line: MeshInstance3D = _bar(parent, from, to, 0.018, colour, 2.2)
-	_fade(parent, line, 0.55, travel)
+	var rail: MeshInstance3D = _ribbon(parent, _tex_beam(colour), from, to, 0.07, 0.28)
+	_thin(parent, rail, 0.09, 0.2)
 	for i: int in 3:
 		var at: Vector3 = from.lerp(to, 0.25 * (i + 1))
-		var ring: MeshInstance3D = _ring(parent, at, to - from, 0.06, colour, 1.6)
-		_grow_fade(parent, ring, 3.5, 0.3, travel * (i + 1) / 3.0)
-	_later(parent, travel, func() -> void: vfx.sparks(to, colour, 6, 0.8))
+		var ring: MeshInstance3D = _disc(parent, _tex_ring(colour), at, dir, 0.24)
+		_pop_disc(parent, ring, travel * (i + 1) / 3.0, 0.12, 1.5)
+	_speed_lines(parent, from, to, 0.0, 3)
+	_hit(parent, vfx, to, colour, travel, 0.0045, 6)
 	return travel
 
 
-## The Spotter Array: a dotted green line ticks out to the target, a reticle closes on it and blinks.
-static func _scan(parent: Node3D, from: Vector3, to: Vector3, colour: Color) -> float:
-	var travel: float = 0.2
-	var dots: int = maxi(4, int(from.distance_to(to) / 0.22))
+## The Spotter Array: a dashed sight line ticks out diamond by diamond, a reticle snaps shut on the target
+## and blinks twice.
+static func _scan(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color) -> float:
+	var travel: float = 0.22
+	var dots: int = maxi(4, int(from.distance_to(to) / 0.24))
+	var line: MeshInstance3D = _ribbon(parent, _tex_dash(colour), from, from, 0.05, 0.16)
+	var g := parent.create_tween()
+	g.tween_method(func(k: float) -> void: _lay(line, from, from.lerp(to, k)), 0.0, 1.0, travel)
+	g.tween_interval(0.3)
+	g.tween_method(func(k: float) -> void: _lay(line, from.lerp(to, k), to), 0.0, 1.0, 0.12)
+	g.tween_callback(line.queue_free)
 	for i: int in dots:
-		var dot: MeshInstance3D = _ball(parent, from.lerp(to, float(i + 1) / dots), 0.03, colour, 2.0)
-		dot.visible = false
-		var t := parent.create_tween()
-		t.tween_interval(travel * float(i) / dots)
-		t.tween_callback(func() -> void: dot.visible = true)
-		t.tween_interval(0.25)
-		t.tween_property(dot, "scale", Vector3.ZERO, 0.12)
-		t.tween_callback(dot.queue_free)
-	var reticle: MeshInstance3D = _ring(parent, to, Vector3.UP, 0.5, colour, 2.0)
+		var dot: Sprite3D = _sprite(parent, _tex_diamond(colour), from.lerp(to, float(i + 1) / dots), 0.11)
+		_pop(parent, dot, travel * float(i) / dots, 0.3, 1.0)
+	var reticle: Sprite3D = _sprite(parent, _tex_reticle(colour), to, 0.9)
 	reticle.visible = false
 	var r := parent.create_tween()
-	r.tween_interval(travel * 0.6)
+	r.tween_interval(travel * 0.55)
 	r.tween_callback(func() -> void: reticle.visible = true)
-	r.tween_property(reticle, "scale", Vector3.ONE * 0.4, 0.14).set_ease(Tween.EASE_IN)
+	r.tween_property(reticle, "scale", Vector3.ONE * 0.5, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	for blink: int in 2:
 		r.tween_callback(func() -> void: reticle.visible = false)
 		r.tween_interval(0.05)
 		r.tween_callback(func() -> void: reticle.visible = true)
-		r.tween_interval(0.06)
+		r.tween_interval(0.07)
+	r.tween_property(reticle, "scale", Vector3.ZERO, 0.08)
 	r.tween_callback(reticle.queue_free)
 	return travel
 
 
-## The Pulse Emitter: three blue bolts in a row, each with a short glowing tail.
+## The Pulse Emitter: three inked bolts in a row, each dragging a comet tail and a stepped after-image,
+## a ring popping at the barrel for each.
 static func _pulse(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color) -> float:
-	var flight: float = 0.13
+	var flight: float = 0.14
+	var dir: Vector3 = (to - from).normalized()
 	for i: int in 3:
 		var delay: float = 0.09 * i
-		var bolt: MeshInstance3D = _ball(parent, from, 0.08, colour, 2.6)
-		var tail: MeshInstance3D = _bar(parent, from, from, 0.06, colour, 1.4)
+		var bolt: Sprite3D = _sprite(parent, _tex_ball(colour), from, 0.2)
+		var tail: MeshInstance3D = _ribbon(parent, _tex_tail(colour), from, from, 0.2)
 		bolt.visible = false
 		tail.visible = false
+		var ring: MeshInstance3D = _disc(parent, _tex_ring(colour), from + dir * 0.1, dir, 0.3)
+		_pop_disc(parent, ring, delay, 0.08, 1.4)
 		var t := parent.create_tween()
 		t.tween_interval(delay)
-		t.tween_callback(func() -> void:
-			bolt.visible = true
-			tail.visible = true
-			_flash(parent, from, colour, 0.12))
+		t.tween_callback(func() -> void: bolt.visible = true)
+		var echoes: Array = [0.35, 0.7]
 		t.tween_method(func(k: float) -> void:
 			var head: Vector3 = from.lerp(to, k)
 			bolt.position = head
-			_aim_bar(tail, from.lerp(to, maxf(0.0, k - 0.3)), head), 0.0, 1.0, flight)
+			_lay(tail, from.lerp(to, maxf(0.0, k - 0.32)), head)
+			if not echoes.is_empty() and k >= float(echoes[0]):
+				echoes.pop_front()
+				var echo: Sprite3D = _sprite(parent, _tex_ball(colour), head - dir * 0.18, 0.13)
+				_pop(parent, echo, 0.0, 0.04, 0.6), 0.0, 1.0, flight)
 		t.tween_callback(func() -> void:
-			if parent.is_visible_in_tree():
-				vfx.sparks(to, colour, 4, 0.7)
 			bolt.queue_free()
 			tail.queue_free())
+		_hit(parent, vfx, to, colour, delay + flight, 0.003, 3)
 	return flight
 
 
-## The Scattergun: a fan of short pellet streaks, a smoke puff at the barrel, sparks where they land.
+## The Scattergun: a big muzzle star and a smoke cloud; a fan of inked slugs with speed lines, a spark
+## where each lands.
 static func _pellets(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color) -> float:
 	var travel: float = 0.12
-	_flash(parent, from, colour, 0.22)
-	vfx.smoke(from, 3, 0.5)
+	_muzzle(parent, from, colour, 0.5)
+	if parent.is_visible_in_tree():
+		vfx.smoke(from, 4, 0.55)
 	var side: Vector3 = (to - from).cross(Vector3.UP).normalized()
 	for i: int in 7:
-		var spread: Vector3 = side * (float(i) - 3.0) * 0.11 + Vector3(0, (float(i % 3) - 1.0) * 0.08, 0)
+		var spread: Vector3 = side * (float(i) - 3.0) * 0.12 + Vector3(0, (float(i % 3) - 1.0) * 0.09, 0)
 		var end: Vector3 = to + spread
-		var streak: MeshInstance3D = _bar(parent, from, from, 0.045, colour, 2.6)
+		var slug: MeshInstance3D = _ribbon(parent, _tex_slug(colour), from, from, 0.13)
+		var dir: Vector3 = (end - from).normalized()
 		var t := parent.create_tween()
 		t.tween_method(func(k: float) -> void:
 			var head: Vector3 = from.lerp(end, k)
-			_aim_bar(streak, from.lerp(end, maxf(0.0, k - 0.4)), head), 0.0, 1.0, travel + 0.02 * (i % 3))
+			_lay(slug, head - dir * 0.42, head), 0.0, 1.0, travel + 0.015 * (i % 3))
 		t.tween_callback(func() -> void:
+			slug.queue_free()
 			if parent.is_visible_in_tree():
-				vfx.sparks(end, colour, 2, 0.6)
-			streak.queue_free())
+				vfx.sparks(end, colour, 2, 0.6))
+	_speed_lines(parent, from, to, 0.02, 4)
+	_hit(parent, vfx, to, colour, travel, 0.0042, 0)
 	return travel
 
 
-## The Slag Mortar: a glowing shell lobbed high, dropping cartoon smoke all along its arc.
+## The Slag Mortar: the tube coughs a star and a cloud; an inked iron shell arcs high, a dotted line of
+## its path drawn behind it and smoke balls left in the air.
 static func _shell(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color) -> float:
 	var travel: float = 0.55
-	_flash(parent, from, colour, 0.25)
-	vfx.smoke(from, 3, 0.6)
-	var shell: MeshInstance3D = _ball(parent, from, 0.1, colour, 1.8)
+	_muzzle(parent, from, colour, 0.45)
+	if parent.is_visible_in_tree():
+		vfx.smoke(from, 4, 0.7)
+	var shell: Sprite3D = _sprite(parent, _tex_shell(colour), from, 0.38)
 	var arc_height: float = 1.4 + from.distance_to(to) * 0.25
+	var path := func(k: float) -> Vector3: return from.lerp(to, k) + Vector3(0, sin(k * PI) * arc_height, 0)
 	var t := parent.create_tween()
-	t.tween_method(func(k: float) -> void:
-		shell.position = from.lerp(to, k) + Vector3(0, sin(k * PI) * arc_height, 0), 0.0, 1.0, travel) \
+	t.tween_method(func(k: float) -> void: shell.position = path.call(k), 0.0, 1.0, travel) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	t.tween_callback(shell.queue_free)
-	for i: int in 5:
-		var k: float = 0.15 + 0.16 * i
+	for i: int in 9:
+		var k: float = 0.08 + 0.1 * i
+		var dot: Sprite3D = _sprite(parent, _tex_diamond(Ink.PAPER), path.call(k), 0.12)
+		_pop(parent, dot, travel * k, 0.35, 1.0)
+	for i: int in 4:
+		var k: float = 0.15 + 0.2 * i
 		_later(parent, travel * k, func() -> void:
 			if is_instance_valid(shell):
 				vfx.smoke(shell.position, 1, 0.35))
 	return travel
 
 
-## The Rail Driver: a thick beam with a white core, rings spiralling down it, a smoke line left hanging.
+## The Rail Driver: a fat inked beam -- a pale core in bands of colour, notched along its length -- with
+## rings corkscrewing down it; it holds a beat and snaps thin; smoke left hanging along the line.
 static func _rail(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color) -> float:
-	_flash(parent, from, colour, 0.35)
-	var glow: MeshInstance3D = _bar(parent, from, to, 0.16, colour, 0.9)
-	var core: MeshInstance3D = _bar(parent, from, to, 0.05, Color.WHITE, 3.0)
-	_fade(parent, glow, 0.35)
-	_fade(parent, core, 0.22)
+	var dir: Vector3 = (to - from).normalized()
+	_muzzle(parent, from, colour, 0.6)
+	var beam: MeshInstance3D = _ribbon(parent, _tex_beam(colour), from, to, 0.24, 0.5)
+	_thin(parent, beam, 0.14, 0.12)
 	var rings: int = maxi(5, int(from.distance_to(to) / 0.3))
 	for i: int in rings:
 		var at: Vector3 = from.lerp(to, float(i + 1) / (rings + 1))
-		var ring: MeshInstance3D = _ring(parent, at, to - from, 0.09, colour, 1.8)
+		var ring: MeshInstance3D = _disc(parent, _tex_ring(colour), at, dir, 0.36)
 		ring.rotate_object_local(Vector3.FORWARD, float(i) * 0.7)
-		_grow_fade(parent, ring, 2.2, 0.4, 0.02 * i)
+		_pop_disc(parent, ring, 0.015 * i, 0.12, 1.6)
+	_speed_lines(parent, from, to, 0.0, 4)
 	for i: int in 4:
-		vfx.smoke(from.lerp(to, 0.2 + 0.2 * i), 1, 0.4)
-	vfx.shake(0.5)
-	vfx.sparks(to, colour, 10, 1.4)
+		_later(parent, 0.1, func() -> void: vfx.smoke(from.lerp(to, 0.2 + 0.2 * i), 1, 0.4))
+	if parent.is_visible_in_tree():
+		vfx.shake(0.5)
+	_hit(parent, vfx, to, colour, 0.03, 0.0065, 10)
 	return 0.03
 
 
-## The Slag Flamer: a stream of fire balls rolling out of the nozzle and spreading over the wedge.
+## The Slag Flamer: a gout of drawn flame tongues rolling out of the nozzle, swelling as they go and
+## spreading over the wedge, embers flying, smoke left over it.
 static func _flame(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color, cells: Array) -> float:
-	var travel: float = 0.22
+	var travel: float = 0.24
 	var ends: Array = cells if not cells.is_empty() else [to]
-	for i: int in 12:
+	_muzzle(parent, from, colour, 0.3)
+	for i: int in 14:
 		var end: Vector3 = (ends[i % ends.size()] as Vector3) + Vector3(0, 0.25, 0)
-		var heat: Color = colour.lerp(Color("ffe38a"), 0.5) if i % 3 == 0 else colour
-		var puff: MeshInstance3D = _ball(parent, from, 0.07, heat, 1.6)
-		puff.visible = false
+		var lick: Sprite3D = _sprite(parent, _tex_flame(colour), from, 0.16)
+		lick.flip_h = i % 2 == 0
+		lick.visible = false
+		var wobble: float = randf_range(-0.12, 0.12)
 		var t := parent.create_tween()
-		t.tween_interval(0.025 * i)
-		t.tween_callback(func() -> void: puff.visible = true)
+		t.tween_interval(0.022 * i)
+		t.tween_callback(func() -> void: lick.visible = true)
 		t.tween_method(func(k: float) -> void:
-			puff.position = from.lerp(end, k) + Vector3(0, sin(k * PI) * 0.12, 0)
-			puff.scale = Vector3.ONE * (1.0 + 2.6 * k), 0.0, 1.0, travel)
-		t.tween_property(puff, "scale", Vector3.ZERO, 0.1)
-		t.tween_callback(puff.queue_free)
-	_later(parent, travel + 0.25, func() -> void: vfx.smoke(to, 3, 0.6))
+			lick.position = from.lerp(end, k) + Vector3(0, sin(k * PI) * (0.14 + wobble), 0)
+			lick.scale = Vector3.ONE * (1.0 + 3.2 * k), 0.0, 1.0, travel)
+		t.tween_interval(0.06)
+		t.tween_property(lick, "scale", Vector3.ZERO, 0.1).set_ease(Tween.EASE_IN)
+		t.tween_callback(lick.queue_free)
+	_later(parent, travel * 0.5, func() -> void: vfx.sparks(from.lerp(to, 0.5), colour, 6, 0.9))
+	_later(parent, travel + 0.2, func() -> void: vfx.smoke(to, 4, 0.7))
 	return travel
 
 
-## The Hook Harpoon: the hook flies out paying a chain behind it, bites, and the chain reels back in.
+## The Hook Harpoon: an inked barbed head flies out paying a chain of drawn links behind it, bites with a
+## star, hangs a beat, and the chain reels back in.
 static func _hook(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color) -> float:
 	var travel: float = 0.16
 	var dir: Vector3 = (to - from).normalized()
-	var head: MeshInstance3D = _bar(parent, from, from + dir * 0.18, 0.09, colour, 1.6)
-	var links: Array = []
-	var count: int = maxi(4, int(from.distance_to(to) / 0.13))
-	for i: int in count:
-		var at: Vector3 = from.lerp(to, float(i) / count)
-		var link: MeshInstance3D = _bar(parent, at, at + dir * 0.08, 0.035, colour.darkened(0.2), 1.2)
-		link.rotate_object_local(Vector3.FORWARD, PI * 0.5 * (i % 2))
-		link.visible = false
-		links.append(link)
+	_muzzle(parent, from, colour, 0.3)
+	var chain: MeshInstance3D = _ribbon(parent, _tex_chain(), from, from, 0.09, 0.18)
+	var head: MeshInstance3D = _ribbon(parent, _tex_hook(colour), from, from + dir * 0.3, 0.22)
 	var t := parent.create_tween()
 	t.tween_method(func(k: float) -> void:
 		var tip: Vector3 = from.lerp(to, k)
-		_aim_bar(head, tip - dir * 0.18, tip)
-		for i: int in links.size():
-			(links[i] as Node3D).visible = float(i) / links.size() <= k, 0.0, 1.0, travel)
-	t.tween_callback(func() -> void:
-		if parent.is_visible_in_tree():
-			vfx.sparks(to, colour, 5, 0.8))
-	t.tween_interval(0.18)
+		_lay(head, tip - dir * 0.3, tip)
+		_lay(chain, from, tip - dir * 0.24), 0.0, 1.0, travel)
+	t.tween_interval(0.2)
 	t.tween_method(func(k: float) -> void:
-		var tip: Vector3 = to.lerp(from, k)
-		_aim_bar(head, tip - dir * 0.18, tip)
-		for i: int in links.size():
-			(links[i] as Node3D).visible = float(i) / links.size() <= 1.0 - k, 0.0, 1.0, 0.24)
+		var tip: Vector3 = to.lerp(from + dir * 0.3, k)
+		_lay(head, tip - dir * 0.3, tip)
+		_lay(chain, from, tip - dir * 0.24), 0.0, 1.0, 0.24).set_ease(Tween.EASE_IN)
 	t.tween_callback(func() -> void:
 		head.queue_free()
-		for link: Variant in links:
-			(link as Node).queue_free())
+		chain.queue_free())
+	_hit(parent, vfx, to, colour, travel, 0.0045, 5)
 	return travel
 
 
-## The Aegis Caster: ripples roll out to the ally and a bubble swells round it.
-static func _aegis(parent: Node3D, from: Vector3, to: Vector3, colour: Color) -> float:
+## The Aegis Caster: drawn hexagon rings roll out to the ally, a hex-panelled bubble pops round it, holds,
+## and breaks into hex shards.
+static func _aegis(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color) -> float:
 	var travel: float = 0.26
+	var dir: Vector3 = (to - from).normalized()
 	for i: int in 4:
-		var ring: MeshInstance3D = _ring(parent, from, to - from, 0.12, colour, 1.6)
+		var ring: MeshInstance3D = _disc(parent, _tex_hex(colour), from, dir, 0.3)
 		ring.visible = false
 		var t := parent.create_tween()
 		t.tween_interval(0.06 * i)
 		t.tween_callback(func() -> void: ring.visible = true)
 		t.tween_method(func(k: float) -> void:
 			ring.position = from.lerp(to, k)
-			ring.scale = Vector3.ONE * (1.0 + 2.0 * k), 0.0, 1.0, travel - 0.06 * i)
+			ring.scale = Vector3.ONE * (1.0 + 1.8 * k), 0.0, 1.0, travel - 0.06 * i)
+		t.tween_property(ring, "scale", Vector3.ZERO, 0.06)
 		t.tween_callback(ring.queue_free)
-	var bubble: MeshInstance3D = _ball(parent, to, 0.55, colour, 0.5)
-	bubble.scale = Vector3.ZERO
-	var b := parent.create_tween()
-	b.tween_interval(travel)
-	b.tween_property(bubble, "scale", Vector3.ONE, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	b.tween_interval(0.2)
-	b.tween_property(bubble.material_override, "albedo_color:a", 0.0, 0.3)
-	b.tween_callback(bubble.queue_free)
+	var bubble: Sprite3D = _sprite(parent, _tex_bubble(colour), to, 1.25)
+	_pop(parent, bubble, travel, 0.32, 1.0)
+	for i: int in 6:
+		var shard: Sprite3D = _sprite(parent, _tex_hex(colour), to, 0.16)
+		shard.visible = false
+		var away: Vector3 = Vector3(cos(TAU * i / 6.0), 0.4 + 0.3 * (i % 2), sin(TAU * i / 6.0)) * 0.7
+		var s := parent.create_tween()
+		s.tween_interval(travel + 0.48)
+		s.tween_callback(func() -> void: shard.visible = true)
+		s.tween_property(shard, "position", to + away, 0.22).set_ease(Tween.EASE_OUT)
+		s.parallel().tween_property(shard, "scale", Vector3.ZERO, 0.22).set_ease(Tween.EASE_IN)
+		s.tween_callback(shard.queue_free)
 	return travel
 
 
-## The Arc Coilgun: a jagged lightning bolt, redrawn three times as it flickers.
+## The Arc Coilgun: a jagged inked lightning bolt with a forked branch, redrawn three times as it
+## flickers, a zap star at the end.
 static func _arc(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color) -> float:
-	_flash(parent, from, colour, 0.2)
+	_muzzle(parent, from, colour, 0.36)
 	var side: Vector3 = (to - from).cross(Vector3.UP).normalized()
 	for flick: int in 3:
+		var points: Array = [from]
+		var steps: int = 8
+		for i: int in steps - 1:
+			points.append(from.lerp(to, float(i + 1) / steps) + side * randf_range(-0.2, 0.2)
+				+ Vector3(0, randf_range(-0.16, 0.16), 0))
+		points.append(to)
 		var pieces: Array = []
-		var last: Vector3 = from
-		var steps: int = 7
-		for i: int in steps:
-			var k: float = float(i + 1) / steps
-			var next: Vector3 = from.lerp(to, k)
-			if i < steps - 1:
-				next += side * randf_range(-0.18, 0.18) + Vector3(0, randf_range(-0.14, 0.14), 0)
-			pieces.append(_bar(parent, last, next, 0.03 if flick > 0 else 0.045, colour, 3.0))
-			last = next
+		for i: int in points.size() - 1:
+			pieces.append(_ribbon(parent, _tex_beam(colour), points[i], points[i + 1], 0.11 if flick == 0 else 0.08))
+		# A fork off the middle that dies in the air.
+		var root_at: Vector3 = points[3]
+		var fork_end: Vector3 = root_at + (to - from).normalized() * 0.5 + side * (0.35 if flick % 2 == 0 else -0.35)
+		pieces.append(_ribbon(parent, _tex_beam(colour), root_at, fork_end, 0.06))
 		for piece: Variant in pieces:
 			var p: MeshInstance3D = piece
 			p.visible = false
 			var t := parent.create_tween()
 			t.tween_interval(0.06 * flick)
 			t.tween_callback(func() -> void: p.visible = true)
-			t.tween_interval(0.06)
+			t.tween_interval(0.055)
 			t.tween_callback(p.queue_free)
-	vfx.sparks(to, colour, 8, 1.2)
+	_hit(parent, vfx, to, colour, 0.02, 0.0055, 9)
 	return 0.02
 
 
-## The Sunspear: a golden beam that swells fat, burns a beat, and thins away; sparks along it.
+## The Sunspear: a sunburst at the barrel; a broad golden beam -- banded, notched, half-toned at its
+## edges -- swells, burns a beat with sparks running down it, and narrows away.
 static func _sun(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color) -> float:
-	_flash(parent, from, colour, 0.4)
-	var glow: MeshInstance3D = _bar(parent, from, to, 0.1, colour, 1.2)
-	var core: MeshInstance3D = _bar(parent, from, to, 0.06, colour.lerp(Color.WHITE, 0.6), 3.0)
-	# A bar's length is its z scale: only its thickness swells.
-	var length: float = glow.scale.z
-	glow.scale = Vector3(0.3, 0.3, length)
+	var burst: Sprite3D = _sprite(parent, _tex_sunburst(colour), from, 0.9)
+	_pop(parent, burst, 0.0, 0.3, 1.0)
+	var beam: MeshInstance3D = _ribbon(parent, _tex_beam(colour), from, to, 0.08, 0.6)
 	var t := parent.create_tween()
-	t.tween_property(glow, "scale", Vector3(3.5, 3.5, length), 0.08).set_ease(Tween.EASE_OUT)
-	t.tween_interval(0.28)
-	t.tween_property(glow, "scale", Vector3(0.1, 0.1, length), 0.18).set_ease(Tween.EASE_IN)
-	t.tween_callback(glow.queue_free)
-	var c := parent.create_tween()
-	c.tween_interval(0.36)
-	c.tween_property(core, "scale", Vector3(0.1, 0.1, length), 0.16)
-	c.tween_callback(core.queue_free)
-	for i: int in 5:
+	t.tween_method(func(w: float) -> void: _width(beam, w), 0.08, 0.42, 0.08).set_ease(Tween.EASE_OUT)
+	t.tween_method(func(w: float) -> void: _width(beam, w), 0.42, 0.34, 0.14)
+	t.tween_method(func(w: float) -> void: _width(beam, w), 0.34, 0.42, 0.14)
+	t.tween_method(func(w: float) -> void: _width(beam, w), 0.42, 0.0, 0.16).set_ease(Tween.EASE_IN)
+	t.tween_callback(beam.queue_free)
+	for i: int in 6:
 		_later(parent, 0.05 * i, func() -> void: vfx.sparks(from.lerp(to, randf_range(0.2, 1.0)), colour, 3, 0.7))
-	vfx.shake(0.4)
+	_speed_lines(parent, from, to, 0.0, 5)
+	if parent.is_visible_in_tree():
+		vfx.shake(0.4)
+	_hit(parent, vfx, to, colour, 0.05, 0.007, 8)
 	return 0.05
 
 
-## The Snare Launcher: a bola -- two weights on a cord -- spins out and wraps into a net round the target.
+## The Snare Launcher: a bola -- two inked iron weights on a cord -- whirls out and wraps into a drawn
+## net over the target.
 static func _bola(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color) -> float:
-	var travel: float = 0.24
-	var a: MeshInstance3D = _ball(parent, from, 0.08, colour, 1.8)
-	var b: MeshInstance3D = _ball(parent, from, 0.08, colour, 1.8)
-	var cord: MeshInstance3D = _bar(parent, from, from, 0.03, colour, 1.6)
+	var travel: float = 0.26
+	var a: Sprite3D = _sprite(parent, _tex_shell(colour), from, 0.22)
+	var b: Sprite3D = _sprite(parent, _tex_shell(colour), from, 0.22)
+	var cord: MeshInstance3D = _ribbon(parent, _tex_cord(colour), from, from, 0.09)
 	var side: Vector3 = (to - from).cross(Vector3.UP).normalized()
 	var t := parent.create_tween()
 	t.tween_method(func(k: float) -> void:
-		var centre: Vector3 = from.lerp(to, k) + Vector3(0, sin(k * PI) * 0.25, 0)
+		var centre: Vector3 = from.lerp(to, k) + Vector3(0, sin(k * PI) * 0.3, 0)
 		var spin: float = k * TAU * 3.0
 		var arm: Vector3 = (side * cos(spin) + Vector3.UP * sin(spin)) * 0.24
 		a.position = centre + arm
 		b.position = centre - arm
-		_aim_bar(cord, a.position, b.position), 0.0, 1.0, travel)
+		_lay(cord, a.position, b.position), 0.0, 1.0, travel)
 	t.tween_callback(func() -> void:
 		a.queue_free()
 		b.queue_free()
-		cord.queue_free()
-		_net(parent, to, colour)
-		if parent.is_visible_in_tree():
-			vfx.sparks(to, colour, 4, 0.6))
+		cord.queue_free())
+	var net: Sprite3D = _sprite(parent, _tex_net(colour), to, 0.95)
+	_pop(parent, net, travel, 0.55, 1.0)
+	_hit(parent, vfx, to, colour, travel, 0.0035, 3)
 	return travel
 
 
-## The Mine Layer: a short hop, the mine bounces once and blinks red where it sits.
+## The Mine Layer: an inked mine hops out along a dotted arc, bounces once, and its red eye blinks.
 static func _mine(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color) -> float:
 	var travel: float = 0.38
-	var mine: MeshInstance3D = _ball(parent, from, 0.11, colour, 1.6)
+	var mine: Sprite3D = _sprite(parent, _tex_mine(colour, false), from, 0.36)
+	var path := func(k: float) -> Vector3: return from.lerp(to, k) + Vector3(0, sin(k * PI) * 0.7, 0)
+	for i: int in 6:
+		var k: float = 0.1 + 0.15 * i
+		var dot: Sprite3D = _sprite(parent, _tex_diamond(Ink.PAPER), path.call(k), 0.11)
+		_pop(parent, dot, travel * 0.8 * k, 0.3, 1.0)
 	var t := parent.create_tween()
-	t.tween_method(func(k: float) -> void:
-		mine.position = from.lerp(to, k) + Vector3(0, sin(k * PI) * 0.7, 0), 0.0, 1.0, travel * 0.8)
+	t.tween_method(func(k: float) -> void: mine.position = path.call(k), 0.0, 1.0, travel * 0.8)
 	t.tween_callback(func() -> void:
 		if parent.is_visible_in_tree():
 			vfx.dust(to, 3, 0.5))
 	t.tween_property(mine, "position", to + Vector3(0, 0.15, 0), travel * 0.1).set_ease(Tween.EASE_OUT)
 	t.tween_property(mine, "position", to, travel * 0.1).set_ease(Tween.EASE_IN)
 	for blink: int in 3:
-		t.tween_callback(func() -> void: mine.scale = Vector3.ONE * 1.6)
-		t.tween_interval(0.07)
-		t.tween_callback(func() -> void: mine.scale = Vector3.ONE)
-		t.tween_interval(0.09)
+		t.tween_callback(func() -> void: mine.texture = _tex_mine(colour, true))
+		t.tween_interval(0.08)
+		t.tween_callback(func() -> void: mine.texture = _tex_mine(colour, false))
+		t.tween_interval(0.08)
+	t.tween_property(mine, "scale", Vector3.ZERO, 0.08)
 	t.tween_callback(mine.queue_free)
 	return travel
 
 
+# --- Shared beats --------------------------------------------------------------
+
+## The muzzle: a spiky drawn star in the shot's colour that pops and is gone.
+static func _muzzle(parent: Node3D, at: Vector3, colour: Color, size: float) -> void:
+	var star: Sprite3D = _sprite(parent, _tex_muzzle(colour), at, size)
+	star.flip_h = randf() < 0.5
+	_pop(parent, star, 0.0, 0.05, 1.0)
+
+
+## Where it lands: the game's impact star and drawn sparks, `delay` seconds from now.
+static func _hit(parent: Node3D, vfx: BattleVFX, at: Vector3, colour: Color, delay: float, star: float, sparks: int) -> void:
+	_later(parent, delay, func() -> void:
+		if star > 0.0:
+			vfx.star(at, star, 0.05)
+		if sparks > 0:
+			vfx.sparks(at, colour, sparks, 1.0))
+
+
+## Comic speed lines: short ink strokes beside the path, drawn the moment the shot passes.
+static func _speed_lines(parent: Node3D, from: Vector3, to: Vector3, delay: float, count: int) -> void:
+	var dir: Vector3 = (to - from).normalized()
+	var side: Vector3 = dir.cross(Vector3.UP).normalized()
+	for i: int in count:
+		var k: float = 0.15 + 0.7 * float(i) / maxf(1.0, float(count - 1))
+		var off: Vector3 = side * (0.16 if i % 2 == 0 else -0.16) + Vector3(0, 0.1 * float(i % 3 - 1), 0)
+		var start: Vector3 = from.lerp(to, k) + off
+		var stroke: MeshInstance3D = _ribbon(parent, _tex_speed(), start, start + dir * 0.6, 0.12)
+		stroke.visible = false
+		var t := parent.create_tween()
+		t.tween_interval(delay + 0.02 * i)
+		t.tween_callback(func() -> void: stroke.visible = true)
+		t.tween_interval(0.12)
+		t.tween_method(func(w: float) -> void: _width(stroke, w), 0.12, 0.0, 0.08)
+		t.tween_callback(stroke.queue_free)
+
+
 # --- Pieces --------------------------------------------------------------------
 
-## A net thrown over `at`: a ring and four crossing cords, flattened onto the target, then gone.
-static func _net(parent: Node3D, at: Vector3, colour: Color) -> void:
-	var ring: MeshInstance3D = _ring(parent, at, Vector3.UP, 0.32, colour, 1.4)
-	var cords: Array = [ring]
-	for i: int in 4:
-		var angle: float = PI * 0.25 * i
-		var d := Vector3(cos(angle), 0, sin(angle)) * 0.32
-		cords.append(_bar(parent, at - d, at + d, 0.015, colour, 1.4))
-	for piece: Variant in cords:
-		var p: MeshInstance3D = piece
-		var size: Vector3 = p.scale
-		p.scale = size * 1.6
-		var t := parent.create_tween()
-		t.tween_property(p, "scale", size, 0.1).set_ease(Tween.EASE_OUT)
-		t.tween_interval(0.5)
-		t.tween_property(p, "scale", size * 0.01, 0.15)
-		t.tween_callback(p.queue_free)
+## A sprite (the drawn-effect look of `BattleVFX._sprite`), `size` metres across.
+static func _sprite(parent: Node3D, tex: Texture2D, at: Vector3, size: float) -> Sprite3D:
+	var s := Sprite3D.new()
+	s.texture = tex
+	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	s.shaded = false
+	s.no_depth_test = true
+	s.render_priority = 2
+	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	s.pixel_size = size / float(tex.get_width())
+	s.position = at
+	parent.add_child(s)
+	return s
 
 
-## A pop of light at the barrel.
-static func _flash(parent: Node3D, at: Vector3, colour: Color, size: float) -> void:
-	var flash: MeshInstance3D = _ball(parent, at, size, colour.lerp(Color.WHITE, 0.5), 2.4)
-	var t := parent.create_tween()
-	t.tween_property(flash, "scale", Vector3.ONE * 1.8, 0.08)
-	t.parallel().tween_property(flash.material_override, "albedo_color:a", 0.0, 0.08)
-	t.tween_callback(flash.queue_free)
+## A ribbon from `from` to `to`, `width` wide, turned to the camera about its own line. `tile` repeats the
+## texture every so many metres along it (a beam, a chain); 0 stretches it once (a dart, a tail).
+static func _ribbon(parent: Node3D, tex: Texture2D, from: Vector3, to: Vector3, width: float, tile: float = 0.0) -> MeshInstance3D:
+	var ribbon := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1, 1)
+	ribbon.mesh = quad
+	ribbon.material_override = _flat(tex, tile > 0.0)
+	ribbon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ribbon.set_meta("width", width)
+	ribbon.set_meta("tile", tile)
+	parent.add_child(ribbon)
+	_lay(ribbon, from, to)
+	return ribbon
 
 
-## An additive, unshaded box from `from` to `to`, `width` thick.
-static func _bar(parent: Node3D, from: Vector3, to: Vector3, width: float, colour: Color, energy: float) -> MeshInstance3D:
-	var bar := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(width, width, 1.0)
-	bar.mesh = box
-	bar.material_override = _glow(colour, energy)
-	bar.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(bar)
-	_aim_bar(bar, from, to)
-	return bar
-
-
-## Stretches a unit-long bar from `from` to `to` (keeping its thickness scale).
-static func _aim_bar(bar: MeshInstance3D, from: Vector3, to: Vector3) -> void:
-	if not is_instance_valid(bar):
+## Lays a ribbon from `from` to `to` (parent space), facing the camera as well as its line allows.
+static func _lay(ribbon: MeshInstance3D, from: Vector3, to: Vector3) -> void:
+	if not is_instance_valid(ribbon):
 		return
-	var length: float = from.distance_to(to)
-	var thick: Vector2 = Vector2(bar.scale.x, bar.scale.y)
-	if length < 0.001:
-		bar.visible = false
+	ribbon.set_meta("from", from)
+	ribbon.set_meta("to", to)
+	var axis: Vector3 = to - from
+	var length: float = axis.length()
+	var width: float = float(ribbon.get_meta("width", 0.1))
+	if length < 0.001 or width <= 0.0001:
+		ribbon.visible = false
 		return
-	var up: Vector3 = Vector3.UP if absf((to - from).normalized().dot(Vector3.UP)) < 0.99 else Vector3.RIGHT
-	# Shown again once it has a length (a bar born at its muzzle is hidden until it grows).
-	bar.visible = true
-	bar.look_at_from_position((from + to) * 0.5, to, up)
-	bar.scale = Vector3(thick.x, thick.y, length)
+	ribbon.visible = true
+	var dir: Vector3 = axis / length
+	var middle: Vector3 = (from + to) * 0.5
+	var view: Vector3 = Vector3.UP
+	var camera: Camera3D = ribbon.get_viewport().get_camera_3d() if ribbon.is_inside_tree() else null
+	if camera != null:
+		var parent: Node3D = ribbon.get_parent() as Node3D
+		var eye: Vector3 = parent.to_local(camera.global_position) if parent != null else camera.global_position
+		view = (eye - middle).normalized()
+	var side: Vector3 = dir.cross(view)
+	if side.length() < 0.001:
+		side = dir.cross(Vector3.UP if absf(dir.y) < 0.9 else Vector3.RIGHT)
+	side = side.normalized()
+	var normal: Vector3 = dir.cross(side).normalized()
+	ribbon.transform = Transform3D(Basis(dir * length, side * width, normal), middle)
+	var tile: float = float(ribbon.get_meta("tile", 0.0))
+	if tile > 0.0:
+		(ribbon.material_override as StandardMaterial3D).uv1_scale = Vector3(length / tile, 1, 1)
 
 
-static func _ball(parent: Node3D, at: Vector3, radius: float, colour: Color, energy: float) -> MeshInstance3D:
-	var ball := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = radius
-	sphere.height = radius * 2.0
-	sphere.radial_segments = 10
-	sphere.rings = 5
-	ball.mesh = sphere
-	ball.material_override = _glow(colour, energy)
-	ball.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	ball.position = at
-	parent.add_child(ball)
-	return ball
+## A ribbon's width, keeping where it lies.
+static func _width(ribbon: MeshInstance3D, width: float) -> void:
+	if not is_instance_valid(ribbon):
+		return
+	ribbon.set_meta("width", width)
+	_lay(ribbon, ribbon.get_meta("from", Vector3.ZERO), ribbon.get_meta("to", Vector3.ZERO))
 
 
-## A thin ring at `at` facing along `normal`.
-static func _ring(parent: Node3D, at: Vector3, normal: Vector3, radius: float, colour: Color, energy: float) -> MeshInstance3D:
-	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = radius * 0.82
-	torus.outer_radius = radius
-	torus.rings = 16
-	torus.ring_segments = 4
-	ring.mesh = torus
-	ring.material_override = _glow(colour, energy)
-	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(ring)
-	ring.position = at
-	var n: Vector3 = normal.normalized() if normal.length() > 0.001 else Vector3.UP
-	# A torus lies in its XZ plane: turn its Y onto the normal.
-	var axis: Vector3 = Vector3.UP.cross(n)
-	if axis.length() > 0.001:
-		ring.basis = Basis(axis.normalized(), Vector3.UP.angle_to(n))
-	return ring
-
-
-## Additive and over-bright, not emissive (play-test 7: the emissive transparent material recompiled
-## on every shot). One held variant serves every glow; each piece gets its own copy to fade.
-static func _glow(colour: Color, energy: float) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	material.albedo_color = Color(colour.r * energy, colour.g * energy, colour.b * energy, 1.0)
-	material.disable_receive_shadows = true
-	return Ink.hold(material) as StandardMaterial3D
-
-
-static func _fade(parent: Node3D, node: MeshInstance3D, time: float, delay: float = 0.0) -> void:
+## A beam holds `hold` seconds, then snaps thin in stepped bites (drawn things do not fade).
+static func _thin(parent: Node3D, ribbon: MeshInstance3D, hold: float, time: float) -> void:
+	var w: float = float(ribbon.get_meta("width", 0.1))
 	var t := parent.create_tween()
-	if delay > 0.0:
-		t.tween_interval(delay)
-	t.tween_property(node.material_override, "albedo_color:a", 0.0, time)
-	t.tween_callback(node.queue_free)
+	t.tween_interval(hold)
+	for i: int in 3:
+		var step: float = w * (0.6 - 0.25 * i)
+		t.tween_callback(func() -> void: _width(ribbon, step))
+		t.tween_interval(time / 3.0)
+	t.tween_callback(ribbon.queue_free)
 
 
-static func _grow_fade(parent: Node3D, node: MeshInstance3D, grow: float, time: float, delay: float = 0.0) -> void:
+## A flat drawn disc at `at` facing along `normal` (a ring the shot passes through).
+static func _disc(parent: Node3D, tex: Texture2D, at: Vector3, normal: Vector3, size: float) -> MeshInstance3D:
+	var disc := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(size, size)
+	disc.mesh = quad
+	disc.material_override = _flat(tex, false)
+	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(disc)
+	disc.position = at
+	var n: Vector3 = normal.normalized() if normal.length() > 0.001 else Vector3.FORWARD
+	var up: Vector3 = Vector3.UP if absf(n.y) < 0.95 else Vector3.RIGHT
+	disc.basis = Basis.looking_at(-n, up)
+	return disc
+
+
+## Pops a sprite in after `delay`, holds it `hold` seconds, shrinks it away.
+static func _pop(parent: Node3D, node: Node3D, delay: float, hold: float, size: float) -> void:
 	node.visible = delay <= 0.0
+	node.scale = Vector3.ONE * size * 0.3
 	var t := parent.create_tween()
 	if delay > 0.0:
 		t.tween_interval(delay)
 		t.tween_callback(func() -> void: node.visible = true)
-	t.tween_property(node, "scale", node.scale * grow, time).set_ease(Tween.EASE_OUT)
-	t.parallel().tween_property(node.material_override, "albedo_color:a", 0.0, time)
+	t.tween_property(node, "scale", Vector3.ONE * size * 1.15, 0.05).set_ease(Tween.EASE_OUT)
+	t.tween_property(node, "scale", Vector3.ONE * size, 0.04)
+	t.tween_interval(hold)
+	t.tween_property(node, "scale", Vector3.ZERO, 0.08).set_ease(Tween.EASE_IN)
 	t.tween_callback(node.queue_free)
+
+
+## A ring: popped in after `delay`, grown to `grow`, then gone.
+static func _pop_disc(parent: Node3D, disc: MeshInstance3D, delay: float, time: float, grow: float) -> void:
+	disc.visible = delay <= 0.0
+	disc.scale = Vector3.ONE * 0.4
+	var t := parent.create_tween()
+	if delay > 0.0:
+		t.tween_interval(delay)
+		t.tween_callback(func() -> void: disc.visible = true)
+	t.tween_property(disc, "scale", Vector3.ONE * grow, time).set_ease(Tween.EASE_OUT)
+	t.tween_property(disc, "scale", Vector3.ZERO, 0.06)
+	t.tween_callback(disc.queue_free)
+
+
+## A drawn surface: unshaded, cut out by its alpha, both sides. One held variant per tiling; each piece
+## its own copy (a ribbon's tiling is set per length).
+static func _flat(tex: Texture2D, tiled: bool) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.albedo_texture = tex
+	m.texture_repeat = tiled
+	m.disable_receive_shadows = true
+	m.render_priority = 1
+	return Ink.hold(m) as StandardMaterial3D
 
 
 ## `what` after `delay`, unless the trail has been hidden by then (the warm-up's, behind the card).
@@ -495,3 +589,455 @@ static func _later(parent: Node3D, delay: float, what: Callable, always: bool = 
 	t.tween_callback(func() -> void:
 		if always or parent.is_visible_in_tree():
 			what.call())
+
+
+# --- Drawings ------------------------------------------------------------------
+# Painted once per colour. The vocabulary of `BattleVFX`'s drawings: INK edges, flat bands, a darker
+# band of the colour with half-tone dots in the shade, PAPER where it is hottest.
+
+static func _shade(c: Color) -> Color:
+	return c.darkened(0.42)
+
+
+static func _hot(c: Color) -> Color:
+	return c.lerp(Ink.PAPER_CARD, 0.6)
+
+
+## True on a half-tone dot: a grid of `period` px, dots of `amount` (0..1) of the cell.
+static func _dot(x: float, y: float, period: float, amount: float) -> bool:
+	var cell := Vector2(fposmod(x, period) - period * 0.5, fposmod(y, period) - period * 0.5)
+	return cell.length() < amount * period * 0.5
+
+
+## A beam, tiling along x: ink edges, the colour with dotted shade at its rim, a hot core, and ink
+## notches every half tile so it reads as moving.
+static func _tex_beam(c: Color) -> ImageTexture:
+	return Ink.texture("shot_beam_" + c.to_html(), Vector2i(128, 48), func(image: Image) -> void:
+		for y: int in 48:
+			for x: int in 128:
+				var d: float = absf(float(y) - 23.5)
+				var col := Color(0, 0, 0, 0)
+				if d < 23.5:
+					col = Ink.INK
+				if d < 19.0:
+					col = c
+					if d > 13.0 and _dot(x, y, 6.0, 0.7):
+						col = _shade(c)
+					if d < 8.0:
+						col = _hot(c)
+					if d < 3.5:
+						col = Color.WHITE
+				if d > 13.0 and d < 19.0 and x % 64 < 5:
+					col = Ink.INK
+				image.set_pixel(x, y, col))
+
+
+## A spiky muzzle star: ten uneven spikes, ink edge, the colour, a hot heart.
+static func _tex_muzzle(c: Color) -> ImageTexture:
+	return Ink.texture("shot_muzzle_" + c.to_html(), Vector2i(128, 128), func(image: Image) -> void:
+		var centre := Vector2(64, 64)
+		for y: int in 128:
+			for x: int in 128:
+				var d: Vector2 = Vector2(x, y) - centre
+				var turn: float = d.angle() / TAU * 10.0 + 10.0
+				var spike: float = absf(fposmod(turn, 1.0) - 0.5) * 2.0
+				var reach: float = lerpf(62.0 if int(floor(turn)) % 2 == 0 else 46.0, 26.0, spike)
+				var r: float = d.length()
+				var col := Color(0, 0, 0, 0)
+				if r < reach:
+					col = Ink.INK
+				if r < reach - 6.0:
+					col = c
+				if r < (reach - 6.0) * 0.55:
+					col = _hot(c)
+				if r < 12.0:
+					col = Color.WHITE
+				image.set_pixel(x, y, col))
+
+
+## A ball: ink edge, the colour, a dotted shadow side, a paper highlight.
+static func _tex_ball(c: Color) -> ImageTexture:
+	return Ink.texture("shot_ball_" + c.to_html(), Vector2i(64, 64), func(image: Image) -> void:
+		var centre := Vector2(32, 32)
+		for y: int in 64:
+			for x: int in 64:
+				var p := Vector2(x, y)
+				var r: float = p.distance_to(centre)
+				var col := Color(0, 0, 0, 0)
+				if r < 30.0:
+					col = Ink.INK
+				if r < 25.0:
+					col = c
+					if p.distance_to(centre + Vector2(-8, -8)) > 24.0 and _dot(x, y, 5.0, 0.75):
+						col = _shade(c)
+					if p.distance_to(centre + Vector2(-9, -9)) < 7.0:
+						col = Color.WHITE
+				image.set_pixel(x, y, col))
+
+
+## A comet tail: thin at the back (left), full at the head (right); ink edge, colour, a hot core line.
+static func _tex_tail(c: Color) -> ImageTexture:
+	return Ink.texture("shot_tail_" + c.to_html(), Vector2i(128, 32), func(image: Image) -> void:
+		for y: int in 32:
+			for x: int in 128:
+				var half: float = 15.0 * pow(float(x) / 127.0, 0.8)
+				var d: float = absf(float(y) - 15.5)
+				var col := Color(0, 0, 0, 0)
+				if d < half:
+					col = Ink.INK
+				if d < half - 3.5:
+					col = c
+					if d < (half - 3.5) * 0.4:
+						col = _hot(c)
+				image.set_pixel(x, y, col))
+
+
+## A dart: a long needle, pointed at the head (right), fletch notches at the tail.
+static func _tex_dart(c: Color) -> ImageTexture:
+	return Ink.texture("shot_dart_" + c.to_html(), Vector2i(128, 32), func(image: Image) -> void:
+		for y: int in 32:
+			for x: int in 128:
+				var u: float = float(x) / 127.0
+				var half: float = 9.0 if u < 0.8 else 9.0 * (1.0 - (u - 0.8) / 0.2)
+				if u < 0.15:
+					half = 13.0 if x % 6 < 3 else 9.0
+				var d: float = absf(float(y) - 15.5)
+				var col := Color(0, 0, 0, 0)
+				if d < half + 1.0:
+					col = Ink.INK
+				if d < half - 2.5:
+					col = _hot(c)
+					if d < 2.0:
+						col = Color.WHITE
+				image.set_pixel(x, y, col))
+
+
+## A pellet slug: a short rounded slug at the head (right), a tapering streak behind.
+static func _tex_slug(c: Color) -> ImageTexture:
+	return Ink.texture("shot_slug_" + c.to_html(), Vector2i(96, 24), func(image: Image) -> void:
+		for y: int in 24:
+			for x: int in 96:
+				var d: float = absf(float(y) - 11.5)
+				var half: float = 10.0 * minf(1.0, float(x) / 70.0)
+				if x > 84:
+					half = sqrt(maxf(0.0, 100.0 - pow(float(x) - 84.0, 2.0) * 0.8))
+				var col := Color(0, 0, 0, 0)
+				if d < half:
+					col = Ink.INK
+				if d < half - 3.0:
+					col = c if x < 74 else _hot(c)
+				image.set_pixel(x, y, col))
+
+
+## A ring: a band of the colour between two ink lines, notched in four places.
+static func _tex_ring(c: Color) -> ImageTexture:
+	return Ink.texture("shot_ring_" + c.to_html(), Vector2i(96, 96), func(image: Image) -> void:
+		var centre := Vector2(48, 48)
+		for y: int in 96:
+			for x: int in 96:
+				var d: Vector2 = Vector2(x, y) - centre
+				var r: float = d.length()
+				var col := Color(0, 0, 0, 0)
+				if r < 46.0 and r > 30.0:
+					col = Ink.INK
+				if r < 42.0 and r > 34.0:
+					col = c
+					if fposmod(d.angle() / TAU * 4.0, 1.0) < 0.06:
+						col = Ink.INK
+				image.set_pixel(x, y, col))
+
+
+## A hexagon ring (the Aegis): a hex band of the colour between ink lines, a hot inner edge.
+static func _tex_hex(c: Color) -> ImageTexture:
+	return Ink.texture("shot_hex_" + c.to_html(), Vector2i(96, 96), func(image: Image) -> void:
+		for y: int in 96:
+			for x: int in 96:
+				var q := Vector2(absf(float(x) - 47.5), absf(float(y) - 47.5))
+				var h: float = maxf(q.x * 0.866 + q.y * 0.5, q.y)
+				var col := Color(0, 0, 0, 0)
+				if h < 44.0 and h > 28.0:
+					col = Ink.INK
+				if h < 40.0 and h > 32.0:
+					col = c if h > 34.0 else _hot(c)
+				image.set_pixel(x, y, col))
+
+
+## The Aegis bubble: an ink rim, a band of the colour, a hex mesh inside in thin lines, a paper glint at
+## the top left; the rest open.
+static func _tex_bubble(c: Color) -> ImageTexture:
+	return Ink.texture("shot_bubble_" + c.to_html(), Vector2i(192, 192), func(image: Image) -> void:
+		var centre := Vector2(96, 96)
+		for y: int in 192:
+			for x: int in 192:
+				var p := Vector2(x, y)
+				var r: float = p.distance_to(centre)
+				var col := Color(0, 0, 0, 0)
+				if r < 94.0:
+					var on: bool = false
+					for k: int in 3:
+						var a: float = PI / 3.0 * k
+						var s: float = (p - centre).dot(Vector2(cos(a), sin(a)))
+						if absf(fposmod(s, 28.0) - 14.0) > 12.6:
+							on = true
+					if on:
+						col = c if r < 70.0 else _shade(c)
+				if r < 94.0 and r > 82.0:
+					col = c
+					if r > 88.0 and _dot(x, y, 6.0, 0.8):
+						col = _shade(c)
+				if r < 94.0 and (r > 91.0 or (r > 79.0 and r < 82.0)):
+					col = Ink.INK
+				if p.distance_to(centre + Vector2(-44, -48)) < 12.0 and r < 82.0:
+					col = Color.WHITE
+				image.set_pixel(x, y, col))
+
+
+## A diamond: a small dot of a sight line or a dotted path, ink-edged.
+static func _tex_diamond(c: Color) -> ImageTexture:
+	return Ink.texture("shot_diamond_" + c.to_html(), Vector2i(32, 32), func(image: Image) -> void:
+		for y: int in 32:
+			for x: int in 32:
+				var m: float = absf(float(x) - 15.5) + absf(float(y) - 15.5)
+				var col := Color(0, 0, 0, 0)
+				if m < 15.0:
+					col = Ink.INK
+				if m < 10.0:
+					col = c
+				if m < 4.0:
+					col = _hot(c)
+				image.set_pixel(x, y, col))
+
+
+## A dashed sight line, tiling along x.
+static func _tex_dash(c: Color) -> ImageTexture:
+	return Ink.texture("shot_dash_" + c.to_html(), Vector2i(64, 16), func(image: Image) -> void:
+		for y: int in 16:
+			for x: int in 64:
+				var d: float = absf(float(y) - 7.5)
+				var col := Color(0, 0, 0, 0)
+				if x < 40:
+					if d < 7.0:
+						col = Ink.INK
+					if d < 3.5 and x > 3 and x < 37:
+						col = c
+				image.set_pixel(x, y, col))
+
+
+## The reticle: a ring in the colour between ink lines, four ticks pointing in, a gap at the middle.
+static func _tex_reticle(c: Color) -> ImageTexture:
+	return Ink.texture("shot_reticle_" + c.to_html(), Vector2i(128, 128), func(image: Image) -> void:
+		var centre := Vector2(64, 64)
+		for y: int in 128:
+			for x: int in 128:
+				var d: Vector2 = Vector2(x, y) - centre
+				var r: float = d.length()
+				var col := Color(0, 0, 0, 0)
+				var ring: bool = r > 44.0 and r < 60.0
+				var tick: bool = r > 24.0 and r < 50.0 and (absf(d.x) < 5.0 or absf(d.y) < 5.0)
+				if ring or tick:
+					col = Ink.INK
+				if (r > 48.0 and r < 56.0) or (r > 27.0 and r < 47.0 and (absf(d.x) < 2.0 or absf(d.y) < 2.0)):
+					col = c
+				image.set_pixel(x, y, col))
+
+
+## A flame tongue: a lumpy teardrop pointing up, bands from dark red at the edge to a paper heart,
+## half-tone in the outer band, ink edge.
+static func _tex_flame(c: Color) -> ImageTexture:
+	return Ink.texture("shot_flame_" + c.to_html(), Vector2i(96, 96), func(image: Image) -> void:
+		var lobes: Array = [[Vector2(48, 60), 30.0], [Vector2(34, 62), 18.0], [Vector2(62, 58), 20.0],
+			[Vector2(46, 38), 20.0], [Vector2(52, 22), 12.0], [Vector2(44, 12), 7.0]]
+		for y: int in 96:
+			for x: int in 96:
+				var p := Vector2(x, y)
+				var f: float = -INF
+				for lobe: Array in lobes:
+					f = maxf(f, float(lobe[1]) - p.distance_to(lobe[0]))
+				var col := Color(0, 0, 0, 0)
+				if f >= 0.0:
+					col = Ink.INK
+				if f > 5.0:
+					col = Color("c23b1e")
+					if _dot(x, y, 6.0, 0.7):
+						col = Color("8f2414")
+				if f > 10.0:
+					col = c
+				if f > 17.0:
+					col = Ink.ACTION
+				if f > 23.0:
+					col = Ink.PAPER_CARD
+				image.set_pixel(x, y, col))
+
+
+## An iron shell (or a bola weight): steel with an ink edge, a band of the colour round it, a dotted
+## shadow side and a glint.
+static func _tex_shell(c: Color) -> ImageTexture:
+	return Ink.texture("shot_shell_" + c.to_html(), Vector2i(64, 64), func(image: Image) -> void:
+		var centre := Vector2(32, 32)
+		for y: int in 64:
+			for x: int in 64:
+				var p := Vector2(x, y)
+				var r: float = p.distance_to(centre)
+				var col := Color(0, 0, 0, 0)
+				if r < 30.0:
+					col = Ink.INK
+				if r < 25.0:
+					col = Ink.STEEL
+					if p.distance_to(centre + Vector2(-8, -8)) > 24.0 and _dot(x, y, 5.0, 0.8):
+						col = Color("4a5257")
+					var band: float = absf(float(y) - 34.0)
+					if band < 4.0:
+						col = c
+					elif band < 6.0:
+						col = Ink.INK
+					if p.distance_to(centre + Vector2(-9, -11)) < 5.0:
+						col = Color.WHITE
+				image.set_pixel(x, y, col))
+
+
+## The harpoon head: a steel arrowhead pointing right with two swept barbs, a band of the colour on its
+## socket, ink edge.
+static func _tex_hook(c: Color) -> ImageTexture:
+	return Ink.texture("shot_hook_" + c.to_html(), Vector2i(96, 48), func(image: Image) -> void:
+		var head := PackedVector2Array([Vector2(94, 24), Vector2(52, 6), Vector2(60, 20), Vector2(4, 20),
+			Vector2(4, 28), Vector2(60, 28), Vector2(52, 42)])
+		var inner := PackedVector2Array([Vector2(86, 24), Vector2(58, 12), Vector2(64, 22), Vector2(8, 22.5),
+			Vector2(8, 25.5), Vector2(64, 26), Vector2(58, 36)])
+		for y: int in 48:
+			for x: int in 96:
+				var p := Vector2(x, y)
+				var col := Color(0, 0, 0, 0)
+				if Geometry2D.is_point_in_polygon(p, head):
+					col = Ink.INK
+				if Geometry2D.is_point_in_polygon(p, inner):
+					col = Ink.STEEL if p.y < 24.0 else Color("5d676c")
+					if x > 14 and x < 30:
+						col = c
+				image.set_pixel(x, y, col))
+
+
+## A chain, tiling along x: an oval link side-on, then one edge-on.
+static func _tex_chain() -> ImageTexture:
+	return Ink.texture("shot_chain", Vector2i(64, 24), func(image: Image) -> void:
+		for y: int in 24:
+			for x: int in 64:
+				var col := Color(0, 0, 0, 0)
+				var q := Vector2((float(x) - 18.0) / 17.0, (float(y) - 11.5) / 10.5)
+				var r: float = q.length()
+				if r < 1.0 and r > 0.45:
+					col = Ink.INK
+					if r < 0.85 and r > 0.6:
+						col = Ink.STEEL
+				if x >= 36 and x < 62 and absf(float(y) - 11.5) < 5.0:
+					col = Ink.INK
+					if absf(float(y) - 11.5) < 2.0 and x > 38 and x < 60:
+						col = Color("aeb8bb")
+				image.set_pixel(x, y, col))
+
+
+## A cord: a twisted rope line, ink-edged.
+static func _tex_cord(c: Color) -> ImageTexture:
+	return Ink.texture("shot_cord_" + c.to_html(), Vector2i(64, 16), func(image: Image) -> void:
+		for y: int in 16:
+			for x: int in 64:
+				var d: float = absf(float(y) - 7.5)
+				var col := Color(0, 0, 0, 0)
+				if d < 7.0:
+					col = Ink.INK
+				if d < 4.0:
+					col = c if (x + y) % 8 < 5 else _shade(c)
+				image.set_pixel(x, y, col))
+
+
+## A net: a round mesh of cords in the colour, knotted, an ink rim.
+static func _tex_net(c: Color) -> ImageTexture:
+	return Ink.texture("shot_net_" + c.to_html(), Vector2i(160, 160), func(image: Image) -> void:
+		var centre := Vector2(80, 80)
+		for y: int in 160:
+			for x: int in 160:
+				var p := Vector2(x, y)
+				var r: float = p.distance_to(centre)
+				var col := Color(0, 0, 0, 0)
+				if r < 76.0:
+					var u: float = fposmod(float(x + y), 22.0)
+					var v: float = fposmod(float(x - y) + 160.0, 22.0)
+					var near_u: bool = u < 4.0
+					var near_v: bool = v < 4.0
+					if near_u or near_v:
+						col = Ink.INK
+					if (u > 0.8 and u < 3.2) or (v > 0.8 and v < 3.2):
+						col = c
+					if near_u and near_v:
+						col = Ink.INK
+				if r < 78.0 and r > 70.0:
+					col = Ink.INK
+					if r > 72.5 and r < 75.5:
+						col = c
+				image.set_pixel(x, y, col))
+
+
+## A mine: a dark dome with an ink edge and an eye, lit or not.
+static func _tex_mine(c: Color, lit: bool) -> ImageTexture:
+	return Ink.texture("shot_mine_%s_%s" % [c.to_html(), "lit" if lit else "off"], Vector2i(64, 64), func(image: Image) -> void:
+		var centre := Vector2(32, 40)
+		for y: int in 64:
+			for x: int in 64:
+				var p := Vector2(x, y)
+				var col := Color(0, 0, 0, 0)
+				var q := Vector2(p.x - centre.x, (p.y - centre.y) * 1.3)
+				var r: float = q.length()
+				if r < 29.0 and p.y < 52.0:
+					col = Ink.INK
+				if r < 24.0 and p.y < 48.0:
+					col = Color("3c3a37")
+					if p.y < 34.0 and _dot(x, y, 5.0, 0.6):
+						col = Color("5a5651")
+				var eye: float = p.distance_to(Vector2(32, 32))
+				if eye < 9.0:
+					col = Ink.INK
+				if eye < 6.0:
+					col = c if lit else _shade(c)
+				if lit and eye < 2.5:
+					col = Color.WHITE
+				image.set_pixel(x, y, col))
+
+
+## A sunburst: long ink rays round a golden disc with a paper heart.
+static func _tex_sunburst(c: Color) -> ImageTexture:
+	return Ink.texture("shot_sun_" + c.to_html(), Vector2i(160, 160), func(image: Image) -> void:
+		var centre := Vector2(80, 80)
+		for y: int in 160:
+			for x: int in 160:
+				var d: Vector2 = Vector2(x, y) - centre
+				var r: float = d.length()
+				var col := Color(0, 0, 0, 0)
+				var turn: float = d.angle() / TAU * 14.0 + 14.0
+				var n: float = fposmod(turn, 1.0)
+				var reach: float = 78.0 if int(floor(turn)) % 2 == 0 else 60.0
+				if r < reach and absf(n - 0.5) < 0.18 * (1.0 - r / reach) + 0.02:
+					col = Ink.INK
+				if r < 34.0:
+					col = Ink.INK
+				if r < 29.0:
+					col = c
+					if r > 22.0 and _dot(x, y, 5.0, 0.7):
+						col = _shade(c)
+				if r < 15.0:
+					col = Ink.PAPER_CARD
+				image.set_pixel(x, y, col))
+
+
+## Speed lines: three ink strokes, sharp at the back (left), thick at the front.
+static func _tex_speed() -> ImageTexture:
+	return Ink.texture("shot_speed", Vector2i(128, 32), func(image: Image) -> void:
+		for y: int in 32:
+			for x: int in 128:
+				var col := Color(0, 0, 0, 0)
+				for line: Array in [[6.0, 0.0], [16.0, 30.0], [26.0, 12.0]]:
+					var start: float = float(line[1])
+					if float(x) < start:
+						continue
+					var half: float = 2.6 * (float(x) - start) / (128.0 - start)
+					if absf(float(y) - float(line[0])) < half:
+						col = Ink.INK
+				image.set_pixel(x, y, col))
