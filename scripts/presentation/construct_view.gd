@@ -26,6 +26,13 @@ const ARM_PUSH_MAX: float = 0.22
 ## of its modelled size, so the frame -- not the gun -- is the machine's outline.
 const ARM_SCALE: float = 0.8
 static var _arm_push: Dictionary = {}
+## 074: a generated arm drawn in to its shoulder (`_snug_arms`): the height band around the socket
+## its silhouette is read in, the share of that band's vertices allowed further in than the edge
+## (strays: bolts, rims), how far the edge sits inside the socket, and the most it is moved.
+const ARM_SNUG_BAND: float = 0.05
+const ARM_SNUG_EDGE: float = 0.12
+const ARM_SNUG_OVERLAP: float = 0.012
+const ARM_SNUG_MAX: float = 0.08
 
 const SOCKETS: Dictionary = {
 	"core": "socket_core",
@@ -136,6 +143,7 @@ static func _seat_arms(root: Node3D, chassis: Node3D, chassis_id: String) -> voi
 	# 053: a generated frame's arm sockets are placed by hand on its own shoulders; pushing its
 	# arms out of the body's box left them hanging in the air.
 	if Models.part_path(chassis_id).contains("/parts_gen"):
+		_snug_arms(root, chassis_id)
 		return
 	var body := AABB()
 	var legs: Array[AABB] = []
@@ -173,6 +181,47 @@ static func _seat_arms(root: Node3D, chassis: Node3D, chassis_id: String) -> voi
 					parent_xf = (n as Node3D).transform * parent_xf
 				n = n.get_parent()
 			arm.position += parent_xf.basis.inverse() * offset
+
+
+## 074 (the user: "the arms must not be detached from the frames"): a generated arm is mounted by
+## its innermost vertex, often a bolt or a rim of its ring, so its bulk stood a few centimetres off
+## the shoulder and the front view showed daylight between them. Each arm is drawn in until the
+## inner edge of its silhouette at shoulder height (a low percentile, not the one stray vertex)
+## sits ARM_SNUG_OVERLAP inside the socket. Measured on the rest geometry; cached per frame, arm, side.
+static func _snug_arms(root: Node3D, chassis_id: String) -> void:
+	for slot: String in ["arm_l", "arm_r"]:
+		var arm: Node3D = _find_named(root, "part_" + slot)
+		if arm == null:
+			continue
+		var socket: Node3D = arm.get_parent() as Node3D
+		var key: String = "snug|%s|%s|%s|%s" % [chassis_id, String(arm.scene_file_path), slot, Models.part_path(chassis_id)]
+		if not _arm_push.has(key):
+			var at: Vector3 = _in_space(socket, root).origin
+			var side: float = signf(at.x) if at.x != 0.0 else (1.0 if slot == "arm_r" else -1.0)
+			var band := PackedFloat32Array()
+			for v: Vector3 in _vertices(arm, root):
+				if absf(v.y - at.y) < ARM_SNUG_BAND:
+					band.append(v.x * side)
+			var shift: float = 0.0
+			if band.size() >= 8:
+				band.sort()
+				var inner: float = band[int(band.size() * ARM_SNUG_EDGE)]
+				shift = clampf(inner - (absf(at.x) - ARM_SNUG_OVERLAP), 0.0, ARM_SNUG_MAX)
+			_arm_push[key] = Vector3(-side * shift, 0, 0)
+		var offset: Vector3 = _arm_push[key]
+		if offset != Vector3.ZERO:
+			arm.position += _in_space(socket, root).basis.inverse() * offset
+
+
+## `node`'s transform in `space` (an ancestor), without the scene tree.
+static func _in_space(node: Node3D, space: Node3D) -> Transform3D:
+	var xf := Transform3D.IDENTITY
+	var n: Node = node
+	while n != null and n != space:
+		if n is Node3D:
+			xf = (n as Node3D).transform * xf
+		n = n.get_parent()
+	return xf
 
 
 ## 043 (play-test 13: arms "go through the frame"): the legs count too -- a hammer hanging at the
