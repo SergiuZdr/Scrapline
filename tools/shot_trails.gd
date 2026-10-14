@@ -7,6 +7,8 @@ extends SceneTree
 ##   godot --path . --resolution 900x600 --script res://tools/shot_trails.gd -- \
 ##       --models gen --gen-dir res://art/parts_gen_scrap --out shots/074_trail [--only ar_scatter,ar_railgun]
 ##
+## `--legacy` draws the shot as the game did before 074 (the class's strike, a tracer or a lobbed ball
+## from the chest), for before/after sheets.
 ## Writes `<out>_<arm>_fire.png` (the frame it leaves), `<out>_<arm>.png` (in flight) and `<out>_<arm>_land.png`.
 ## Not headless: it has to render.
 
@@ -74,7 +76,8 @@ func _run() -> void:
 		var cls: String = String((db.parts.get(id, {}) as Dictionary).get("weapon_class", ""))
 		_rig.set_stances(PackedStringArray(["hammer", cls]))
 		await _run_for(0.4)
-		var lead: float = _rig.strike("arm_r", cls, self, WeaponFX.fire_style(id))
+		var legacy: bool = args.has("--legacy")
+		var lead: float = _rig.strike("arm_r", cls, self, "" if legacy else WeaponFX.fire_style(id))
 		await _run_for(lead)
 		await _save("%s_%s_fire.png" % [out, id])
 		var to: Vector3 = target.position + Vector3(0, 0.6, 0)
@@ -82,8 +85,12 @@ func _run() -> void:
 		if shape == "lob" or shape == "mine":
 			to = target.position + Vector3(0, 0.3, 0.6)
 		var cells: Array = [to + Vector3(-0.8, -0.3, 0.3), to + Vector3(0, -0.3, 0), to + Vector3(0.8, -0.3, 0.3)] if shape == "cone" else []
-		var travel: float = ShotFX.play(WeaponFX.trail(id), marks, vfx, _rig.muzzle("arm_r"), to,
-			WeaponFX.colour(id, Color("ffcf9a")), {"cells": cells})
+		var travel: float = 0.0
+		if legacy:
+			travel = _legacy(shape, marks, vfx, model.position + Vector3(0, 0.7, 0), to, Color("ffcf9a"), cells)
+		else:
+			travel = ShotFX.play(WeaponFX.trail(id), marks, vfx, _rig.muzzle("arm_r"), to,
+				WeaponFX.colour(id, Color("ffcf9a")), {"cells": cells})
 		await _run_for(clampf(travel * 0.6, 0.03, 0.4))
 		await _save("%s_%s.png" % [out, id])
 		await _run_for(maxf(0.12, travel * 0.4 + 0.1))
@@ -113,3 +120,76 @@ func _save(path: String) -> void:
 	await process_frame
 	root.get_viewport().get_texture().get_image().save_png(path)
 	print("saved ", path)
+
+
+## The shot as `combat_scene._attack` drew it before 074 (its `_tracer` and `_lob`, copied).
+func _legacy(shape: String, marks: Node3D, vfx: BattleVFX, muzzle: Vector3, to: Vector3, colour: Color, cells: Array) -> float:
+	match shape:
+		"shot":
+			vfx.muzzle_flash(muzzle, to, colour.lightened(0.5))
+			_tracer(marks, muzzle, to, colour)
+			return 0.0
+		"cone":
+			vfx.muzzle_flash(muzzle, to, Color("ff7a3c"))
+			for at: Variant in cells:
+				vfx.burst(at, Color("ff7a3c"), 1.0)
+			return 0.0
+		"shield":
+			_tracer(marks, muzzle, to + Vector3(0, 0.2, 0), Ink.YOURS)
+			return 0.0
+		"lob", "mine":
+			if shape == "lob":
+				vfx.muzzle_flash(muzzle, to, colour.lightened(0.5))
+			var shell := MeshInstance3D.new()
+			var sphere := SphereMesh.new()
+			sphere.radius = 0.09
+			sphere.height = 0.18
+			shell.mesh = sphere
+			var material := StandardMaterial3D.new()
+			material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			material.albedo_color = colour
+			shell.material_override = material
+			marks.add_child(shell)
+			var arc_height: float = 1.2 + muzzle.distance_to(to) * 0.25
+			var tween := marks.create_tween()
+			tween.tween_method(func(k: float) -> void:
+				shell.position = muzzle.lerp(to, k) + Vector3(0, sin(k * PI) * arc_height, 0), 0.0, 1.0, 0.42)
+			tween.tween_callback(shell.queue_free)
+			if shape == "lob":
+				tween.tween_callback(func() -> void: vfx.burst(to, colour, 1.2))
+			return 0.42
+	return 0.0
+
+
+func _tracer(marks: Node3D, from: Vector3, to: Vector3, colour: Color) -> void:
+	var glow := MeshInstance3D.new()
+	var glow_box := BoxMesh.new()
+	glow_box.size = Vector3(0.16, 0.16, from.distance_to(to))
+	glow.mesh = glow_box
+	var haze := StandardMaterial3D.new()
+	haze.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	haze.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	haze.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	haze.albedo_color = Color(colour, 0.35)
+	glow.material_override = haze
+	marks.add_child(glow)
+	glow.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
+	var haze_fade := marks.create_tween()
+	haze_fade.tween_property(haze, "albedo_color:a", 0.0, 0.3)
+	haze_fade.tween_callback(glow.queue_free)
+	var beam := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.04, 0.04, from.distance_to(to))
+	beam.mesh = box
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	var hot: Color = colour.lerp(Color.WHITE, 0.5)
+	material.albedo_color = Color(hot.r * 2.5, hot.g * 2.5, hot.b * 2.5, 1.0)
+	beam.material_override = material
+	marks.add_child(beam)
+	beam.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
+	var tween := marks.create_tween()
+	tween.tween_property(material, "albedo_color:a", 0.0, 0.25)
+	tween.tween_callback(beam.queue_free)
