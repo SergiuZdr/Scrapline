@@ -144,6 +144,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-12 | **The bot plays every part it is given** (073): each ability and shield cast played on a copy for every target, taken when worth more than the attack; protection scored by what it saves the crew from the volley (`CombatBot.protection`), a point kept worth a point hit; protectors move last. `--set bot.abilities=false` plays the old bot | The user: "make the bot use shields and abilities". The arm trial was measuring the bot's blind spot (Shield Caster never cast) | Is the Shield Caster meant to be this weak? Should the game be harder now that the bot wins 67% of runs? |
 | 2026-10-13 | **A part that has its own generated model draws it, even when its JSON borrows another's** (`Models.draw_id`); the shipped sets keep the borrowed one | The Chain Flail and Mine Layer were made and still drew as the Maul and Mortar |
 | 2026-10-13 | **Modules hang on the machine's back**: no feet or stand, never wider than the frame's torso | The user |
+| 2026-10-14 | **How a shot looks is presentation data** (`data/fx/weapons.json`: firing style, trail, colour, sound per ranged arm), outside the content hash | 074: the user asked for a look per gun; a new look must never refuse a saved run |
 
 ## Lessons carried over from the old codebase
 
@@ -290,6 +291,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-12 | **The bot's skill is part of every number it reports**: with no rule changed, the run win rate went 54.7% -> 67.3% (+12.7, 95% +3.4 to +22.0) when the bot started using Charge, Dash and the support parts. In single fights it barely shows (98.7 vs 98.3%) -- the gain is HP carried between fights. Re-measure before tuning against an older report (073) |
 | 2026-10-13 | **Download each Colab batch the moment it finishes.** The free T4's daily allowance (about 1.5 h) ends without warning and takes the runtime's files: 11 finished models lost while rigging the previous batch |
 | 2026-10-13 | A part whose JSON has `"model"` keeps drawing the borrowed model; check the data when a new model does not show |
+| 2026-10-14 | "Nearest point touches" is not "looks attached": a generated arm mounted by its innermost vertex showed daylight; measure the silhouette band at shoulder height (074) |
 | 2026-10-14 | **A T4 out-of-memory on one object is a concept problem**: the dense Tesla and Crucible failed every run; redrawn with a few large smooth shapes, each took a minute |
 
 ## Open questions
