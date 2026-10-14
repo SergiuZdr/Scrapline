@@ -2,6 +2,20 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [079] The flail's arc, real cards, fitted parts, a roomier garage — 2026-10-15 ([detail](iterations/079-garage-and-flail.md))
+
+### Added
+- The Chain Flail swings in an arc (`ConstructRig` `flail`) and leaves a drawn swoosh over the hexes it
+  sweeps (`ShotFX` `swing`).
+- Arms, core and module fitted to their frame within ±10% (`ConstructView._fit_parts`).
+
+### Changed
+- The Slag Flamer sweeps its fire in an arc over the wedge; the shards are darker.
+- Garage: the machine fills its bay, LOADOUT narrower, DETAILS wider, the hold lower.
+
+### Fixed
+- Part cards showed one flat colour per zone or an old model; they show the part as the fight draws it.
+
 ## [078] Every effect gritty — 2026-10-14 ([detail](iterations/078-gritty-effects.md))
 
 ### Changed

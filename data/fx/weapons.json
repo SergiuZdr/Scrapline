@@ -12,5 +12,6 @@
   "ar_coilgun": {"fire": "coil", "trail": "arc", "colour": "a8e4ff", "sound": ["zap", -5.0]},
   "ar_sunspear": {"fire": "sunspear", "trail": "sun", "colour": "ffd25a", "sound": ["overdrive", -6.0]},
   "ar_snare": {"fire": "snare", "trail": "bola", "colour": "c9d66a", "sound": ["cycle", -7.0]},
-  "ar_minelayer": {"fire": "toss", "trail": "mine", "colour": "ff4a3c", "sound": ["lob", -9.0]}
+  "ar_minelayer": {"fire": "toss", "trail": "mine", "colour": "ff4a3c", "sound": ["lob", -9.0]},
+  "ar_flail": {"fire": "flail", "trail": "swing", "colour": "d9c39a", "sound": ["clang", -6.0]}
 }

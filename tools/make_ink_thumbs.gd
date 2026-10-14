@@ -77,15 +77,14 @@ func _run() -> void:
 	quit()
 
 
-## A lone part in ink: every surface by its zone and the part's own livery, and a line.
+## A lone part dressed exactly as the fight dresses it (079, the user: the cards showed one flat colour
+## per zone while the game draws a generated part's own painted texture): `Ink`'s machine dressing --
+## the texture posterised and inked, a zone colour only where a part has no texture -- and a thicker line.
 func _dress(node: Node, part_id: String) -> void:
+	Ink._dress_node(node, PartTuning.base_of(part_id), {}, PackedStringArray(), Ink.YOURS, {})
 	for mesh: MeshInstance3D in ConstructView.meshes_of(node):
-		if mesh.mesh == null:
-			continue
-		for s: int in mesh.mesh.get_surface_count():
-			var zone: String = PartMaterials.zone_of(mesh.mesh.surface_get_material(s))
-			mesh.set_surface_override_material(s, Ink.zone_material(zone, Ink.livery_of(part_id), Ink.YOURS))
-		Ink.line(mesh, LINE_PX)
+		if mesh.mesh != null:
+			Ink.line(mesh, LINE_PX)
 
 
 ## The model's bounds from its real vertices in world space (CLAUDE.md: never
