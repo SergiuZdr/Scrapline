@@ -102,6 +102,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 075 | [Shots drawn in ink](iterations/075-drawn-shots.md) | The 13 trails redrawn in the ink style, with more detail | ✅ |
 | 076 | [Gritty shots and smoke](iterations/076-gritty-shots.md) | Trails and smoke in a Borderlands-like comic style (jagged, hatched, eroding); drawings baked to `art/fx/` | ✅ |
 | 077 | [Every effect, before and after](iterations/077-effects-catalogue.md) | Named before/after sheets of all 18 effects and 13 shots; the user picks what to redraw | ✅ |
+| 078 | [Every effect gritty](iterations/078-gritty-effects.md) | All 18 effects redrawn; flamer along its throw; slimmer Sunspear; shots from the gun's mouth | ✅ |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters

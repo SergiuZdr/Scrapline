@@ -2,6 +2,17 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [078] Every effect gritty — 2026-10-14 ([detail](iterations/078-gritty-effects.md))
+
+### Changed
+- All 18 fight effects redrawn in the gritty comic style (muzzle flash, impact star, sparks, blast, shock
+  ring, shards, dust, ground lines, scorch; destruction, crush and breaks with them); they erode, nothing
+  glows.
+- The Slag Flamer throws its fire along the line of fire; the Sunspear is a narrow serrated spear.
+
+### Fixed
+- Shots left from the lip of a barrel (the Rail Lance's); they leave from the middle of the gun's mouth.
+
 ## [077] Every effect, before and after — 2026-10-14 ([detail](iterations/077-effects-catalogue.md))
 
 ### Added

@@ -217,25 +217,27 @@ static func _rail(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, co
 	return 0.03
 
 
-## The Slag Flamer: a gout of drawn flame tongues rolling out of the nozzle, swelling as they go and
-## spreading over the wedge, embers flying, smoke left over it.
+## The Slag Flamer (078, the user: "the fire must not have vertical flames, it must go along the throw"):
+## a jet thrown OUT of the nozzle -- ragged flame tongues laid along the line of fire, swelling as they go,
+## licking ahead in waves over the wedge, each burning down into grit; embers, then smoke over it.
 static func _flame(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color, cells: Array) -> float:
 	var travel: float = 0.24
 	var ends: Array = cells if not cells.is_empty() else [to]
 	_muzzle(parent, from, colour, 0.3)
-	for i: int in 14:
-		var end: Vector3 = (ends[i % ends.size()] as Vector3) + Vector3(0, 0.25, 0)
-		var lick: Sprite3D = _sprite(parent, _tex_flame(colour), from, 0.16)
-		lick.flip_h = i % 2 == 0
-		lick.visible = false
-		var wobble: float = randf_range(-0.12, 0.12)
+	for i: int in 16:
+		var end: Vector3 = (ends[i % ends.size()] as Vector3) + Vector3(0, 0.22 + randf_range(-0.06, 0.06), 0)
+		var dir: Vector3 = (end - from).normalized()
+		var tongue: MeshInstance3D = _ribbon(parent, _tex_jet(colour), from, from, 0.1)
+		tongue.visible = false
+		var reach: float = randf_range(0.45, 0.75)
 		var t := parent.create_tween()
-		t.tween_interval(0.022 * i)
-		t.tween_callback(func() -> void: lick.visible = true)
+		t.tween_interval(0.02 * i)
 		t.tween_method(func(k: float) -> void:
-			lick.position = from.lerp(end, k) + Vector3(0, sin(k * PI) * (0.14 + wobble), 0)
-			lick.scale = Vector3.ONE * (1.0 + 3.2 * k), 0.0, 1.0, travel)
-		t.tween_callback(func() -> void: Grit.erode(parent, lick, 0.02, 0.16))
+			var head: Vector3 = from.lerp(end, k)
+			var tail: Vector3 = head - dir * minf(reach * (0.4 + k), head.distance_to(from))
+			tongue.set_meta("width", 0.1 + 0.32 * k)
+			_lay(tongue, tail, head), 0.0, 1.0, travel)
+		t.tween_callback(func() -> void: _burn(parent, tongue, 0.03, 0.16))
 	_later(parent, travel * 0.5, func() -> void: vfx.sparks(from.lerp(to, 0.5), colour, 6, 0.9))
 	_later(parent, travel + 0.2, func() -> void: vfx.smoke(to, 4, 0.7))
 	return travel
@@ -328,24 +330,42 @@ static func _arc(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, col
 	return 0.02
 
 
-## The Sunspear: a sunburst at the barrel; a broad golden beam -- banded, notched, half-toned at its
-## edges -- swells, burns a beat with sparks running down it, and narrows away.
+## The Sunspear (078, the user: "too thick and cartoony"): a jagged star at the barrel; a narrow,
+## hard spear of light -- a white core in a hatched gold band with a serrated ink edge -- that stabs out,
+## burns a beat while crackles of energy jump along it, and is cut thin.
 static func _sun(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color) -> float:
-	var burst: Sprite3D = _sprite(parent, _tex_sunburst(colour), from, 0.9)
-	_pop(parent, burst, 0.0, 0.3, 1.0)
-	var beam: MeshInstance3D = _ribbon(parent, _tex_beam(colour), from, to, 0.08, 0.6)
+	_muzzle(parent, from, colour, 0.5)
+	var beam: MeshInstance3D = _ribbon(parent, _tex_sunbeam(colour), from, to, 0.05, 0.45)
 	var t := parent.create_tween()
-	t.tween_method(func(w: float) -> void: _width(beam, w), 0.08, 0.42, 0.08).set_ease(Tween.EASE_OUT)
-	t.tween_method(func(w: float) -> void: _width(beam, w), 0.42, 0.34, 0.14)
-	t.tween_method(func(w: float) -> void: _width(beam, w), 0.34, 0.42, 0.14)
-	t.tween_method(func(w: float) -> void: _width(beam, w), 0.42, 0.0, 0.16).set_ease(Tween.EASE_IN)
+	t.tween_method(func(w: float) -> void: _width(beam, w), 0.05, 0.17, 0.05).set_ease(Tween.EASE_OUT)
+	t.tween_interval(0.3)
+	t.tween_callback(func() -> void: _width(beam, 0.1))
+	t.tween_interval(0.05)
+	t.tween_callback(func() -> void: _width(beam, 0.04))
+	t.tween_interval(0.05)
 	t.tween_callback(beam.queue_free)
+	var side: Vector3 = (to - from).cross(Vector3.UP).normalized()
+	for flick: int in 4:
+		var a: float = randf_range(0.15, 0.75)
+		var start: Vector3 = from.lerp(to, a)
+		var points: Array = [start]
+		for i: int in 4:
+			points.append(from.lerp(to, a + 0.05 * (i + 1)) + side * randf_range(-0.14, 0.14)
+				+ Vector3(0, randf_range(-0.12, 0.12), 0))
+		for i: int in points.size() - 1:
+			var piece: MeshInstance3D = _ribbon(parent, _tex_beam(colour), points[i], points[i + 1], 0.04)
+			piece.visible = false
+			var c := parent.create_tween()
+			c.tween_interval(0.06 + 0.07 * flick)
+			c.tween_callback(func() -> void: piece.visible = true)
+			c.tween_interval(0.06)
+			c.tween_callback(piece.queue_free)
 	for i: int in 6:
 		_later(parent, 0.05 * i, func() -> void: vfx.sparks(from.lerp(to, randf_range(0.2, 1.0)), colour, 3, 0.7))
-	_speed_lines(parent, from, to, 0.0, 5)
+	_speed_lines(parent, from, to, 0.0, 4)
 	if parent.is_visible_in_tree():
 		vfx.shake(0.4)
-	_hit(parent, vfx, to, colour, 0.05, 0.007, 8)
+	_hit(parent, vfx, to, colour, 0.05, 0.0065, 8)
 	return 0.05
 
 
@@ -526,6 +546,15 @@ static func _thin(parent: Node3D, ribbon: MeshInstance3D, hold: float, time: flo
 	t.tween_callback(ribbon.queue_free)
 
 
+## A ribbon burns down into grit: its alpha cut raised from 0.5 to 1 (erodible textures), then gone.
+static func _burn(parent: Node3D, ribbon: MeshInstance3D, delay: float, time: float) -> void:
+	var m: StandardMaterial3D = ribbon.material_override
+	var t := parent.create_tween()
+	t.tween_interval(delay)
+	t.tween_property(m, "alpha_scissor_threshold", 1.0, time).set_ease(Tween.EASE_IN)
+	t.tween_callback(ribbon.queue_free)
+
+
 ## A flat drawn disc at `at` facing along `normal` (a ring the shot passes through).
 static func _disc(parent: Node3D, tex: Texture2D, at: Vector3, normal: Vector3, size: float) -> MeshInstance3D:
 	var disc := MeshInstance3D.new()
@@ -635,50 +664,9 @@ static func _tex_beam(c: Color) -> ImageTexture:
 				image.set_pixel(x, y, col))
 
 
-## The muzzle flash: a jagged star of uneven spikes (a fixed hand-drawn layout), ink edge, the colour
-## hatched in its spikes, a hot heart; loose ink shards around it. Erodible.
+## The muzzle flash: the shared jagged star (`Grit.star_texture`), the same as `BattleVFX.muzzle_flash`.
 static func _tex_muzzle(c: Color) -> ImageTexture:
-	return Ink.texture("shot2_muzzle_" + c.to_html(), Vector2i(192, 192), func(image: Image) -> void:
-		var rng := RandomNumberGenerator.new()
-		rng.seed = 991
-		var spikes: Array = []
-		for k: int in 9:
-			spikes.append([TAU * float(k) / 9.0 + rng.randf_range(-0.25, 0.25), rng.randf_range(58.0, 92.0)])
-		var shards: Array = []
-		for k: int in 5:
-			var a: float = rng.randf_range(0.0, TAU)
-			shards.append(Vector2(96, 96) + Vector2(cos(a), sin(a)) * rng.randf_range(70.0, 88.0))
-		var centre := Vector2(96, 96)
-		for y: int in 192:
-			for x: int in 192:
-				var d: Vector2 = Vector2(x, y) - centre
-				var r: float = d.length()
-				var ang: float = fposmod(d.angle(), TAU)
-				var reach: float = 26.0
-				for s: Array in spikes:
-					var off: float = absf(wrapf(ang - float(s[0]), -PI, PI))
-					reach = maxf(reach, float(s[1]) * (1.0 - off / 0.34))
-				reach += Grit.noise(x, y, 0.09, 5) * 5.0
-				var col := Color(0, 0, 0, 0)
-				var depth: float = reach - r
-				if depth > 0.0:
-					col = Ink.INK
-				if depth > 6.0:
-					col = c
-					if r > 34.0 and Grit.hatch(x, y, 7.0, 2.0, -1.0):
-						col = _shade(c)
-				if r < 34.0 + Grit.noise(x, y, 0.1, 6) * 4.0 and depth > 6.0:
-					col = _hot(c)
-				if r < 15.0:
-					col = Color.WHITE
-				for s: Vector2 in shards:
-					var q: Vector2 = Vector2(x, y) - s
-					if absf(q.x) + absf(q.y) * 1.8 < 7.0:
-						col = Ink.INK
-						depth = 6.0
-				if col.a > 0.0:
-					col.a = Grit.erode_alpha(maxf(depth, 0.0), 40.0, x, y)
-				image.set_pixel(x, y, col))
+	return Grit.star_texture("muzzle_" + c.to_html(), c, _hot(c), 991)
 
 
 ## An energy bolt: a hot core in a crackling spiky corona, ink edge, hatched shade.
@@ -896,7 +884,6 @@ static func _tex_reticle(c: Color) -> ImageTexture:
 				image.set_pixel(x, y, col))
 
 
-## A flame: a ragged tongue with several licking tips, dark red at the edge (hatched), orange, yellow,
 ## a white heart; ink edge; erodible.
 static func _tex_flame(c: Color) -> ImageTexture:
 	return Ink.texture("shot2_flame_" + c.to_html(), Vector2i(128, 128), func(image: Image) -> void:
@@ -1072,39 +1059,6 @@ static func _tex_mine(c: Color, lit: bool) -> ImageTexture:
 				image.set_pixel(x, y, col))
 
 
-## A sunburst: long jagged ink rays round a golden disc, hatched rim, white-hot heart.
-static func _tex_sunburst(c: Color) -> ImageTexture:
-	return Ink.texture("shot2_sun_" + c.to_html(), Vector2i(192, 192), func(image: Image) -> void:
-		var centre := Vector2(96, 96)
-		var rng := RandomNumberGenerator.new()
-		rng.seed = 77
-		var rays: Array = []
-		for k: int in 13:
-			rays.append([TAU * float(k) / 13.0 + rng.randf_range(-0.15, 0.15), rng.randf_range(62.0, 94.0)])
-		for y: int in 192:
-			for x: int in 192:
-				var d: Vector2 = Vector2(x, y) - centre
-				var r: float = d.length()
-				var ang: float = fposmod(d.angle(), TAU)
-				var col := Color(0, 0, 0, 0)
-				for ray: Array in rays:
-					var off: float = absf(wrapf(ang - float(ray[0]), -PI, PI))
-					if r < float(ray[1]) and off < 0.11 * (1.0 - r / float(ray[1])) + 0.012:
-						col = Ink.INK
-				var edge: float = 36.0 + Grit.noise(x, y, 0.1, 27) * 3.0
-				if r < edge:
-					col = Ink.INK
-				if r < edge - 5.0:
-					col = c
-					if r > 22.0 and Grit.hatch(x, y, 6.0, 2.0, -1.0):
-						col = _shade(c)
-				if r < 18.0:
-					col = _hot(c)
-				if r < 9.0:
-					col = Color.WHITE
-				image.set_pixel(x, y, col))
-
-
 ## Speed lines: three ragged ink strokes, sharp at the back (left), thick at the front.
 static func _tex_speed() -> ImageTexture:
 	return Ink.texture("shot2_speed", Vector2i(128, 32), func(image: Image) -> void:
@@ -1118,4 +1072,59 @@ static func _tex_speed() -> ImageTexture:
 					var half: float = 2.8 * (float(x) - start) / (128.0 - start)
 					if absf(float(y) - float(line[0]) - Grit.noise(x, line[0], 0.1, 28) * 1.5) < half:
 						col = Ink.INK
+				image.set_pixel(x, y, col))
+
+
+## A flame jet laid along the throw (078): a ragged tongue pointing forward (right), thin at the nozzle
+## end, swelling, licking ahead in torn tips; dark red hatched rim, orange, yellow, a white core. Erodible.
+static func _tex_jet(c: Color) -> ImageTexture:
+	return Ink.texture("shot2_jet_" + c.to_html(), Vector2i(192, 64), func(image: Image) -> void:
+		for y: int in 64:
+			for x: int in 192:
+				var u: float = float(x) / 191.0
+				var lick: float = Grit.noise(float(x) * 0.35, float(y) * 0.9, 0.09, 41)
+				var body: float = sin(PI * pow(u, 0.65))
+				if u > 0.8:
+					body *= 1.0 - (u - 0.8) / 0.2 * (0.6 + 0.4 * lick)
+				var half: float = 30.0 * body * (0.8 + 0.35 * lick) + 1.0
+				var d: float = absf(float(y) - 31.5 - Grit.noise(float(x), 0.0, 0.03, 42) * 5.0)
+				var depth: float = half - d
+				var col := Color(0, 0, 0, 0)
+				if depth > 0.0:
+					col = Ink.INK
+				if depth > 4.0:
+					col = Color("b0301a")
+					if Grit.hatch(x, y, 6.0, 2.0):
+						col = Color("6e1a0e")
+				if depth > 9.0:
+					col = c
+				if depth > 15.0:
+					col = Ink.ACTION
+				if depth > 21.0:
+					col = Color("fff6dc")
+				if col.a > 0.0:
+					col.a = Grit.erode_alpha(maxf(depth, 0.0), 26.0, x, y)
+				image.set_pixel(x, y, col))
+
+
+## The Sunspear's beam, tiling along x (078): narrow and hard -- a serrated ink edge, a hatched gold
+## band, a hot line and a white core.
+static func _tex_sunbeam(c: Color) -> ImageTexture:
+	return Ink.texture("shot2_sunbeam_" + c.to_html(), Vector2i(128, 48), func(image: Image) -> void:
+		for y: int in 48:
+			for x: int in 128:
+				var saw: float = absf(fposmod(float(x), 10.0) - 5.0) * 0.6
+				var h: float = 21.0 - saw
+				var d: float = absf(float(y) - 23.5)
+				var col := Color(0, 0, 0, 0)
+				if d < h:
+					col = Ink.INK
+				if d < h - 4.0:
+					col = c
+					if d > 8.0 and Grit.hatch(x, y, 5.0, 1.6, -1.0):
+						col = c.darkened(0.5)
+					if d < 8.0:
+						col = _hot(c)
+					if d < 3.5:
+						col = Color.WHITE
 				image.set_pixel(x, y, col))

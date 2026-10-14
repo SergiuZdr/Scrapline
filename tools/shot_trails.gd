@@ -80,6 +80,26 @@ func _run() -> void:
 		var lead: float = _rig.strike("arm_r", cls, self, "" if legacy else WeaponFX.fire_style(id))
 		await _run_for(lead)
 		await _save("%s_%s_fire.png" % [out, id])
+		if args.has("--muzzle"):
+			# 078: where the shot leaves, marked, close up on the gun.
+			var tip: Vector3 = _rig.muzzle("arm_r")
+			var mark := MeshInstance3D.new()
+			var ball := SphereMesh.new()
+			ball.radius = 0.035
+			ball.height = 0.07
+			mark.mesh = ball
+			var red := StandardMaterial3D.new()
+			red.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			red.albedo_color = Color.RED
+			red.no_depth_test = true
+			mark.material_override = red
+			mark.position = tip
+			world.add_child(mark)
+			var keep: Transform3D = camera.global_transform
+			camera.look_at_from_position(tip + Vector3(-1.5, 0.45, 1.0), tip + Vector3(0.1, -0.15, 0.45), Vector3.UP)
+			await _save("%s_%s_muzzle.png" % [out, id])
+			camera.global_transform = keep
+			mark.queue_free()
 		var to: Vector3 = target.position + Vector3(0, 0.6, 0)
 		var shape: String = String(((db.parts.get(id, {}) as Dictionary).get("grid", {}) as Dictionary).get("shape", "shot"))
 		if shape == "lob" or shape == "mine":
