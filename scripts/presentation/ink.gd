@@ -36,7 +36,8 @@ const BUILT := Color("a070e0")
 # from object to object is the fastest way for ink to look cheap (the plan's one risk).
 ## 036, comic style: heavier ink (was 1.6 / 2.2 / 3.0) -- a comic draws its figures in a bold line.
 const LINE_WORLD: float = 2.0   ## Ground, scenery, terrain.
-const LINE_MACHINE: float = 3.0 ## Machines: the silhouettes the player reads.
+## 080: 3.0 -> 2.4 -- the hull swallowed small details whole.
+const LINE_MACHINE: float = 2.4 ## Machines: the silhouettes the player reads.
 const LINE_ACT: float = 3.6     ## Things you can act on: drums, piles, pylons, crates.
 
 ## A part's livery in ink, indexed exactly like `PartMaterials.LIVERY`, so a part keeps its
@@ -518,7 +519,22 @@ static func comic_machine(m: Material) -> Material:
 		s.set_shader_parameter("comic", 1.0)
 		s.set_shader_parameter("hatch", 1.0)
 		s.set_shader_parameter("rim", 0.45)
+		# 080: dark generated parts read as black blobs -- ink only the truly black texels and the
+		# strong edges (read from a coarser mip, past the texture's speckle), print the darkest step
+		# above near-black, and let the unlit side keep a value; the hatching still inks the shade.
+		s.set_shader_parameter("comic_ink", MACHINE_INK)
+		s.set_shader_parameter("comic_edge", MACHINE_EDGE)
+		s.set_shader_parameter("comic_edge_lod", 2.4)
+		s.set_shader_parameter("comic_floor", MACHINE_FLOOR)
+		s.set_shader_parameter("shadow_level", MACHINE_SHADOW)
 	return m
+
+
+## 080: the machines' print (`comic_machine`): what is inked and how dark the darkest reads.
+const MACHINE_INK: float = 0.06
+const MACHINE_EDGE: float = 0.17
+const MACHINE_FLOOR: float = 0.26
+const MACHINE_SHADOW: float = 0.3
 
 
 ## Scenery (the arena kit): pushed down into the night, a thinner line, lamps kept lit.

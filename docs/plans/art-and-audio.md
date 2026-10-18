@@ -174,6 +174,10 @@ The world behind stays quieter so machines read first. A death uses the hit's vo
 (`BattleVFX.on_break`): impact stars, cartoon blasts, shards, drawn dust and floor action lines; nothing
 glows or fades.
 
+080: the machines' print keeps a value in the dark -- `comic_ink` 0.06, `comic_edge` 0.17 read at mip 2.4,
+`comic_floor` 0.26, `shadow_level` 0.3, line 2.4 px (`Ink.MACHINE_*`, `LINE_MACHINE`); measured contrast rose
+1.99 -> 2.37.
+
 ## Motion (059)
 Machines move **pose to pose, like comic panels** (`ConstructRig`): every motion is a clip of key poses
 over named channels (body, upper body, each arm's joints, each foot), reached with SNAP / SMEAR / EASE /

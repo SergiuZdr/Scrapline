@@ -144,6 +144,7 @@ static func _seat_arms(root: Node3D, chassis: Node3D, chassis_id: String) -> voi
 	# arms out of the body's box left them hanging in the air.
 	if Models.part_path(chassis_id).contains("/parts_gen"):
 		_fit_parts(root, chassis_id)
+		_seat_depth(root, chassis_id)
 		_snug_arms(root, chassis_id)
 		return
 	var body := AABB()
@@ -243,6 +244,62 @@ static func _torso_width(chassis: Node3D, space: Node3D, y: float) -> float:
 				lo = minf(lo, v.x)
 				hi = maxf(hi, v.x)
 	return hi - lo if hi > lo else 0.0
+
+
+## 080 (the user: "many cores and modules take too much room in front of / behind the robot"): they sat
+## flush on the torso with their whole depth outside it -- up to 0.19 m on a 0.58 m frame. Each is
+## squashed toward its mount (to no less than DEPTH_SQUASH of its depth) and sunk into the torso (at most
+## DEPTH_SINK of the torso's thickness there) until it stands out no more than DEPTH_OUT. Cached.
+const DEPTH_OUT: Dictionary = {"core": 0.07, "module": 0.08}
+const DEPTH_SQUASH: float = 0.6
+const DEPTH_SINK: float = 0.4
+static var _depth: Dictionary = {}
+
+
+static func _seat_depth(root: Node3D, chassis_id: String) -> void:
+	var chassis: Node3D = _find_named(root, "part_chassis")
+	for slot: String in ["core", "module"]:
+		var piece: Node3D = _find_named(root, "part_" + slot)
+		if piece == null or chassis == null:
+			continue
+		var parent: Node3D = piece.get_parent() as Node3D
+		var key: String = "%s|%s|%s|%s|%.3f" % [chassis_id, String(piece.scene_file_path), slot, Models.part_path(chassis_id), piece.scale.y]
+		if not _depth.has(key):
+			var at: Vector3 = _in_space(parent, root).origin
+			var front: float = -INF
+			var back: float = INF
+			for mesh: MeshInstance3D in _meshes(chassis):
+				if _under_leg(mesh, chassis):
+					continue
+				for v: Vector3 in _vertices(mesh, root, false):
+					if absf(v.y - at.y) < 0.05 and absf(v.x) < 0.08:
+						front = maxf(front, v.z)
+						back = minf(back, v.z)
+			var lo: float = INF
+			var hi: float = -INF
+			for v: Vector3 in _vertices(piece, root):
+				lo = minf(lo, v.z)
+				hi = maxf(hi, v.z)
+			var squash: float = 1.0
+			var sink: float = 0.0
+			if front > back and hi > lo:
+				# Out from the torso's face on its side: a core in front (+Z), a module behind.
+				var out: float = (hi - front) if slot == "core" else (back - lo)
+				var depth: float = hi - lo
+				var limit: float = float(DEPTH_OUT[slot])
+				if out > limit:
+					squash = clampf(1.0 - (out - limit) / depth, DEPTH_SQUASH, 1.0)
+					sink = clampf(out * squash - limit, 0.0, (front - back) * DEPTH_SINK)
+			_depth[key] = [squash, sink]
+		var squash: float = float(_depth[key][0])
+		var sink: float = float(_depth[key][1])
+		if squash >= 1.0 and sink <= 0.0:
+			continue
+		var into: Vector3 = Vector3(0, 0, -1) if slot == "core" else Vector3(0, 0, 1)
+		var p_basis: Basis = _in_space(parent, root).basis
+		var squash_m := Basis.from_scale(Vector3(1, 1, squash))
+		piece.transform = Transform3D(p_basis.inverse() * squash_m * p_basis * piece.basis,
+			piece.position + p_basis.inverse() * (into * sink))
 
 
 ## 074 (the user: "the arms must not be detached from the frames"): a generated arm is mounted by

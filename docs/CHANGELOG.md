@@ -2,6 +2,17 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [080] Cores and modules close in, dark parts readable, a tighter garage header — 2026-10-18 ([detail](iterations/080-depth-ink-garage.md))
+
+### Changed
+- Cores and modules stand out at most 7-8 cm from the torso (squashed and sunk), not up to 19.
+- The machines' print keeps detail in the dark: fewer inked texels and edges, a lighter darkest step,
+  the unlit side not black, a thinner line. Contrast ratio 1.99 -> 2.37. Cards remade.
+- Garage: a smaller header and taller panels.
+
+### Fixed
+- LOADOUT text ended in "..."; every part's name and summary now fit whole.
+
 ## [079] The flail's arc, real cards, fitted parts, a roomier garage — 2026-10-15 ([detail](iterations/079-garage-and-flail.md))
 
 ### Added

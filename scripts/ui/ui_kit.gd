@@ -341,7 +341,9 @@ static func pressed(style: InkBox) -> InkBox:
 ## text ran past its card). Wraps if it may take more than one line, then steps the font down
 ## until the text fits, never below `min_size`; whatever still does not fit ends in "...".
 ## Call after the label's text, font and size are set.
-static func fit(label: Label, width: float, max_lines: int = 1, min_size: int = 11) -> Label:
+## 080: `slack` (< 1) measures against a narrower box than the label gets -- the comic face renders
+## wider than `get_string_size` reports for some glyphs (a tuned part's "+"), and a word then ended in "...".
+static func fit(label: Label, width: float, max_lines: int = 1, min_size: int = 11, slack: float = 1.0) -> Label:
 	var face: Font = label.get_theme_font("font")
 	var size: int = label.get_theme_font_size("font_size")
 	label.custom_minimum_size.x = width
@@ -350,7 +352,7 @@ static func fit(label: Label, width: float, max_lines: int = 1, min_size: int = 
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if max_lines > 1 else TextServer.AUTOWRAP_OFF
 	label.max_lines_visible = max_lines
 	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	while size > min_size and lines_of(face, label.text, width, size) > max_lines:
+	while size > min_size and lines_of(face, label.text, width * slack, size) > max_lines:
 		size -= 1
 	label.add_theme_font_size_override("font_size", size)
 	return label
