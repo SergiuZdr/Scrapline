@@ -51,6 +51,12 @@ uniform float comic_sat = 1.15;
 // at any distance; above `comic_edge` it is inked.
 uniform float comic_edge = 0.09;
 uniform float comic_edge_px = 1.6;
+// 080 (the user: "some parts look practically all black, from the outline to tiny details"): the
+// mip the edge is read from (higher ignores a generated texture's speckle), the darkest step a
+// posterised texel may print at (it was near black), and the value of the unlit side (0 = black).
+uniform float comic_edge_lod = 1.2;
+uniform float comic_floor = 0.0;
+uniform float shadow_level = 0.0;
 
 // 0 none, 1 stipple dots, 2 diagonal hatching.
 uniform int pattern = 0;
@@ -81,13 +87,13 @@ void fragment() {
 	}
 	if (use_tex && comic > 0.0) {
 		float l = dot(c, vec3(0.299, 0.587, 0.114));
-		float q = (floor(l * comic_levels) + 0.55) / comic_levels;
+		float q = max((floor(l * comic_levels) + 0.55) / comic_levels, comic_floor);
 		vec3 printed = clamp(mix(vec3(q), c / max(l, 0.001) * q, comic_sat), 0.0, 1.0);
 		vec2 du = dFdx(UV) * comic_edge_px;
 		vec2 dv = dFdy(UV) * comic_edge_px;
 		vec3 w = vec3(0.299, 0.587, 0.114);
-		float gx = dot(texture(albedo_tex, UV + du, 1.2).rgb - texture(albedo_tex, UV - du, 1.2).rgb, w);
-		float gy = dot(texture(albedo_tex, UV + dv, 1.2).rgb - texture(albedo_tex, UV - dv, 1.2).rgb, w);
+		float gx = dot(texture(albedo_tex, UV + du, comic_edge_lod).rgb - texture(albedo_tex, UV - du, comic_edge_lod).rgb, w);
+		float gy = dot(texture(albedo_tex, UV + dv, comic_edge_lod).rgb - texture(albedo_tex, UV - dv, comic_edge_lod).rgb, w);
 		if (l < comic_ink || length(vec2(gx, gy)) > comic_edge) {
 			printed = vec3(0.078, 0.067, 0.059);
 		}
@@ -125,7 +131,7 @@ void fragment() {
 void light() {
 	// Only the key draws: a stray omni light would add a fourth band.
 	float l = LIGHT_IS_DIRECTIONAL ? clamp(dot(NORMAL, LIGHT), 0.0, 1.0) * ATTENUATION : -1.0;
-	float band = 0.0;
+	float band = shadow_level;
 	if (l > lit_edge) {
 		band = 1.0;
 	} else if (l > shade_edge) {

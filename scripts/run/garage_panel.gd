@@ -22,7 +22,7 @@ const SORTS: PackedStringArray = ["NEWEST", "RARITY", "SLOT"]
 const SLOT_ORDER: PackedStringArray = ["chassis", "core", "arm", "module"]
 const TEAM := Color("4fa8d8")
 const REST_YAW: float = 0.6
-const VIEW_SIZE := Vector2i(600, 420)
+const VIEW_SIZE := Vector2i(600, 450)
 ## Width of the lines lettered over the bay (name, sets, perks, LEVEL UP), fitted to it.
 const INFO_W: float = 560.0
 ## The layout (027, play-test 9: "the garage NEEDS a new design"): three columns over the hold --
@@ -34,8 +34,9 @@ const LOADOUT_W: float = 500.0
 const NUMBERS_W: float = 672.0
 ## Play-test 10 ("issues with the panels' alignment"): one grid. Three captions on one line,
 ## three columns that start at COLUMN_TOP and end at COLUMN_BOTTOM, the hold under all three.
-const CAPTION_Y: float = 106.0
-const COLUMN_TOP: float = 146.0
+## 080 (the user): the header smaller and the panels taken up into the room it gives back.
+const CAPTION_Y: float = 78.0
+const COLUMN_TOP: float = 116.0
 const COLUMN_BOTTOM: float = 750.0
 const COLUMN_X: Array = [40.0, 660.0, 1180.0]
 ## NUMBERS in sections at a readable size (play-test 10: "hard to read").
@@ -95,8 +96,8 @@ func _ready() -> void:
 	add_child(UIKit.backdrop())
 
 	_header = HBoxContainer.new()
-	_header.position = Vector2(40, 24)
-	_header.size = Vector2(1840, 72)
+	_header.position = Vector2(40, 14)
+	_header.size = Vector2(1840, 54)
 	_header.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	add_child(_header)
 
@@ -439,7 +440,7 @@ func _rebuild() -> void:
 
 func _build_header() -> void:
 	var state: RunState = Run.state
-	_header.add_child(UIKit.caption_title("GARAGE", 44))
+	_header.add_child(UIKit.caption_title("GARAGE", 34))
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(30, 0)
 	_header.add_child(gap)
@@ -451,20 +452,20 @@ func _build_header() -> void:
 			text += "  · WRECK"
 		# The amber BORDER marks the selection; the lettering stays ink (amber text does not
 		# read on paper).
-		var tab := _button(text, UIKit.choice() if i == selected else UIKit.secondary(), UIKit.TEXT, Vector2(220, 60))
+		var tab := _button(text, UIKit.choice() if i == selected else UIKit.secondary(), UIKit.TEXT, Vector2(200, 48))
 		tab.pressed.connect(_select.bind(i))
 		tab.set_drag_forwarding(Callable(), _can_drop_tab.bind(i), _drop_tab.bind(i))
 		_header.add_child(tab)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_header.add_child(spacer)
-	var words := _button("?", UIKit.secondary(), UIKit.TEXT, Vector2(60, 60))
+	var words := _button("?", UIKit.secondary(), UIKit.TEXT, Vector2(48, 48))
 	words.name = "glossary_button"
 	words.tooltip_text = "Glossary"
 	words.pressed.connect(func() -> void: Glossary.open(self, Run.db.glossary))
 	_header.add_child(words)
-	_header.add_child(UIKit.on_page(_label("SCRAP %d" % state.scrap, 30, UIKit.PAGE_TEXT, UIKit.font_comic()), 8))
-	var done := _button("BACK TO MAP", UIKit.primary(), UIKit.BG, Vector2(260, 64))
+	_header.add_child(UIKit.on_page(_label("SCRAP %d" % state.scrap, 26, UIKit.PAGE_TEXT, UIKit.font_comic()), 8))
+	var done := _button("BACK TO MAP", UIKit.primary(), UIKit.BG, Vector2(240, 50))
 	done.pressed.connect(func() -> void: closed.emit())
 	_header.add_child(done)
 
@@ -586,11 +587,17 @@ func _socket(i: int, s: int, alive: bool) -> Control:
 	var rarity: String = ""
 	if not part.is_empty():
 		rarity = "  ·  " + PartCard.RARITY_NAMES[clampi(int((Run.db.parts.get(part, {}) as Dictionary).get("rarity", 1)), 1, 4) - 1]
-	# Play-test 8: both lines fitted to the row (`UIKit.fit`), whatever the part's name.
-	text.add_child(UIKit.fit(_label("%s  ·  %s%s" % [SOCKET_NAMES[s], PartText.name_of(Run.db.parts, part) if not part.is_empty() else "EMPTY", rarity],
-		20, PartText.rarity_colour(Run.db.parts, part) if not part.is_empty() else UIKit.RED, UIKit.font_comic()), LOADOUT_W - 220, 1, 13))
+	# Play-test 8: both lines fitted to the row (`UIKit.fit`), whatever the part's name. 080: the name on up
+	# to two lines and the summary on three, so a word is never cut to "...".
+	var title: String = "%s  ·  %s%s" % [SOCKET_NAMES[s], PartText.name_of(Run.db.parts, part) if not part.is_empty() else "EMPTY", rarity]
+	# One line if it fits at a readable size; otherwise two, broken after the name (never on a "·").
+	var one_line: bool = UIKit.lines_of(UIKit.font_comic(), title, (LOADOUT_W - 220) * 0.86, 14) <= 1
+	if not one_line:
+		title = title.replace(rarity, "\n" + rarity.trim_prefix("  ·  "))
+	text.add_child(UIKit.fit(_label(title, 20, PartText.rarity_colour(Run.db.parts, part) if not part.is_empty() else UIKit.RED,
+		UIKit.font_comic()), LOADOUT_W - 220, 1 if one_line else 2, 12, 0.86))
 	text.add_child(UIKit.fit(_label(PartText.summary(Run.db.parts, part, Run.db.combat_abilities) if not part.is_empty()
-		else "Drag %s %s here from the hold." % ["an" if RunSetup.socket_slot(s) == "arm" else "a", RunSetup.socket_slot(s)], UIKit.SIZE_LABEL, UIKit.TEXT_DIM), LOADOUT_W - 220, 2, 10))
+		else "Drag %s %s here from the hold." % ["an" if RunSetup.socket_slot(s) == "arm" else "a", RunSetup.socket_slot(s)], UIKit.SIZE_LABEL, UIKit.TEXT_DIM), LOADOUT_W - 220, 3, 10, 0.92))
 	if not part.is_empty():
 		row.add_child(_maker_tag(i, part))
 	button.mouse_entered.connect(_focus_socket.bind(s))
