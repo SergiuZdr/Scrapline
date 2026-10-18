@@ -527,6 +527,8 @@ static func comic_machine(m: Material) -> Material:
 		s.set_shader_parameter("comic_edge_lod", 2.4)
 		s.set_shader_parameter("comic_floor", MACHINE_FLOOR)
 		s.set_shader_parameter("shadow_level", MACHINE_SHADOW)
+		# 081 (the user: "the robots' colours are now too desaturated, but lighter, which is ok").
+		s.set_shader_parameter("comic_sat", MACHINE_SAT)
 	return m
 
 
@@ -535,6 +537,7 @@ const MACHINE_INK: float = 0.06
 const MACHINE_EDGE: float = 0.17
 const MACHINE_FLOOR: float = 0.26
 const MACHINE_SHADOW: float = 0.3
+const MACHINE_SAT: float = 2.0
 
 
 ## Scenery (the arena kit): pushed down into the night, a thinner line, lamps kept lit.
