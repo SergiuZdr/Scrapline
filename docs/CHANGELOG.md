@@ -2,6 +2,20 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [081] Machine colour back; the battlefield's first real models — in progress ([detail](iterations/081-saturation-and-battlefield.md))
+
+### Added
+- Generated models for the fuel drum, gate pylon, coolant tank, salvage cache, scrap pile, the hive's
+  pad (a flat hatch to stand on) and the crate wall, now a welded block per hex that joins its
+  neighbours into one wall (`art/props`, `Models.prop`, `tools/gen3d/import_props.sh`).
+- A green scrap icon beside the map's SCRAP count.
+- `tools/shot_props.gd`: close-ups of the props on hexes; `--props old` draws the scripted ones.
+
+### Changed
+- Machine colours saturated again (`Ink.MACHINE_SAT` 2.0), at 080's lightness. Cards remade.
+- `measure_contrast` waits for the opening card by the clock and leaves props and piles out of the
+  machine mask; `--dump` saves the two frames it measures.
+
 ## [080] Cores and modules close in, dark parts readable, a tighter garage header — 2026-10-18 ([detail](iterations/080-depth-ink-garage.md))
 
 ### Changed

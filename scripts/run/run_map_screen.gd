@@ -253,9 +253,21 @@ func _build_top_bar() -> void:
 	right.position = Vector2(1246, 28)
 	right.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	add_child(right)
+	# 081: scrap carries its own mark, in the gain green of the piles it comes from.
+	var scrap_box := HBoxContainer.new()
+	scrap_box.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	right.add_child(scrap_box)
+	var scrap_icon := TextureRect.new()
+	scrap_icon.texture = load("res://art/icons/scrap_gain.png")
+	scrap_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	scrap_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	scrap_icon.custom_minimum_size = Vector2(52, 52)
+	scrap_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	scrap_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	scrap_box.add_child(scrap_icon)
 	_scrap_label = UIKit.on_page(_label("", 30, UIKit.PAGE_TEXT, UIKit.font_comic()), 8)
-	_scrap_label.custom_minimum_size = Vector2(170, 0)
-	right.add_child(_scrap_label)
+	_scrap_label.custom_minimum_size = Vector2(130, 0)
+	scrap_box.add_child(_scrap_label)
 	_garage_button = _button("GARAGE", UIKit.secondary(), UIKit.TEXT, Vector2(200, 56))
 	_garage_button.pressed.connect(_open_garage.bind(0))
 	right.add_child(_garage_button)

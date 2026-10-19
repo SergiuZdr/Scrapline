@@ -26,16 +26,28 @@ func _run() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var scene: Node = (load("res://scenes/combat.tscn") as PackedScene).instantiate()
 	root.add_child(scene)
-	for i: int in 400:
-		await process_frame
-		if i > 10 and not bool(scene.get("_busy")):
+	# 081: wait for the opening to START and then end. With the effects baked the scene can still be
+	# loading at frame 10, not yet busy, and the old "not busy after frame 10" measured a blank screen.
+	# The opening card holds for real seconds (`OPENING_SECONDS`), so this polls the clock, not frames.
+	var began: bool = false
+	for i: int in 300:
+		await create_timer(0.1).timeout
+		began = began or bool(scene.get("_busy"))
+		if began and not bool(scene.get("_busy")):
 			break
+	if OS.get_cmdline_user_args().has("--dump"):
+		print("began ", began, " busy ", scene.get("_busy"))
 	_hide_overlays(scene)
 	for i: int in 12:
 		await process_frame
 	var full: Image = root.get_texture().get_image()
 
 	(scene.get("_board") as Node3D).visible = false
+	# 081: props and piles stand in the units' root but are ground the machines stand out from, not
+	# machines: out of the mask (a big generated wall block counted as a "machine" before).
+	for views: String in ["_prop_views", "_pile_views"]:
+		for node: Variant in (scene.get(views) as Dictionary).values():
+			(node as Node3D).visible = false
 	for view: Variant in (scene.get("_views") as Dictionary).values():
 		for key: String in ["ring", "tag"]:
 			if (view as Dictionary).has(key):
@@ -50,6 +62,9 @@ func _run() -> void:
 	for i: int in 12:
 		await process_frame
 	var solo: Image = root.get_texture().get_image()
+	if OS.get_cmdline_user_args().has("--dump"):
+		full.save_png("shots/contrast_full.png")
+		solo.save_png("shots/contrast_solo.png")
 
 	var result: Dictionary = _measure(full, solo)
 	print("contrast: machines %.3f  surround %.3f  board %.3f  margin %+.3f  ratio %.2f  (%d machine px)" % [
