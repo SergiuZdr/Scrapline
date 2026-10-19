@@ -50,7 +50,12 @@ approves, then TRELLIS on Colab, then dressed in ink in the game.
 - ChatGPT drew a "hexagon" with five visible sides twice in a long chat; a new chat with the last image
   as reference and "exactly six sides, not a pentagon" fixed it.
 - Posterizing to 16 colours merged the pile's green paint into the rust; the pile keeps 48.
-- **Contrast not measured for lot 1.** In this session the game window stopped redrawing while the
+- The drum and the coolant tank 40% smaller (the user): 0.47 and 0.43 m across.
+- **Contrast, re-measured with the screen awake** (the fixed tool, `--fight slag_pit`): generated props
+  ratio 1.87 (margin +0.145), scripted props (`--props old`) 1.78 (+0.135) -- the new props let the
+  machines stand out a little more. Not comparable with 080's 2.37: the tool counted props as machines
+  then. The baseline from here is 1.87.
+- **Contrast not measured for lot 1 at first.** In this session the game window stopped redrawing while the
   user was away (both the last commit and the change gave a frame with the opening card still up, then
   a stale frame with the HUD the tool had hidden), so the numbers (8.98 / 9.46, 1.46-1.80) mean
   nothing. The tool now waits for the card by the clock and keeps props out of the machine mask;

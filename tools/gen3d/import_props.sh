@@ -8,9 +8,9 @@
 # The raw TRELLIS model is kept (tools/gen3d/raw/props/, gitignored): cleaning again costs no GPU.
 cd "$(dirname "$0")/../.." || exit 1
 GODOT=/Users/Sergiu/DevG/KingdomRebuilt/Godot.app/Contents/MacOS/Godot
-# Footprint in metres (the widest side after squaring). A hex is 0.78 m centre to corner, so the
+# Footprint in metres (the widest side after squaring; the drum and coolant 40% under 081's first cut, the user). A hex is 0.78 m centre to corner, so the
 # wall block (corner to corner) is 1.56 and closes on its neighbours; the hatch sits inside its hex.
-typeset -A SIZE=(barrel 0.78 coolant 0.72 pylon 0.8 cache 0.95 scrap_pile 1.0 hive_pad 1.4 wall 1.56)
+typeset -A SIZE=(barrel 0.47 coolant 0.43 pylon 0.8 cache 0.95 scrap_pile 1.0 hive_pad 1.4 wall 1.56)
 # Flat colours in the texture; the pile keeps more, or its green paint merges into the rust.
 typeset -A COLOURS=(scrap_pile 48)
 typeset -A NAME=(pile_a scrap_pile)
