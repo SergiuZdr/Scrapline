@@ -69,6 +69,8 @@ const INK_TERRAIN: Dictionary = {
 const BIG_KINDS: Array[String] = ["sorter", "heart", "pour", "grinder", "magnet", "twin"]
 ## 038: the act's bosses stand bigger still than the warlords (the Pour was not even big).
 const BOSS_KINDS: Array[String] = ["sorter", "pour", "heart"]
+## 081: the generated model (`art/props/<name>.glb`) for each prop kind.
+const PROP_MODELS: Dictionary = {"barrel": "barrel", "coolant": "coolant", "pylon": "pylon", "crate": "wall"}
 ## Damage-type colours for impacts, indexed like the rules' `damage_types`.
 const DAMAGE_COLOURS: Array[Color] = [Color("ffcf9a"), Color("ff7a3c"), Color("7fd4ff"), Color("b5e05a")]
 
@@ -1222,7 +1224,13 @@ func _spawn_prop(cell: Vector2i, kind: String) -> void:
 		return
 	var root := Node3D.new()
 	root.position = _to_world(cell.x, cell.y)
-	if kind == "barrel":
+	# 081: the generated prop where one exists. A crate wall is one hexagonal block per hex, set
+	# square to the grid so neighbouring blocks close into one wall; the rest turn a little by cell.
+	var piece: Node3D = _generated_prop(String(PROP_MODELS.get(kind, "")),
+		PI / 6.0 if kind == "crate" else float(IntentAI.mix(cell.x, cell.y, 81, 0) % 5 - 2) * 0.25)
+	if piece != null:
+		root.add_child(piece)
+	elif kind == "barrel":
 		var skin: Material = Ink.textured(_drum_texture())
 		for i: int in 2:
 			var drum := MeshInstance3D.new()
@@ -1329,6 +1337,18 @@ func _spawn_prop(cell: Vector2i, kind: String) -> void:
 			root.add_child(band)
 	_units_root.add_child(root)
 	_prop_views[cell] = root
+
+
+## 081: a generated battlefield prop (`Models.prop`) under the ink key with the props' thick line,
+## or null so the scripted one is built.
+func _generated_prop(name: String, yaw: float = 0.0) -> Node3D:
+	var packed: PackedScene = Models.prop(name) if not name.is_empty() else null
+	if packed == null:
+		return null
+	var piece: Node3D = packed.instantiate() as Node3D
+	piece.rotation.y = yaw
+	Ink.dress_set_piece(piece, Ink.STEEL, Ink.LINE_ACT)
+	return piece
 
 
 ## A drum's painted skin: red, an ink hoop top and bottom, a band of hazard chevrons, and a
@@ -1447,6 +1467,9 @@ func _scrap_bundle() -> Node3D:
 ## A salvage cache (defend objective): a stack of strapped crates. Not a machine
 ## silhouette on purpose -- it must read as cargo to protect, not as a fighter.
 func _cache_model() -> Node3D:
+	var generated: Node3D = _generated_prop("cache")
+	if generated != null:
+		return generated
 	var root := Node3D.new()
 	var wood: Material = Ink.toon(Color("9a7a4a"))
 	var strap: Material = Ink.toon(Color("2a2926"), "clean")
@@ -1484,7 +1507,11 @@ func _spawn_pile(cell: Vector2i) -> void:
 	pile.position = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
 	var h: int = IntentAI.mix(cell.x, cell.y, 55, 3)
 	var bolt: Material = Ink.toon(Ink.GAIN, "clean")
-	for i: int in 5:
+	# 081: the generated heap (green paint on rust), turned by cell so no two read the same.
+	var heap: Node3D = _generated_prop("scrap_pile", float(h % 12) * TAU / 12.0)
+	if heap != null:
+		pile.add_child(heap)
+	for i: int in (0 if heap != null else 5):
 		var bit := MeshInstance3D.new()
 		var box := BoxMesh.new()
 		box.size = Vector3(0.13 + float((h >> i) & 3) * 0.04, 0.07 + float((h >> (i + 2)) & 3) * 0.03, 0.11 + float((h >> (i + 4)) & 3) * 0.03)
@@ -3678,7 +3705,14 @@ func _spawn_marker(hive_ref: int, cell: Vector2i) -> void:
 	var urgent: bool = due <= 1
 	var colour: Color = COL_PAD_DANGER if urgent else COL_PAD
 
+	# 081: a generated floor hatch, flush enough to stand on, under the lit ring.
+	var hatch: Node3D = _generated_prop("hive_pad", PI / 6.0)
+	if hatch != null:
+		hatch.position = at
+		hatch.set_meta("intent", true)
+		_marks_root.add_child(hatch)
 	var plate := MeshInstance3D.new()
+	plate.visible = hatch == null
 	plate.mesh = _hex_mesh(HEX * 0.74, 0.05)
 	plate.position = at + Vector3(0, 0.035, 0)
 	var plate_material := StandardMaterial3D.new()
@@ -3870,7 +3904,8 @@ func _pylon_beams() -> void:
 	for cell: Vector2i in cells:
 		if String((_state.props[cell] as Dictionary).get("kind", "")) != "pylon":
 			continue
-		var from: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, 1.55, 0)
+		# 081: from the emitter dish on top of the generated pylon (1.2 m), or the scripted cap.
+		var from: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, 1.2 if Models.prop("pylon") != null else 1.55, 0)
 		var beam := MeshInstance3D.new()
 		var box := BoxMesh.new()
 		box.size = Vector3(0.06, 0.06, from.distance_to(to))

@@ -1,0 +1,153 @@
+{
+  "id": "frame_props_wall",
+  "name": "Wall",
+  "_comment": "081: one of every tile and prop, for the before/after of the battlefield models.",
+  "rows": [
+    "........",
+    "..b.c.p.",
+    "ccc.....",
+    ".kcf.w..",
+    "........",
+    "..r.l.^.",
+    ".o....s.",
+    "........"
+  ],
+  "player": [
+    {
+      "name": "Knuckles",
+      "parts": [
+        "ch_brute",
+        "co_slug",
+        "ar_saw",
+        "ar_hammer",
+        "mo_servo"
+      ],
+      "x": 2,
+      "y": 6
+    },
+    {
+      "name": "Needle",
+      "parts": [
+        "ch_hauler",
+        "co_furnace",
+        "ar_pulse",
+        "ar_lance",
+        "mo_coolant"
+      ],
+      "x": 4,
+      "y": 7
+    },
+    {
+      "name": "Relay",
+      "parts": [
+        "ch_strider",
+        "co_arc",
+        "ar_scanner",
+        "ar_railgun",
+        "mo_targeting"
+      ],
+      "x": 5,
+      "y": 6
+    }
+  ],
+  "enemy": [
+    {
+      "name": "Reaper",
+      "parts": [
+        "ch_reaper",
+        "co_bile",
+        "ar_ripper",
+        "ar_saw",
+        "mo_bypass"
+      ],
+      "x": 1,
+      "y": 0
+    },
+    {
+      "name": "Courier",
+      "parts": [
+        "ch_courier",
+        "co_ember",
+        "ar_pulse",
+        "ar_scatter",
+        "mo_servo"
+      ],
+      "x": 3,
+      "y": 0
+    },
+    {
+      "name": "Lancer",
+      "parts": [
+        "ch_lancer",
+        "co_mag",
+        "ar_scanner",
+        "ar_railgun",
+        "mo_targeting"
+      ],
+      "x": 5,
+      "y": 1,
+      "kind": "tracker"
+    },
+    {
+      "name": "Hauler",
+      "parts": [
+        "ch_hauler",
+        "co_mag",
+        "ar_lance",
+        "ar_mortar",
+        "mo_capacitor"
+      ],
+      "x": 3,
+      "y": 2,
+      "kind": "hive"
+    }
+  ],
+  "objective": {
+    "type": "hold",
+    "need": 3,
+    "cells": [
+      {
+        "x": 6,
+        "y": 3
+      },
+      {
+        "x": 7,
+        "y": 3
+      },
+      {
+        "x": 7,
+        "y": 4
+      }
+    ],
+    "piles": [
+      {
+        "x": 1,
+        "y": 4,
+        "value": 3
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "value": 3
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "value": 3
+      }
+    ]
+  },
+  "modifiers": [
+    "wires"
+  ],
+  "piles": [
+    [
+      4,
+      4
+    ],
+    [
+      6,
+      4
+    ]
+  ]
+}
