@@ -10,7 +10,7 @@ extends SceneTree
 
 const HEX: float = 0.78
 const NAMES: PackedStringArray = ["barrel", "coolant", "pylon", "wall", "cache", "scrap_pile", "hive_pad"]
-const KIT: PackedStringArray = ["container_0", "car_stack_0", "tyre_stack_0", "barrier_0", "floodlight", "gantry", "service_gantry"]
+const KIT: PackedStringArray = ["container_0", "container_1", "car_stack_0", "tyre_stack_0", "barrier_0", "floodlight", "gantry", "service_gantry"]
 
 
 func _initialize() -> void:

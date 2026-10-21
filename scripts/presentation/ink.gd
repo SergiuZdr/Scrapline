@@ -549,7 +549,7 @@ static func dress_scenery(node: Node, dim: float = 0.45) -> void:
 			var source: BaseMaterial3D = mesh.mesh.surface_get_material(s) as BaseMaterial3D
 			if source != null and source.albedo_texture != null:
 				# 081: a generated yard piece keeps its painted texture, pushed toward the night.
-				mesh.set_surface_override_material(s, textured(source.albedo_texture, Color.WHITE.lerp(NIGHT, dim)))
+				mesh.set_surface_override_material(s, textured(source.albedo_texture, Color.WHITE.lerp(NIGHT, minf(0.9, dim + 0.3))))
 				continue
 			var zone: String = PartMaterials.zone_of(mesh.mesh.surface_get_material(s))
 			var m: Material
