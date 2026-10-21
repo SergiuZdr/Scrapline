@@ -13,9 +13,11 @@ GODOT=/Users/Sergiu/DevG/KingdomRebuilt/Godot.app/Contents/MacOS/Godot
 typeset -A SIZE=(barrel 0.47 coolant 0.43 pylon 0.8 cache 0.95 scrap_pile 1.0 hive_pad 1.4 wall 1.56)
 # Terrain tiles (tr_*) fill their hex as the slab does: 0.96 of a hex, corner to corner.
 for t in rubble slag ridge pit heap flue wire; SIZE[tr_$t]=1.5
-# Yard pieces (yd_*) at the arena kit's own sizes (art/arena), the widest side.
-SIZE+=(yd_container_0 6.3 yd_container_1 6.3 yd_car_stack 4.1 yd_tyre_stack 0.94 yd_barrier 1.72
-  yd_floodlight 1.3 yd_gantry 6.43 yd_service_gantry 4.61)
+# Yard pieces (yd_*) near the arena kit's sizes (art/arena): widest side, set so the height matches too
+# (the floodlight 4.9 m tall, the gantry ~7); the car stack and service gantry are turned long side on X.
+SIZE+=(yd_container_0 5.2 yd_container_1 5.2 yd_car_stack 3.2 yd_tyre_stack 0.94 yd_barrier 1.72
+  yd_floodlight 3.9 yd_gantry 9.0 yd_service_gantry 4.61)
+typeset -A TURN=(yd_car_stack 90 yd_service_gantry 90)
 # Flat colours in the texture; the pile keeps more, or its green paint merges into the rust.
 typeset -A COLOURS=(scrap_pile 48 tr_flue 48)
 typeset -A NAME=(pile_a scrap_pile)
@@ -26,7 +28,7 @@ clean() {
   case $name in wall|hive_pad|tr_*) extra=(--no-square) ;; esac
   blender --background --python tools/blender/clean_generated.py -- --keep-texture --in $raw \
     --out art/props/$name.glb --size ${SIZE[$name]:-0.8} --budget 6000 --posterize ${COLOURS[$name]:-16} --sharp 45 \
-    ${extra[@]} ${=YAW:+--yaw $YAW} 2>&1 | grep -E "^kept|Error" | sed "s/^/$name: /"
+    ${extra[@]} --yaw ${YAW:-${TURN[$name]:-0}} 2>&1 | grep -E "^kept|Error" | sed "s/^/$name: /"
 }
 if [ "$1" = "--again" ]; then
   clean $2

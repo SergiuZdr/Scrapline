@@ -10,6 +10,8 @@ Newest first. One entry per iteration; link to the iteration file for detail.
   neighbours into one wall (`art/props`, `Models.prop`, `tools/gen3d/import_props.sh`).
 - Generated terrain tiles: rubble, slag, ridge (a narrower mound), pit, scrap heap, furnace flue and
   live wire (`art/props/tr_*`); the live wire keeps its spark.
+- Generated yard around the board, on the title and in the map yard: two containers, a car stack, tyres,
+  a barrier, a floodlight, the gantry crane and the service gantry (`art/props/yd_*`, `Surfaces.GENERATED`).
 - A green scrap icon beside the map's SCRAP count.
 - `tools/shot_props.gd`: close-ups of the props on hexes; `--props old` draws the scripted ones.
 

@@ -1,6 +1,6 @@
 # Iteration 081 — Machine colour back; real models for the battlefield
 
-**Status:** in progress (lots 1-2 of the battlefield in the game; lot 3, the yard, on Colab)
+**Status:** in progress (lots 1-3 of the battlefield in the game; waiting for the user's play-test)
 **Started:** 2026-10-18 · **Finished:** —
 **Answers:** the user, after 080: "the robots' colours are now too desaturated, but lighter, which is ok;
 now models must be made for every element on the battlefield that does not have a normal model yet (what
@@ -50,6 +50,17 @@ approves, then TRELLIS on Colab, then dressed in ink in the game.
   pointy-top grid; the slab, hints and threat marks stay. The ridge is scaled 0.72 wide, 0.5 high and
   machines stand on its top (`RIDGE_TOP` 0.21, presentation only). The flue keeps 48 colours, or its
   painted embers go dark; a glow hex under its grate does not show (the generated grate is solid).
+- **Lot 3, the yard** (`shots/081_curte_lot3_inainte_dupa.png`). Picks: both containers (A and B), car
+  stack B, tyres A, barrier A, floodlight B, the gantry crane and the service gantry. Eight TRELLIS models
+  -> `art/props/yd_*.glb`, sized so their height matches the old kit (floodlight 4.7 m, gantry 7 m); the
+  car stack and service gantry turned long side on X (`TURN` in `import_props.sh`). `Surfaces.kit` hands
+  out the generated piece when one exists (`Surfaces.GENERATED`; the car, tyre and barrier variants share
+  one), so the fight's surroundings, the title stage, the garage and the map yard all take them.
+  `Ink.dress_scenery` keeps a generated texture, pushed toward the night, instead of greying it; the
+  Reclaimer's silhouettes still paint them flat black.
+- **Contrast, lots 2-3** (`--fight slag_pit`, three runs each): the new yard 1.92 / 1.80 / 1.81, the old
+  yard 1.78 / 1.83 / 1.82 -- the same within the tool's noise (one run can move 0.06). The terrain tiles
+  darken the board (0.121 -> 0.108); without them 1.73.
 - **Scrap icon** in the map header (`art/icons/scrap_gain.png`, concept A), green like the piles.
 
 ## Decisions, lessons, open questions
@@ -57,6 +68,9 @@ approves, then TRELLIS on Colab, then dressed in ink in the game.
   at the seams. Generated crate stacks read as random boxes; a welded wall reads as a wall.
 - ChatGPT drew a "hexagon" with five visible sides twice in a long chat; a new chat with the last image
   as reference and "exactly six sides, not a pentagon" fixed it.
+- One contrast run is noise: the same build gave 1.82 and 1.88. Compare looks over three runs or more.
+- TRELLIS keeps a whole terrain tile's gaps solid: a glow put under the flue's grate never shows, so the
+  embers stay painted (48 colours, or they go dark).
 - Posterizing to 16 colours merged the pile's green paint into the rust; the pile keeps 48.
 - The drum and the coolant tank 40% smaller (the user): 0.47 and 0.43 m across.
 - **Contrast, re-measured with the screen awake** (the fixed tool, `--fight slag_pit`): generated props

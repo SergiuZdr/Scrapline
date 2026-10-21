@@ -105,6 +105,7 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 078 | [Every effect gritty](iterations/078-gritty-effects.md) | All 18 effects redrawn; flamer along its throw; slimmer Sunspear; shots from the gun's mouth | ✅ |
 | 079 | [The flail's arc, real cards, fitted parts, a roomier garage](iterations/079-garage-and-flail.md) | Flail arc attack; arc flamer; darker shards; textured cards; parts ±10% to the frame; garage layout | ✅ |
 | 080 | [Cores and modules close in, dark parts readable, a tighter garage](iterations/080-depth-ink-garage.md) | Depth limit for cores/modules; machine print lifted (contrast 1.99 -> 2.37); garage header and text fit | ✅ |
+| 081 | [Machine colour back; real models for the battlefield](iterations/081-saturation-and-battlefield.md) | Saturation 2.0; generated props, terrain tiles and yard (three lots, every concept approved) | 🔄 play-test |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |
 
 ## The first milestone that matters
