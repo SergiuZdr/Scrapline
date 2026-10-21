@@ -25,6 +25,8 @@ const NIGHT := Color("1b2233")
 const BOARD := Color("1f2024")
 ## 081, the user: generated models (TRELLIS bakes its textures darker than the approved concept) read
 ## too dark. Their texture is lifted by this much; scenery is pushed toward the night by half its dim.
+## The shader's tint is a `source_color`, clamped at white: on a prop or tile this lift is 1.0, and only
+## scenery (lift lerped toward the night) comes out lighter for it. Below 1 it darkens (the slag pool).
 const GENERATED_LIFT: float = 1.4
 const BOARD_ALT := Color("242529")
 
@@ -114,7 +116,8 @@ static func patterned(colour: Color, pattern: int, ink_colour: Color, scale: flo
 ## a machine part is "clean" (hatched, rimmed, like every machine), scenery "matte" (halftone).
 static func textured(texture: Texture2D, colour: Color = Color.WHITE, kind: String = "matte",
 		clean_tex: Texture2D = null, clean: float = 0.0) -> ShaderMaterial:
-	var key: String = "tex:%d:%s:%s:%d:%.2f" % [texture.get_instance_id(), colour.to_html(), kind,
+	# str(), not to_html(): to_html clamps, and a lifted tint (081) would share the plain one's material.
+	var key: String = "tex:%d:%s:%s:%d:%.2f" % [texture.get_instance_id(), str(colour), kind,
 		clean_tex.get_instance_id() if clean_tex != null else 0, clean]
 	if _materials.has(key):
 		return _materials[key]
@@ -657,7 +660,7 @@ static func dress_prop(node: Node, livery: Color, width: float = LINE_WORLD) -> 
 
 ## A generated set piece (017/018, `Models.site`): a surface that brought its own texture keeps
 ## it under the toon ramp (`textured`); one that was zoned is dressed like the kit. One line.
-static func dress_set_piece(node: Node, livery: Color, width: float = LINE_WORLD) -> void:
+static func dress_set_piece(node: Node, livery: Color, width: float = LINE_WORLD, lift: float = GENERATED_LIFT) -> void:
 	var textured_any: bool = false
 	for mesh: MeshInstance3D in ConstructView.meshes_of(node):
 		if mesh.mesh == null:
@@ -665,7 +668,7 @@ static func dress_set_piece(node: Node, livery: Color, width: float = LINE_WORLD
 		for s: int in mesh.mesh.get_surface_count():
 			var source: BaseMaterial3D = mesh.mesh.surface_get_material(s) as BaseMaterial3D
 			if source != null and source.albedo_texture != null:
-				mesh.set_surface_override_material(s, textured(source.albedo_texture, Color(GENERATED_LIFT, GENERATED_LIFT, GENERATED_LIFT)))
+				mesh.set_surface_override_material(s, textured(source.albedo_texture, Color(lift, lift, lift)))
 				textured_any = true
 		if textured_any:
 			line(mesh, width)

@@ -1020,7 +1020,8 @@ func _generated_tile(id: String, x: int, y: int, top: float) -> Node3D:
 	piece.rotation.y = float(fit[1])
 	piece.scale = fit[2]
 	piece.position = _to_world(x, y) + Vector3(0, top - float(fit[0]), 0)
-	Ink.dress_set_piece(piece, Ink.STEEL, Ink.LINE_WORLD)
+	# The slag pool glows in its own paint: lifted like the rest it burned too bright (the user).
+	Ink.dress_set_piece(piece, Ink.STEEL, Ink.LINE_WORLD, 0.85 if id == "slag" else Ink.GENERATED_LIFT)
 	return piece
 
 ## Beyond the curb: dark asphalt and a ring of yard -- containers, wrecks, tyres and
@@ -1035,30 +1036,41 @@ func _build_surroundings() -> void:
 	# The yard beyond the board: night ground with a faint drawn grain.
 	ground.material_override = Ink.patterned(Color("1b1e27"), 2, Color("171a22"), 2.5, 0.18)
 	_board.add_child(ground)
-	var half := Vector2(_origin.x + HEX * 2.0, _origin.y + HEX * 2.0)
+	# 081, the user: the yard laid out as a working yard, not scattered -- every piece square to the
+	# board, in rows along its sides, near enough to be seen from each of the four camera turns.
+	# The hash picks which flank stacks containers and which keeps the wrecks, and small turns.
+	var half := Vector2(_origin.x + HEX * 1.4, _origin.y + HEX * 1.4)
 	var seed: int = IntentAI.mix(_setup.rng_seed, _setup.width, _setup.height, 77)
-	var tall: PackedStringArray = ["container_0", "container_1", "car_stack_2"]
-	var low: PackedStringArray = ["tyre_stack_0", "tyre_stack_1", "tyre_stack_2", "car_stack_0", "car_stack_1", "barrier_0"]
-	var count: int = 26
-	for i: int in count:
-		var h: int = IntentAI.mix(seed, i, 3, 11)
-		var angle: float = TAU * (float(i) + float(h % 100) / 200.0) / float(count)
-		var far: bool = i % 3 != 0
-		var reach: float = (5.5 if far else 2.8) + float((h >> 8) % 100) / 100.0 * 2.5
-		var at := Vector3(cos(angle) * (half.x + reach), -0.31, sin(angle) * (half.y + reach))
-		var names: PackedStringArray = tall if far else low
-		var prop: Node3D = Surfaces.kit(names[(h >> 4) % names.size()], 0.35)
-		if prop == null:
-			continue
-		prop.position = at
-		prop.rotation.y = -angle + float((h >> 12) % 60 - 30) * 0.02
-		prop.scale = Vector3.ONE * 0.62
-		Ink.dress_scenery(prop, 0.55)
-		_board.add_child(prop)
-	# Floodlights on the diagonals: the diegetic source of the warm key light.
+	var flip: float = 1.0 if seed & 1 == 0 else -1.0
+	# One flank: a row of containers, long side along the board.
+	var cx: float = flip * (half.x + 1.8)
+	for k: int in 3:
+		_yard_piece("container_%d" % (k % 2), Vector3(cx, 0.0, (float(k) - 1.0) * 3.5), PI * 0.5, IntentAI.mix(seed, k, 3, 11))
+	# The other flank: crushed cars in a row, tyre stacks between them and the board.
+	var wx: float = -flip * (half.x + 1.8)
+	for k: int in 3:
+		var h: int = IntentAI.mix(seed, k, 5, 11)
+		_yard_piece("car_stack_0", Vector3(wx, 0.0, (float(k) - 1.0) * 2.4), PI * 0.5, h, 0.48)
+		_yard_piece("tyre_stack_%d" % (k % 3), Vector3(wx + flip * 1.3, 0.0, (float(k) - 0.5) * 2.4), 0.0, h >> 4, 0.9)
+	# Behind the far side: the gantry crane over a container waiting to be lifted, the service gantry
+	# beside it.
+	var far_z: float = -half.y - 2.2
+	_yard_piece("container_1", Vector3(-flip * 1.2, 0.0, far_z), 0.0, seed)
+	var gantry: Node3D = Surfaces.kit("gantry", 0.3)
+	if gantry != null:
+		gantry.position = Vector3(-flip * 1.2, -0.31, far_z)
+		gantry.scale = Vector3.ONE * 0.62
+		Ink.dress_scenery(gantry, 0.5)
+		_board.add_child(gantry)
+	_yard_piece("service_gantry", Vector3(flip * (half.x * 0.5), 0.0, far_z + 0.4), 0.0, seed >> 5)
+	# The near side (under the HUD from the first camera, in full view after a turn): barriers.
+	for k: int in 3:
+		var x: float = (float(k) - 1.0) * (half.x * 0.7)
+		_yard_piece("barrier_%d" % (k % 2), Vector3(x, 0.0, half.y + 1.6), 0.0, IntentAI.mix(seed, k, 7, 11), 0.9)
+	# Floodlights on the corners, turned to the board: the diegetic source of the warm key light.
 	for k: int in 4:
 		var angle: float = TAU * (float(k) + 0.5) / 4.0
-		var at := Vector3(cos(angle) * (half.x + 3.4), -0.31, sin(angle) * (half.y + 3.4))
+		var at := Vector3(signf(cos(angle)) * (half.x + 2.6), -0.31, signf(sin(angle)) * (half.y + 2.6))
 		var lamp: Node3D = Surfaces.kit("floodlight", 0.2)
 		if lamp == null:
 			continue
@@ -1067,6 +1079,19 @@ func _build_surroundings() -> void:
 		lamp.scale = Vector3.ONE * 0.7
 		Ink.dress_scenery(lamp, 0.45)
 		_board.add_child(lamp)
+
+
+## One piece of the yard on the ground at `at` (y lifts it onto another), square to the board but
+## for a hashed turn of a few degrees.
+func _yard_piece(name: String, at: Vector3, yaw: float, h: int, size: float = 0.62) -> void:
+	var prop: Node3D = Surfaces.kit(name, 0.35)
+	if prop == null:
+		return
+	prop.position = at + Vector3(0, -0.31, 0)
+	prop.rotation.y = yaw + float(h % 9 - 4) * 0.012
+	prop.scale = Vector3.ONE * size
+	Ink.dress_scenery(prop, 0.55)
+	_board.add_child(prop)
 
 
 ## A pit (015): pure black, with a torn pale rim -- a hole in the drawing, so "you can be
