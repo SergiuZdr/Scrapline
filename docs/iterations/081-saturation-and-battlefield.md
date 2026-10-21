@@ -1,6 +1,6 @@
 # Iteration 081 — Machine colour back; real models for the battlefield
 
-**Status:** in progress (lots 1-3 of the battlefield in the game; waiting for the user's play-test)
+**Status:** in progress (lots 1-5 in the game; waiting for the user's play-test)
 **Started:** 2026-10-18 · **Finished:** —
 **Answers:** the user, after 080: "the robots' colours are now too desaturated, but lighter, which is ok;
 now models must be made for every element on the battlefield that does not have a normal model yet (what
@@ -69,6 +69,23 @@ approves, then TRELLIS on Colab, then dressed in ink in the game.
 - **Lot 4 concepts** (`shots/081_lot4_concepte.png`, waiting for the user): the hacking terminal, the mine
   (ChatGPT refuses "land mine"; a "floor hazard puck" in a new chat passed), the scrap carrier's bundle,
   container B redrawn.
+- **The yard laid out** (the user: positions should make sense and be seen;
+  `shots/081_curte_asezare_inainte_dupa.png`): rows square to the board -- containers along one flank,
+  crushed cars with tyre stacks on the other, the gantry over a container behind, floodlights on the
+  corners turned in. **The camera no longer turns** (the user), so the near side stays open under the HUD.
+- **Slag** dimmed to 0.85 (too bright). Found doing it: the toon shader's tint is a `source_color`, clamped
+  at white, so the x1.4 lift never reached a prop or a tile -- only scenery (lerped toward the night) got
+  lighter. And `Ink.textured` keyed its cache on `to_html()`, which clamps: a lifted and a plain tint
+  shared one material. Keyed on `str()` now.
+- **Lot 4** (`shots/081_lot4_inainte_dupa.png`): terminal A (its screen turned to the camera; the zone ring
+  still says blue to take, green taken), mine A (turned a hashed sixth), container B redrawn as one long box
+  (7 m, drawn slimmer than A). The scrap carrier's bundle was dropped: the green pile already says it.
+- **Lot 5** (`shots/081_lot5_inainte_dupa.png`): five plain floor tiles of the eight drawn (the user: "not all
+  the same"), each open hex one by a hash of its cell, turned a hashed sixth, its walking surface measured
+  per tile (`FLOOR_PLATE`) and tinted 0.6. Tiles 1 and 5 came out a twelfth of a turn off the grid
+  (`TURN` in `import_props.sh`). Contrast went UP: 2.08 / 2.04 / 2.04 (was 1.83) -- the textured floor
+  around a machine is darker than the flat slab was. Two factories (A and B) replace Kenney's shapes on the
+  region map; the old horizon (20 m past the edge) was never in the camera's reach, so they stand 6 m out.
 - **Scrap icon** in the map header (`art/icons/scrap_gain.png`, concept A), green like the piles.
 
 ## Decisions, lessons, open questions

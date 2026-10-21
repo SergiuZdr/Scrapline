@@ -299,6 +299,9 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-13 | A part whose JSON has `"model"` keeps drawing the borrowed model; check the data when a new model does not show |
 | 2026-10-14 | "Nearest point touches" is not "looks attached": a generated arm mounted by its innermost vertex showed daylight; measure the silhouette band at shoulder height (074) |
 | 2026-10-21 | One `measure_contrast` run is noise (the same build gave 1.82 and 1.88): judge a look over three runs or more |
+| 2026-10-21 | `ink_toon`'s tint is a `source_color`: anything over 1.0 is clamped, so a texture can only be darkened by it -- brighten the texture itself. And never key a material cache on `Color.to_html()` (it clamps too) |
+| 2026-10-21 | TRELLIS can fuse a strongly foreshortened box into two crossed boxes (container B): redraw the concept from a gentler angle with the long side dominant. Check a generated model's footprint before placing it |
+| 2026-10-21 | ChatGPT refuses "land mine" outright and a refused chat keeps refusing; a new chat, a style reference and "floor hazard puck for a robot board game" passed |
 | 2026-10-18 | `Font.get_string_size` under-measures the comic face (a tuned "+"): fit text with slack (`UIKit.fit(..., slack)`) or words end in "..." |
 | 2026-10-15 | A regenerated PNG is not in the game until `--import`, and an older picture set in front of it hides it: check the screen, not the file (079) |
 | 2026-10-14 | Noise-painted drawings cost seconds in GDScript (3.3 s at a fight's opening): bake them to `art/fx/` with `tools/bake_fx.gd`, rerun after any drawing or weapon-colour change |

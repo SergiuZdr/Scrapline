@@ -12,11 +12,20 @@ Newest first. One entry per iteration; link to the iteration file for detail.
   live wire (`art/props/tr_*`); the live wire keeps its spark.
 - Generated yard around the board, on the title and in the map yard: two containers, a car stack, tyres,
   a barrier, a floodlight, the gantry crane and the service gantry (`art/props/yd_*`, `Surfaces.GENERATED`).
+- Generated mine and hacking terminal on the board (`art/props/mine`, `terminal`); container B redrawn as
+  one long box and generated again.
+- Generated plain floor: every open hex takes one of five floor tiles (`tr_floor_1..5`: tread plate,
+  cracked concrete, drain grate, gravel, worn hazard paint) by a hash of its cell, turned a hashed sixth.
+- Two generated factories (`sk_factory_a|b`) stand just past the region map's far edge.
 - A green scrap icon beside the map's SCRAP count.
 - `tools/shot_props.gd`: close-ups of the props on hexes; `--props old` draws the scripted ones.
 
 ### Changed
 - Machine colours saturated again (`Ink.MACHINE_SAT` 2.0), at 080's lightness. Cards remade.
+- The yard around the board is laid out in rows square to it (containers on one flank, wrecks and tyres
+  on the other, the gantry behind, floodlights on the corners) instead of scattered.
+- The fight camera no longer turns (the `<` `>` buttons and Q/E are gone).
+- Generated scenery is lighter (the user: too dark); the slag tile is dimmed to 0.85.
 - `measure_contrast` waits for the opening card by the clock and leaves props and piles out of the
   machine mask; `--dump` saves the two frames it measures.
 

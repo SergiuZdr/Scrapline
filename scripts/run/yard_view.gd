@@ -543,6 +543,12 @@ func _add_plain(parent: Node3D, key: String, make: Callable, at: Vector3, materi
 ## the horizon, red lamps blinking on the stacks, and the Crucible's glow beyond the gate
 ## (the story: "the Crucible's glow on the clouds"). Kenney's CC0 shapes, re-materialed:
 ## their own toy palette is never seen (art-sourcing.md).
+## 081: the generated factories' size on the map (they are cleaned to 1 m) and how far toward the night.
+const SKYLINE_SIZE: float = 11.0
+const SKYLINE_DIM: float = 1.1
+const SKYLINE_GAP: float = 6.0
+
+
 func _build_skyline() -> void:
 	var width: float = SPACING_X * float(_columns - 1)
 	var names: PackedStringArray = ["building-a", "building-c", "building-f", "building-q", "water-tower", "detail-tank-large", "chimney-large"]
@@ -551,15 +557,24 @@ func _build_skyline() -> void:
 	var i: int = 0
 	while x < width * 0.5 + 24.0:
 		var name: String = names[_h(i, 5) % names.size()]
-		var packed: PackedScene = load("res://art/thirdparty/kenney/city-kit-industrial/%s.glb" % name)
+		# 081: the generated factories (`art/props/sk_factory_a|b.glb`) where they exist, in their own
+		# paint pushed far toward the night; Kenney's shapes as black silhouettes otherwise.
+		var factory: PackedScene = Models.prop("sk_factory_%s" % ("a" if _h(i, 5) % 2 == 0 else "b"))
+		var packed: PackedScene = factory if factory != null else load("res://art/thirdparty/kenney/city-kit-industrial/%s.glb" % name)
 		if packed != null:
 			var block: Node3D = packed.instantiate()
-			for mesh: MeshInstance3D in ConstructView.meshes_of(block):
-				mesh.material_override = dark
-				Ink.line(mesh, Ink.LINE_WORLD * 0.7, Color("252a38"))
-			var s: float = 4.5 + float(_h(i, 9) % 100) / 40.0
+			if factory != null:
+				Ink.dress_scenery(block, SKYLINE_DIM)
+			else:
+				for mesh: MeshInstance3D in ConstructView.meshes_of(block):
+					mesh.material_override = dark
+					Ink.line(mesh, Ink.LINE_WORLD * 0.7, Color("252a38"))
+			var s: float = (SKYLINE_SIZE if factory != null else 4.5) + float(_h(i, 9) % 100) / 40.0
 			block.scale = Vector3.ONE * s
-			block.position = Vector3(x, 0, -DEPTH * 0.5 - 20.0 - float(_h(i, 13) % 100) / 12.0)
+			# 081: the camera never reached a horizon 20 m out; the generated factories stand just past
+			# the region's far edge, where the map can see them.
+			var far: float = SKYLINE_GAP if factory != null else 20.0
+			block.position = Vector3(x, 0, -DEPTH * 0.5 - far - float(_h(i, 13) % 100) / 12.0)
 			block.rotation.y = float(_h(i, 17) % 4) * PI * 0.5
 			add_child(block)
 			if name.begins_with("chimney") or name == "water-tower" or i % 3 == 0:

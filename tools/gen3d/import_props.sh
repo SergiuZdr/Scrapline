@@ -19,7 +19,8 @@ SIZE+=(sk_factory_a 1.0 sk_factory_b 1.0)
 # (the floodlight 4.9 m tall, the gantry ~7; container B is drawn slimmer, so longer); the car stack and service gantry are turned long side on X.
 SIZE+=(yd_container_0 5.2 yd_container_1 7.0 yd_car_stack 3.2 yd_tyre_stack 0.94 yd_barrier 1.72
   yd_floodlight 3.9 yd_gantry 9.0 yd_service_gantry 4.61)
-typeset -A TURN=(yd_car_stack 90 yd_service_gantry 90)
+# Floor tiles 1 and 5 came out a twelfth of a turn off the pointy-top grid.
+typeset -A TURN=(yd_car_stack 90 yd_service_gantry 90 tr_floor_1 30 tr_floor_5 30)
 # Flat colours in the texture; the pile keeps more, or its green paint merges into the rust.
 typeset -A COLOURS=(scrap_pile 48 tr_flue 48)
 # The plain floor tiles keep their grain (tread, cracks, gravel): 16 colours turn it to blotches.
