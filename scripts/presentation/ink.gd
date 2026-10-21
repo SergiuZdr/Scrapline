@@ -546,6 +546,11 @@ static func dress_scenery(node: Node, dim: float = 0.45) -> void:
 		if mesh.mesh == null:
 			continue
 		for s: int in mesh.mesh.get_surface_count():
+			var source: BaseMaterial3D = mesh.mesh.surface_get_material(s) as BaseMaterial3D
+			if source != null and source.albedo_texture != null:
+				# 081: a generated yard piece keeps its painted texture, pushed toward the night.
+				mesh.set_surface_override_material(s, textured(source.albedo_texture, Color.WHITE.lerp(NIGHT, dim)))
+				continue
 			var zone: String = PartMaterials.zone_of(mesh.mesh.surface_get_material(s))
 			var m: Material
 			if zone.begins_with("glow"):
