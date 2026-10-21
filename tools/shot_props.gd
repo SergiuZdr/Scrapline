@@ -6,9 +6,11 @@ extends SceneTree
 ##   godot --path . --resolution 700x560 --script res://tools/shot_props.gd -- --out shots/081/prop
 ##
 ## Writes `<out>_<name>.png`. The wall is shown as three blocks in a bent line, as it stands in a fight.
+## `--kit` shows the yard's arena-kit pieces instead (`Surfaces.kit`), dressed as the fight's surroundings.
 
 const HEX: float = 0.78
 const NAMES: PackedStringArray = ["barrel", "coolant", "pylon", "wall", "cache", "scrap_pile", "hive_pad"]
+const KIT: PackedStringArray = ["container_0", "car_stack_0", "tyre_stack_0", "barrier_0", "floodlight", "gantry", "service_gantry"]
 
 
 func _initialize() -> void:
@@ -20,7 +22,9 @@ func _run() -> void:
 	var out: String = args[args.find("--out") + 1] if args.has("--out") else "shots/prop"
 	var db: ContentDB = ContentDB.load_all()
 	var only: String = args[args.find("--only") + 1] if args.has("--only") else ""
-	for name: String in NAMES:
+	var kit: bool = args.has("--kit")
+	var names: PackedStringArray = KIT if kit else NAMES
+	for name: String in names:
 		if not only.is_empty() and name != only:
 			continue
 		var world := Node3D.new()
@@ -43,12 +47,17 @@ func _run() -> void:
 			Ink.line(tile, Ink.LINE_WORLD)
 			world.add_child(tile)
 		var blocks: Array = [Vector2i(-1, 0), Vector2i(0, 0), Vector2i(-1, 1)] if name == "wall" else [Vector2i(0, 0)]
-		for cell: Vector2i in blocks:
+		for cell: Vector2i in ([] if kit else blocks):
 			var piece: Node3D = (Models.prop(name) as PackedScene).instantiate() as Node3D
 			piece.position = _at(cell)
 			piece.rotation.y = PI / 6.0 if name == "wall" or name == "hive_pad" else 0.0
 			Ink.dress_set_piece(piece, Ink.STEEL, Ink.LINE_ACT)
 			world.add_child(piece)
+		if kit:
+			var scenery: Node3D = Surfaces.kit(name, 0.35)
+			scenery.scale = Vector3.ONE * 0.62
+			Ink.dress_scenery(scenery, 0.55)
+			world.add_child(scenery)
 		var parts := PackedStringArray(["ch_brute", "co_slug", "ar_saw", "ar_hammer", "mo_scavenger"])
 		var model: Node3D = ConstructView.build_parts(parts, db, Ink.YOURS)
 		Ink.dress_machine(model, parts, Ink.YOURS)
