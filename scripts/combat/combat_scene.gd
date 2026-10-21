@@ -200,7 +200,6 @@ var _sfx_attacker: int = -1
 var _sfx_weapon: int = -1
 var _sfx_said: bool = false
 var _zoom: float = 12.5
-var _yaw_step: int = 0
 var _vfx: BattleVFX
 var _hud: CombatHUD
 
@@ -226,7 +225,6 @@ func _ready() -> void:
 	_hud.vent_pressed.connect(_vent)
 	_hud.undo_pressed.connect(_undo)
 	_hud.end_turn_pressed.connect(_end_turn)
-	_hud.rotate_pressed.connect(_rotate)
 	_hud.lines_pressed.connect(_toggle_lines)
 	_hud.retry_pressed.connect(_start_fight)
 	_hud.title_pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/main.tscn"))
@@ -639,13 +637,6 @@ func _fit_board(boss: bool) -> void:
 			break
 
 
-func _rotate(step: int) -> void:
-	_yaw_step = (_yaw_step + step + 4) % 4
-	var tween := create_tween()
-	tween.tween_property(_pivot, "rotation:y", _pivot.rotation.y + step * PI * 0.5, 0.28) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-
-
 ## Pointy-top hexes in odd-r offset: odd rows sit half a hex to the right.
 func _to_world(x: int, y: int) -> Vector3:
 	return Vector3(SQRT3 * HEX * (float(x) + 0.5 * float(y & 1)) - _origin.x, 0.0, 1.5 * HEX * float(y) - _origin.y)
@@ -1037,7 +1028,7 @@ func _build_surroundings() -> void:
 	ground.material_override = Ink.patterned(Color("1b1e27"), 2, Color("171a22"), 2.5, 0.18)
 	_board.add_child(ground)
 	# 081, the user: the yard laid out as a working yard, not scattered -- every piece square to the
-	# board, in rows along its sides, near enough to be seen from each of the four camera turns.
+	# board, in rows along its sides, near enough to be seen from the one camera.
 	# The hash picks which flank stacks containers and which keeps the wrecks, and small turns.
 	var half := Vector2(_origin.x + HEX * 1.4, _origin.y + HEX * 1.4)
 	var seed: int = IntentAI.mix(_setup.rng_seed, _setup.width, _setup.height, 77)
@@ -1063,10 +1054,7 @@ func _build_surroundings() -> void:
 		Ink.dress_scenery(gantry, 0.5)
 		_board.add_child(gantry)
 	_yard_piece("service_gantry", Vector3(flip * (half.x * 0.5), 0.0, far_z + 0.4), 0.0, seed >> 5)
-	# The near side (under the HUD from the first camera, in full view after a turn): barriers.
-	for k: int in 3:
-		var x: float = (float(k) - 1.0) * (half.x * 0.7)
-		_yard_piece("barrier_%d" % (k % 2), Vector3(x, 0.0, half.y + 1.6), 0.0, IntentAI.mix(seed, k, 7, 11), 0.9)
+	# The near side stays open: the camera looks in from there, under the HUD (no camera turns).
 	# Floodlights on the corners, turned to the board: the diegetic source of the warm key light.
 	for k: int in 4:
 		var angle: float = TAU * (float(k) + 0.5) / 4.0
@@ -4205,10 +4193,6 @@ func _unhandled_input(event: InputEvent) -> void:
 				_end_turn()
 			KEY_L:
 				_toggle_lines()
-			KEY_Q:
-				_rotate(-1)
-			KEY_E:
-				_rotate(1)
 
 
 ## Hovering a hex the picked machine can walk to draws the route it will take (play-test 5:

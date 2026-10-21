@@ -18,7 +18,6 @@ signal weapon_pressed(w: int)
 signal vent_pressed
 signal undo_pressed
 signal end_turn_pressed
-signal rotate_pressed(step: int)
 signal lines_pressed
 signal retry_pressed
 signal title_pressed
@@ -173,16 +172,7 @@ func _ready() -> void:
 	var camera := HBoxContainer.new()
 	camera.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	add_child(camera)
-	# Plain text: the bundled faces have no rotation arrows, and a missing glyph renders
-	# as a speck that reads as a broken button.
-	var left := _button("<", UIKit.PAPER_CARD, Vector2(58, 64))
-	left.tooltip_text = "Turn the camera (Q)"
-	left.pressed.connect(func() -> void: rotate_pressed.emit(-1))
-	camera.add_child(left)
-	var right := _button(">", UIKit.PAPER_CARD, Vector2(58, 64))
-	right.tooltip_text = "Turn the camera (E)"
-	right.pressed.connect(func() -> void: rotate_pressed.emit(1))
-	camera.add_child(right)
+	# 081, the user: no camera turns -- the board is seen from one side, and the yard is laid out for it.
 	# Every enemy's full line of fire at once, for when the quiet default is not enough (L).
 	_lines_button = _button("LINES", UIKit.PAPER_CARD, Vector2(104, 64))
 	_lines_button.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)

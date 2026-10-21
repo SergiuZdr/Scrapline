@@ -96,7 +96,7 @@ primary action per screen) stay. The hub, its tabs and every F2P screen are cut.
 
 - A fixed tilted camera over the board. Two-finger/wheel zoom and a rotate button that
   snaps in 90° steps. Free orbit is cut: on a grid game it only hides tiles.
-- Keyboard: 1–3 select a construct, Q/E pick an action, Z undo, Space end turn.
+- Keyboard: 1–3 select a construct, Q/E pick an action (the camera does not turn since 081), Z undo, Space end turn.
 - Controller support is optional and post-launch.
 
 ## Play-test 7 (024)

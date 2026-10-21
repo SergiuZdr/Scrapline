@@ -40,10 +40,6 @@ func _run() -> void:
 				"tap":
 					scene.call("_tap", cell)
 					await _settle(scene)
-				"turn":
-					# The camera's quarter turns (the < > buttons); waits out the tween.
-					scene.call("_rotate", kv[1].to_int())
-					await create_timer(0.5).timeout
 				"end":
 					scene.call("_end_turn")
 					for i: int in 5:
