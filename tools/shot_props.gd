@@ -9,7 +9,7 @@ extends SceneTree
 ## `--kit` shows the yard's arena-kit pieces instead (`Surfaces.kit`), dressed as the fight's surroundings.
 
 const HEX: float = 0.78
-const NAMES: PackedStringArray = ["barrel", "coolant", "pylon", "wall", "cache", "scrap_pile", "hive_pad"]
+const NAMES: PackedStringArray = ["barrel", "coolant", "pylon", "wall", "cache", "scrap_pile", "hive_pad", "mine", "terminal"]
 const KIT: PackedStringArray = ["container_0", "container_1", "car_stack_0", "tyre_stack_0", "barrier_0", "floodlight", "gantry", "service_gantry"]
 
 
@@ -50,7 +50,7 @@ func _run() -> void:
 		for cell: Vector2i in ([] if kit else blocks):
 			var piece: Node3D = (Models.prop(name) as PackedScene).instantiate() as Node3D
 			piece.position = _at(cell)
-			piece.rotation.y = PI / 6.0 if name == "wall" or name == "hive_pad" else 0.0
+			piece.rotation.y = PI / 6.0 if name == "wall" or name == "hive_pad" else (-PI / 2.0 if name == "terminal" else 0.0)
 			Ink.dress_set_piece(piece, Ink.STEEL, Ink.LINE_ACT)
 			world.add_child(piece)
 		if kit:

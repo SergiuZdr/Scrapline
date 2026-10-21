@@ -80,10 +80,18 @@ const TILE_MODELS: Dictionary = {
 	"heap": [0.17, PI / 6.0, Vector3.ONE],
 	"pit": [0.62, PI / 6.0, Vector3.ONE],
 	"ridge": [0.2, PI / 6.0, Vector3(0.72, 0.5, 0.72)],
+	"open": [0.17, 0.0, Vector3.ONE],
 }
+## 081: the plain floor (the user: "not all the same") -- each open hex takes one of these generated
+## tiles (`tr_floor_<n>`) by a hash of its cell, turned a hashed sixth, and darkened to stay under the
+## machines in value.
+const FLOOR_VARIANTS: int = 5
+const FLOOR_TINT: float = 0.6
 ## Where a machine stands on the generated ridge (its mound's top), and the live wire's cut end.
 const RIDGE_TOP: float = 0.21
 const WIRE_TIP := Vector3(0.3, 0.0, 0.1)
+## 081: the generated terminal's screen faces +X; this turns it to the camera (+Z).
+const TERMINAL_YAW: float = -PI / 2.0
 const PROP_MODELS: Dictionary = {"barrel": "barrel", "coolant": "coolant", "pylon": "pylon", "crate": "wall"}
 ## Damage-type colours for impacts, indexed like the rules' `damage_types`.
 const DAMAGE_COLOURS: Array[Color] = [Color("ffcf9a"), Color("ff7a3c"), Color("7fd4ff"), Color("b5e05a")]
@@ -693,7 +701,7 @@ func _build_board() -> void:
 			elif blocks:
 				_board.add_child(_scrap_heap(x, y))
 			_dress_tile(String(def.get("id", "open")), x, y, top, tile != null)
-			if arena and String(def.get("id", "open")) == "open" and not blocks:
+			if arena and tile == null and String(def.get("id", "open")) == "open" and not blocks:
 				_dress_arena_floor(x, y, top)
 			_hint_quads[Vector2i(x, y)] = _quad(x, y, top + 0.012, HEX * 0.80)
 			_threat_quads[Vector2i(x, y)] = _quad(x, y, top + 0.008, HEX * 0.94)
@@ -1003,16 +1011,23 @@ func _wire_spark(tip: Vector3) -> void:
 func _generated_tile(id: String, x: int, y: int, top: float) -> Node3D:
 	if not TILE_MODELS.has(id):
 		return null
-	var packed: PackedScene = Models.prop("tr_" + id)
+	var model: String = "tr_" + id
+	var turn: float = 0.0
+	if id == "open":
+		var h: int = IntentAI.mix(x, y, 41, 0)
+		model = "tr_floor_%d" % (1 + h % FLOOR_VARIANTS)
+		turn = float((h >> 4) % 6) * PI / 3.0
+	var packed: PackedScene = Models.prop(model)
 	if packed == null:
 		return null
 	var fit: Array = TILE_MODELS[id]
 	var piece: Node3D = packed.instantiate() as Node3D
-	piece.rotation.y = float(fit[1])
+	piece.rotation.y = float(fit[1]) + turn
 	piece.scale = fit[2]
 	piece.position = _to_world(x, y) + Vector3(0, top - float(fit[0]), 0)
 	# The slag pool glows in its own paint: lifted like the rest it burned too bright (the user).
-	Ink.dress_set_piece(piece, Ink.STEEL, Ink.LINE_WORLD, 0.85 if id == "slag" else Ink.GENERATED_LIFT)
+	var tint: float = 0.85 if id == "slag" else (FLOOR_TINT if id == "open" else Ink.GENERATED_LIFT)
+	Ink.dress_set_piece(piece, Ink.STEEL, Ink.LINE_WORLD, tint)
 	return piece
 
 ## Beyond the curb: dark asphalt and a ring of yard -- containers, wrecks, tyres and
@@ -3873,25 +3888,30 @@ func _mine_marker(cell: Vector2i, as_floor: bool = true) -> void:
 		_mine_views[cell] = root
 	else:
 		root.set_meta("intent", true)
-	var body := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = 0.2
-	disc.bottom_radius = 0.26
-	disc.height = 0.1
-	disc.radial_segments = 10
-	body.mesh = disc
-	body.position.y = 0.05
-	body.material_override = Ink.toon(Color("23201e"), "clean")
-	Ink.line(body, Ink.LINE_ACT)
-	root.add_child(body)
-	var cap := MeshInstance3D.new()
-	var dome := SphereMesh.new()
-	dome.radius = 0.08
-	dome.height = 0.08
-	cap.mesh = dome
-	cap.position.y = 0.12
-	cap.material_override = Ink.glow(COL_PAD_DANGER, 2.0)
-	root.add_child(cap)
+	# 081: the generated mine (`art/props/mine.glb`, red lamps painted on), else the scripted disc.
+	var model: Node3D = _generated_prop("mine", float(IntentAI.mix(cell.x, cell.y, 83, 0) % 6) * PI / 3.0)
+	if model != null:
+		root.add_child(model)
+	else:
+		var body := MeshInstance3D.new()
+		var disc := CylinderMesh.new()
+		disc.top_radius = 0.2
+		disc.bottom_radius = 0.26
+		disc.height = 0.1
+		disc.radial_segments = 10
+		body.mesh = disc
+		body.position.y = 0.05
+		body.material_override = Ink.toon(Color("23201e"), "clean")
+		Ink.line(body, Ink.LINE_ACT)
+		root.add_child(body)
+		var cap := MeshInstance3D.new()
+		var dome := SphereMesh.new()
+		dome.radius = 0.08
+		dome.height = 0.08
+		cap.mesh = dome
+		cap.position.y = 0.12
+		cap.material_override = Ink.glow(COL_PAD_DANGER, 2.0)
+		root.add_child(cap)
 	# The danger ring belongs to the mine (it was an intent mark and vanished with the others).
 	var ring := MeshInstance3D.new()
 	var torus := TorusMesh.new()
@@ -4102,21 +4122,28 @@ func _terminal(cell: Vector2i, taken: bool) -> void:
 	var root := Node3D.new()
 	root.position = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
 	root.set_meta("intent", true)
-	var body := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(0.34, 0.42, 0.26)
-	body.mesh = box
-	body.position = Vector3(0.0, 0.21, -0.18)
-	body.material_override = Ink.toon(Color("3a3d45"), "clean")
-	Ink.line(body, Ink.LINE_ACT)
-	root.add_child(body)
-	var screen := MeshInstance3D.new()
-	var face := BoxMesh.new()
-	face.size = Vector3(0.26, 0.18, 0.02)
-	screen.mesh = face
-	screen.position = Vector3(0.0, 0.3, -0.04)
-	screen.material_override = Ink.glow(Ink.GAIN if taken else Ink.YOURS, 0.8)
-	root.add_child(screen)
+	# 081: the generated console (`art/props/terminal.glb`), its screen turned to the camera; the zone
+	# ring under it says blue to take, green once taken. Else the scripted box with a lit screen.
+	var model: Node3D = _generated_prop("terminal", TERMINAL_YAW)
+	if model != null:
+		model.position.z = -0.12
+		root.add_child(model)
+	else:
+		var body := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.34, 0.42, 0.26)
+		body.mesh = box
+		body.position = Vector3(0.0, 0.21, -0.18)
+		body.material_override = Ink.toon(Color("3a3d45"), "clean")
+		Ink.line(body, Ink.LINE_ACT)
+		root.add_child(body)
+		var screen := MeshInstance3D.new()
+		var face := BoxMesh.new()
+		face.size = Vector3(0.26, 0.18, 0.02)
+		screen.mesh = face
+		screen.position = Vector3(0.0, 0.3, -0.04)
+		screen.material_override = Ink.glow(Ink.GAIN if taken else Ink.YOURS, 0.8)
+		root.add_child(screen)
 	_marks_root.add_child(root)
 	_zone_ring(cell, Ink.GAIN if taken else Ink.YOURS)
 
