@@ -61,6 +61,14 @@ approves, then TRELLIS on Colab, then dressed in ink in the game.
 - **Contrast, lots 2-3** (`--fight slag_pit`, three runs each): the new yard 1.92 / 1.80 / 1.81, the old
   yard 1.78 / 1.83 / 1.82 -- the same within the tool's noise (one run can move 0.06). The terrain tiles
   darken the board (0.121 -> 0.108); without them 1.73.
+- **Lighter generated models** (the user: "everything looks too dark"; `shots/081_luminozitate_inainte_dupa.png`).
+  TRELLIS bakes its textures darker than the approved concept: every generated texture is lifted x1.4
+  (`Ink.GENERATED_LIFT`) and scenery goes toward the night by half its dim. Contrast 1.85 / 1.79 / 1.86
+  (1.83 mean, was 1.82): unchanged. Container B came out of TRELLIS as two crossed boxes (a square
+  footprint, 5.3 x 5.3 m); both containers show A until B is redrawn (single long box) and generated again.
+- **Lot 4 concepts** (`shots/081_lot4_concepte.png`, waiting for the user): the hacking terminal, the mine
+  (ChatGPT refuses "land mine"; a "floor hazard puck" in a new chat passed), the scrap carrier's bundle,
+  container B redrawn.
 - **Scrap icon** in the map header (`art/icons/scrap_gain.png`, concept A), green like the piles.
 
 ## Decisions, lessons, open questions
