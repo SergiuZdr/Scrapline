@@ -1,6 +1,6 @@
 # Iteration 081 — Machine colour back; real models for the battlefield
 
-**Status:** in progress (lot 1 of the battlefield in the game; lots 2-3 next)
+**Status:** in progress (lots 1-2 of the battlefield in the game; lot 3, the yard, on Colab)
 **Started:** 2026-10-18 · **Finished:** —
 **Answers:** the user, after 080: "the robots' colours are now too desaturated, but lighter, which is ok;
 now models must be made for every element on the battlefield that does not have a normal model yet (what
@@ -42,6 +42,14 @@ approves, then TRELLIS on Colab, then dressed in ink in the game.
   The wall is one block per hex turned square to the pointy-top grid (30 degrees), 1.56 m corner to
   corner, so neighbours close into one wall in a line or bent; the pile turns by cell; the pylon's
   beam leaves from the dish (1.2 m). Close-ups: `tools/shot_props.gd`; board: `tools/frames/props_wall.json`.
+- **Lot 2, terrain** (`shots/081_teren_lot2_inainte_dupa.png`). Concepts approved: rubble A, slag B (on
+  the ground, no pipe), ridge A (a slag mound, narrowed in the game), pit A, heap B, flue B with the bars
+  in concentric hexagons, wire A (a cable out of the ground, no sparks drawn: the game keeps its spark).
+  Each is a whole hex tile (`art/props/tr_<id>.glb`, 1.5 m corner to corner), placed by
+  `combat_scene._generated_tile` with its riveted plate at the ground's top and turned onto the
+  pointy-top grid; the slab, hints and threat marks stay. The ridge is scaled 0.72 wide, 0.5 high and
+  machines stand on its top (`RIDGE_TOP` 0.21, presentation only). The flue keeps 48 colours, or its
+  painted embers go dark; a glow hex under its grate does not show (the generated grate is solid).
 - **Scrap icon** in the map header (`art/icons/scrap_gain.png`, concept A), green like the piles.
 
 ## Decisions, lessons, open questions

@@ -2,7 +2,7 @@
 # 081: battlefield props from the Colab notebook (concepts art/concepts/props/pr_<name>.png, cut into
 # shots/colab_props/ with cut_background.py) -> art/props/<name>.glb, drawn by `Models.prop`.
 #
-#   tools/gen3d/import_props.sh <folder of pr_*.glb>     # every GLB in it (tr_*: terrain tiles, art/props/tr_<id>.glb)
+#   tools/gen3d/import_props.sh <folder of pr_*.glb>     # every GLB in it (tr_*: terrain tiles, yd_*: yard pieces, art/props/<name>.glb)
 #   tools/gen3d/import_props.sh --again wall              # re-clean a kept raw model
 #
 # The raw TRELLIS model is kept (tools/gen3d/raw/props/, gitignored): cleaning again costs no GPU.
@@ -13,6 +13,9 @@ GODOT=/Users/Sergiu/DevG/KingdomRebuilt/Godot.app/Contents/MacOS/Godot
 typeset -A SIZE=(barrel 0.47 coolant 0.43 pylon 0.8 cache 0.95 scrap_pile 1.0 hive_pad 1.4 wall 1.56)
 # Terrain tiles (tr_*) fill their hex as the slab does: 0.96 of a hex, corner to corner.
 for t in rubble slag ridge pit heap flue wire; SIZE[tr_$t]=1.5
+# Yard pieces (yd_*) at the arena kit's own sizes (art/arena), the widest side.
+SIZE+=(yd_container_0 6.3 yd_container_1 6.3 yd_car_stack 4.1 yd_tyre_stack 0.94 yd_barrier 1.72
+  yd_floodlight 1.3 yd_gantry 6.43 yd_service_gantry 4.61)
 # Flat colours in the texture; the pile keeps more, or its green paint merges into the rust.
 typeset -A COLOURS=(scrap_pile 48 tr_flue 48)
 typeset -A NAME=(pile_a scrap_pile)
@@ -28,7 +31,7 @@ clean() {
 if [ "$1" = "--again" ]; then
   clean $2
 else
-  for glb in $1/tr_*.glb(N); do
+  for glb in $1/tr_*.glb(N) $1/yd_*.glb(N); do
     name=$(basename $glb .glb)
     cp $glb tools/gen3d/raw/props/$name.glb && clean $name
   done

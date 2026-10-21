@@ -8,6 +8,8 @@ Newest first. One entry per iteration; link to the iteration file for detail.
 - Generated models for the fuel drum, gate pylon, coolant tank, salvage cache, scrap pile, the hive's
   pad (a flat hatch to stand on) and the crate wall, now a welded block per hex that joins its
   neighbours into one wall (`art/props`, `Models.prop`, `tools/gen3d/import_props.sh`).
+- Generated terrain tiles: rubble, slag, ridge (a narrower mound), pit, scrap heap, furnace flue and
+  live wire (`art/props/tr_*`); the live wire keeps its spark.
 - A green scrap icon beside the map's SCRAP count.
 - `tools/shot_props.gd`: close-ups of the props on hexes; `--props old` draws the scripted ones.
 
