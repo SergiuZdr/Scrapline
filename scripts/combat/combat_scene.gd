@@ -87,6 +87,8 @@ const TILE_MODELS: Dictionary = {
 ## machines in value.
 const FLOOR_VARIANTS: int = 5
 const FLOOR_TINT: float = 0.6
+## Each floor tile's walking surface above its base (measured on the meshes): sunk to the ground's top.
+const FLOOR_PLATE: Array[float] = [0.27, 0.26, 0.25, 0.24, 0.21]
 ## Where a machine stands on the generated ridge (its mound's top), and the live wire's cut end.
 const RIDGE_TOP: float = 0.21
 const WIRE_TIP := Vector3(0.3, 0.0, 0.1)
@@ -1011,20 +1013,22 @@ func _wire_spark(tip: Vector3) -> void:
 func _generated_tile(id: String, x: int, y: int, top: float) -> Node3D:
 	if not TILE_MODELS.has(id):
 		return null
+	var fit: Array = TILE_MODELS[id]
 	var model: String = "tr_" + id
 	var turn: float = 0.0
+	var plate: float = float(fit[0])
 	if id == "open":
 		var h: int = IntentAI.mix(x, y, 41, 0)
 		model = "tr_floor_%d" % (1 + h % FLOOR_VARIANTS)
 		turn = float((h >> 4) % 6) * PI / 3.0
+		plate = FLOOR_PLATE[h % FLOOR_VARIANTS]
 	var packed: PackedScene = Models.prop(model)
 	if packed == null:
 		return null
-	var fit: Array = TILE_MODELS[id]
 	var piece: Node3D = packed.instantiate() as Node3D
 	piece.rotation.y = float(fit[1]) + turn
 	piece.scale = fit[2]
-	piece.position = _to_world(x, y) + Vector3(0, top - float(fit[0]), 0)
+	piece.position = _to_world(x, y) + Vector3(0, top - plate, 0)
 	# The slag pool glows in its own paint: lifted like the rest it burned too bright (the user).
 	var tint: float = 0.85 if id == "slag" else (FLOOR_TINT if id == "open" else Ink.GENERATED_LIFT)
 	Ink.dress_set_piece(piece, Ink.STEEL, Ink.LINE_WORLD, tint)
