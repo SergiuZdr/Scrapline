@@ -70,6 +70,20 @@ const BIG_KINDS: Array[String] = ["sorter", "heart", "pour", "grinder", "magnet"
 ## 038: the act's bosses stand bigger still than the warlords (the Pour was not even big).
 const BOSS_KINDS: Array[String] = ["sorter", "pour", "heart"]
 ## 081: the generated model (`art/props/<name>.glb`) for each prop kind.
+## 081: generated terrain tiles -- [height of the plate the machines walk on (sunk to the ground's top),
+## turn onto the pointy-top grid, scale]. The ridge is narrowed (the user) and stands on the ground.
+const TILE_MODELS: Dictionary = {
+	"rubble": [0.17, 0.0, Vector3.ONE],
+	"slag": [0.17, 0.0, Vector3.ONE],
+	"wire": [0.16, 0.0, Vector3.ONE],
+	"flue": [0.36, PI / 6.0, Vector3.ONE],
+	"heap": [0.17, PI / 6.0, Vector3.ONE],
+	"pit": [0.62, PI / 6.0, Vector3.ONE],
+	"ridge": [0.2, PI / 6.0, Vector3(0.72, 0.5, 0.72)],
+}
+## Where a machine stands on the generated ridge (its mound's top), and the live wire's cut end.
+const RIDGE_TOP: float = 0.21
+const WIRE_TIP := Vector3(0.3, 0.0, 0.1)
 const PROP_MODELS: Dictionary = {"barrel": "barrel", "coolant": "coolant", "pylon": "pylon", "crate": "wall"}
 ## Damage-type colours for impacts, indexed like the rules' `damage_types`.
 const DAMAGE_COLOURS: Array[Color] = [Color("ffcf9a"), Color("ff7a3c"), Color("7fd4ff"), Color("b5e05a")]
@@ -641,6 +655,8 @@ func _tile_top(x: int, y: int) -> float:
 	var def: Dictionary = _db.tiles[_setup.tiles[y * _setup.width + x]]
 	if bool(def.get("blocks", false)):
 		return 0.0
+	if String(def.get("id", "")) == "ridge" and Models.prop("tr_ridge") != null:
+		return RIDGE_TOP
 	return 0.02 + maxf(0.0, float(def.get("height", 0.0))) * 0.25
 
 
@@ -663,7 +679,8 @@ func _build_board() -> void:
 			var blocks: bool = bool(def.get("blocks", false))
 			var top: float = _tile_top(x, y)
 			if _setup.pit[y * _setup.width + x] == 1:
-				_board.add_child(_pit(x, y))
+				var hole: Node3D = _generated_tile("pit", x, y, 0.0)
+				_board.add_child(hole if hole != null else _pit(x, y))
 				_hint_quads[Vector2i(x, y)] = _quad(x, y, 0.012, HEX * 0.80)
 				_threat_quads[Vector2i(x, y)] = _quad(x, y, 0.008, HEX * 0.94)
 				continue
@@ -676,9 +693,15 @@ func _build_board() -> void:
 			slab.set_meta("tile", Vector2i(x, y))
 			Ink.line(slab, Ink.LINE_WORLD)
 			_board.add_child(slab)
-			if blocks:
+			var tile: Node3D = _generated_tile("heap" if blocks else String(def.get("id", "open")), x, y, top)
+			if tile != null:
+				_board.add_child(tile)
+				if String(def.get("id", "")) == "ridge":
+					slab.mesh = _hex_mesh(HEX * 0.96, 0.32)
+					slab.position.y = -0.14
+			elif blocks:
 				_board.add_child(_scrap_heap(x, y))
-			_dress_tile(String(def.get("id", "open")), x, y, top)
+			_dress_tile(String(def.get("id", "open")), x, y, top, tile != null)
 			if arena and String(def.get("id", "open")) == "open" and not blocks:
 				_dress_arena_floor(x, y, top)
 			_hint_quads[Vector2i(x, y)] = _quad(x, y, top + 0.012, HEX * 0.80)
@@ -855,9 +878,15 @@ func _tile_material(def: Dictionary, alternate: bool) -> Material:
 
 ## What stands on a tile beyond its surface: rubble has chunks you could hide behind, slag a
 ## glowing pool you should not stand in, a ridge a lit lip that says "higher".
-func _dress_tile(id: String, x: int, y: int, top: float) -> void:
+func _dress_tile(id: String, x: int, y: int, top: float, generated: bool = false) -> void:
 	var at: Vector3 = _to_world(x, y) + Vector3(0, top, 0)
 	var h: int = IntentAI.mix(x, y, 23, 5)
+	if generated:
+		# 081: the generated tile draws its own ground (the flue's embers are painted under its grate);
+		# the live wire keeps the game's spark.
+		if id == "wire":
+			_wire_spark(at + WIRE_TIP)
+		return
 	match id:
 		"rubble":
 			# A few outlined stones, not a photograph of gravel: rough ground you can read.
@@ -925,21 +954,7 @@ func _dress_tile(id: String, x: int, y: int, top: float) -> void:
 				point += step
 				if k == 1:
 					tip = point
-			# The spark: a pale zigzag standing at the break, lit so it reads at a glance.
-			var spark: Material = Ink.glow(Color("fff4c8"), 1.6)
-			var zig: Array = [Vector3(0, 0.05, 0), Vector3(0.14, 0.3, 0.0), Vector3(-0.08, 0.44, 0.0), Vector3(0.1, 0.72, 0.0)]
-			for k: int in zig.size() - 1:
-				var a3: Vector3 = zig[k]
-				var b3: Vector3 = zig[k + 1]
-				var bolt := MeshInstance3D.new()
-				var bb := BoxMesh.new()
-				bb.size = Vector3(0.05, a3.distance_to(b3), 0.05)
-				bolt.mesh = bb
-				bolt.position = tip + (a3 + b3) * 0.5
-				bolt.rotation.z = -atan2(b3.x - a3.x, b3.y - a3.y)
-				bolt.material_override = spark
-				Ink.line(bolt, Ink.LINE_WORLD)
-				_board.add_child(bolt)
+			_wire_spark(tip)
 		"flue":
 			# A furnace flue (025): an ember glow under an iron grate. The glow is the flue's own
 			# signal; the red hatching the round before it blows is drawn by `_refresh`.
@@ -972,6 +987,41 @@ func _dress_tile(id: String, x: int, y: int, top: float) -> void:
 			Ink.line(lip, Ink.LINE_WORLD)
 			_board.add_child(lip)
 
+
+
+## The spark: a pale zigzag standing at the wire's break, lit so it reads at a glance.
+func _wire_spark(tip: Vector3) -> void:
+	var spark: Material = Ink.glow(Color("fff4c8"), 1.6)
+	var zig: Array = [Vector3(0, 0.05, 0), Vector3(0.14, 0.3, 0.0), Vector3(-0.08, 0.44, 0.0), Vector3(0.1, 0.72, 0.0)]
+	for k: int in zig.size() - 1:
+		var a3: Vector3 = zig[k]
+		var b3: Vector3 = zig[k + 1]
+		var bolt := MeshInstance3D.new()
+		var bb := BoxMesh.new()
+		bb.size = Vector3(0.05, a3.distance_to(b3), 0.05)
+		bolt.mesh = bb
+		bolt.position = tip + (a3 + b3) * 0.5
+		bolt.rotation.z = -atan2(b3.x - a3.x, b3.y - a3.y)
+		bolt.material_override = spark
+		Ink.line(bolt, Ink.LINE_WORLD)
+		_board.add_child(bolt)
+
+
+## 081: a generated terrain tile (`art/props/tr_<id>.glb`) standing in its hex, its riveted plate
+## at the ground's top, or null where the scripted dressing draws that ground.
+func _generated_tile(id: String, x: int, y: int, top: float) -> Node3D:
+	if not TILE_MODELS.has(id):
+		return null
+	var packed: PackedScene = Models.prop("tr_" + id)
+	if packed == null:
+		return null
+	var fit: Array = TILE_MODELS[id]
+	var piece: Node3D = packed.instantiate() as Node3D
+	piece.rotation.y = float(fit[1])
+	piece.scale = fit[2]
+	piece.position = _to_world(x, y) + Vector3(0, top - float(fit[0]), 0)
+	Ink.dress_set_piece(piece, Ink.STEEL, Ink.LINE_WORLD)
+	return piece
 
 ## Beyond the curb: dark asphalt and a ring of yard -- containers, wrecks, tyres and
 ## floodlights -- far enough out that no camera angle loses a tile behind them, placed from
