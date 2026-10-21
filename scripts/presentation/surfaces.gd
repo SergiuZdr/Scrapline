@@ -7,9 +7,10 @@ extends RefCounted
 static var _materials: Dictionary = {}
 static var _scenes: Dictionary = {}
 ## 081: the generated yard pieces (`art/props/yd_<name>.glb`, `Models.prop`) that stand in for kit
-## pieces. Both containers have their own; the car and tyre stacks and barriers share one each.
+## pieces. The car and tyre stacks and barriers share one each. Container B came out of TRELLIS as two
+## boxes crossed (the user): both containers take A until B is generated again.
 const GENERATED: Dictionary = {
-	"container_0": "yd_container_0", "container_1": "yd_container_1",
+	"container_0": "yd_container_0", "container_1": "yd_container_0",
 	"car_stack_0": "yd_car_stack", "car_stack_1": "yd_car_stack", "car_stack_2": "yd_car_stack",
 	"tyre_stack_0": "yd_tyre_stack", "tyre_stack_1": "yd_tyre_stack", "tyre_stack_2": "yd_tyre_stack",
 	"barrier_0": "yd_barrier", "barrier_1": "yd_barrier",

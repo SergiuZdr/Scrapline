@@ -23,6 +23,9 @@ const OLIVE := Color("6e7443")
 const STEEL := Color("7d8a8f")
 const NIGHT := Color("1b2233")
 const BOARD := Color("1f2024")
+## 081, the user: generated models (TRELLIS bakes its textures darker than the approved concept) read
+## too dark. Their texture is lifted by this much; scenery is pushed toward the night by half its dim.
+const GENERATED_LIFT: float = 1.4
 const BOARD_ALT := Color("242529")
 
 # --- Signals: one meaning each (art-and-audio.md) --------------------------------
@@ -548,8 +551,9 @@ static func dress_scenery(node: Node, dim: float = 0.45) -> void:
 		for s: int in mesh.mesh.get_surface_count():
 			var source: BaseMaterial3D = mesh.mesh.surface_get_material(s) as BaseMaterial3D
 			if source != null and source.albedo_texture != null:
-				# 081: a generated yard piece keeps its painted texture, pushed toward the night.
-				mesh.set_surface_override_material(s, textured(source.albedo_texture, Color.WHITE.lerp(NIGHT, minf(0.9, dim + 0.3))))
+				# 081: a generated yard piece keeps its painted texture, lifted, then pushed toward the night.
+				var lift := Color(GENERATED_LIFT, GENERATED_LIFT, GENERATED_LIFT)
+				mesh.set_surface_override_material(s, textured(source.albedo_texture, lift.lerp(NIGHT, dim * 0.5)))
 				continue
 			var zone: String = PartMaterials.zone_of(mesh.mesh.surface_get_material(s))
 			var m: Material
@@ -661,7 +665,7 @@ static func dress_set_piece(node: Node, livery: Color, width: float = LINE_WORLD
 		for s: int in mesh.mesh.get_surface_count():
 			var source: BaseMaterial3D = mesh.mesh.surface_get_material(s) as BaseMaterial3D
 			if source != null and source.albedo_texture != null:
-				mesh.set_surface_override_material(s, textured(source.albedo_texture))
+				mesh.set_surface_override_material(s, textured(source.albedo_texture, Color(GENERATED_LIFT, GENERATED_LIFT, GENERATED_LIFT)))
 				textured_any = true
 		if textured_any:
 			line(mesh, width)
