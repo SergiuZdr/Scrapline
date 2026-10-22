@@ -212,6 +212,12 @@ var _sfx_said: bool = false
 var _zoom: float = 12.5
 var _vfx: BattleVFX
 var _hud: CombatHUD
+## 082 (A16): the playback speed of the batch of events on screen now, 0 when nothing plays back;
+## and whether the player holds SPACE or a press on the board to hurry it to 3x.
+var _play_cap: int = 0
+var _hurry_key: bool = false
+var _hurry_press: bool = false
+const HURRY_SPEED: int = 3
 
 
 func _ready() -> void:
@@ -1930,7 +1936,40 @@ func _burst(view: Dictionary, push: Vector3) -> void:
 	tween.tween_callback(root.queue_free)
 
 
+## 082 (A16): the clock while events play back. Hit-stop runs in real time (it is short and rare,
+## and counted down in BattleVFX by scaled time), and a menu over the fight stops the hurry.
+func _playback_scale() -> float:
+	if _play_cap <= 0 or (_vfx != null and _vfx.is_frozen()) or _menu_open():
+		return 1.0
+	if _hurry_key or _hurry_press:
+		return float(HURRY_SPEED)
+	return float(_play_cap)
+
+
+func _menu_open() -> bool:
+	return is_inside_tree() and (get_tree().get_first_node_in_group("settings_sheet") != null
+		or get_tree().root.has_node("glossary"))
+
+
+func _exit_tree() -> void:
+	Engine.time_scale = 1.0
+
+
+## Hold-to-hurry: tracked in `_input` so a release over the HUD is seen too. Nothing is consumed.
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and (event as InputEventKey).keycode == KEY_SPACE and not event.is_echo():
+		_hurry_key = event.is_pressed()
+	elif event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT \
+			and not event.is_pressed():
+		_hurry_press = false
+
+
 func _process(delta: float) -> void:
+	if _menu_open():
+		# The menu takes the keys, so a release under it is never seen here.
+		_hurry_key = false
+		_hurry_press = false
+	Engine.time_scale = _playback_scale()
 	for ref: Variant in _views:
 		((_views[ref] as Dictionary)["rig"] as ConstructRig).update(delta)
 	for rig: ConstructRig in _dying:
@@ -2199,6 +2238,11 @@ func _screen_box(node: Node3D) -> Rect2:
 func _play_new_events() -> void:
 	_busy = true
 	_clear_marks()
+	# 082 (A16): the enemy's turn (and a fresh fight's opening moves) plays at the profile's speed,
+	# the player's own actions at most 2x. Only the clock changes: the events are the same.
+	var enemy: bool = _actions.is_empty() or int((_actions.back() as Array)[0]) == CombatSim.ACT_END
+	_play_cap = Profile.playback() if enemy else mini(Profile.playback(), 2)
+	Engine.time_scale = _playback_scale()
 	while _shown < _state.events.size():
 		var e: Array = _state.events[_shown]
 		_shown += 1
@@ -2224,6 +2268,8 @@ func _play_new_events() -> void:
 			await _animate(e)
 		while _vfx.is_frozen():
 			await get_tree().process_frame
+	_play_cap = 0
+	Engine.time_scale = 1.0
 	_busy = false
 
 
@@ -3341,6 +3387,7 @@ func _refresh_hud(threats: Dictionary) -> void:
 			"can_act": not u.acted and not u.seized and u.has_weapon(),
 			"selected": u.ref == _selected,
 			"parts": Array(u.part_ids), "level": u.level,
+			"acted": u.acted, "move_after_attack": u.move_after_attack,
 		})
 	_hud.set_crew(cards)
 	var status: Dictionary = CombatSim.objective_status(_state)
@@ -4286,6 +4333,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif mouse.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_set_zoom(_zoom + 0.8)
 		elif mouse.button_index == MOUSE_BUTTON_LEFT:
+			# A press on the board (not on the HUD: it never gets here) hurries playback while held.
+			_hurry_press = true
 			var cell: Variant = _pick(mouse.position)
 			if cell != null:
 				_tap(cell)
