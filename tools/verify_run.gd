@@ -21,6 +21,7 @@ func _initialize() -> void:
 	_timed(_test_wreck_and_rebuild)
 	_timed(_test_boss_held)
 	_timed(_test_acts)
+	_timed(_test_tiers_stack)
 	_timed(_test_names)
 	_timed(_test_objectives_rolled)
 	_timed(_test_bigger_boards)
@@ -424,6 +425,92 @@ func _test_names() -> void:
 		and not RunSim.apply(state, setup, [RunSim.RENAME, 0, "A name far too long for a card"]))
 	var decoded: Array = RunStore.decode(JSON.stringify({"version": 1, "seed": 5, "actions": actions}))["actions"]
 	_check("the rename is saved and replays", String(RunSim.replay(setup, decoded).crew[1]["name"]) == "Old Betty")
+
+
+## 082 (B1): a tier stacks on every act. Its `adds` are applied after the act's overlay, so
+## FOREMAN in Act 2 is Act 2's numbers plus FOREMAN's, never Act 2's numbers alone.
+func _test_tiers_stack() -> void:
+	var tiers: Array = _db.meta.get("tiers", [])
+	# Every key any tier touches, plus the ones the acts set that a tier might shadow.
+	var keys: Array = ["enemies.hp_all", "enemies.bonus.damage", "front.damage", "front.every"]
+	for tier: Dictionary in tiers:
+		for add: Dictionary in ((tier.get("rules", {}) as Dictionary).get("adds", []) as Array):
+			if not keys.has(String(add["path"])):
+				keys.append(String(add["path"]))
+	keys.sort()
+	var table: Array = []  # [tier][act] -> {path: value}
+	for t: int in tiers.size():
+		var options: Dictionary = {}
+		if (tiers[t] as Dictionary).has("rules"):
+			options["rules"] = ((tiers[t] as Dictionary)["rules"] as Dictionary).duplicate(true)
+		var setup: RunSetup = RunSetup.create(_db.parts, _db.tiles, _db.fights, _db.run_rules,
+			_db.combat_rules, _db.effectiveness, 7, options)
+		var row: Array = []
+		for act: int in range(1, RunSim.act_count(setup) + 1):
+			var state := RunState.new()
+			state.act = act
+			var rules: Dictionary = RunSim.rules_of(state, setup)
+			var values: Dictionary = {}
+			for path: String in keys:
+				values[path] = _dig(rules, path)
+			row.append(values)
+		table.append(row)
+	for t: int in table.size():
+		var line: String = "  tier %d %-10s" % [t, String(tiers[t]["name"])]
+		for act: int in (table[t] as Array).size():
+			var parts: PackedStringArray = []
+			for path: String in keys:
+				parts.append("%s=%d" % [path.trim_prefix("enemies."), int(table[t][act][path])])
+			line += "  | act %d: %s" % [act + 1, " ".join(parts)]
+		print(line)
+	var monotone: bool = true
+	var where: String = ""
+	for t: int in range(1, table.size()):
+		for act: int in (table[t] as Array).size():
+			for path: String in keys:
+				if int(table[t][act][path]) < int(table[t - 1][act][path]):
+					monotone = false
+					where = "tier %d act %d %s" % [t, act + 1, path]
+	_check("tier N >= tier N-1 on every key in every act%s" % ("" if monotone else " (FAILS at %s)" % where), monotone)
+	# The bug B1 fixes: the act's own enemies block replaced the tier's, so tiers did nothing past Act 1.
+	var stacks: bool = table.size() >= 2
+	for act: int in (table[0] as Array).size():
+		stacks = stacks and int(table[1][act]["enemies.hp_all"]) == int(table[0][act]["enemies.hp_all"]) + 2
+	_check("FOREMAN adds 2 HP on top of EVERY act (%s vs %s)" % [table[1].map(func(v: Dictionary) -> int: return int(v["enemies.hp_all"])),
+		table[0].map(func(v: Dictionary) -> int: return int(v["enemies.hp_all"]))], stacks)
+	var top: int = table.size() - 1
+	var bites: bool = true
+	for act: int in (table[0] as Array).size():
+		bites = bites and int(table[top][act]["enemies.bonus.damage"]) == int(table[0][act]["enemies.bonus.damage"]) + 1
+	_check("RECLAIMED adds 1 damage on top of every act's", bites)
+	# And it reaches an Act 2 fight: the same rolled squad, every enemy 2 HP tougher on FOREMAN.
+	var hp: Array = []
+	for t: int in 2:
+		var options: Dictionary = {} if t == 0 else {"rules": ((tiers[t] as Dictionary)["rules"] as Dictionary).duplicate(true)}
+		var setup: RunSetup = RunSetup.create(_db.parts, _db.tiles, _db.fights, _db.run_rules,
+			_db.combat_rules, _db.effectiveness, 7, options)
+		var state: RunState = RunSim.start(setup)
+		RunSim._next_act(state, setup)
+		var fight: Dictionary = RunSim._make_fight(state, setup, 1, "skirmish")
+		hp.append((fight["enemy"] as Array).map(func(e: Dictionary) -> int: return int(e.get("hp", 0))))
+	_check("FOREMAN reaches an Act 2 fight (enemy HP %s, was %s)" % [hp[1], hp[0]], (hp[0] as Array).size() > 0
+		and range((hp[0] as Array).size()).all(func(i: int) -> bool: return int(hp[1][i]) == int(hp[0][i]) + 2))
+	# apply_adds: sorted by path, copy on write, set and delta, missing paths made.
+	var base: Dictionary = {"a": {"x": 1}, "b": 4}
+	var got: Dictionary = RunSetup.apply_adds(base, [{"path": "a.y.z", "delta": 3}, {"path": "a.x", "set": 9},
+		{"path": "a.x", "delta": 2}, {"path": "b", "delta": -1}])
+	_check("apply_adds: set then delta on one path in list order, new paths made, base untouched (%s)" % [got],
+		got == {"a": {"x": 11, "y": {"z": 3}}, "b": 3} and base == {"a": {"x": 1}, "b": 4})
+	_check("apply_adds holds integers only", typeof(RunSetup.apply_adds({}, [{"path": "q", "delta": 2.0}])["q"]) == TYPE_INT)
+
+
+func _dig(rules: Dictionary, path: String) -> int:
+	var node: Variant = rules
+	for key: String in path.split("."):
+		if not (node is Dictionary) or not (node as Dictionary).has(key):
+			return 0
+		node = (node as Dictionary)[key]
+	return int(node)
 
 
 ## 021: breaking a gate that is not the last act's starts the next act with the same crew.

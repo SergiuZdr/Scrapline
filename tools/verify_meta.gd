@@ -76,8 +76,23 @@ func _run() -> void:
 	var tough: RunSetup = _setup(db, opts)
 	_check("an unlocked crew starts the run", Array(RunSim.start(tough).crew[0]["parts"])[0] == "ch_bulwark"
 		and String(RunSim.start(tough).crew[0]["name"]) == String((((meta["crews"] as Dictionary)["wall"] as Dictionary)["crew"] as Array)[0]["name"]))
-	_check("an unlocked tier's overlay is in the rules", int(tough.rules["enemies"]["hp_all"]) == 2
-		and int(db.run_rules["enemies"].get("hp_all", 0)) == 0)
+	var act1 := RunState.new()
+	act1.act = 1
+	_check("an unlocked tier's adds are in the rules (Act 1 hp_all %d)" % int(RunSim.rules_of(act1, tough)["enemies"].get("hp_all", 0)),
+		(tough.rules.get("adds", []) as Array).size() > 0 and int(RunSim.rules_of(act1, tough)["enemies"]["hp_all"]) == 2
+		and int(db.run_rules["enemies"].get("hp_all", 0)) == 0 and not db.run_rules.has("adds"))
+	# 082 (B1): the tier format -- every tier past the first is a list of integer adds on a dotted path.
+	var tiers: Array = meta["tiers"]
+	for t: int in range(1, tiers.size()):
+		var adds: Variant = ((tiers[t] as Dictionary).get("rules", {}) as Dictionary).get("adds")
+		var well_formed: bool = adds is Array and not (adds as Array).is_empty()
+		if well_formed:
+			for add: Variant in (adds as Array):
+				var d: Dictionary = add if add is Dictionary else {}
+				var value: Variant = d.get("set", d.get("delta"))
+				well_formed = well_formed and String(d.get("path", "")).count(".") >= 1 and (d.has("set") != d.has("delta"))
+				well_formed = well_formed and (value is int or value is float) and float(value) == float(int(value))
+		_check("tier %d (%s) is a non-empty list of integer {path, delta|set} adds" % [t, tiers[t]["name"]], well_formed)
 	var missions: Array = (meta["unlocks"] as Array).filter(func(e: Dictionary) -> bool: return bool(e.get("mission", false)))
 	_check("unlocked parts are back in the pools (only the missions' still locked)", (tough.pools["arm"] as Array).has("ar_maul")
 		and (opts["locked"] as Array).size() == missions.size()
