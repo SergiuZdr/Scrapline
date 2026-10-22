@@ -268,10 +268,12 @@ func _build_bench() -> void:
 			card.disabled = true
 			card.modulate = Color(1, 1, 1, 0.45)
 		if limit > 0:
-			card.tooltip_text = "The bench has %d of these" % limit
+			# 082: the card's tooltip already holds its flavour line; the bench count goes under it.
+			card.tooltip_text = ((card.tooltip_text + "\n") if not card.tooltip_text.is_empty() else "") + "The bench has %d of these" % limit
 			var note := _label("ONLY %d" % limit if free or part == fitted else "IN USE", UIKit.SIZE_MICRO, Ink.DANGER, UIKit.font_comic())
 			card.add_child(note)
-			note.position = Vector2(PART_CARD.x - 64, PART_CARD.y - 22)
+			# 082: under the banner, clear of the text lines (the flavour line now reaches the bottom).
+			note.position = Vector2(PART_CARD.x - 64, 24)
 		card.pressed.connect(func() -> void:
 			if part != fitted and free:
 				_draft[_machine][_socket] = part

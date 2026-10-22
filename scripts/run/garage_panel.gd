@@ -598,6 +598,12 @@ func _socket(i: int, s: int, alive: bool) -> Control:
 		UIKit.font_comic()), LOADOUT_W - 220, 1 if one_line else 2, 12, 0.86))
 	text.add_child(UIKit.fit(_label(PartText.summary(Run.db.parts, part, Run.db.combat_abilities) if not part.is_empty()
 		else "Drag %s %s here from the hold." % ["an" if RunSetup.socket_slot(s) == "arm" else "a", RunSetup.socket_slot(s)], UIKit.SIZE_LABEL, UIKit.TEXT_DIM), LOADOUT_W - 220, 3, 10, 0.92))
+	# 082 (A22): the part's flavour line, in italics, under what it does.
+	var said: String = PartCard.flavour(Run.db.parts, part) if not part.is_empty() else ""
+	if not said.is_empty():
+		var flavour := UIKit.fit(_label(said, UIKit.SIZE_LABEL, UIKit.TEXT_DIM, PartCard.italic()), LOADOUT_W - 220, 1, 10, 0.92)
+		flavour.name = "flavour"
+		text.add_child(flavour)
 	if not part.is_empty():
 		row.add_child(_maker_tag(i, part))
 	button.mouse_entered.connect(_focus_socket.bind(s))

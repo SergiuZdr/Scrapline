@@ -9,7 +9,9 @@ extends SceneTree
 ##       [--force KIND]   the sites next to the camp become KIND (trader, tower, signal...)
 ##       [--enter SECONDS]   with --until fight: enter the fight, photograph its board after SECONDS
 ##
-## `--until` is a pending kind (reward, scrapyard, workshop, fight) or "moves:N".
+## `--until` is a pending kind (reward, scrapyard, workshop, fight), "moves:N", "fit" (082: a salvage
+## card that offers FIT ON <NAME>) or "over" (the run's end). `--wreck` (screenshot only) then wrecks
+## the whole crew, for the run-over screen's roll call after a loss.
 ## Uses the real `Run` autoload; under `--script` it saves to `user://tool_run.json` and a profile
 ## of its own (032), never the player's.
 
@@ -31,13 +33,18 @@ func _go() -> void:
 		for id: int in RunSim.destinations(fresh):
 			fresh.sites[id]["type"] = _arg(args, "--force", "signal")
 	var guard: int = 0
-	while guard < 300:
+	var card_script: Script = load("res://scripts/ui/part_card.gd")
+	while guard < (3000 if until == "over" else 300):
 		var state: RunState = run.get("state")
 		if state.outcome != RunState.ONGOING:
 			break
 		# 049: `--act N` waits for that act first (moves start again at every act).
 		var in_act: bool = state.act >= _arg(args, "--act", "1").to_int()
 		if in_act and String(state.pending.get("kind", "")) == until:
+			break
+		if in_act and until == "fit" and ["reward", "scrapyard"].has(String(state.pending.get("kind", ""))) \
+				and (state.pending["options"] as Array).any(func(id: Variant) -> bool:
+					return not (card_script.call("fit_target", (run.get("db") as ContentDB).parts, String(id), state.crew) as Array).is_empty()):
 			break
 		if in_act and until.begins_with("moves:") and state.moves >= until.split(":")[1].to_int() and state.pending.is_empty():
 			break
@@ -49,6 +56,14 @@ func _go() -> void:
 		while packed.cargo.size() < packed.hold_size:
 			var part: String = String(packed.crew[packed.cargo.size() % 3]["parts"][1 + packed.cargo.size() % 4])
 			packed.cargo.append(part if not part.is_empty() else "ar_hammer")
+	if args.has("--wreck"):
+		# Screenshot only: the crew is wrecked where it stands, for the roll call after a loss.
+		var lost: RunState = run.get("state")
+		for member: Dictionary in lost.crew:
+			member["alive"] = false
+			member["hp"] = 0
+		lost.outcome = RunState.LOST
+		lost.end_reason = "The whole crew is wrecked."
 	# The briefing covers the map on a new run; photograph it only when asked.
 	run.set("briefed", not args.has("--brief"))
 	run.set("bay_seen", not args.has("--bay"))
