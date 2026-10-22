@@ -1,6 +1,6 @@
 # Plan — Meta-progression (unlocks only)
 
-**Status:** built in 022 (parts, crews, two tiers; `data/meta.json`, `sim/run/meta.gd`); 043 made the tiers a LADDER (below). The codex and blueprints-as-drops are not built.
+**Status:** built in 022 (parts, crews, two tiers; `data/meta.json`, `sim/run/meta.gd`); 043 made the tiers a LADDER (below); 082 made each tier a list of `adds` (`{path, delta|set}`) applied by `RunSim.rules_of` on top of the act, so a tier holds in every act (it was overwritten in Acts 2-3). The codex and blueprints-as-drops are not built.
 
 ## The rule
 

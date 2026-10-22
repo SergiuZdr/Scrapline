@@ -149,3 +149,11 @@ Three columns on one grid (`assembly_panel.gd` `COLUMN_X`, 40 px gutters): the c
 portraits), the lift, the bench (five even tabs, three part cards a row). `MachinePortrait` "full"
 framing measures the machine after its three-quarter turn and backs the camera off until height
 and width both fit.
+
+## Settings and playback (082)
+
+`scripts/ui/settings_sheet.gd` (no class_name; `load(path).open(host)`) is the one settings sheet: playback
+1x/2x/3x (`Profile.set_playback`), volume (`Profile.set_volume`, applied on the master bus), ABANDON RUN.
+Reached from the title (SETTINGS replaced SOUND), the map's top bar and the fight's gear. Playback sets
+`Engine.time_scale` only while events play: the enemy turn at the chosen speed, the player's actions at
+most 2x, 3x while SPACE or a board press is held; 1x during hit-stop, menus and the opening card.
