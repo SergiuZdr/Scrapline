@@ -47,6 +47,8 @@ var _boss_name: Label
 var _boss_bar: ProgressBar
 var _boss_hp: Label
 var _boss_line: Label
+## 083 (A19): the boss's two icons -- how to open it, and its clock -- in place of the sentences.
+var _boss_chips: HBoxContainer
 var _cards: Dictionary = {}
 var _card_column: VBoxContainer
 var _objective_plate: PanelContainer
@@ -262,7 +264,9 @@ func set_crew(cards: Array) -> void:
 ## is not a goal. `text` comes from `CombatSim.objective_status`.
 ## 038 (play-test 11: "the bosses do not look scary"): a boss or warlord gets a bar across the top
 ## -- its name in red, its HP, and the line that says what it is doing now. `name` empty hides it.
-func set_boss(name: String, hp: int, max_hp: int, line: String) -> void:
+## `chips` (083, A19): up to two `{ "icon": "open"|"clock"|"shield"|"rage", "text", "colour" }` drawn in
+## place of `line`; `tip` is the full rules, on hover.
+func set_boss(name: String, hp: int, max_hp: int, line: String, chips: Array = [], tip: String = "") -> void:
 	if _boss_box == null:
 		var holder := CenterContainer.new()
 		holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -300,11 +304,26 @@ func set_boss(name: String, hp: int, max_hp: int, line: String) -> void:
 		head.add_child(_boss_hp)
 		_boss_line = _label("", UIKit.SIZE_LABEL, UIKit.PAPER, UIKit.font_strong())
 		col.add_child(_boss_line)
+		_boss_chips = HBoxContainer.new()
+		_boss_chips.add_theme_constant_override("separation", UIKit.SPACE_LG)
+		_boss_chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_child(_boss_chips)
 	_boss_box.visible = not name.is_empty()
 	if name.is_empty():
 		return
+	# 083: the sentences live in the tooltip now (hover the bar); the bar shows two icons.
+	_boss_box.tooltip_text = tip
+	_boss_box.mouse_filter = Control.MOUSE_FILTER_IGNORE if tip.is_empty() else Control.MOUSE_FILTER_STOP
+	_boss_line.visible = chips.is_empty()
+	_boss_chips.visible = not chips.is_empty()
+	for child: Node in _boss_chips.get_children():
+		child.queue_free()
+	var said: String = line
+	for chip: Dictionary in chips:
+		_boss_chips.add_child(_boss_chip(chip))
+		said += " " + String(chip.get("text", ""))
 	# 082 (A13): the first time a boss is caught EXPOSED, say what the opening is worth.
-	if line.contains("EXPOSED"):
+	if said.contains("EXPOSED"):
 		Hints.show_with(self, "exposed", Hints.texts().get("exposed", {}), glossary,
 			Vector2(size.x * 0.5 - 220.0, 190.0), 440.0, Vector2(size.x * 0.5, 130.0))
 	_boss_name.text = name.to_upper()
@@ -312,6 +331,65 @@ func set_boss(name: String, hp: int, max_hp: int, line: String) -> void:
 	_boss_bar.value = hp
 	_boss_hp.text = "%d / %d" % [hp, max_hp]
 	_boss_line.text = line
+
+
+## One of the boss's icons: a drawn glyph in its colour, then its few words.
+func _boss_chip(chip: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var colour: Color = chip.get("colour", UIKit.PAPER)
+	var icon := Control.new()
+	icon.custom_minimum_size = Vector2(26, 26)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var kind: String = String(chip.get("icon", "open"))
+	icon.draw.connect(func() -> void: _draw_boss_icon(icon, kind, colour))
+	row.add_child(icon)
+	row.add_child(_label(String(chip.get("text", "")), 20, colour, UIKit.font_comic()))
+	return row
+
+
+## The four boss glyphs (083), ink-outlined so they read in grey by shape: a cracked star (how to
+## open it), a ring with a hand (its clock), a shield (its armour), a jagged burst (its rage).
+func _draw_boss_icon(on: Control, kind: String, colour: Color) -> void:
+	var c := Vector2(13, 13)
+	match kind:
+		"clock":
+			on.draw_circle(c, 11.0, UIKit.INK)
+			on.draw_arc(c, 9.0, 0.0, TAU, 24, colour, 3.0, true)
+			on.draw_line(c, c + Vector2(0, -7), colour, 3.0, true)
+			on.draw_line(c, c + Vector2(5, 2), colour, 3.0, true)
+		"shield":
+			var pts := PackedVector2Array([Vector2(3, 4), Vector2(13, 1), Vector2(23, 4), Vector2(21, 15), Vector2(13, 25), Vector2(5, 15)])
+			on.draw_colored_polygon(pts, UIKit.INK)
+			var inner := PackedVector2Array()
+			for p: Vector2 in pts:
+				inner.append(c + (p - c) * 0.7)
+			on.draw_colored_polygon(inner, colour)
+		"rage":
+			var pts := PackedVector2Array()
+			for i: int in 16:
+				var r: float = 12.5 if i % 2 == 0 else 6.0
+				var a: float = TAU * float(i) / 16.0 + 0.2
+				pts.append(c + Vector2(cos(a), sin(a)) * r)
+			on.draw_colored_polygon(pts, UIKit.INK)
+			var inner := PackedVector2Array()
+			for p: Vector2 in pts:
+				inner.append(c + (p - c) * 0.72)
+			on.draw_colored_polygon(inner, colour)
+		_:
+			# A four-point star with a crack through it: where the blow lands.
+			var pts := PackedVector2Array()
+			for i: int in 8:
+				var r: float = 12.5 if i % 2 == 0 else 4.5
+				var a: float = TAU * float(i) / 8.0 - PI / 2.0
+				pts.append(c + Vector2(cos(a), sin(a)) * r)
+			on.draw_colored_polygon(pts, UIKit.INK)
+			var inner := PackedVector2Array()
+			for p: Vector2 in pts:
+				inner.append(c + (p - c) * 0.7)
+			on.draw_colored_polygon(inner, colour)
+			on.draw_polyline(PackedVector2Array([Vector2(9, 6), Vector2(14, 12), Vector2(11, 15), Vector2(17, 21)]), UIKit.INK, 2.0, true)
 
 
 func set_objective(text: String, urgent: bool) -> void:

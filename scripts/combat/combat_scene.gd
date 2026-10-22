@@ -142,8 +142,35 @@ const CONCURRENT: Array[int] = [GridEv.DAMAGE, GridEv.DESTROYED, GridEv.PROP_HIT
 	GridEv.EXPLOSION, GridEv.PILE_DROPPED, GridEv.BUMP, GridEv.MARKED, GridEv.PART_TORN, GridEv.HEAT,
 	GridEv.PILE_LOST, GridEv.FLUE_BLEW]
 
+## 083 (A19): a keeper stands this many times the crew's tallest machine (measured, real vertices),
+## unless its kind sets `view_scale` (presentation only). Never smaller than its pre-083 scale.
+const KEEPER_HEIGHT_BOSS: float = 2.0
+const KEEPER_HEIGHT_WARLORD: float = 1.6
+const KEEPER_PAINT_LIFT: float = 0.45
+## 083 (A19): the opening push-in on the keeper -- held on it, then eased back to the board.
+const PUSH_HOLD: float = 0.7
+const PUSH_BACK: float = 1.2
+## 083 (A1): the beat when the last keeper falls, before the rest collapse.
+const T_KEEPERS_FALL: float = 1.1
+
 ## The shakedown (012): set in `scenes/shakedown.tscn`.
 @export var tutorial: bool = false
+## 083 (A19): the opening push-in on a boss, OFF until the user picks it from the before/after sheet
+## (`--push-in` turns it on for a run of the scene; `tools/shot_bosses.gd --push` films it).
+var boss_push_in: bool = false
+## 083: the pre-083 keeper scale and tag, for the before/after sheet only (`shot_bosses.gd --legacy`).
+var legacy_boss_look: bool = false
+## 083: a keeper height for every kind at once (times the crew), for the sheet's columns; 0 = the data.
+var keeper_height: float = 0.0
+## 083: how much a keeper's livery is lightened (the sheet compares values; contrast may only grow).
+var keeper_paint_lift: float = KEEPER_PAINT_LIFT
+## 083: where the push-in is, 0..1 (-1 before it starts); the sheet tool photographs by it.
+var _push_phase: float = -1.0
+## 083 (A1): the last keeper fell this playback: the rest of the enemies' wrecks follow it down.
+var _keepers_fell: bool = false
+var _crew_top: float = 0.0
+## Each machine's head height, kept after its view is gone (the keeper's fall letters over it).
+var _tops: Dictionary = {}
 
 const Coach := preload("res://scripts/combat/coach.gd")
 
@@ -271,6 +298,7 @@ func _read_args() -> void:
 	var at: int = args.find("--fight")
 	if at >= 0 and at + 1 < args.size():
 		_fight_id = args[at + 1]
+	boss_push_in = boss_push_in or args.has("--push-in")
 	at = args.find("--seed")
 	if at >= 0 and at + 1 < args.size():
 		_seed = args[at + 1].to_int()
@@ -280,6 +308,10 @@ func _read_args() -> void:
 func _start_fight() -> void:
 	_hud.hide_result()
 	_actions = []
+	_crew_top = 0.0
+	_tops = {}
+	_keepers_fell = false
+	_push_phase = -1.0
 	_walking = {}
 	if _coach != null:
 		_coach.call("restart")
@@ -327,6 +359,8 @@ func _start_fight() -> void:
 		# A resumed fight does not replay its history on screen: it opens on the turn.
 		_spawn_units()
 	await _opening(String(status["text"]) + _yard_line())
+	if _actions.is_empty() and boss_push_in and not _bot and DisplayServer.get_name() != "headless":
+		await _push_in()
 	if _actions.is_empty():
 		_shown = 0
 		await _play_new_events()
@@ -443,6 +477,66 @@ func _opening(objective: String) -> void:
 	if left > 0.0:
 		await _wait(left)
 	_hud.hide_opening(0.0 if headless else 0.3)
+
+
+## 083 (A19): the opening push-in -- the camera starts close on the keeper, its name lettered
+## over it, holds, then eases back to the fitted board. Behind `boss_push_in` (default off).
+func _push_in() -> void:
+	var keeper: GridUnit = null
+	for u: GridUnit in _setup.units:
+		if _is_keeper(u) and _views.has(u.ref):
+			keeper = u
+			break
+	if keeper == null:
+		return
+	var pitch: float = deg_to_rad(PITCH_DEG)
+	var back := Vector3(0.0, sin(pitch), cos(pitch))
+	var end_aim := Vector3(0.0, 0.0, AIM_NEAR - _boss_shift)
+	var end_zoom: float = _zoom
+	var head: float = _top_of(keeper)
+	var near_aim: Vector3 = ((_views[keeper.ref] as Dictionary)["root"] as Node3D).position + Vector3(0, head * 0.45, 0)
+	var near_zoom: float = maxf(4.0, head * 2.6)
+	var place := func(k: float) -> void:
+		var e: float = k * k * (3.0 - 2.0 * k)
+		var aim: Vector3 = near_aim.lerp(end_aim, e)
+		_camera.position = aim + back * lerpf(near_zoom, end_zoom, e)
+		_camera.look_at_from_position(_camera.position, aim, Vector3.UP)
+		_push_phase = k
+	_hud.visible = false
+	place.call(0.0)
+	var name: String = String((_setup.kinds.get(keeper.kind, {}) as Dictionary).get("name", keeper.name)).to_upper()
+	_letters(near_aim + Vector3(0.3, head * 0.75, 0), name, Ink.DANGER, 150, -0.08, PUSH_HOLD + PUSH_BACK * 0.4)
+	_vfx.shake(0.3)
+	Audio.play("thump", -6.0, 0.1)
+	await _wait(PUSH_HOLD)
+	var tween := create_tween()
+	tween.tween_method(place, 0.0, 1.0, PUSH_BACK)
+	await tween.finished
+	_place_camera()
+	_push_phase = 1.0
+	_hud.visible = true
+
+
+## 083 (A1): the last keeper fell and the fight is won -- the big beat (the rare forced hit-stop,
+## the lettering, the banner), held before the rest of the enemies' collapse plays.
+func _keepers_fall(ref: int, cell: Vector2i) -> void:
+	_keepers_fell = true
+	var u: GridUnit = _state.unit(ref)
+	if u != null and not _state.inside(cell):
+		cell = Vector2i(u.x, u.y)
+	var name: String = "THE KEEPER"
+	if u != null:
+		name = String((_setup.kinds.get(u.kind, {}) as Dictionary).get("name", u.name)).to_upper()
+	var at: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
+	var top: float = _top_of(u) if u != null else 2.8
+	_vfx.hitstop(0.14, true)
+	_vfx.shake(1.0)
+	_vfx.burst(at + Vector3(0, 0.6, 0), Ink.ACTION, 5.0)
+	_focus_lines(at + Vector3(0, top * 0.5, 0))
+	_letters(at + Vector3(0.2, top + 0.4, 0), "%s IS DOWN!" % name, Ink.ACTION, 170, -0.08, T_KEEPERS_FALL)
+	_hud.set_banner("%s IS DOWN" % name, Ink.ACTION)
+	Audio.play("detonate", -2.0)
+	await _wait(T_KEEPERS_FALL)
 
 
 ## The yard's conditions (028), as a line under the objective.
@@ -1579,10 +1673,16 @@ func _build_view(u: GridUnit) -> Dictionary:
 	if not u.objective:
 		# 038: a boss in crimson, a warlord in gunmetal -- one livery, not a patchwork of parts.
 		var paint: Color = Color("6e1a14") if BOSS_KINDS.has(u.kind) else (Color("3b3936") if BIG_KINDS.has(u.kind) else Color(0, 0, 0, 0))
+		if BIG_KINDS.has(u.kind) and not legacy_boss_look:
+			# 083 (A19): the bigger keeper must not sink the board's machine contrast (a larger share
+			# of a dark livery pulled the_pour from 1.77 to 1.60): its livery is lifted.
+			paint = paint.lightened(keeper_paint_lift)
 		Ink.dress_machine(model, u.part_ids, colour, paint)
 		Ink.frame_shadow_only(model)
-	# The gate's keeper is bigger than anything else on the board (013).
-	model.scale = Vector3.ONE * (1.0 if u.objective else MODEL_SCALE * (1.75 if BOSS_KINDS.has(u.kind) else (1.4 if BIG_KINDS.has(u.kind) else 1.0)))
+	# The gate's keeper is bigger than anything else on the board (013); 083 (A19): measured against
+	# the crew, so it stands at least `view_scale` times their tallest machine.
+	var raw: float = _raw_height(model)
+	model.scale = Vector3.ONE * (1.0 if u.objective else _view_scale(u, raw))
 	root.add_child(model)
 	var ring: MeshInstance3D = _team_ring(COL_CACHE if u.objective else colour)
 	root.add_child(ring)
@@ -1599,7 +1699,7 @@ func _build_view(u: GridUnit) -> Dictionary:
 	tag.pixel_size = 0.0045
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.no_depth_test = true
-	tag.position = Vector3(0, 2.8 if BOSS_KINDS.has(u.kind) else (2.35 if BIG_KINDS.has(u.kind) else 1.75), 0)
+	tag.position = Vector3(0, _tag_height(u, raw * model.scale.y), 0)
 	tag.outline_size = 18
 	tag.outline_modulate = Ink.INK
 	tag.modulate = Ink.PAPER
@@ -1616,13 +1716,82 @@ func _build_view(u: GridUnit) -> Dictionary:
 		root.add_child(_scrap_bundle())
 
 	var view: Dictionary = {"root": root, "model": model, "rig": rig, "ring": ring, "tag": tag, "dead": false,
-		"look": _look_key(u), "scale": model.scale}
+		"look": _look_key(u), "scale": model.scale, "top": tag.position.y}
+	_tops[u.ref] = tag.position.y
+	if _is_keeper(u) and not legacy_boss_look:
+		# 083: the keeper's ring is as wide as the keeper.
+		ring.scale = Vector3(1.0, 1.0, 1.0) * clampf(model.scale.x / MODEL_SCALE * 0.6, 1.0, 1.3)
 	view["extras"] = root.get_children().filter(func(n: Node) -> bool: return n.has_meta("label_of"))
 	_set_tag(view, u)
 	for w: int in u.weapons.size():
 		if not u.can_fire(w):
 			_hide_arm(view, w)
 	return view
+
+
+## 083 (A1): a keeper is what the fight's `keepers` names (the sim's list); before that list
+## exists in a setup, a boss or warlord kind.
+func _is_keeper(u: GridUnit) -> bool:
+	if u == null or u.team != GridUnit.TEAM_ENEMY:
+		return false
+	var listed: Variant = _setup.get("keepers") if _setup != null else null
+	if listed is Array and not (listed as Array).is_empty():
+		return (listed as Array).has(u.ref)
+	return BIG_KINDS.has(u.kind)
+
+
+## The model's height at scale 1, from its real vertices (never `get_aabb()`).
+func _raw_height(model: Node3D) -> float:
+	var top: float = 0.0
+	for v: Vector3 in ConstructView._vertices(model, model):
+		top = maxf(top, v.y)
+	return maxf(0.3, top)
+
+
+## The tallest crew machine's height on the board at MODEL_SCALE, measured once per fight.
+func _crew_height() -> float:
+	if _crew_top > 0.0:
+		return _crew_top
+	for c: GridUnit in _setup.units:
+		if c.team == GridUnit.TEAM_PLAYER and not c.objective:
+			var probe: Node3D = ConstructView.build_parts(c.part_ids, _db, COL_PLAYER, c.level)
+			_crew_top = maxf(_crew_top, _raw_height(probe) * MODEL_SCALE)
+			probe.free()
+	if _crew_top <= 0.0:
+		_crew_top = 1.2
+	return _crew_top
+
+
+## A machine's model scale. A keeper (083, A19) is scaled to `view_scale` times the crew's tallest
+## machine (its kind's key, else KEEPER_HEIGHT_*), never below its pre-083 multiple of MODEL_SCALE.
+func _view_scale(u: GridUnit, raw: float) -> float:
+	var legacy: float = MODEL_SCALE * (1.75 if BOSS_KINDS.has(u.kind) else (1.4 if BIG_KINDS.has(u.kind) else 1.0))
+	if legacy_boss_look or not _is_keeper(u):
+		return legacy
+	var kind: Dictionary = _setup.kinds.get(u.kind, {})
+	var times: float = float(kind.get("view_scale", KEEPER_HEIGHT_BOSS if BOSS_KINDS.has(u.kind) else KEEPER_HEIGHT_WARLORD))
+	if keeper_height > 0.0:
+		times = keeper_height
+	return maxf(legacy, times * _crew_height() / raw)
+
+
+## Where a machine's tag (and its thought cloud) sits: over its measured head. Pre-083 keepers kept
+## their fixed heights.
+func _tag_height(u: GridUnit, height: float) -> float:
+	if legacy_boss_look or u.objective:
+		return 2.8 if BOSS_KINDS.has(u.kind) else (2.35 if BIG_KINDS.has(u.kind) else 1.75)
+	if not _is_keeper(u):
+		return 2.8 if BOSS_KINDS.has(u.kind) else (2.35 if BIG_KINDS.has(u.kind) else 1.75)
+	return maxf(2.8, height + 0.35)
+
+
+## The height over a unit's hex where its head is drawn (tag, cloud, lettering).
+func _top_of(u: GridUnit) -> float:
+	if _views.has(u.ref):
+		return float((_views[u.ref] as Dictionary).get("top", 1.75))
+	if _tops.has(u.ref):
+		return float(_tops[u.ref])
+	return 2.8 if BOSS_KINDS.has(u.kind) else (2.35 if BIG_KINDS.has(u.kind) else 1.75)
 
 
 ## What a scrap carrier wears (play-test 8): a little heap of green bolts on the ground at its
@@ -1835,6 +2004,14 @@ func _disc(at: Vector3, radius: float, fill: Color, rim: Color, priority: int = 
 ## HP, then the state a player must read before moving: heat, a mark, a seize.
 func _set_tag(view: Dictionary, u: GridUnit) -> void:
 	var lines: PackedStringArray = ["%d/%d" % [u.hp, u.max_hp]]
+	if not legacy_boss_look and _state != null and _is_keeper(u):
+		# 083 (A19): a keeper's tag is its HP and its name; the boss bar carries its two icons, and
+		# only the opening (the moment to hit it) is said on the board as well.
+		lines.append(String((_state.setup.kinds.get(u.kind, {}) as Dictionary).get("name", u.name)).to_upper())
+		if _state.exposed.has(u.ref):
+			lines.append("EXPOSED x2")
+		(view["tag"] as Label3D).text = "\n".join(lines)
+		return
 	var status: PackedStringArray = []
 	# Play-test 10: your machines carry their names on the board, as an enemy carries its kind.
 	if u.team == GridUnit.TEAM_PLAYER and not u.objective and not u.name.is_empty():
@@ -2282,7 +2459,8 @@ func _play_new_events() -> void:
 		var next: int = int(_state.events[_shown][GridEv.F_KIND]) if _shown < _state.events.size() else -1
 		if CONCURRENT.has(int(e[GridEv.F_KIND])) and CONCURRENT.has(next):
 			_animate(e)
-			await _wait(T_TOGETHER)
+			# 083: after the last keeper, the others' collapse ripples instead of landing as one.
+			await _wait(0.16 if _keepers_fell and int(e[GridEv.F_KIND]) == GridEv.DESTROYED else T_TOGETHER)
 		else:
 			await _animate(e)
 		while _vfx.is_frozen():
@@ -2532,7 +2710,9 @@ func _animate(e: Array) -> void:
 				await _wait(0.2)
 		GridEv.SPAWN_BLOCKED:
 			var shut: bool = int(e[GridEv.F_V1]) == 1
-			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.0, 0), "PAD SHUT DOWN" if shut else "BUILD BLOCKED", UIKit.GREEN)
+			var escort_blocked: bool = int(e[GridEv.F_ACTOR]) == -1 and target >= 0
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.0, 0),
+				"PAD SHUT DOWN" if shut else ("ESCORT BLOCKED" if escort_blocked else "BUILD BLOCKED"), UIKit.GREEN)
 		GridEv.SHIELDED:
 			_refresh_tag(target)
 			Audio.play("shield", -9.0)
@@ -2622,6 +2802,8 @@ func _animate(e: Array) -> void:
 				_letters(_unit_pos(target) + Vector3(0, 2.6, 0), "REBUILT!", Ink.DANGER, 120, 0.06)
 				Audio.play("spawn", -4.0)
 				await _wait(0.4)
+		GridEv.KEEPERS_FALL:
+			await _keepers_fall(actor, cell)
 		GridEv.FIGHT_END:
 			pass
 
@@ -2890,6 +3072,15 @@ func _destroyed(killer: int, victim: int) -> void:
 		return
 	var view: Dictionary = _views[victim]
 	var at: Vector3 = (view["root"] as Node3D).position + Vector3(0, 0.5, 0)
+	if _keepers_fell and killer < 0:
+		# 083 (A1): with the keeper down the rest power off and fall where they stand -- no killing
+		# blow's star or shake each, one after another under the big lettering.
+		_vfx.destruction(at, Color("ff9a5a"))
+		_burst(view, Vector3(0, 0, 1))
+		_views.erase(victim)
+		Audio.play("destroy", -10.0, 0.15)
+		await _wait(T_DESTROY)
+		return
 	# 067: the killing blow is a hit's star, bigger, in its focus lines, then the blast.
 	_vfx.star(at + Vector3(0, 0.25, 0), 0.0085, 0.1)
 	_focus_lines(at + Vector3(0, 0.2, 0))
@@ -2989,7 +3180,7 @@ func _float_text(at: Vector3, text: String, colour: Color) -> void:
 
 ## A lettered sound effect (015): KRANG, BOOM. Hand lettering, tilted, popped in and held a
 ## beat -- and only on the impacts that matter, or it stops meaning anything.
-func _letters(at: Vector3, text: String, colour: Color, size: int = 110, tilt: float = -0.14) -> void:
+func _letters(at: Vector3, text: String, colour: Color, size: int = 110, tilt: float = -0.14, hold: float = 0.45) -> void:
 	var label := Label3D.new()
 	label.text = text
 	label.font = UIKit.font_letters()
@@ -3009,7 +3200,7 @@ func _letters(at: Vector3, text: String, colour: Color, size: int = 110, tilt: f
 	var tween := create_tween()
 	tween.tween_property(label, "scale", Vector3.ONE * 1.1, 0.09).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(label, "scale", Vector3.ONE, 0.06)
-	tween.tween_interval(0.45)
+	tween.tween_interval(hold)
 	tween.tween_property(label, "modulate:a", 0.0, 0.25)
 	tween.tween_callback(label.queue_free)
 
@@ -3017,7 +3208,7 @@ func _letters(at: Vector3, text: String, colour: Color, size: int = 110, tilt: f
 ## 039: a thought cloud over an enemy: a bumpy paper cloud lettered in ink, two puffs trailing
 ## down to its head. Part of the intent marks (cleared with them).
 func _thought(u: GridUnit, text: String) -> void:
-	var top: float = 2.8 if BOSS_KINDS.has(u.kind) else (2.35 if BIG_KINDS.has(u.kind) else 1.75)
+	var top: float = _top_of(u)
 	var head: Vector3 = _to_world(u.x, u.y) + Vector3(0, top, 0)
 	var cloud_at: Vector3 = head + Vector3(0, 0.62, 0)
 	var cloud: Texture2D = Ink.texture("cloud", Vector2i(192, 112), func(image: Image) -> void:
@@ -3161,6 +3352,13 @@ func _after_events() -> void:
 			_hud.show_result(false, "Try the shakedown again: FIGHT AGAIN.", false)
 		return
 	if _state.outcome != CombatState.ONGOING:
+		# 083: anything the state has down but the board still stands (a collapse the stream did not
+		# name one by one) goes down now, so the result never shows over a standing enemy.
+		for ref: int in _views.keys():
+			var gone: GridUnit = _state.unit(ref)
+			if gone != null and not gone.alive and not bool((_views[ref] as Dictionary)["dead"]):
+				_burst(_views[ref], Vector3(0, 0, 1))
+				_views.erase(ref)
 		_selected = -1
 		_refresh()
 		_hud.set_banner("FIGHT OVER", UIKit.TEXT_DIM)
@@ -3404,9 +3602,47 @@ func _hud_boss() -> void:
 			bits.append("SHIELDED by its pylons: -3 per hit")
 		if not _state.enraged.has(u.ref) and (rules.has("enraged") or (_state.setup.kinds.get(u.kind, {}) as Dictionary).has("enraged")):
 			bits.append("erupts at half HP")
-		_hud.set_boss(String((_state.setup.kinds.get(u.kind, {}) as Dictionary).get("name", u.name)), u.hp, u.max_hp, "  ·  ".join(bits))
+		var boss_name: String = String((_state.setup.kinds.get(u.kind, {}) as Dictionary).get("name", u.name))
+		if legacy_boss_look:
+			_hud.set_boss(boss_name, u.hp, u.max_hp, "  ·  ".join(bits))
+		else:
+			# 083 (A19): the name plus two icons; every sentence in the tooltip (and the glossary).
+			var tip: String = "%s\n\n%s" % ["\n".join(bits), String((_state.setup.kinds.get(u.kind, {}) as Dictionary).get("text", ""))]
+			_hud.set_boss(boss_name, u.hp, u.max_hp, "", _boss_chips(u, rules, shields), tip.strip_edges())
 		return
 	_hud.set_boss("", 0, 0, "")
+
+
+## 083 (A19): a keeper's two icons. The first is how to open it (or that it is open now), the
+## second its clock: "PULSE IN n" from `CombatSim.pulse_in`, else whether it has erupted yet.
+func _boss_chips(u: GridUnit, rules: Dictionary, shields: int) -> Array:
+	var chips: Array = []
+	if _state.exposed.has(u.ref):
+		chips.append({"icon": "open", "text": "EXPOSED x2", "colour": Ink.ACTION})
+	elif int(rules.get("open_bonus", 0)) > 0:
+		chips.append({"icon": "open", "text": "OPEN SIDE +%d" % int(rules["open_bonus"]), "colour": Ink.ACTION})
+	elif int(rules.get("quench_rounds", 0)) > 0:
+		chips.append({"icon": "open", "text": "COOLANT x2", "colour": Ink.ACTION})
+	elif int(rules.get("charge_every", 0)) > 0:
+		chips.append({"icon": "open", "text": "STUCK x2", "colour": Ink.ACTION})
+	elif int(rules.get("grab_every", 0)) > 0:
+		chips.append({"icon": "open", "text": "PAD OPENS IT", "colour": Ink.ACTION})
+	elif bool(rules.get("haul_props", false)):
+		chips.append({"icon": "open", "text": "DRUMS", "colour": Ink.ACTION})
+	elif int(rules.get("rebuild_rounds", 0)) > 0:
+		chips.append({"icon": "open", "text": "TWIN FIRST", "colour": Ink.ACTION})
+	elif shields > 0:
+		chips.append({"icon": "shield", "text": "SHIELDED -%d" % int(rules.get("cover_armor", 0)), "colour": Ink.PAPER})
+	var due: int = CombatSim.pulse_in(_state, u.ref)
+	if due >= 0:
+		var verb: String = "FLOOD" if u.kind == "pour" else "PULSE"
+		chips.append({"icon": "clock", "text": ("%s NEXT ROUND" % verb) if due <= 1 else ("%s IN %d" % [verb, due]),
+			"colour": COL_PAD_DANGER.lightened(0.25)})
+	elif _state.enraged.has(u.ref):
+		chips.append({"icon": "rage", "text": "ENRAGED", "colour": COL_PAD_DANGER.lightened(0.25)})
+	elif rules.has("enraged") or (_state.setup.kinds.get(u.kind, {}) as Dictionary).has("enraged"):
+		chips.append({"icon": "rage", "text": "ERUPTS AT HALF", "colour": Ink.PAPER})
+	return chips
 
 
 func _refresh_hud(threats: Dictionary) -> void:
@@ -4018,6 +4254,12 @@ func _spawn_marker(hive_ref: int, cell: Vector2i) -> void:
 		numeral.outline_modulate = Color(0, 0, 0, 0.9)
 		numeral.modulate = colour.lightened(0.3)
 		numeral.position = at + Vector3(0, 0.75, 0)
+		# 083 (A19): a keeper standing on its own pad (the Core) keeps its body: the count sits at
+		# the pad's near corner, smaller, instead of over the keeper's chest and name.
+		var on_pad: GridUnit = _state.unit_at(cell.x, cell.y)
+		if on_pad != null and _is_keeper(on_pad) and not legacy_boss_look:
+			numeral.font_size = 96
+			numeral.position = at + Vector3(HEX * 0.62, 0.3, HEX * 0.55)
 		numeral.set_meta("intent", true)
 		_marks_root.add_child(numeral)
 	# Under the pad, not over it: the hive that set it down is usually right next door, and
@@ -4118,7 +4360,7 @@ func _flood_marker(cell: Vector2i, as_floor: bool = true) -> void:
 
 ## Where the Reclaimer's drones come in next round (013): a red hex, a ghost of what is
 ## coming, and what to do about it.
-func _arrival_marker(cell: Vector2i, text: String = "RECLAIMER NEXT TURN · stand here to block") -> void:
+func _arrival_marker(cell: Vector2i, text: String = "RECLAIMER NEXT TURN · stand here to block", size: int = 24) -> void:
 	var at: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
 	var ghost := MeshInstance3D.new()
 	var body := BoxMesh.new()
@@ -4135,7 +4377,7 @@ func _arrival_marker(cell: Vector2i, text: String = "RECLAIMER NEXT TURN · stan
 	var flicker := ghost.create_tween().set_loops()
 	flicker.tween_property(ghost_material, "albedo_color:a", 0.06, 0.3)
 	flicker.tween_property(ghost_material, "albedo_color:a", 0.28, 0.3)
-	_marker_label(text, at + Vector3(0, 0.08, HEX * 0.72), COL_PAD_DANGER.lightened(0.35), 24)
+	_marker_label(text, at + Vector3(0, 0.08, HEX * 0.72), COL_PAD_DANGER.lightened(0.35), size)
 
 
 ## A red beam from every standing gate pylon to the Sorter it shields (013): the shield is
@@ -4263,9 +4505,20 @@ func _objective_marks() -> void:
 		"hack":
 			for cell: Vector2i in cells:
 				_terminal(cell, _state.hacked.has(cell))
-	for cell: Vector2i in _state.wave_marks:
+	# 083 (A2): an escort's mark (`wave_refs`) is a round's warning on the enemy half, ringed, and says
+	# what blocking it costs the machine that stands there (`block_damage`).
+	var escorts: Variant = _state.get("wave_refs")
+	var escort_count: int = (escorts as Array).size() if escorts is Array else 0
+	var cost: Variant = _setup.get("block_damage")
+	for i: int in _state.wave_marks.size():
+		var cell: Vector2i = _state.wave_marks[i]
 		_mark(_threat_quads, cell, COL_THREAT)
-		_arrival_marker(cell, "WAVE NEXT TURN · stand here to block")
+		if i < escort_count:
+			_zone_ring(cell, COL_PAD_DANGER, 1.6)
+			var hurt: int = int(cost) if cost != null else 0
+			_arrival_marker(cell, "ESCORT NEXT ROUND · block it: -%d HP" % hurt if hurt > 0 else "ESCORT NEXT ROUND · stand here to block", 40)
+		else:
+			_arrival_marker(cell, "WAVE NEXT TURN · stand here to block")
 
 
 func _zone_ring(cell: Vector2i, colour: Color, weight: float = 1.0) -> void:

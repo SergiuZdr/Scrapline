@@ -265,8 +265,9 @@ func shake(strength: float) -> void:
 ## with weight behind them. Hit-stop only means "that one hurt" if most hits do not get
 ## it, so a freeze claims the next HITSTOP_COOLDOWN seconds and every other hit in that
 ## window plays through at full speed.
-func hitstop(duration: float) -> void:
-	if _hitstop_cooldown > 0.0:
+## `force` (083): the one beat that must freeze even inside another's cooldown -- the last keeper falling.
+func hitstop(duration: float, force: bool = false) -> void:
+	if _hitstop_cooldown > 0.0 and not force:
 		return
 	_hitstop_remaining = maxf(_hitstop_remaining, duration)
 	_hitstop_cooldown = HITSTOP_COOLDOWN
