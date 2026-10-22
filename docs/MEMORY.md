@@ -155,6 +155,12 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-22 | **The game gets harder overall, and replayability is a top priority**: a reason to start the next run, not played once and uninstalled | The user, answering the engagement review |
 | 2026-10-22 | **The 5 s opening card stays unskippable** (A16's skip dropped) | The user |
 | 2026-10-22 | **A run of 70-100 minutes is fine** (VISION's 45-60 no longer a target to cut toward) | The user |
+| 2026-10-22 | **Every iteration carries several impactful changes**; 082-088 regroup the review's A/B items into seven | The user: no more iterations of one or minor changes |
+| 2026-10-22 | **A daily and a weekly yard**: daily = a seeded run everyone shares with one fixed act condition, one attempt, a local best score; weekly = a harder seeded contract with 2-3 announced twists. Offline from the date; an online board is later | The user picked it (085) |
+| 2026-10-22 | **The run starts with 3 deals, each a gift and a cost** (StS's Neow shape), deterministic from the seed; the daily/weekly fix the deals | The user picked it (085) |
+| 2026-10-22 | **Legendaries drop only from gate keepers** (1-2 a run), each a strong rule plus a visible drawback; warlords give a rare and scrap | The user picked it (086) |
+| 2026-10-22 | **The story's ending waits for a vision the user will write**; the ladder does not move it | The user |
+| 2026-10-22 | **Wandering costs at the default difficulty** (B3's pace is rung 0) | The user: the player should be pushed forward |
 
 ## Lessons carried over from the old codebase
 
