@@ -16,7 +16,7 @@ crew's medal, and every run opens with a choice that shapes it.
   - **B4 the ladder:** about 10 rungs, each one announced rule through B1's `adds`; a rung opens by winning
     the one below; NEW RUN starts on the highest open rung; the title names it ("NEXT RUN: RUNG 5 ·
     TRACKERS LOCK ON"). Rungs prefer taking away free recovery or free dodges over adding HP. A per-crew
-    record stamp (highest rung won). Whether rungs are cumulative (rung N = rungs 1..N, as in Slay the Spire) is asked before building.
+    record stamp (highest rung won). Rungs are cumulative: rung N carries rungs 1..N (the user).
   - **The daily yard:** a seed from the date (local clock, UTC day), one fixed act condition per act, fixed
     deals, any crew; one attempt a day; a local best (acts cleared, fights won, HP left) and a streak.
   - **The weekly contract:** a seed from the ISO week, harder (a fixed rung), a fixed crew and 2-3 announced

@@ -167,6 +167,9 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-22 | **A wrecked machine's pile, guarded to the end of the fight, saves one of its parts** (amends 2026-09-24: a wreck's parts are lost) (083) | The user |
 | 2026-10-22 | **A tier is a list of `{path, delta|set}` adds applied on top of the act** (`RunSetup.apply_adds` in `RunSim.rules_of`) | 082: the one-level overlay let Acts 2-3 overwrite the tiers |
 | 2026-10-22 | **The enemy turn plays shorter beats at every speed** (about 3 s at 1x on slag_pit), playback 1x/2x/3x in a settings sheet | 082, the user's pick |
+| 2026-10-22 | **The ladder is cumulative**: rung N carries the rules of rungs 1..N (085) | The user picked it |
+| 2026-10-22 | **Start deals as written in 085**: a gift worth about one good salvage pick, a cost that is a visible run rule, one soft deal of three, plus WALK ON | The user picked it |
+| 2026-10-22 | **The daily yard is one attempt a day** (abandoning counts); **the weekly contract gives a cosmetic plate**, never power | The user picked it |
 
 ## Lessons carried over from the old codebase
 
