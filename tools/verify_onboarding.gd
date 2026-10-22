@@ -11,7 +11,7 @@ extends SceneTree
 const PROFILE_PATH: String = "user://test_profile_onboarding.json"
 ## 082: hints whose screens belong to other work: the words exist, the call site does not yet.
 ## Each leaves this list the day its screen calls it (the coverage check then holds it).
-const HINTS_WAITING: Array = ["ladder"]
+const HINTS_WAITING: Array = []
 
 var _passed: int = 0
 var _failed: int = 0
