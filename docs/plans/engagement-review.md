@@ -333,3 +333,211 @@ Every iteration follows the docs workflow: an iteration file first, then CHANGEL
 - **Phone sizes are calculated,** not measured on a device. There is no Android build yet.
 - **Genre comparisons are the agents' research,** not measured here.
 - **Nobody here can judge fun.** Every "you judge" line above is the actual test, and none of these changes should be called done without your play-test.- **Four of the eleven lenses did not run** (the account's spend limit): run structure, difficulty, replayability and meta, dominant strategies. Their ground is covered only through the bot data, the hand play-tests and the other lenses.
+
+
+## 8. The four remaining lenses and your answers (2026-10-22)
+
+*Four lenses missed the first pass because the account hit its spend limit: run structure, difficulty, replayability and meta, and dominant strategies. They have now run, and three skeptics reviewed them. The rules are the same as in section 4: a proposal stays if 2 of 3 skeptics kept it, and anything that duplicates A1-A25 is merged into that A item. The only new measurement is the front A/B (`out/genre-run-structure/explore_every1_ab30.txt`). Every other number comes from the lens runs under `scratchpad/out/` (`replay/`, `replaymeta/`, `difficulty*/`, `dominant2/`, `run-structure/`) or from sections 1-7. **Measured** means a tool produced the number. **Inferred** means it is reasoning or comes from what we know of other games.*
+
+### 8.1 Your answers, and what each one changes
+
+| # | Your answer | What changes in the plan |
+|---|---|---|
+| Q1 | "The fight can't be hard from first to last move, but it must still feel engaging through it." | Difficulty does not have to be even across a fight, but **every round needs something worth doing.** So **A3 (marked reinforcements) becomes required and stays in the base game.** One lens wanted A3 only on a ladder rung. Two skeptics rejected that, and your answer settles it: at rung 0 the cleanup rounds would still be there. The byround.py targets (rounds 4+: 3 or more mean targets, 45% or fewer forced turns) now also apply to boss fights in 083. Two new items serve Q1 directly: B5 (boss fights stop healing the crew) and B6 (Focus stops being the one obvious press). |
+| Q2 | "Yes, harder, and it must not be played once and uninstalled. It needs a motive to be played again and again." | **Harder overall:** the earlier targets ("run win rate within 5 points of 67.3%") become a *falling* target. The rung-0 bot may drop to about 55-60% by the end of the pressure work, with each step reported and none larger than 8 points at 150 runs (my proposal; inferred). **Replay** becomes a top priority, with its own iterations: the tier bug fix (B1), the ladder (B4), the seed code and run history (B8), act conditions (B7), crew rules and medals (B9, B10). The first version of the ladder moves up to 085, ahead of the readability work. |
+| Q3 | No to skipping the opening card by tap. | **A16's opening-card skip is dropped.** PT8-5 stands. 082 ships only the 1x/2x/3x playback dial and hold-to-hurry. |
+| Q4 | "Yes" to run length (question 10 in section 6; it was the fourth question in the summary the user answered) | **A run of 70-100 min is fine.** No proposal needs to shorten runs; B4 still reports rounds per run so harder rungs do not quietly push past 100 min. The boss camera push-in (section 6, question 4) stays open. |
+
+### 8.2 Per lens: strong points and weak points
+
+**Run structure** (900 generated regions, 64 traced acts, explorer and forward bots on 30 seeds, plus the new front A/B)
+
+| | Point | Evidence |
+|---|---|---|
+| Strong | Real branching on the map | Median 28 forward paths per act. 57.4% of choices with more than one option mix a fight with a service (measured) |
+| Strong | The warlord is an optional detour you can see coming | Taken in 31 of 64 traced acts (measured) |
+| Strong | Honest move previews | `RunSim.move_preview` already reports bites and drone reach, checked by verify_run |
+| Strong | Losses are spread out | Column 8 holds only 12 of 49 losses (measured) |
+| Weak | **The Reclaimer never bites** | 0 bites and 0 drone reaches in 64/64 acts. You can take 16 of ~21 sites per act and never be bitten. The explorer fought 21.5 fights against the forward bot's 13.4, and reached the last gate *stronger* (HP 46.3 vs 36.9, rare+ parts 7.7 vs 4.6). Both won 22/30 (measured) |
+| Weak | The integer front key is too coarse | `front.every 1`: the explorer drops to 12.2 fights (below the forward bot), wins 17/30 instead of 22/30, and act 2 losses go from 3.6% to 15.4%. B-A is -16.7 points, but the 95% interval runs from -41 to +8, so at n=30 the win-rate change is **not significant**. The fight counts are clear (measured) |
+| Weak | Fights are hidden until you arrive | The objective, condition and enemy kinds are rolled before travel (`run_sim.gd` 1203-1253) but shown only in the site panel (`run_map_screen.gd` 814-831). DEFEND loses 59% and can't be routed around |
+| Weak | Every run has the same skeleton | One gate and one warlord per act, in a fixed order, with 6/5/3 skirmish templates (data) |
+
+**Difficulty** (838 traced fights from the lens, tier A/B on 36 seeds)
+
+| | Point | Evidence |
+|---|---|---|
+| Strong | Difficulty rises by act | Skirmish HP lost 3.1 → 4.4 → 5.4. Of runs reaching each act, 8.0 / 13.8 / 15.1% lose there (measured) |
+| Strong | Recovery layers (undo, repair, rebuild, arrival repair) | Rungs should thin these, never remove undo |
+| Weak | **The ladder's tiers do nothing in Acts 2-3 (a bug)** | `RunSetup.overlay` (`run_setup.gd:32-41`) merges one level deep. `rules_of` (`run_sim.gd` ~1003) lays each act's `enemies {hp_all 5, bonus{damage 1|2}}` over the tier's values and replaces them. In `out/replay/tier_overlay.txt`, tier 1 in act 2 equals tier 0. Same-seed wins over 36 seeds: YARD HAND 19, RECLAIMED as shipped 22, RECLAIMED fixed 16. Verified in code by all three skeptics |
+| Weak | Only 3 rungs, and they only add HP | `meta.json` tiers. MEMORY 2026-09-30 says enemy HP is not difficulty against a levelled crew |
+| Weak | Many fights are free, a few are spikes | 39% of fights cost 0 HP or gain HP; 6-9% cost half the crew (measured) |
+| Weak | **Boss fights heal the crew** | In 9 of 10 gate losses the crew survived 20-22 rounds, often *gaining* HP (15 → 29). Act 3 warlords cost -0.3 / -0.6 / -5.5 HP. "The gate held" is 8 of 49 losses (measured). The cause, `pile_heal 2` on every kill and drone, is inferred: no A/B has run |
+
+**Replayability and meta** (48 runs, career.py over 16 careers, a tier dump)
+
+| | Point | Evidence |
+|---|---|---|
+| Strong | High build variety | Final crews share 19% of part ids (Jaccard 0.19). 222-342 enemy chassis+arm combinations per act. 28 signal events (measured) |
+| Strong | Unlocked crews are real alternatives | WALL 6/8 and RUNNERS 6/8 against SALVAGERS 4/8 on the same seeds (small n) |
+| Strong | The run-over screen always points at the next unlock | `run_map_screen.gd:1102-1120` |
+| Weak | Nothing is left to chase after about run 5 | The ending comes at a median of run 5 (career.py, 16 bot careers; inferred for a human). 11 of 26 unlocks are "play N runs" or "win N fights". u17 and u20 fall in run 1 without being aimed at (measured on the bot) |
+| Weak | No seed, score or run history | Nothing in `scripts/`, `sim/` or `data/` shows a seed or accepts one (checked) |
+| Weak | Repetition | Skirmish maps repeat within an act in 31/48, 28/48 and 34/48 runs. The gate and warlord sequence is the same in every run (measured). **You have never raised repetition** (skeptic 2), so this is inferred to matter |
+
+**Dominant strategies** (20 RunBot runs, 337 fights, three 240-fight arm trials)
+
+| | Point | Evidence |
+|---|---|---|
+| Strong | Heat binds | 196 overheats and 149 seizes, in 39% of fights (measured) |
+| Strong | Hanging back doesn't stall | 1 of 337 fights reached round 20. Median 4-5 rounds |
+| Strong | No build lock-in | 16 different arms at run end; 56 parts fitted |
+| Weak | **Dead starter arms** | The Hammer is fitted in 292 fights, swung 0.17 times a fight, for 0.8% of crew damage. Saw (rarity 2) and Cleaver (rarity 1) have identical grid blocks and gave byte-identical trial results. Pulse is -12.4 in the 073 arm ranking but sits on 2 of 3 starters (measured) |
+| Weak | **Focus is a free button** | Used 579 times, more than all other abilities combined. It costs nothing, with cooldown 2 (measured) |
+| Weak | Rarity is a straight power ladder | The top 5 arms are 55 of 88 end-of-run arms. 13 of 20 runs end with a legendary. Sunspear is carried in 19% of fights and deals 15% of crew damage. ar_lance is in 78% of winning crews (measured) |
+| Weak | Losing a DEFEND is cheap | 30 of 34 bot losses are DEFEND. A lost DEFEND costs 3.2 HP against 4.6 for an average won fight. `run_sim.gd:597-601` only clears pending salvage (measured; that a human would throw one on purpose is inferred) |
+| Weak | Crew choice fades | 0.98 starting parts are left per machine at run end, so the three crews differ only until Act 2 (measured) |
+| Observation | In bot play, the board-as-weapon strength is rare | 96% of enemy deaths are direct crew hits; 1% are pits. This may reflect how the bot plays rather than the game. The hand testers' best moments were all board kills. It is why "wary yard" was dropped (below) |
+
+### 8.3 New adaptations B1-B10
+
+The vote in brackets is the skeptics'. "Merged" means several lenses proposed the same thing and one version was kept.
+
+**B1. Tiers apply on top of the act, not under it** [3/3; merges difficulty #1 and replay G1]
+- **Problem:** the tier bug above. The card text "every enemy" is false in two of three acts, and every ladder rung would inherit the bug.
+- **Precedent:** StS Ascension and Monster Train covenants stack on top of each act's own scaling. A rung never switches off in Act 2.
+- **Scrapline version:** `meta.json` tiers get an `adds` list of `{path, delta}` or `{path, set}` entries (integers, sorted by path). `RunSim.rules_of` applies them **after** the act overlay. Keep `rules` for keys no act touches (`front.damage`). FOREMAN becomes an enemy damage delta instead of HP, in a **separate** A/B, because that is a balance change and not part of the fix. Content hash bumped on purpose.
+- **Effort / impact:** S / high. **This is a bug fix and lands in 082, ahead of any ladder work.**
+- **Measure:** a verify_run check prints every tier × act value and asserts tier N ≥ tier N-1 on every key. The fingerprint TOTAL is unchanged at tier 0. The tier win-rate gap is read at 150+ runs: today it is noise (+3 of 36 for RECLAIMED).
+
+**B2. Fight card on the map** [3/3; absorbs the useful half of "danger rating"]
+- **Problem:** two skirmishes look the same on the map, so DEFEND (59% lost) can't be routed around. This is the run-level half of Q1: every node should be a choice.
+- **Precedent:** ITB shows each region's objectives and reward before you pick. Balatro shows the boss blind an ante ahead.
+- **Scrapline version:** a pure `RunSim.fight_preview(state, setup, site_id)` that calls **the same roll** as `_make_fight`, not a copy of it. A revealed fight site's hover card gets one line: "DEFEND · dust · 2 shredders, 1 mortar". Unscouted sites stay "?", which makes towers worth a detour. A5's affix appears on the same line once it exists. Show facts, not a skull score: the skull formula needs a dry run per node and is the bot's view, not a player's.
+- **Effort / impact:** S / high. No hash or fingerprint change.
+- **Measure:** verify_run checks that preview equals `_make_fight` after travel over 300 regions. Run this first, because `_make_fight` may read state that changes along the route. **You judge:** did you ever go the long way round a DEFEND, or toward a fight you wanted?
+
+**B3. The Reclaimer as a budget: a fractional front pace in data** [3/3]
+- **Problem:** with `every 2`, greed is free. With `every 1`, lateral moves disappear (measured above). This is MEMORY's open dial ("the front's speed is the dial", 2026-09-24).
+- **Precedent:** ITB lets you take 4 of 5+ regions per island. FTL's rebel fleet advances per jump.
+- **Scrapline version:** `front.pace` is moves per column ×100 (an integer). The front advances when `moves*100 >= (front_col+2)*pace`. `every` stays as the fallback. Try pace 150 and 167, plus an optional per-act override (e.g. 175/150/150). Any new cost appears on the hover card first. The workshop weight change (R7, 14 → 8) gets its **own** A/B so the two results don't mix.
+- **Effort / impact:** S / high.
+- **Measure:** explorer vs forward, `run_bot --b`. These targets are sharp at 60 seeds: explorer fights per run 15-17, and bites or drone reaches in 30% or more of explorer acts. Win-rate targets (explorer no higher than forward) need about 150 runs (MEMORY 2026-10-12). It becomes the rung-0 default only after you play it; until then it is a ladder rung. **You judge:** did a sideways step feel like a bet?
+
+**B4. The ladder: about 10 rungs, one announced rule each** [3/3; merges run G3, difficulty #2, replay G2, dominant #1]
+- **Problem:** Q2. There are 3 rungs, they add only HP, and they are broken in Acts 2-3 (B1).
+- **Precedent:** StS Ascension 1-20, Monster Train covenants, Balatro stakes. Each step is one readable rule that takes away a comfort. **Not** a Hades Heat menu (MEMORY 2026-10-03: a ladder, not a menu).
+- **Scrapline version:** keep 043 exactly. A rung opens by winning the one below, the default moves up, and NEW RUN starts at once. Each rung adds one rule through B1's `adds`, and the title line names it ("NEXT RUN: RUNG 5 · TRACKERS LOCK ON"). The rung order lives in data so you can reorder it after play-tests. Prefer rungs that take away free recovery or free dodges over rungs that add HP.
+  - **Data-only now (085):** enemy damage +1 in every act; `pile_heal` 2 → 1; workshop repair 3 → 2 and `arrive.repair` 6 → 4; `front.damage` 3; B3's pace; start the run at 80% HP.
+  - **Added when their A item ships:** elites with two affixes (A5, 089); trackers weighted 30/40/45 (A4a, 090); an extra escort wave at bosses (A2); later, lingering ground (A4b). A3 is **not** a rung, because it is in the base game (Q1).
+  - **Rung candidates to revisit later:** the burning elite (after 089), a lost objective pushing the front (after B3 and A7-defend), `warlord_legend_pct 0` (only if Q5 says so).
+  - **Per-crew record:** a display-only stamp of the highest rung each crew has won, on the crew card and in A23's roll call. It is **not** a per-crew default; MEMORY 2026-10-03 did not choose that.
+  - **Where the ending sits** is your call (question 1 below).
+- **Effort / impact:** M / high. Ships after B1 and PT15.
+- **Measure:** rungs 0, 4 and 10 at 150 runs, as cumulative checkpoints (60 runs per rung can't resolve a 3-6 point step). The bot target is about 67% at rung 0 and about 15-30% at rung 10, with no single rung dropping more than ~12 points. Per-rung behaviour metrics: the share of fights costing ≤0 HP falls from 39% toward 20-25%; mean rounds per fight rise by no more than 0.5; estimated rounds per run are reported. Afterwards, re-run career.py for median runs to the ending, to the last unlock and to the last medal. **You judge:** did winning make you want the next rung?
+
+**B5. Boss and warlord fights don't heal the crew** [3/3 for part 1]
+- **Problem:** the heal-farm above. Late boss rounds have no threat, against Q1.
+- **Precedent:** in StS, healing almost never happens inside a fight, so a long boss fight only bleeds you.
+- **Scrapline version:** a fight-file `pile_heal: 0` (overlaying `rules.json`) on sorting_gate, the_pour, the_core and the three warlord files. Piles still count for salvage and still pay scrap. **Overtime** (the Reclaimer eating edge rows) is **held** until A1 is measured. If "The gate held" losses remain, overtime is the fix, drawn as floor, with every new field copied in `clone()`.
+- **Effort / impact:** S / high. Lands in 083, as an A/B separate from A1 and A2.
+- **Measure:** `balance_fights --b` on run-built boss fights (`dump_boss_fights.gd`). Warlord HP cost rises to at least 1.5× the act's skirmish figure (Act 3: about 0 → about 8). Gate losses where crew HP rose go from 9/10 to 0. **You judge:** did a boss still scare you after round 5?
+
+**B6. No dead arm in the starting kit; Focus gets a price** [3/3, narrowed]
+- **Problem:** "ignore half your kit, press Focus". Rounds have one obvious answer (Q1), and every first run plays the same.
+- **Precedent:** ITB starting weapons each own a different verb. StS starters carry one signature card each. Cobalt Core and Wildfrost price even small buffs.
+- **Scrapline version:** data through keys `apply_bonus` already reads.
+  - **Saw:** stops being a copy of the Cleaver (for example `tears` at 4).
+  - **Focus:** costs 1 heat **or** counts as the machine's move, decided by its own A/B. Heat binds today, so the "counts as the move" option may be the safer one.
+  - **Hammer and Pulse:** touched only if `balance_fights --arms` puts them outside the noise. You called the Hammer's shove "a find", and MEMORY 2026-10-12 found "-8.2 on 60 fights" was noise.
+  - **T2 (trait ownership) comes first**, because Saw-tears overlaps A8's Rending Grip.
+- **Effort / impact:** S / medium-high.
+- **Measure:** no two arms give byte-identical rows. Focus uses fall from 1.7 a fight to about 0.8-1.2, while Charge, Dash and Barricade rise. Overheats don't fall. Run win rate is reported. **You judge:** in the first fight of a run, do all six starting arms have a job?
+
+**B7. Act conditions, and warlords rotated across acts** [3/3 for stage a; merges replay G6]
+- **Problem:** run 5 has the same skeleton as run 1 (Q2).
+- **Precedent:** StS shows each act's boss from a pool. Wildfrost and StS dailies roll a run-wide modifier.
+- **Scrapline version:**
+  - **(a)** An `act_condition` rolled per act from the run seed, out of the yard modifiers that already exist (dust, wires, scrap_rain, heat_wave). It is announced on the act briefing card and the map header ("THE SLAG FLATS · HEAT WAVE") and applies to every fight in that act.
+  - **(a')** The three warlords rotated across acts with escorts scaled to the act. This is data only and gives 6 orderings.
+  - **(b) Deferred:** new gate and warlord files. That is L effort (fight files, models, rigs), and it waits until A1/A2 make the bosses good fights.
+- **Effort / impact:** S-M / medium.
+- **Measure:** over 300 seeds, each condition appears in 20-35% of acts. `balance_fights --b` per condition keeps win rate within 5 points, so a condition changes the puzzle, not the power. verify_run: the same seed gives the same region. **You judge:** did run 3 feel different from run 1, and is a whole act of dust fun or tedious?
+
+**B8. Seed code, PLAY THIS SEED, and run history** [3/3 for the narrow version; merges run G5, replay G4, difficulty #6 and dominant #6d]
+- **Problem:** determinism makes seeded runs free, but nothing uses that.
+- **Precedent:** StS and Balatro show the seed on game over and accept one. Hades and ITB keep a run history.
+- **Scrapline version:**
+  - The run-over screen shows the seed as a short word code, with PLAY THIS SEED as a `UIKit.choice`, and NEW RUN gets a seed field.
+  - `Profile.run_history`: the last 50 runs, each with seed, crew, rung, act reached, what wrecked the crew, and the final parts. Written by a Profile command and shown as a ledger on the UNLOCKS panel.
+  - **Rules the proposals missed:**
+    - A seeded run started while a live run exists must refuse, or use its own save slot. One `user://run.json` would otherwise overwrite your run.
+    - The code carries the content version, because a code from another build makes a different region.
+    - Seeded wins don't count toward the ladder or unlocks.
+  - The **daily/weekly yard** is deferred and asked below.
+- **Effort / impact:** S / medium-high.
+- **Measure:** verify_run: a code round-trips to the identical RunState. verify_save: the history survives a restart. **You judge:** after a loss, did you want to replay that seed?
+
+**B9. Each crew changes one run rule** [2/3; dominant #6a]
+- **Problem:** crew choice fades by Act 2 (0.98 starting parts left).
+- **Precedent:** Balatro decks are one rule each; ITB squads each own a verb.
+- **Scrapline version:** a `rules` block per crew in `meta.json`, from keys that already exist. For example: Salvagers see 4 salvage options; the Wall starts every fight with Barricade ready. The Runners' proposed "move after attack for all" collides with A11's ROOTED teaching, so the Runners need another rule. Entered in the T2 table. Unlocks only: it changes how you play, not your power.
+- **Effort / impact:** S-M / high (inferred).
+- **Measure:** `run_bot --runs 40` per crew: crew win rates within about 10 points of each other, and switching the rule off with `--set` moves at least one behaviour metric. **You judge:** does each crew play differently by Act 2?
+
+**B10. Three medals per crew instead of grind counters** [2/3; replay G3, merges dominant #6b]
+- **Problem:** 11 of 26 unlocks are grind, and some fall in run 1 without being aimed at.
+- **Precedent:** ITB squad achievements; Balatro stake stickers.
+- **Scrapline version:** 3 `medals` per crew in `meta.json`, read from feats `tally_feats` already counts plus a few run-end flags. Pick them to push against the dominant lines: "win with no legendary fitted", "win at rung 4+ without a workshop", "win with no machine wrecked". Rewards are cosmetics, plates and later crews, never stats. **Migrate** the existing "play N" unlocks; don't revoke anything already earned.
+- **Effort / impact:** S / medium. Profile only, no hash change.
+- **Measure:** in a career.py replay, fewer than 20% of medals fall to the non-aiming bot within 10 runs. verify_run_ui shows the stamp after a win.
+
+**Folded into existing items, not new B items:** a "SCRAP instead" option at hoards goes into **A9** (the reworked hoard was 0/3 on its own). The elite scrap cut 20 → 14 goes into **A5**'s measurement in 089. RunBot reading node risk instead of its hard-coded -20/-30 (`run_bot.gd:236-263`) goes into **T1**.
+
+**Dropped:**
+
+| Proposal | Vote | Reason |
+|---|---|---|
+| Wary yard (enemies avoid drums and pits) | 0/3 | Works against the board as a weapon: only 1% of deaths are pits already. It moves every bot number and the fingerprint |
+| A lost objective pushes the front | 1/3 | Changes nothing until B3 makes the front bite. DEFEND is already lost 59%. Revisit as a rung after B3 and A7-defend |
+| Burning elite / cheaper elite scrap | 0/3 | Needs A5, A7 and T1. The evidence is biased (the bot skips elites when hurt) |
+| Danger skull per node | 0/3 | B2 shows the facts instead |
+| Per-crew ladders with their own default rung | 0/3 | MEMORY 2026-10-03 did not choose this. Only the record stamp survives (B4) |
+| Challenge yards / weekly contract | 1/3 | Not data-only as claimed. Revisit after the ladder |
+| New boss files per act | stage b | L effort. Fix the bosses (083) before multiplying them |
+| Hoards as a choice, and the refinery stops making legendaries | 0/3 | Waits on A9 and Q5 |
+
+**New tooling:**
+- **T4, replay clock:** re-run `career.py` after B4, B9 and B10 and report the median number of runs to the ending, the last unlock and the last medal.
+- **T5, measurement rule:** for run dials, behaviour metrics (fights per run, bites, HP-per-fight buckets, byround) come first. Win rate counts only at 150+ runs or at the ladder checkpoints.
+
+### 8.4 Revised iteration sequence from 082
+
+**Play-test 15 still comes before 082.** Further play-tests come **after 083, after 085 and after 090**, because each of those changes pressure or difficulty.
+
+| Iteration | Goal | Contents | Acceptance checks |
+|---|---|---|---|
+| **082-truth-and-speed** | Stop teaching a false rule; faster playback; a ladder that does what it says | A11, A13, A16 (speed dial only, **no opening skip**, Q3), A22, minimal A24, **B1** | `tools/check.sh` green. verify_onboarding: no "any order", ROOTED warning shown, no `(\d{3})` in player text. Event stream identical at 1x and 3x. Enemy phase under 1.5 s at 2x. B1: verify_run tier × act assertion passes; `--fingerprint` TOTAL unchanged at tier 0; tier text matches the dump in all 3 acts |
+| **083-the-boss-is-the-fight** | Bosses end on the kill, press from round 1, and stop healing the crew | A1, then A2, **B5** in its own A/B, A19 (the push-in only if you say yes to section 6, question 4) | verify_combat: the Core's death ends the fight with drones alive. 0 rounds after the keeper dies; boss rounds ≤ 8; HP lost per boss rising across the acts (about 4/8/12). B5: gate losses with rising crew HP → 0. byround on boss fights: rounds 4+ have 3 or more mean targets. `run_bot --runs 150`: win rate reported, falling by no more than 8 points. **Play-test** |
+| **084-know-the-road** | Every map node is a choice; runs can be replayed | **B2**, **B8**, **B3** A/B (R7 in its own A/B) | verify_run: preview = `_make_fight` over 300 regions; a seed code round-trips; a seeded run never overwrites a live save. B3: explorer at 15-17 fights per run, bites in 30% or more of explorer acts, win rate at 150 runs. TOTAL unchanged for B2/B8 |
+| **085-the-ladder** | A long, honest reason to climb | **B4** with data-only rungs and the per-crew record stamp; T4 | Rungs 0/4/10 at 150 runs: monotone, top rung 15-30% for the bot, no step over ~12 points. Fights costing ≤0 HP fall toward 20-25%. Rounds per run reported. career.py medians reported. Ladder line shot on the title. **Play-test** |
+| **086-cancel-and-explain** | Signature moments and numbers become readable | T3, A17, A12, A20 (A18 if the budget allows) | As in section 5 |
+| **087-trophies** | Salvage pays off how you played | T1, A7, A21, A7-defend | As in section 5, with the win-rate target changed to "reported" |
+| **088-rules-not-numbers** | Level-ups, sets, legendaries and the starting kit change what a machine does | T2, A8, **B6** (Saw first, Focus in its own A/B), then A9 (with "SCRAP instead") and A10 per Q5/Q6 | `balance_fights --arms 150`: no byte-identical rows, no legendary above +15, Focus uses 0.8-1.2 a fight, overheats not lower |
+| **089-elites** | An elite is a different problem | A5, plus its rung (two affixes) | As in section 5, plus the rung checkpoint |
+| **090-pressure** | Every round holds something (Q1). Required now | **A3 in the base game**, then A4(a) in a later A/B, plus their rungs | byround: rounds 4+ have 3 or more mean targets and 45% or fewer forced turns. Rounds per fight up by no more than 1.5. Rung-0 win rate at or above ~55% with Act 2-3 losses reported. **Play-test before A4(b)** |
+| **091-crews-and-region** | Run 5 doesn't look like run 1 | **B9**, **B10**, **B7**(a)+(a') | Crew win rates within ~10 points; each rule moves a behaviour metric. Medals: fewer than 20% fall to the bot within 10 runs; old unlocks migrated. Conditions: 20-35% each, within 5 points each. Same seed gives the same region. career.py re-run |
+| **092-onboarding** | A new player meets tear, pit and cancel in the first 5 minutes | A15, A14, A23 (roll call shows rung and medals) | As in section 5 |
+| **093-act-3-variety** | Openers can't be memorised | A6 | As in section 5 |
+| *Ship prep* | Android | A25, the rest of A24 | As in section 5 |
+
+The main change from section 5: replay and difficulty work (B1, B3, B4, B8) moves ahead of the readability items, as you asked. Readability still lands before any new content that would crowd the HUD (A5's tags, T3).
+
+### 8.5 Remaining questions for you
+
+1. **Where does the ending sit on a ~10-rung ladder?** On the top rung, as decided on 2026-10-03, the story would come at an inferred 25-40 runs. On rung 3-4 it would come at about 5-8 runs, with the higher rungs as the long tail.
+2. **Should a sideways step on the map already cost something at the default difficulty** (B3 as the rung-0 default), or only on higher rungs?
+3. **A daily, a weekly, or neither?** That would be a seeded run with one fixed condition and a local best score. At 70-100 min a run, a daily is a bigger commitment than StS's.
+4. **A start-of-run pick (StS's Neow)?** That would be 1 of 3 announced boons, each with a cost, for example "a rare arm, but the Reclaimer starts a column ahead". One skeptic raised it; no lens proposed it.
+
+Questions 4-9 and 11 from section 6 are still open and unchanged; 1, 2, 3 and 10 are answered (section 8.1).

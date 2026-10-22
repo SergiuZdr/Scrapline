@@ -151,6 +151,10 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-15 | **A card shows the part as the fight draws it** (`make_ink_thumbs` dresses like the fight; a generated part never uses `thumbs_new`) | 079: the cards showed one flat colour or an old model |
 | 2026-10-14 | **Every effect change is shown as a named before/after sheet; the user picks which to redo** (`tools/shot_effects.gd`, `shot_trails.gd --legacy`) | The user, after 076 |
 | 2026-10-14 | **The look is Borderlands-like comic, not cartoon**: jagged inked shapes, hatched shade, grit; smoke and fire erode (`Grit`, 076) | The user: 075's round smoke and smooth trails were "too cartoony" |
+| 2026-10-22 | **Fights need not be hard from first move to last, but every round must hold something worth doing** (no cleanup rounds) | Engagement review: fights are decided in round 1, then become cleanup (`docs/plans/engagement-review.md`); the user's answer |
+| 2026-10-22 | **The game gets harder overall, and replayability is a top priority**: a reason to start the next run, not played once and uninstalled | The user, answering the engagement review |
+| 2026-10-22 | **The 5 s opening card stays unskippable** (A16's skip dropped) | The user |
+| 2026-10-22 | **A run of 70-100 minutes is fine** (VISION's 45-60 no longer a target to cut toward) | The user |
 
 ## Lessons carried over from the old codebase
 
