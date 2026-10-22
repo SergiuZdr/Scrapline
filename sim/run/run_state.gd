@@ -30,6 +30,7 @@ var hold_size: int = 8
 ## What the player must resolve before travelling on, or `{}`:
 ##   { "kind": "fight", "site_type", "fight": {fight dict} }
 ##   { "kind": "reward", "options": [part ids], "scrap": int }
+##   { "kind": "wreck", "crew": index, "options": [the wreck's lost parts], "next": {what follows} }  (083)
 ##   { "kind": "scrapyard", "options": [part ids], "scrap": int }
 ##   { "kind": "workshop" }
 ##   { "kind": "trader", "stock": [part ids], "sold": [stock indices] }

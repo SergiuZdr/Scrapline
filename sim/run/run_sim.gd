@@ -30,6 +30,7 @@ extends RefCounted
 ##   [RENAME, crew_index, name]          give a machine its own name (027), any time but a fight
 ##   [REFINE, cargo_index]               refinery (031): a part becomes one of the next rarity, same slot
 ##   [BID, tier]                         auction (031): a crate of tier 0 or 1, unopened until bought
+##   [RECOVER, index]                    083: take part `index` off a guarded wreck; -1 = leave it
 
 const TRAVEL: int = 0
 const FIGHT: int = 1
@@ -49,6 +50,7 @@ const CHOOSE: int = 14
 const RENAME: int = 15
 const REFINE: int = 16
 const BID: int = 17
+const RECOVER: int = 18
 ## How long a machine's name may be (027): it has to fit a card and a tab.
 const NAME_MAX: int = 12
 ## Site panels LEAVE closes (a signal is closed by one of its own options).
@@ -127,6 +129,8 @@ static func apply(state: RunState, setup: RunSetup, action: Array) -> bool:
 			return action.size() >= 2 and _refine(state, setup, int(action[1]))
 		BID:
 			return action.size() >= 2 and _bid(state, setup, int(action[1]))
+		RECOVER:
+			return action.size() >= 2 and _recover(state, setup, int(action[1]))
 	return false
 
 
@@ -569,8 +573,10 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 	var kind: String = String(state.pending["site_type"])
 
 	# HP carries: each machine leaves with what the fight left it. Torn arms are bolted back
-	# on. A machine DESTROYED in the fight is a wreck: it keeps its chassis, nothing else.
+	# on. A machine DESTROYED in the fight is a wreck: it keeps its chassis, nothing else --
+	# unless its wreck pile still stands at the end (083): then one of its parts can be pulled out.
 	var fielded: Array = _fielded_crew(state)
+	var lost_parts: Dictionary = {}
 	for slot: int in fielded.size():
 		var unit: GridUnit = result.unit(slot)
 		var member: Dictionary = state.crew[int(fielded[slot])]
@@ -579,10 +585,12 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 		if unit.alive:
 			member["hp"] = unit.hp
 		else:
+			lost_parts[int(fielded[slot])] = (member["parts"] as Array).slice(1)
 			member["alive"] = false
 			member["hp"] = 0
 			member["parts"] = [String(member["parts"][0]), "", "", "", ""]
 			state.log.append("%s was wrecked. Its parts are gone." % member["name"])
+	var wrecks: Array = wreck_offers(state, fielded, lost_parts, CombatSim.saved_wrecks(result))
 	# Scrap piles collected during the fight are banked whatever the outcome.
 	state.scrap += result.scrap_collected
 	tally_feats(state.feats, result, kind)
@@ -599,6 +607,7 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 		# The objective failed but the crew lives: no salvage, and the road goes on.
 		state.pending = {}
 		state.log.append("Driven off. No salvage from this one.")
+		_queue_wrecks(state, wrecks)
 		return true
 	state.fights_won += 1
 	if kind == "warlord":
@@ -606,12 +615,14 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 		state.scrap += int(rules_of(state, setup).get("rewards", {}).get("warlord_scrap", 30))
 		state.pending = hoard(state, setup, false)
 		state.log.append("The warlord is down. Its hoard is open.")
+		_queue_wrecks(state, wrecks)
 		return true
 	if kind == "boss":
 		if state.act < act_count(setup):
 			# 029: the keeper's hoard -- a pick with a legendary in it -- then the next act.
 			state.pending = hoard(state, setup)
 			state.log.append("The gate is broken. The keeper's hoard is open.")
+			_queue_wrecks(state, wrecks)
 			return true
 		_end(state, RunState.WON, "The last gate is broken: the run is won.")
 		return true
@@ -619,15 +630,76 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 	var gained: int = int(rewards.get("elite_scrap" if kind == "elite" else ("arena_scrap" if kind == "arena" else "skirmish_scrap"), 10))
 	gained += result.caches().size() * int(rewards.get("cache_scrap", 6))
 	state.scrap += gained
-	state.pending = salvage(state, setup, kind)
+	# 083 (A7-defend): a DEFEND pays its salvage in proportion to the caches still standing.
+	var status: Dictionary = CombatSim.objective_status(result)
+	var placed: int = int(status["caches_total"]) if String(status["type"]) == "defend" else 0
+	var saved: int = int(status["caches"])
+	state.pending = salvage(state, setup, kind, saved, placed)
 	state.log.append("Won. +%d scrap%s, and salvage to pick through." % [gained,
 		" (+%d from piles)" % result.scrap_collected if result.scrap_collected > 0 else ""])
+	if placed > 0 and saved < placed and bool(rewards.get("defend_partial", true)):
+		state.log.append("%d of %d caches broke: the salvage is thinner." % [placed - saved, placed])
+	_queue_wrecks(state, wrecks)
+	return true
+
+
+## 083 (wreck recovery, amending 2026-09-24): for each crew machine wrecked in this fight whose
+## pile still stands (`saved` crew refs, as `CombatSim.saved_wrecks` gives them), the parts it lost
+## -- its core, arms and module, as fitted -- in crew order: `[{ "crew", "options" }]`.
+static func wreck_offers(state: RunState, fielded: Array, lost_parts: Dictionary, saved: Array) -> Array:
+	var out: Array = []
+	var refs: Array = saved.duplicate()
+	refs.sort()
+	for ref: Variant in refs:
+		var slot: int = int(ref) % 10
+		if int(ref) / 10 != GridUnit.TEAM_PLAYER or slot < 0 or slot >= fielded.size():
+			continue
+		var index: int = int(fielded[slot])
+		var options: Array = []
+		for part: Variant in lost_parts.get(index, []):
+			if not String(part).is_empty():
+				options.append(String(part))
+		if not options.is_empty() and not bool(state.crew[index]["alive"]):
+			out.append({"crew": index, "options": options})
+	return out
+
+
+## Puts the guarded wrecks in front of whatever the fight left pending: one RECOVER per wreck,
+## then the salvage (or hoard, or nothing) as before.
+static func _queue_wrecks(state: RunState, wrecks: Array) -> void:
+	for i: int in range(wrecks.size() - 1, -1, -1):
+		var w: Dictionary = wrecks[i]
+		state.pending = {"kind": "wreck", "crew": int(w["crew"]), "options": w["options"], "next": state.pending}
+	for w: Dictionary in wrecks:
+		state.log.append("%s's wreck pile held: one of its parts can be pulled out." % state.crew[int(w["crew"])]["name"])
+
+
+## Takes one part off a guarded wreck into the hold (-1 leaves it), then shows what comes next.
+static func _recover(state: RunState, setup: RunSetup, index: int) -> bool:
+	if String(state.pending.get("kind", "")) != "wreck":
+		return false
+	var options: Array = state.pending["options"]
+	if index < -1 or index >= options.size():
+		return false
+	var member: Dictionary = state.crew[int(state.pending["crew"])]
+	if index >= 0:
+		var part: String = String(options[index])
+		state.cargo.append(part)
+		state.log.append("Pulled %s out of %s's wreck." % [String((setup.parts[part] as Dictionary).get("name", part)), member["name"]])
+	else:
+		state.log.append("Left %s's wreck where it lay." % member["name"])
+	state.pending = state.pending.get("next", {})
 	return true
 
 
 ## What a won fight at the current site offers: three parts or `salvage_scrap` scrap. An
 ## elite's guaranteed part comes off the wreck already tuned.
-static func salvage(state: RunState, setup: RunSetup, kind: String) -> Dictionary:
+##
+## 083 (A7-defend): a DEFEND with `placed` caches of which `saved` still stand keeps
+## ceil(choices * saved / placed) of its options and ceil(salvage_scrap * saved / placed) scrap
+## (`rewards.defend_partial`; false pays it all, as before). The parts are rolled as for a full
+## salvage and the first ones kept, so the rarest pick and the RNG stay as they were.
+static func salvage(state: RunState, setup: RunSetup, kind: String, saved: int = 0, placed: int = 0) -> Dictionary:
 	# Play-test 8: the act's own rewards -- later acts lean rare, or a built crew finds nothing.
 	var rewards: Dictionary = rules_of(state, setup).get("rewards", {})
 	var min_rarity: int = int(rewards.get("elite_min_rarity", 2)) if kind == "elite" else 1
@@ -638,7 +710,15 @@ static func salvage(state: RunState, setup: RunSetup, kind: String) -> Dictionar
 	var options: Array = _roll_parts(setup, rng, min_rarity, crew_makers(state, setup), rewards, avoided(state, setup))
 	if kind == "elite" and not options.is_empty() and PartTuning.can_tune(setup.parts, String(options[0])):
 		options[0] = PartTuning.variant(String(options[0]), rng.range_int(0, 1))
-	return {"kind": "reward", "options": _offer(state, setup, options), "scrap": int(rewards.get("salvage_scrap", 8))}
+	var scrap: int = int(rewards.get("salvage_scrap", 8))
+	if placed > 0 and saved < placed and bool(rewards.get("defend_partial", true)):
+		var keep: int = maxi(1, (options.size() * saved + placed - 1) / placed)
+		options = options.slice(0, keep)
+		scrap = (scrap * saved + placed - 1) / placed
+	var out: Dictionary = {"kind": "reward", "options": _offer(state, setup, options), "scrap": scrap}
+	if placed > 0:
+		out["caches"] = [saved, placed]
+	return out
 
 
 ## A broken gate's hoard (029): three parts from three slots, the first a LEGENDARY (rarity 4),
