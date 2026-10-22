@@ -157,6 +157,13 @@ func _print_threats(state: CombatState) -> void:
 func _print_tricks(state: CombatState) -> void:
 	print("\n-- tricks: exposed %s charges %s grabs %s facing %s rebuilds %s pour_marks %s pulse %s spawn_marks %s" % [
 		state.exposed, state.charges, state.grabs, state.facing, state.rebuilds, state.pour_marks, state.pulse_marks.size(), state.spawn_marks])
+	# 083: the keepers and their pulse countdown, escorts marked to arrive, and whose wrecks lie where.
+	var pulses: PackedStringArray = []
+	for ref: int in state.setup.keepers:
+		if CombatSim.pulse_in(state, ref) > 0:
+			pulses.append("%s PULSE IN %d" % [_tag(state, state.unit(ref)), CombatSim.pulse_in(state, ref)])
+	print("   keepers %s %s escort marks %s (refs %s), waves left %d, wrecks %s" % [state.setup.keepers, " ".join(pulses),
+		state.wave_marks, state.wave_refs, CombatSim.escort_waves_left(state), state.wreck_piles])
 
 
 func _print_options(state: CombatState) -> void:
