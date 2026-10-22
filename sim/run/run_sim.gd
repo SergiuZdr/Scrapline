@@ -1423,6 +1423,10 @@ static func _make_gate_fight(state: RunState, setup: RunSetup, site_id: int, tem
 		"rows": (template["rows"] as Array).duplicate(), "objective": {"type": "rout"}}
 	if template.has("max_rounds"):
 		fight["max_rounds"] = int(template["max_rounds"])
+	# 083: the boss file's own rules travel with it (escort waves, no healing from piles).
+	for key: String in ["pile_heal", "escort_waves"]:
+		if template.has(key):
+			fight[key] = (template[key] as Array).duplicate(true) if template[key] is Array else template[key]
 	var player: Array = []
 	var slots: Array = template.get("player", [])
 	var fielded: Array = _fielded_crew(state)
