@@ -117,13 +117,22 @@ const FIT_BOTTOM: float = 0.79
 ## timings laggy (0.13 s a tile, a pause before every strike, half a second per death):
 ## a move is now one continuous glide, and nothing waits longer than it has to be seen.
 ## 059: a hex per stride of the run (the rig keeps the feet in step with the distance).
-const T_STEP: float = 0.20
-const T_ATTACK: float = 0.14
-const T_HIT: float = 0.16
+## 082 (A16, the user: "shorter beats at every speed"): step 0.20 -> 0.13, the beat after a strike
+## 0.14 -> 0.06, after a hit 0.16 -> 0.10, the banners 0.30 -> 0.10, a turn toward a step 0.04 -> 0.03.
+## The strike's own wind-up (`ConstructRig.strike`'s time to impact) is untouched.
+const T_STEP: float = 0.13
+const T_TURN: float = 0.03
+const T_ATTACK: float = 0.06
+const T_FACE: float = 0.03
+const T_HIT: float = 0.10
+const T_MISS: float = 0.12
+## 082: in the enemy's turn the enemies' repositioning walks overlap, each starting this long after
+## the one before; anything that is not a walk (or its intent) waits for every walk to land.
+const T_WALK_STAGGER: float = 0.06
 const T_DESTROY: float = 0.30
 ## 059: how long a wreck plays its death and lies there before it is crushed into scrap.
 const WRECK_LIES: float = 2.6
-const T_BANNER: float = 0.30
+const T_BANNER: float = 0.10
 ## The beat between consequences of one cause that are played together (play-test 7), and the
 ## events that are.
 const T_TOGETHER: float = 0.05
@@ -217,6 +226,8 @@ var _hud: CombatHUD
 var _play_cap: int = 0
 var _hurry_key: bool = false
 var _hurry_press: bool = false
+## 082: enemy walks still gliding in the enemy's turn (ref -> true): their MOVED waits for them.
+var _walking: Dictionary = {}
 const HURRY_SPEED: int = 3
 
 
@@ -269,6 +280,7 @@ func _read_args() -> void:
 func _start_fight() -> void:
 	_hud.hide_result()
 	_actions = []
+	_walking = {}
 	if _coach != null:
 		_coach.call("restart")
 	if _run_mode:
@@ -2255,8 +2267,15 @@ func _play_new_events() -> void:
 				var next: Array = _state.events[_shown]
 				path.append(Vector2i(int(next[GridEv.F_X]), int(next[GridEv.F_Y])))
 				_shown += 1
-			await _walk(actor, path)
+			if enemy and _state.unit(actor) != null and _state.unit(actor).team == GridUnit.TEAM_ENEMY:
+				_walk_together(actor, path)
+				await _wait(T_WALK_STAGGER)
+			else:
+				await _walks_landed()
+				await _walk(actor, path)
 			continue
+		if not _walking.is_empty() and int(e[GridEv.F_KIND]) != GridEv.MOVED and int(e[GridEv.F_KIND]) != GridEv.INTENT_SET:
+			await _walks_landed()
 		# Play-test 7: one shot through three machines, or a drum going up among them, played
 		# its hits one after another, a sixth of a second each -- and read as lag. What one cause
 		# does now lands together: each is started, and the next follows a beat later.
@@ -2268,6 +2287,7 @@ func _play_new_events() -> void:
 			await _animate(e)
 		while _vfx.is_frozen():
 			await get_tree().process_frame
+	await _walks_landed()
 	_play_cap = 0
 	Engine.time_scale = 1.0
 	_busy = false
@@ -2283,13 +2303,13 @@ func _animate(e: Array) -> void:
 			_hud.set_banner("ROUND %d" % int(e[GridEv.F_V1]))
 			await _wait(T_BANNER)
 		GridEv.TURN_END:
+			# 082: no hold -- END TURN already put the banner up, and the first strike's wind-up reads it.
 			_hud.set_banner("ENEMY FIRE", UIKit.RED)
-			await _wait(T_BANNER)
 		GridEv.MOVED:
-			if _views.has(actor):
+			if _views.has(actor) and not _walking.has(actor):
 				((_views[actor] as Dictionary)["rig"] as ConstructRig).set_moving(false)
 		GridEv.INTENT_SET:
-			await _wait(0.03)
+			pass  # 082: was a 0.03 s beat; the intent is drawn after the batch, so nothing showed in it
 		GridEv.ATTACK:
 			_sfx_attacker = actor
 			_sfx_weapon = int(e[GridEv.F_V1])
@@ -2302,7 +2322,7 @@ func _animate(e: Array) -> void:
 			await _destroyed(actor, target)
 		GridEv.MISSED:
 			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 0.9, 0), "MISS", UIKit.TEXT_DIM)
-			await _wait(0.18)
+			await _wait(T_MISS)
 		GridEv.SHOVED:
 			await _shoved(actor, target, cell)
 		GridEv.WRECK_THROWN:
@@ -2610,6 +2630,20 @@ func _unit_pos(ref: int) -> Vector3:
 	return ((_views[ref] as Dictionary)["root"] as Node3D).position if _views.has(ref) else Vector3.ZERO
 
 
+## 082: an enemy's walk played alongside the others'; it stops its own gait when it lands.
+func _walk_together(ref: int, path: Array[Vector2i]) -> void:
+	_walking[ref] = true
+	await _walk(ref, path)
+	_walking.erase(ref)
+	if _views.has(ref):
+		((_views[ref] as Dictionary)["rig"] as ConstructRig).set_moving(false)
+
+
+func _walks_landed() -> void:
+	while not _walking.is_empty() and is_inside_tree():
+		await get_tree().process_frame
+
+
 func _walk(ref: int, path: Array[Vector2i]) -> void:
 	if not _views.has(ref):
 		return
@@ -2627,7 +2661,7 @@ func _walk(ref: int, path: Array[Vector2i]) -> void:
 		var heading: Vector3 = destination - from
 		if heading.length_squared() > 0.0004:
 			var yaw: float = atan2(heading.x, heading.z)
-			tween.tween_property(root, "rotation:y", root.rotation.y + wrapf(yaw - root.rotation.y, -PI, PI), 0.04)
+			tween.tween_property(root, "rotation:y", root.rotation.y + wrapf(yaw - root.rotation.y, -PI, PI), T_TURN)
 		var step_from: Vector3 = from
 		var step_to: Vector3 = destination
 		tween.tween_callback(func() -> void: _streaks(step_from, step_to))
@@ -2644,7 +2678,7 @@ func _attack(ref: int, aim: Vector2i, w: int, end: Vector2i) -> void:
 	var u: GridUnit = _state.unit(ref)
 	var weapon: Dictionary = u.weapons[w]
 	_face(root, _to_world(aim.x, aim.y))
-	await _wait(0.05)
+	await _wait(T_FACE)
 	# 059: the wind-up plays first; the shot, the flash and the sound land on the strike's IMPACT.
 	# 074: a ranged arm fires its own way and leaves its own trail (`data/fx/weapons.json`).
 	var slot: String = "arm_l" if w == GridUnit.ARM_L else "arm_r"

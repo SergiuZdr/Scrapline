@@ -265,11 +265,12 @@ func _playback_speeds(packed: PackedScene) -> void:
 		hashes[0] == hashes[1] and hashes[1] == hashes[2] and logs[0] == logs[1] and logs[1] == logs[2])
 	_check("and matches a fresh replay of its actions",
 		CombatSim.replay(_scene.get("_setup"), logs[0]).event_hash() == hashes[0])
-	# The clock scales the whole turn (2x takes at most 0.6 of 1x). The 082 target of 1.5 s at 2x is a
-	# pacing question (the 1x turn itself is ~5 s of beats), so it is reported, not asserted.
+	# The clock scales the whole turn (2x takes at most 0.6 of 1x). 082 shortened the beats themselves
+	# (the user: "shorter beats at every speed"): ~5.0 s at 1x became ~3.0 s; the aim is ~1.5 s at 2x,
+	# and over 1.8 s fails.
 	_check("2x plays the enemy's turn in at most 0.6 of the 1x time, 3x faster still",
 		enemy_ms[2] >= 0 and enemy_ms[2] * 10 <= enemy_ms[1] * 6 and enemy_ms[3] < enemy_ms[2])
-	print("    target: the enemy's turn under 1500 ms at 2x -- %s (%d ms)" % ["MET" if enemy_ms[2] < 1500 else "MISSED", enemy_ms[2]])
+	_check("the enemy's turn on slag_pit is over in 1.8 s at 2x (%d ms; aim ~1500)" % enemy_ms[2], enemy_ms[2] >= 0 and enemy_ms[2] <= 1800)
 	profile.call("set_playback", 1)
 	_scene.queue_free()
 	await process_frame
