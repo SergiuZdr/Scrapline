@@ -389,7 +389,7 @@ func _fit_it_now() -> void:
 	_check("and so does replaying the save", RunSim.replay(_run.get("setup"), saved.get("actions", [])).fingerprint() == state.fingerprint())
 
 
-## 083 (wreck recovery): a guarded wreck's panel, picked by a real click on PULL IT OUT. The wreck
+## 083 (wreck recovery): a guarded wreck's panel, its one part taken by a real click on TAKE IT. The wreck
 ## is staged (a real one comes from the fight, which verify_run replays); the click must reach RECOVER.
 func _wreck_pick() -> void:
 	RunStore.clear()
@@ -404,13 +404,15 @@ func _wreck_pick() -> void:
 	member["hp"] = 0
 	member["parts"] = [String(member["parts"][0]), "", "", "", ""]
 	state.pending = RunSim.salvage(state, setup, "skirmish", 1, 2)
-	RunSim._queue_wrecks(state, RunSim.wreck_offers(state, [0, 1, 2], {1: lost}, [1]))
+	var pull: Dictionary = RunSim.wreck_pull(state, setup, [0, 1, 2], {1: lost}, [1])
+	RunSim._queue_wreck(state, pull)
 	var map: Node = await _open("res://scenes/run_map.tscn")
 	await create_timer(0.3).timeout
 	var title: String = "PULLED FROM %s'S WRECK" % String(member["name"]).to_upper()
 	_check("a guarded wreck opens its own panel (%s)" % title, _find_label_prefix(map, title) != null)
-	var take: Button = map.find_child("wreck_take_1", true, false)
-	_check("one PULL IT OUT per lost part", take != null and map.find_child("wreck_take_%d" % (lost.size() - 1), true, false) != null)
+	var take: Button = map.find_child("wreck_take", true, false)
+	_check("one part on it, with TAKE IT and LEAVE IT", take != null and take.text == "TAKE IT" and map.find_child("wreck_card", true, false) != null
+		and _find_button(map, "LEAVE IT") != null)
 	if take == null:
 		return
 	var count: int = (_run.get("actions") as Array).size()
@@ -419,8 +421,8 @@ func _wreck_pick() -> void:
 	await create_timer(0.3).timeout
 	state = _run.get("state")
 	var actions: Array = _run.get("actions")
-	_check("clicking it is one RECOVER action that puts %s in the hold" % String(lost[1]),
-		actions.size() == count + 1 and actions[count] == [RunSim.RECOVER, 1] and state.cargo.size() == cargo + 1 and state.cargo[-1] == String(lost[1]))
+	_check("clicking TAKE IT is one RECOVER action that puts %s in the hold" % String(pull["part"]),
+		actions.size() == count + 1 and actions[count] == [RunSim.RECOVER, 0] and state.cargo.size() == cargo + 1 and state.cargo[-1] == String(pull["part"]))
 	_check("then the salvage shows, thinner for a broken cache (2 parts)",
 		String(state.pending.get("kind", "")) == "reward" and (state.pending["options"] as Array).size() == 2
 		and _has_rich_text(map, "1 of 2 caches broke"))

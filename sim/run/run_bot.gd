@@ -181,22 +181,17 @@ static func _choose_part(state: RunState, setup: RunSetup, options: Array, _kind
 	return best
 
 
-## 083: which part to pull out of a guarded wreck. The rebuilt machine comes back with empty
-## sockets, so any of its parts fills one; the bot takes the one worth most -- the biggest gain
-## on a living machine if one beats an empty-socket refill, else the rarest (the core on a tie,
-## since it is listed first). It never leaves one: a spare part still scraps for something.
+## 083: the part pulled from a guarded wreck. The wrecked machine comes back from a rebuild with
+## empty sockets, so the part nearly always helps: it is taken (0), unless the hold is already
+## full and the part is no rarer than the worst one in it (-1: it would only be scrapped).
 static func _choose_wreck_part(state: RunState, setup: RunSetup, options: Array) -> int:
-	var best: int = -1
-	var best_score: int = -1
-	for i: int in options.size():
-		var part: String = String(options[i])
-		var living: int = _best_gain(state, setup, part)
-		# 10 is what filling an empty socket scores in `_best_gain`: the rebuilt machine's own.
-		var score: int = maxi(living, 10) * 10 + setup.rarity(part)
-		if score > best_score:
-			best_score = score
-			best = i
-	return best
+	if options.is_empty():
+		return -1
+	var part: String = String(options[0])
+	if state.cargo.size() >= state.hold_size and not state.cargo.is_empty() \
+			and setup.rarity(part) <= setup.rarity(state.cargo[_worst_cargo(state, setup)]):
+		return -1
+	return 0
 
 
 ## How much fitting `part` would improve the crew's best-matching socket (rarity, and

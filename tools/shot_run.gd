@@ -14,7 +14,7 @@ extends SceneTree
 ## the whole crew, for the run-over screen's roll call after a loss. "defend_partial" (083) waits for a
 ## DEFEND salvage won with a cache broken.
 ## 083, screenshot only, both with `--until reward`: `--stage-defend` makes the salvage a DEFEND's with
-## 1 of 2 caches standing; `--stage-wreck` wrecks crew 1 and puts its guarded wreck in front of it.
+## 1 of 2 caches standing; `--stage-wreck` wrecks crew 1 and puts the part pulled from its guarded wreck in front of it.
 ## Uses the real `Run` autoload; under `--script` it saves to `user://tool_run.json` and a profile
 ## of its own (032), never the player's.
 
@@ -72,7 +72,7 @@ func _go() -> void:
 		member["alive"] = false
 		member["hp"] = 0
 		member["parts"] = [String(member["parts"][0]), "", "", "", ""]
-		RunSim._queue_wrecks(at, RunSim.wreck_offers(at, [0, 1, 2], {1: lost}, [1]))
+		RunSim._queue_wreck(at, RunSim.wreck_pull(at, run.get("setup"), [0, 1, 2], {1: lost}, [1]))
 	if args.has("--wreck"):
 		# Screenshot only: the crew is wrecked where it stands, for the roll call after a loss.
 		var lost: RunState = run.get("state")
