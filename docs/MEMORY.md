@@ -165,6 +165,8 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-22 | **Maker sets: 3 pieces of one maker give a verb** (Kessler thorns + unshovable, Arclight arc, Vektor pierce, Cinder tears); heat leaves the sets (086) | The user picked it; answers the 2026-10-08 open question |
 | 2026-10-22 | **One play-test at the end of 088**, not between 082-088 | The user |
 | 2026-10-22 | **A wrecked machine's pile, guarded to the end of the fight, saves one of its parts** (amends 2026-09-24: a wreck's parts are lost) (083) | The user |
+| 2026-10-22 | **A tier is a list of `{path, delta|set}` adds applied on top of the act** (`RunSetup.apply_adds` in `RunSim.rules_of`) | 082: the one-level overlay let Acts 2-3 overwrite the tiers |
+| 2026-10-22 | **The enemy turn plays shorter beats at every speed** (about 3 s at 1x on slag_pit), playback 1x/2x/3x in a settings sheet | 082, the user's pick |
 
 ## Lessons carried over from the old codebase
 
@@ -320,6 +322,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-15 | A regenerated PNG is not in the game until `--import`, and an older picture set in front of it hides it: check the screen, not the file (079) |
 | 2026-10-14 | Noise-painted drawings cost seconds in GDScript (3.3 s at a fight's opening): bake them to `art/fx/` with `tools/bake_fx.gd`, rerun after any drawing or weapon-colour change |
 | 2026-10-14 | **A T4 out-of-memory on one object is a concept problem**: the dense Tesla and Crucible failed every run; redrawn with a few large smooth shapes, each took a minute |
+| 2026-10-22 | A one-level dictionary overlay loses nested keys without a sound: the tiers did nothing in Acts 2-3 for 60 iterations. Merge layered rules by path and print the result per layer in a test |
 
 ## Open questions
 

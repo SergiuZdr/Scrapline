@@ -2,6 +2,32 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [082] Truth, speed and an honest ladder — done ([detail](iterations/082-truth-and-speed.md))
+
+### Added
+- A settings sheet (`scripts/ui/settings_sheet.gd`) from the title, the map and the fight: playback
+  1x/2x/3x, volume, ABANDON RUN (asked again in the sheet). SOUND on the title became SETTINGS.
+- Playback speed: `Profile.set_playback`; the enemy turn at the chosen speed, the player's own actions at
+  most 2x, hold SPACE (or a press on the board) for 3x; hit-stop and the 5 s opening card stay at 1x.
+- The ROOTED rule told: "Firing ends <name>'s move" while a non-LINE machine arms before moving, ROOTED
+  on its card after it attacks, a ROOTED glossary card; glossary cards for every map site type.
+- First-time hints for the ladder, a new part, EXPOSED and SEIZED; every hint has a call site.
+- FIT ON <NAME> under a salvage or scrapyard card that beats or fills a socket (PICK then REFIT).
+- The parts' flavour lines on reward, garage, hold and bay cards (a slanted line, full text in the tooltip).
+- The roll call on the run-over screen: each machine's level, perks, signature part, kills and where it fell.
+- `RunSetup.apply_adds`: a tier is a list of `{path, delta|set}` adds applied on top of the act.
+
+### Changed
+- Tiers now apply in every act (they were overwritten by Acts 2-3): FOREMAN +2 enemy HP everywhere,
+  RECLAIMED +2 HP, +1 damage, front damage 3. Bot on the same 60 seeds: 75% at tier 0, 40% at RECLAIMED.
+- Shorter beats in the enemy turn at every speed (step 0.20 -> 0.13 s, strike beats, banners; enemy walks
+  overlap): slag_pit's enemy turn 5.0 s -> 3.0 s at 1x, 1.6 s at 2x.
+- The tutorial and the glossary no longer say MOVE and ATTACK go "in any order".
+- `endings.wrecked` is one line per act; new THE LINE IS CUT text for a top-tier win.
+
+### Fixed
+- "(050)" leaks in the glossary and the coolant tank's text.
+
 ## [081] Machine colour back; the battlefield's first real models — in progress ([detail](iterations/081-saturation-and-battlefield.md))
 
 ### Added
