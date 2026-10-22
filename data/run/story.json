@@ -112,7 +112,12 @@
  "endings": {
   "won": "The key turns in the Core. Behind the crew the Reclaimer's booms sag and go still, one district at a time, and the valley is quiet for the first time in forty years.",
   "gate_held": "The gate held. The crew had nothing left to break it with, and the Reclaimer closed in behind.",
-  "wrecked": "The Reclaimer took the crew. Somewhere in the Crucible, the key melts with them."
+  "wrecked": [
+      "The Reclaimer took the crew among the cranes, a long way short of anywhere. Its booms carry the key back up the valley to the Crucible, and it melts there with what is left of them.",
+      "The Reclaimer took the crew on the Slag Flats, halfway home. The key rides its booms the rest of the way, and the Crucible melts it with them.",
+      "The Reclaimer took the crew inside the Crucible, with the Core in sight. The key melts with them, a few hundred metres from the lock it was made for."
+    ],
+    "line_cut": "The key turns in the Core, and this time the crew does not stop there. They walk the Reclaimer's line back down the valley and cut it at every pylon. The booms do not sag; they fall. By morning nothing follows the key, because there is nothing left to follow it."
  },
  "bosses": {
   "sorter": {
