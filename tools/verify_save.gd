@@ -24,6 +24,7 @@ func _initialize() -> void:
 	_test_backfills_new_fields()
 	_test_rejects_future_version()
 	_test_recovers_from_corruption()
+	_test_settings_survive_reload()
 
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
@@ -123,6 +124,30 @@ func _test_recovers_from_corruption() -> void:
 
 	var loaded: SaveFile = SaveFile.load_from(TEST_PATH)
 	_check("corrupt save falls back to the backup", (loaded.data["seen_tips"] as Array) == ["keep me"])
+
+
+## 082 (A16, A24): the playback speed and the volume are profile commands; a reload keeps them.
+func _test_settings_survive_reload() -> void:
+	_cleanup()
+	var profile: Node = root.get_node_or_null("Profile")
+	_check("(precondition) the Profile autoload exists", profile != null)
+	if profile == null:
+		return
+	profile.call("use_path", TEST_PATH)
+	_check("a fresh profile plays back at 1x, full volume", int(profile.call("playback")) == 1 and int(profile.call("volume")) == 100)
+	profile.call("set_playback", 3)
+	profile.call("set_volume", 50)
+	profile.call("use_path", TEST_PATH)
+	_check("playback 3x and volume 50 survive a reload of the profile",
+		int(profile.call("playback")) == 3 and int(profile.call("volume")) == 50)
+	_check("the volume is applied to the master bus", absf(AudioServer.get_bus_volume_db(0) - linear_to_db(0.5)) < 0.01
+		and not AudioServer.is_bus_mute(0))
+	profile.call("set_playback", 9)
+	profile.call("set_volume", 0)
+	profile.call("use_path", TEST_PATH)
+	_check("speeds clamp to 1-3, volume 0 mutes the bus", int(profile.call("playback")) == 3 and AudioServer.is_bus_mute(0))
+	profile.call("set_volume", 100)
+	profile.call("use_path", "user://tool_profile.json")
 
 
 # --- Harness -----------------------------------------------------------------

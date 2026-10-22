@@ -140,6 +140,13 @@ func end_run() -> void:
 	RunStore.clear()
 
 
+## 082 (A24): the player gives the run up from the settings sheet. Nothing is banked: the save
+## goes, as at the run's end, and the title offers NEW RUN.
+func abandon() -> void:
+	fight_actions = []
+	end_run()
+
+
 func _make_setup(seed_value: int, options: Dictionary = {}) -> RunSetup:
 	return RunSetup.create(db.parts, db.tiles, db.fights, db.run_rules, db.combat_rules,
 		db.effectiveness, seed_value, options)

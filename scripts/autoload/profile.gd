@@ -167,9 +167,39 @@ func set_sound(on: bool) -> void:
 	Audio.set_enabled(on)
 
 
+## 082 (A16): how fast fights play back, 1x, 2x or 3x. The enemy's turn plays at this speed; the
+## player's own actions at most 2x.
+func playback() -> int:
+	return clampi(int(_data.get("playback", 1)), 1, 3)
+
+
+func set_playback(speed: int) -> void:
+	_data["playback"] = clampi(speed, 1, 3)
+	_save()
+
+
+## 082 (A24): the master volume, 0-100 in steps the settings sheet offers. SOUND OFF (`set_sound`)
+## still silences the bank on its own.
+func volume() -> int:
+	return clampi(int(_data.get("volume", 100)), 0, 100)
+
+
+func set_volume(level: int) -> void:
+	_data["volume"] = clampi(level, 0, 100)
+	_save()
+	_apply_volume()
+
+
+func _apply_volume() -> void:
+	var level: int = volume()
+	AudioServer.set_bus_mute(0, level <= 0)
+	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(float(level), 1.0) / 100.0))
+
+
 func _load() -> void:
 	_data = SaveFile.load_from(_path).data
 	Audio.set_enabled(sound_on())
+	_apply_volume()
 
 
 func _save() -> void:
