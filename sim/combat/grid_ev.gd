@@ -67,6 +67,7 @@ const QUENCHED: int = 56     ## a coolant tank burst at (x, y) (actor broke it);
 const SIDE_TURNED: int = 57  ## actor (the Core, 050) at (x, y) is open on side v1 (a hex direction)
 const REBUILD_MARKED: int = 58 ## actor (a twin, 050) will rebuild target at (x, y) in v1 rounds
 const REBUILT: int = 59      ## actor rebuilt target at (x, y) with v1 HP
+const KEEPERS_FALL: int = 60  ## the last keeper fell (083): the fight is won; actor = the keeper that fell last
 
 ## What a PROP_PLACED / PROP_BROKEN `v1` names. An int, because events are flat ints.
 const PROP_KINDS: PackedStringArray = ["crate", "barrel", "pylon", "coolant"]
