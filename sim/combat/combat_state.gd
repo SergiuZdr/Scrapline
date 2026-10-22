@@ -62,6 +62,12 @@ var grabs: Dictionary = {}
 var facing: Dictionary = {}
 ## 050: a fallen twin being rebuilt: its ref -> rounds left.
 var rebuilds: Dictionary = {}
+## 083 (A2): the escort each of `wave_marks` brings in, by ref, in the same order (empty for a
+## SURVIVE wave, which brings drones).
+var wave_refs: Array = []
+## 083: crew wreck piles still on the board -- `Vector2i -> [crew refs]` -- so the run can tell
+## whose wreck the crew guarded to the end (`CombatSim.saved_wrecks`).
+var wreck_piles: Dictionary = {}
 
 var events: Array = []
 var action_count: int = 0
@@ -215,6 +221,8 @@ func clone() -> CombatState:
 	c.grabs = grabs.duplicate()
 	c.facing = facing.duplicate()
 	c.rebuilds = rebuilds.duplicate()
+	c.wave_refs = wave_refs.duplicate()
+	c.wreck_piles = wreck_piles.duplicate(true)
 	return c
 
 

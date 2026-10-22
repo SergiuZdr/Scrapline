@@ -52,6 +52,7 @@ var bump_damage: int = 1
 var mark_bonus: int = 2
 ## A destroyed machine's scrap pile: what it is worth, and what collecting it patches.
 var pile_value: int = 4
+## B5 (083): a fight file may set its own (`pile_heal: 0` on the bosses: a boss fight does not heal).
 var pile_heal: int = 2
 ## Chance (percent) that an enemy carries scrap; see `GridUnit.carries_scrap`.
 var pile_drop_pct: int = 55
@@ -70,6 +71,16 @@ var start_piles: Array = []
 ## Percent effectiveness, `[damage_type][armor_type]`.
 var wheel: Array = []
 var units: Array[GridUnit] = []
+## A1 (083): the enemy refs whose fall ends the fight (`"keeper": true` on an enemy spec), sorted.
+## When every one is dead the fight is won and the rest collapse into piles.
+var keepers: Array[int] = []
+## A2 (083): escorts held back to arrive later, `[{ "round": int, "refs": [int] }]` by round, and the
+## held machines themselves (`reserves`, by ref). Never in `units`: `CombatSim` copies one in on
+## its wave's mark. Their refs stay reserved, so no drone is ever given one.
+var escort_waves: Array = []
+var reserves: Array[GridUnit] = []
+## A2 (083): what a crew machine standing on an escort's mark takes when it blocks the arrival.
+var block_damage: int = 2
 var errors: PackedStringArray = []
 
 
@@ -89,7 +100,8 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 	setup.bump_damage = int(rules.get("bump_damage", 1))
 	setup.mark_bonus = int(rules.get("mark_bonus", 2))
 	setup.pile_value = int(rules.get("pile_value", 4))
-	setup.pile_heal = int(rules.get("pile_heal", 2))
+	setup.pile_heal = int(fight.get("pile_heal", rules.get("pile_heal", 2)))
+	setup.block_damage = int(rules.get("block_damage", 2))
 	setup.pile_drop_pct = int(rules.get("pile_drop_pct", 55))
 	setup.pierce_overshoot = int(rules.get("pierce_overshoot", 2))
 	setup.pierce_overshoot_pct = int(rules.get("pierce_overshoot_pct", 50))
@@ -230,7 +242,53 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 		for u: GridUnit in setup.units:
 			if u.team == GridUnit.TEAM_PLAYER and not u.objective:
 				u.vent = maxi(0, u.vent + setup.vent_mod)
+	_keepers_and_escorts(setup, fight, slot_lists[1])
 	return setup
+
+
+## A1 / A2 (083): which enemies are keepers, and which escorts wait for a later wave. An escort is
+## an enemy that is neither a keeper nor of a kind (a conduit, a twin); the LAST ones are held back,
+## the latest wave taking the last of them, and at least one escort always starts on the board.
+static func _keepers_and_escorts(setup: CombatSetup, fight: Dictionary, specs: Array) -> void:
+	var escorts: Array[GridUnit] = []
+	for u: GridUnit in setup.units:
+		if u.team != GridUnit.TEAM_ENEMY or u.slot >= specs.size():
+			continue
+		if bool((specs[u.slot] as Dictionary).get("keeper", false)):
+			setup.keepers.append(u.ref)
+		elif u.kind.is_empty():
+			escorts.append(u)
+	setup.keepers.sort()
+	var waves: Array = []
+	for w: Variant in (fight.get("escort_waves", []) as Array):
+		var round: int = int((w as Dictionary).get("round", 0))
+		if round >= 2 and int((w as Dictionary).get("count", 0)) > 0:
+			waves.append({"round": round, "count": int((w as Dictionary)["count"])})
+	if waves.is_empty() or setup.keepers.is_empty():
+		return
+	waves.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["round"]) < int(b["round"]))
+	var spare: int = escorts.size() - 1
+	var held: Array = []
+	for i: int in range(waves.size() - 1, -1, -1):
+		var refs: Array = []
+		for k: int in mini(int(waves[i]["count"]), maxi(0, spare)):
+			var u: GridUnit = escorts.pop_back()
+			refs.push_front(u.ref)
+			setup.reserves.push_front(u)
+			setup.units.erase(u)
+			spare -= 1
+		if not refs.is_empty():
+			held.push_front({"round": int(waves[i]["round"]), "refs": refs})
+	setup.escort_waves = held
+	setup.reserves.sort_custom(func(a: GridUnit, b: GridUnit) -> bool: return a.ref < b.ref)
+
+
+## A held escort by ref (083), or null.
+func reserve(ref: int) -> GridUnit:
+	for u: GridUnit in reserves:
+		if u.ref == ref:
+			return u
+	return null
 
 
 static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionary,

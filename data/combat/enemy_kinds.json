@@ -68,7 +68,7 @@
   "pour": {
     "keeps_arms": true,
     "name": "The Pour",
-    "text": "The Slag Flats' keeper. Every other round it marks four hexes, the ones your machines stand on first; a round later they flood with slag for the rest of the fight (2 damage a round to anything on them). COOLANT TANKS stand on its floor: burst one within 2 of it and its shell cracks -- it takes double for the rest of your turn -- and the slag around the tank cools. At half HP it BOILS OVER: it marks five hexes every round, the slag bites for 3, and three drones come to guard it.",
+    "text": "The Slag Flats' keeper. Every other round it marks four hexes in your way -- next to your machines, on their side toward it, the nearest machine's first; a round later they flood with slag for the rest of the fight (2 damage a round to anything on them). COOLANT TANKS stand on its floor: burst one within 2 of it and its shell cracks -- it takes double for the rest of your turn -- and the slag around the tank cools. At half HP it BOILS OVER: it marks five hexes every round, the slag bites for 3, and three drones come to guard it.",
     "floods": 4,
     "every": 2,
     "hazard": 2,
