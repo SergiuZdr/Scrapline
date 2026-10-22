@@ -9,12 +9,30 @@ extends RefCounted
 ## class would compile it before the autoloads exist).
 
 
+## The hints' words from `data/tutorial.json`, read once: for display classes that are handed the
+## glossary but not the whole `ContentDB` (the fight's HUD).
+static var _texts: Dictionary = {}
+
+
+static func texts() -> Dictionary:
+	if _texts.is_empty():
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/tutorial.json"))
+		if parsed is Dictionary:
+			_texts = (parsed as Dictionary).get("hints", {})
+	return _texts
+
+
 ## Shows hint `id` on `parent` at `at` unless it was seen; returns the callout or null.
 static func show_once(parent: Control, id: String, db: ContentDB, at: Vector2, width: float = 440.0, point: Variant = null) -> Control:
+	return show_with(parent, id, (db.tutorial.get("hints", {}) as Dictionary).get(id, {}), db.glossary, at, width, point)
+
+
+## `show_once` with the hint's words and the glossary handed in (`texts()[id]`, the HUD's glossary).
+static func show_with(parent: Control, id: String, hint: Dictionary, glossary: Dictionary, at: Vector2,
+		width: float = 440.0, point: Variant = null) -> Control:
 	if parent.has_node("hint_" + id):
 		return parent.get_node("hint_" + id)
 	var profile: Node = parent.get_tree().root.get_node_or_null("Profile") if parent.is_inside_tree() else null
-	var hint: Dictionary = (db.tutorial.get("hints", {}) as Dictionary).get(id, {})
 	if profile == null or hint.is_empty() or bool(profile.call("seen", id)):
 		return null
 	var panel := PanelContainer.new()
@@ -34,7 +52,7 @@ static func show_once(parent: Control, id: String, db: ContentDB, at: Vector2, w
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", UIKit.TEXT)
 	box.add_child(title)
-	box.add_child(Glossary.label(String(hint.get("text", "")), UIKit.SIZE_BODY, UIKit.TEXT, db.glossary, width - UIKit.SPACE_LG * 2))
+	box.add_child(Glossary.label(String(hint.get("text", "")), UIKit.SIZE_BODY, UIKit.TEXT, glossary, width - UIKit.SPACE_LG * 2))
 	var ok := Button.new()
 	ok.name = "got_it"
 	ok.text = "GOT IT"
