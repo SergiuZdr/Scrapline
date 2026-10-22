@@ -35,6 +35,9 @@ const SCORE_FELL: int = 30
 ## Breaking a gate pylon strips the Sorter's shield (013): worth about a kill to the player's
 ## side, nothing to the enemy's.
 const SCORE_PYLON: int = 90
+## A1 (083): a keeper's fall ends the fight, so the crew's side wants every point on it: worth about
+## a pylon per hit that lands on one, and as much again when the hit brings it down.
+const SCORE_KEEPER: int = 90
 ## How many of the best candidates get the full dry run (explosions, pits, bombers).
 const REFINE: int = 6
 ## 028: standing on HOLD's zone (both sides), and on a terminal not yet taken (the crew).
@@ -234,6 +237,8 @@ static func plan_value(state: CombatState, u: GridUnit, weapon: Dictionary, plan
 		value += dmg * 10
 		if dmg >= t.hp:
 			value += SCORE_KILL
+		if dmg > 0 and u.team == GridUnit.TEAM_PLAYER and CombatSim.is_keeper(state, t.ref):
+			value += SCORE_KEEPER / 2
 		if t.objective:
 			value += SCORE_OBJECTIVE
 		if bool(hit["primary"]) and bool(weapon["mark"]) and not t.marked:
@@ -319,6 +324,8 @@ static func effects_value(before: CombatState, after: CombatState, u: GridUnit, 
 		value += lost * 10
 		if bool(effect["killed"]):
 			value += SCORE_KILL + (SCORE_OBJECTIVE if t.objective else 0)
+		if u.team == GridUnit.TEAM_PLAYER and CombatSim.is_keeper(before, t.ref):
+			value += (SCORE_KEEPER if lost > 0 else 0) + (SCORE_KEEPER if bool(effect["killed"]) else 0)
 		if bool(effect["fell"]):
 			value += SCORE_FELL
 		if intents.has(t.ref):
@@ -387,6 +394,10 @@ static func _tile_value(state: CombatState, cell: Vector2i, steps: int, danger: 
 		value += SCORE_PILE_SALVAGE if String(state.objective().get("type", "")) == "salvage" else SCORE_PILE
 	# Never park on a hive's pad: it would block the enemy's own drone.
 	if state.spawn_marks.values().has(cell):
+		value += SCORE_PAD
+	# 083: nor on a boss escort's arrival mark (it would block its own side's escort; for the crew,
+	# blocking one costs `block_damage`).
+	if not state.wave_refs.is_empty() and state.wave_marks.has(cell):
 		value += SCORE_PAD
 	return value
 

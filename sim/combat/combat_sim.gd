@@ -883,6 +883,23 @@ static func objective_status(state: CombatState) -> Dictionary:
 		"survive":
 			status["text"] = "SURVIVE  ·  waves every %d rounds  ·  hold out %d more round%s, or destroy every enemy" % [
 				int(o.get("every", 2)), status["rounds_left"], "" if int(status["rounds_left"]) == 1 else "s"]
+		_ when not state.setup.keepers.is_empty():
+			# A1 (083): a boss fight ends when its keepers fall.
+			status["type"] = "keeper"
+			var names: PackedStringArray = []
+			for ref: int in state.setup.keepers:
+				var k: GridUnit = state.unit(ref)
+				if k != null and k.alive:
+					names.append(k.name.to_upper())
+			status["keepers_left"] = names.size()
+			status["text"] = "DESTROY %s" % " AND ".join(names)
+			var waves: int = escort_waves_left(state)
+			if waves > 0:
+				status["text"] += "  ·  %d escort wave%s to come" % [waves, "" if waves == 1 else "s"]
+			if state.setup.max_rounds < 20:
+				var left: int = state.setup.max_rounds - state.round_number + 1
+				status["text"] += "  ·  %d round%s left" % [left, "" if left == 1 else "s"]
+				status["rounds_left"] = left
 		_:
 			status["text"] = "ROUT  ·  destroy every enemy"
 			# A fight with its own, shorter limit says so (014: the gate closes).
@@ -1047,6 +1064,8 @@ static func hurt(state: CombatState, actor: int, target: GridUnit, dmg: int) -> 
 	if not target.objective and target.carries_scrap:
 		state.piles[cell] = int(state.piles.get(cell, 0)) + state.setup.pile_value
 		state.emit(GridEv.PILE_DROPPED, actor, target.ref, cell.x, cell.y, state.setup.pile_value)
+		if target.team == GridUnit.TEAM_PLAYER:
+			_add_wreck(state, cell, target.ref)
 	if target.kind == "bomber":
 		explode(state, target.ref, cell, int((state.setup.kinds.get("bomber", {}) as Dictionary).get("blast", 4)))
 	# 050, the Twin Furnaces: one that falls while its twin stands is rebuilt in `rebuild_rounds`.
@@ -1182,6 +1201,7 @@ static func collect_at(state: CombatState, u: GridUnit, cell: Vector2i) -> void:
 		return
 	var value: int = int(state.piles[cell])
 	state.piles.erase(cell)
+	state.wreck_piles.erase(cell)
 	var heal: int = mini(state.setup.pile_heal, u.max_hp - u.hp)
 	u.hp += heal
 	if u.team == GridUnit.TEAM_PLAYER:
@@ -1301,6 +1321,14 @@ static func throw_wreck(state: CombatState, actor: int, target: GridUnit, dir: i
 		else:
 			state.piles.erase(from)
 		state.emit(GridEv.PILE_LOST, actor, target.ref, from.x, from.y, carried)
+		# 083: a crew wreck's pile goes with the wreck (into the pit, or onto the hex it lands on).
+		var whose: Array = state.wreck_piles.get(from, [])
+		if whose.has(target.ref):
+			whose.erase(target.ref)
+			if whose.is_empty() or not state.piles.has(from):
+				state.wreck_piles.erase(from)
+			if not state.is_pit(n):
+				_add_wreck(state, n, target.ref)
 	if state.is_pit(n):
 		state.emit(GridEv.FELL, actor, target.ref, n.x, n.y)
 		return
@@ -1388,6 +1416,7 @@ static func _begin_round(state: CombatState) -> void:
 	if _check_outcome(state):
 		return
 	_waves(state)
+	_mark_escorts(state)
 	_rebuild(state)
 
 	_hives(state)
@@ -1467,10 +1496,7 @@ static func _waves(state: CombatState) -> void:
 				state.emit(GridEv.SPAWN_BLOCKED, -1, -1, cell.x, cell.y, 0)
 				continue
 			var drone: GridUnit = state.setup.drone.copy()
-			var slot: int = 0
-			for u: GridUnit in state.units:
-				if u.team == GridUnit.TEAM_ENEMY:
-					slot = maxi(slot, u.slot + 1)
+			var slot: int = _next_slot(state)
 			drone.slot = slot
 			drone.ref = GridUnit.TEAM_ENEMY * 10 + slot
 			drone.x = cell.x
@@ -1519,6 +1545,7 @@ static func _round_hazards(state: CombatState) -> void:
 	_grabs(state)
 	_auras(state)
 	_hauls(state)
+	_escort_arrivals(state)
 
 
 ## The Grinder (030): a kind with an `aura` cuts every one of the other side standing next to
@@ -1678,10 +1705,7 @@ static func _hives(state: CombatState) -> void:
 			state.emit(GridEv.SPAWN_BLOCKED, builder.ref, -1, cell.x, cell.y, 0)
 			continue
 		var drone: GridUnit = state.setup.drone.copy()
-		var slot: int = 0
-		for u: GridUnit in state.units:
-			if u.team == GridUnit.TEAM_ENEMY:
-				slot = maxi(slot, u.slot + 1)
+		var slot: int = _next_slot(state)
 		drone.slot = slot
 		drone.ref = GridUnit.TEAM_ENEMY * 10 + slot
 		drone.x = cell.x
@@ -1730,18 +1754,51 @@ static func _pours(state: CombatState) -> void:
 			continue
 		var targets: Array[GridUnit] = []
 		for other: GridUnit in state.units:
-			if other.alive and other.team != u.team and not other.objective and not state.flooded.has(Vector2i(other.x, other.y)):
+			if other.alive and other.team != u.team and not other.objective:
 				targets.append(other)
 		var here := Vector2i(u.x, u.y)
 		targets.sort_custom(func(a: GridUnit, b: GridUnit) -> bool:
 			var da: int = Hex.distance(here, Vector2i(a.x, a.y))
 			var db: int = Hex.distance(here, Vector2i(b.x, b.y))
 			return da < db or (da == db and a.ref < b.ref))
-		for i: int in mini(floods, targets.size()):
-			var cell := Vector2i(targets[i].x, targets[i].y)
-			if not state.pour_marks.has(cell):
+		# 083 (A2): it floods where the crew is GOING, not where it stands -- the hexes next to each
+		# machine on its side toward the Pour, nearest machine first. One hex per machine a pass,
+		# then a second pass (each machine's next hex toward it) until `floods` are marked, so the
+		# count it states is the count it marks.
+		var choices: Array = []
+		for t: GridUnit in targets:
+			choices.append(_pour_cells(state, u, t))
+		var marked: int = 0
+		for pass_index: int in 6:
+			for i: int in targets.size():
+				if marked >= floods:
+					break
+				var cells: Array = choices[i]
+				while pass_index < cells.size() and state.pour_marks.has(cells[pass_index]):
+					cells.remove_at(pass_index)
+				if pass_index >= cells.size():
+					continue
+				var cell: Vector2i = cells[pass_index]
 				state.pour_marks.append(cell)
 				state.emit(GridEv.POUR_MARKED, u.ref, targets[i].ref, cell.x, cell.y, 1)
+				marked += 1
+
+
+## The hexes next to `t` the Pour may flood (083), best first: closer to the Pour first, then in
+## `Hex.neighbors` order. Never `t`'s own hex, the Pour's, a wall, a pit or slag already there.
+static func _pour_cells(state: CombatState, pour: GridUnit, t: GridUnit) -> Array:
+	var keeper := Vector2i(pour.x, pour.y)
+	var out: Array = []
+	for n: Vector2i in Hex.neighbors(Vector2i(t.x, t.y)):
+		if not state.inside(n) or n == keeper or state.solid(n) or state.is_pit(n) or state.flooded.has(n):
+			continue
+		out.append(n)
+	var order: Array = Hex.neighbors(Vector2i(t.x, t.y))
+	out.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		var da: int = Hex.distance(a, keeper)
+		var db: int = Hex.distance(b, keeper)
+		return da < db or (da == db and order.find(a) < order.find(b)))
+	return out
 
 
 ## The guards an enraged keeper called (027), on free hexes next to it, then two out, in
@@ -1764,10 +1821,7 @@ static func _summon(state: CombatState) -> void:
 			if not state.inside(cell) or state.solid(cell) or state.is_pit(cell) or state.unit_at(cell.x, cell.y) != null:
 				continue
 			var drone: GridUnit = state.setup.drone.copy()
-			var slot: int = 0
-			for u: GridUnit in state.units:
-				if u.team == GridUnit.TEAM_ENEMY:
-					slot = maxi(slot, u.slot + 1)
+			var slot: int = _next_slot(state)
 			drone.slot = slot
 			drone.ref = GridUnit.TEAM_ENEMY * 10 + slot
 			drone.x = cell.x
@@ -1813,10 +1867,7 @@ static func _reclaimer(state: CombatState) -> void:
 				state.emit(GridEv.SPAWN_BLOCKED, -1, -1, cell.x, cell.y, 0)
 				continue
 			var drone: GridUnit = setup.reclaimer_drone.copy()
-			var slot: int = 0
-			for u: GridUnit in state.units:
-				if u.team == GridUnit.TEAM_ENEMY:
-					slot = maxi(slot, u.slot + 1)
+			var slot: int = _next_slot(state)
 			drone.slot = slot
 			drone.ref = GridUnit.TEAM_ENEMY * 10 + slot
 			drone.x = cell.x
@@ -2052,7 +2103,9 @@ static func _check_outcome(state: CombatState) -> bool:
 		return true
 	var o: Dictionary = state.objective()
 	var kind: String = String(o.get("type", "rout"))
-	if state.crew(GridUnit.TEAM_ENEMY).is_empty():
+	if keepers_down(state):
+		_keepers_fall(state)
+	elif state.crew(GridUnit.TEAM_ENEMY).is_empty():
 		_finish(state, CombatState.WON)
 	elif state.crew(GridUnit.TEAM_PLAYER).is_empty():
 		_finish(state, CombatState.LOST)
@@ -2067,6 +2120,48 @@ static func _check_outcome(state: CombatState) -> bool:
 	else:
 		return false
 	return true
+
+
+## A1 (083): the fight has keepers and every one of them is dead.
+static func keepers_down(state: CombatState) -> bool:
+	if state.setup.keepers.is_empty():
+		return false
+	for ref: int in state.setup.keepers:
+		var k: GridUnit = state.unit(ref)
+		if k != null and k.alive:
+			return false
+	return true
+
+
+## Whether `ref` is one of the fight's keepers (083).
+static func is_keeper(state: CombatState, ref: int) -> bool:
+	return state.setup.keepers.has(ref)
+
+
+## A1 (083): the last keeper fell. KEEPERS_FALL, then everything left on its side collapses where
+## it stands -- a DESTROYED and, for a machine that carried scrap, its pile, as any wreck (no drum
+## blast, no rebuild: the fight is over) -- and the fight is won.
+static func _keepers_fall(state: CombatState) -> void:
+	var last: GridUnit = state.unit(state.setup.keepers[state.setup.keepers.size() - 1])
+	for i: int in range(state.events.size() - 1, -1, -1):
+		var e: Array = state.events[i]
+		if int(e[GridEv.F_KIND]) == GridEv.DESTROYED and state.setup.keepers.has(int(e[GridEv.F_TARGET])):
+			last = state.unit(int(e[GridEv.F_TARGET]))
+			break
+	state.emit(GridEv.KEEPERS_FALL, last.ref, -1, last.x, last.y)
+	for u: GridUnit in state.units:
+		if not u.alive or u.team != GridUnit.TEAM_ENEMY:
+			continue
+		u.hp = 0
+		u.alive = false
+		var cell := Vector2i(u.x, u.y)
+		state.emit(GridEv.DESTROYED, -1, u.ref, cell.x, cell.y)
+		if u.carries_scrap:
+			state.piles[cell] = int(state.piles.get(cell, 0)) + state.setup.pile_value
+			state.emit(GridEv.PILE_DROPPED, -1, u.ref, cell.x, cell.y, state.setup.pile_value)
+	state.rebuilds.clear()
+	state.summons.clear()
+	_finish(state, CombatState.WON)
 
 
 static func _finish(state: CombatState, outcome: int) -> void:
@@ -2086,9 +2181,110 @@ static func _path(came_from: Dictionary, start: Vector2i, goal: Vector2i) -> Arr
 
 ## 083: rounds until the Core (or any keeper with a pulse) pulses next, for the HUD; -1 when it has none.
 static func pulse_in(state: CombatState, ref: int) -> int:
+	var u: GridUnit = state.unit(ref)
+	if u == null or not u.alive:
+		return -1
+	if state.pulse_by == ref and not state.pulse_marks.is_empty():
+		return 1
+	var every: int = int(kind_rules(state, u).get("pulse_every", 0))
+	if every <= 0:
+		return -1
+	# It marks at the start of a round `r` with r % every == every - 1 and pulses at r + 1.
+	for r: int in range(state.round_number + 1, state.round_number + every + 1):
+		if r % every == every - 1:
+			return r + 1 - state.round_number
 	return -1
 
 
 ## 083: crew refs whose wreck pile still stands at the end of the fight, sorted (a guarded wreck saves one part).
 static func saved_wrecks(state: CombatState) -> Array:
-	return []
+	var out: Array = []
+	for cell: Variant in state.wreck_piles:
+		if not state.piles.has(cell):
+			continue
+		for ref: Variant in (state.wreck_piles[cell] as Array):
+			var u: GridUnit = state.unit(int(ref))
+			if u != null and not u.alive and not out.has(int(ref)):
+				out.append(int(ref))
+	out.sort()
+	return out
+
+
+## 083: a crew machine's wreck pile now lies on `cell`.
+static func _add_wreck(state: CombatState, cell: Vector2i, ref: int) -> void:
+	var whose: Array = state.wreck_piles.get(cell, [])
+	if not whose.has(ref):
+		whose.append(ref)
+		whose.sort()
+	state.wreck_piles[cell] = whose
+
+
+## The next free enemy slot for a machine that joins the fight: past every enemy on the board and
+## every escort still held back (083), so a drone never takes an escort's ref.
+static func _next_slot(state: CombatState) -> int:
+	var slot: int = 0
+	for u: GridUnit in state.units:
+		if u.team == GridUnit.TEAM_ENEMY:
+			slot = maxi(slot, u.slot + 1)
+	for u: GridUnit in state.setup.reserves:
+		slot = maxi(slot, u.slot + 1)
+	return slot
+
+
+## A2 (083): escort waves still to come (marked or not).
+static func escort_waves_left(state: CombatState) -> int:
+	var left: int = 0
+	for wave: Dictionary in state.setup.escort_waves:
+		if int(wave["round"]) > state.round_number:
+			left += 1
+	return left
+
+
+## A2 (083): a round before a wave of escorts is due, its hexes are marked on the enemy's half
+## (open ground, picked by a hash), one per escort, with the same WAVE_MARKED the SURVIVE waves use.
+static func _mark_escorts(state: CombatState) -> void:
+	for wave: Dictionary in state.setup.escort_waves:
+		if int(wave["round"]) != state.round_number + 1:
+			continue
+		var open: Array[Vector2i] = []
+		for y: int in maxi(1, state.height / 2):
+			for x: int in state.width:
+				var cell := Vector2i(x, y)
+				if not state.solid(cell) and not state.is_pit(cell) and state.unit_at(x, y) == null \
+						and not state.wave_marks.has(cell) and not state.spawn_marks.values().has(cell):
+					open.append(cell)
+		open.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+			var ha: int = IntentAI.mix(state.setup.rng_seed, a.y * 64 + a.x, state.round_number, 73)
+			var hb: int = IntentAI.mix(state.setup.rng_seed, b.y * 64 + b.x, state.round_number, 73)
+			return ha < hb or (ha == hb and (a.y < b.y or (a.y == b.y and a.x < b.x))))
+		var refs: Array = wave["refs"]
+		for i: int in mini(refs.size(), open.size()):
+			state.wave_marks.append(open[i])
+			state.wave_refs.append(int(refs[i]))
+			state.emit(GridEv.WAVE_MARKED, -1, int(refs[i]), open[i].x, open[i].y, 1)
+
+
+## A2 (083): the marked escorts come in at the round's start, before anyone moves. A mark that
+## something stands on is blocked: that escort never comes, and a crew machine on it takes
+## `block_damage`. Run from `_round_hazards`, so `incoming` shows the block's cost on the board.
+static func _escort_arrivals(state: CombatState) -> void:
+	if state.wave_refs.is_empty():
+		return
+	for i: int in state.wave_refs.size():
+		var cell: Vector2i = state.wave_marks[i]
+		var held: GridUnit = state.setup.reserve(int(state.wave_refs[i]))
+		var occupant: GridUnit = state.unit_at(cell.x, cell.y)
+		if held == null or occupant != null or state.solid(cell) or state.is_pit(cell):
+			state.emit(GridEv.SPAWN_BLOCKED, -1, int(state.wave_refs[i]), cell.x, cell.y, 0)
+			if occupant != null and occupant.team == GridUnit.TEAM_PLAYER and not occupant.objective \
+					and state.setup.block_damage > 0:
+				hurt(state, -1, occupant, state.setup.block_damage)
+			continue
+		var escort: GridUnit = held.copy()
+		escort.x = cell.x
+		escort.y = cell.y
+		state.units.append(escort)
+		state.units.sort_custom(func(a: GridUnit, b: GridUnit) -> bool: return a.ref < b.ref)
+		state.emit(GridEv.SPAWNED, -2, escort.ref, cell.x, cell.y)
+	state.wave_marks.clear()
+	state.wave_refs.clear()
