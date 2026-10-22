@@ -72,6 +72,7 @@ func _initialize() -> void:
 	_timed(_test_bosses_038)
 	_timed(_test_arms_047)
 	_timed(_test_bot_abilities_073)
+	_timed(_test_keepers_083)
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
 			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core",
 		"warlord_grinder", "warlord_magnet", "warlord_twins"]:
@@ -90,32 +91,164 @@ func _test_act2_kinds() -> void:
 	var s: CombatState = _fight(_rows(), [_unit(HAMMER, C, 30)], [pour])
 	_place(s, 0, C)
 	_place(s, 10, far)
+	# 083 (A2): it floods the hex next to the machine on its side toward the Pour, not the one under it.
+	var ahead: Vector2i = Hex.neighbors(C)[0]
+	for n: Vector2i in Hex.neighbors(C):
+		if Hex.distance(n, far) < Hex.distance(ahead, far):
+			ahead = n
 	var marked: bool = false
 	var flooded_at: int = -1
-	var hp_before: int = 0
+	var under: bool = false
 	for turn: int in 5:
-		_place(s, 0, C)   # stand still: the point is what standing still costs
+		_place(s, 0, C)   # stand still
 		_place(s, 10, far)
 		s.intents.clear()
-		if s.pour_marks.has(C) and not marked:
+		under = under or s.pour_marks.has(C)
+		if s.pour_marks.has(ahead) and not marked:
 			marked = true
-			hp_before = s.unit(0).hp
 			var copy: CombatState = s.clone()
 			CombatSim.apply(copy, [CombatSim.ACT_END, 0, 0, 0])
-			_check("a dry run of the flood does not leak into the fight", copy.flooded.has(C) and not s.flooded.has(C))
+			_check("a dry run of the flood does not leak into the fight", copy.flooded.has(ahead) and not s.flooded.has(ahead))
 		CombatSim.apply(s, [CombatSim.ACT_END, 0, 0, 0])
-		if s.flooded.has(C) and flooded_at < 0:
+		if s.flooded.has(ahead) and flooded_at < 0:
 			flooded_at = turn
 			break
-	_check("The Pour marks the hex a machine stands on", marked)
-	_check("a round later that hex is slag", flooded_at >= 0 and s.hazard(C.x, C.y) == 2)
-	_check("and what stood on it took the slag's 2", marked and s.unit(0).hp <= hp_before - 2)
+	_check("The Pour marks the hex in front of a machine, toward it (083)", marked)
+	_check("and never the hex the machine stands on", not under and not s.flooded.has(C))
+	_check("a round later that hex is slag", flooded_at >= 0 and s.hazard(ahead.x, ahead.y) == 2)
+	_check("it marks as many hexes as it says (floods 4, one machine: 4 marks)",
+		_pour_count(_fight(_rows(), [_unit(HAMMER, C, 30)], [pour])) == 4)
 	var plain: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, far)])
 	var guard: Dictionary = _unit(HAMMER, far)
 	guard["kind"] = "sentinel"
 	var plated: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [guard])
 	_check("a sentinel takes 1 less from every hit", plated.unit(10).armor == plain.unit(10).armor + 1)
 	_check("and cannot be shoved", plated.unit(10).unshovable)
+
+
+func _pour_count(s: CombatState) -> int:
+	_place(s, 0, C)
+	_place(s, 10, Vector2i(0, 0))
+	for turn: int in 3:
+		if not s.pour_marks.is_empty():
+			return s.pour_marks.size()
+		CombatSim.apply(s, [CombatSim.ACT_END, 0, 0, 0])
+		_place(s, 0, C)
+		_place(s, 10, Vector2i(0, 0))
+	return s.pour_marks.size()
+
+
+## 083 (A1, A2, wreck recovery): a keeper's fall ends the fight; escorts arrive in marked waves; the
+## Core counts down its pulse; crew wrecks remember whose they were.
+func _test_keepers_083() -> void:
+	# The Core falls with its conduits, escorts (and any drone) still standing: the fight is won.
+	var setup: CombatSetup = CombatSetup.build(_db.fights["the_core"], _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 7)
+	_check("the Core is the_core's one keeper", setup.keepers.size() == 1 and setup.units.filter(
+		func(u: GridUnit) -> bool: return u.ref == setup.keepers[0] and u.kind == "heart").size() == 1)
+	var s: CombatState = CombatSim.start(setup)
+	var core: GridUnit = s.unit(setup.keepers[0])
+	_check("pulse_in counts down to the Core's pulse", CombatSim.pulse_in(s, core.ref) == 1)
+	var actions: Array = []
+	var drones: bool = false
+	for i: int in 6:
+		for u: GridUnit in s.crew(GridUnit.TEAM_PLAYER):
+			u.hp = u.max_hp   # the harness keeps the crew up: the point is what is on the board
+		var end: Array = [CombatSim.ACT_END, -1, 0, 0]
+		CombatSim.apply(s, end)
+		actions.append(end)
+		for u: GridUnit in s.units:
+			drones = drones or (u.alive and u.team == GridUnit.TEAM_ENEMY and u.name == "Drone")
+		if drones:
+			break
+	var expected: int = -1
+	for r: int in range(s.round_number + 1, s.round_number + 3):
+		if r % 2 == 1:
+			expected = r + 1 - s.round_number
+			break
+	_check("pulse_in agrees with the Core's every-other-round pulse", CombatSim.pulse_in(s, core.ref) == (1 if not s.pulse_marks.is_empty() else expected))
+	var others: int = 0
+	for u: GridUnit in s.units:
+		if u.alive and u.team == GridUnit.TEAM_ENEMY and u.ref != core.ref:
+			others += 1
+	_check("drones and escorts stand when the Core is struck (%d others, a drone: %s)" % [others, drones], others >= 3)
+	# Knuckles next to the Core, the Core at 1 HP: one blow.
+	var knuckles: GridUnit = s.unit(0)
+	var spot: Vector2i = Vector2i(-1, -1)
+	for n: Vector2i in Hex.neighbors(Vector2i(core.x, core.y)):
+		if s.inside(n) and not s.solid(n) and not s.is_pit(n) and s.unit_at(n.x, n.y) == null:
+			spot = n
+			break
+	knuckles.x = spot.x
+	knuckles.y = spot.y
+	knuckles.acted = false
+	core.hp = 1
+	var since: int = s.events.size()
+	var blow: Array = [CombatSim.ACT_ATTACK, 0, _shape_index(knuckles, "melee"), core.x, core.y]
+	_check("the blow is legal", CombatSim.apply(s, blow))
+	_check("the Core's death ends the fight, won, with others still standing a moment before", s.outcome == CombatState.WON)
+	_check("KEEPERS_FALL fires once, from the Core", _count(s, 0, GridEv.KEEPERS_FALL) == 1 and _count(s, since, GridEv.KEEPERS_FALL) == 1)
+	var standing: int = 0
+	for u: GridUnit in s.units:
+		if u.alive and u.team == GridUnit.TEAM_ENEMY:
+			standing += 1
+	_check("everything left collapses (DESTROYED each)", standing == 0 and _count(s, since, GridEv.DESTROYED) == others + 1)
+	_check("no action is taken after the fall", not CombatSim.apply(s, [CombatSim.ACT_END, -1, 0, 0]))
+	var status: Dictionary = CombatSim.objective_status(CombatSim.start(setup))
+	_check("the objective reads DESTROY THE CORE (%s)" % status["text"], String(status["type"]) == "keeper" and String(status["text"]).begins_with("DESTROY THE CORE"))
+
+	# Escort waves (A2): the Sorting Gate holds two escorts back to round 4, marked in round 3.
+	var gate: CombatSetup = CombatSetup.build(_db.fights["sorting_gate"], _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 3)
+	_check("two escorts are held back for round 4", gate.reserves.size() == 2 and gate.escort_waves.size() == 1
+		and int(gate.escort_waves[0]["round"]) == 4)
+	var g: CombatState = CombatSim.start(gate)
+	var log: Array = []
+	var blocker_hp: int = 0
+	var blocked_cell := Vector2i(-1, -1)
+	while g.round_number < 4 and g.outcome == CombatState.ONGOING:
+		for u: GridUnit in g.crew(GridUnit.TEAM_PLAYER):
+			u.hp = u.max_hp
+		if g.round_number == 3:
+			_check("round 3 marks one hex per held escort", g.wave_marks.size() == 2 and g.wave_refs.size() == 2)
+			# Relay stands on the first mark: it blocks that escort and takes block_damage.
+			blocked_cell = g.wave_marks[0]
+			_place(g, 2, blocked_cell)
+			blocker_hp = g.unit(2).hp
+		var end: Array = [CombatSim.ACT_END, -1, 0, 0]
+		CombatSim.apply(g, end)
+		log.append(end)
+	var in_play: Array = []
+	var unique: bool = true
+	for u: GridUnit in g.units:
+		if in_play.has(u.ref):
+			unique = false
+		in_play.append(u.ref)
+	_check("the unblocked escort came in, the blocked one did not", g.unit(gate.reserves[1].ref) != null and g.unit(gate.reserves[0].ref) == null)
+	_check("the blocker took block_damage (%d)" % gate.block_damage, g.unit(2).hp <= blocker_hp - gate.block_damage)
+	_check("no two units share a ref", unique)
+
+	# Wreck recovery: a staged frame. Knuckles and Needle are wrecked; an escort takes Needle's pile;
+	# the keeper falls; Knuckles' wreck is the one saved.
+	var file := FileAccess.open("res://tools/frames/wrecks083.json", FileAccess.READ)
+	var frame: Dictionary = JSON.parse_string(file.get_as_text())
+	var ws: CombatState = CombatSim.start(CombatSetup.build(frame, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 1))
+	ws.intents.clear()
+	_check("the frame's pile_heal 0 overlays the rules", ws.setup.pile_heal == 0)
+	CombatSim.hurt(ws, 11, ws.unit(0), 99)
+	CombatSim.hurt(ws, 11, ws.unit(1), 99)
+	var copy: CombatState = ws.clone()
+	_check("clone() copies whose wrecks lie where", CombatSim.saved_wrecks(copy) == [0, 1])
+	var hp_escort: int = ws.unit(12).hp
+	CombatSim.collect_at(ws, ws.unit(12), Vector2i(4, 6))
+	_check("an escort carries Needle's pile off (and pile_heal 0 heals nothing)", CombatSim.saved_wrecks(ws) == [0] and ws.unit(12).hp == hp_escort)
+	_check("and the copy was not touched", CombatSim.saved_wrecks(copy) == [0, 1])
+	_place(ws, 2, Vector2i(4, 3))
+	_place(ws, 10, Vector2i(4, 2))
+	_place(ws, 11, Vector2i(1, 1))
+	ws.unit(10).hp = 1
+	_check("Relay's blow is legal", CombatSim.apply(ws, [CombatSim.ACT_ATTACK, 2, _shape_index(ws.unit(2), "melee"), 4, 2]))
+	_check("the keeper falls, the fight is won", ws.outcome == CombatState.WON and _count(ws, 0, GridEv.KEEPERS_FALL) == 1)
+	_check("saved_wrecks names Knuckles alone", CombatSim.saved_wrecks(ws) == [0])
+	_check("the escorts left piles where they collapsed", ws.piles.has(Vector2i(1, 1)))
 
 
 ## Play-test 7: the enemy's volley as totals (`incoming`), a tied shove taking the better hex,
