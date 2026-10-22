@@ -326,11 +326,102 @@ func _go() -> void:
 			state = _run.get("state")
 			_check("a signal's option does what its button says (SELL THE DRUMS: +14)", state.scrap == scrap_signal + 14 and state.pending.is_empty())
 
+	await _fit_it_now()
+	await _roll_call()
+
 	RunStore.clear()
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
 	print("")
 	quit(1 if _failed > 0 else 0)
+
+
+## 082 (A21): a real salvage card whose verdict names a fitted part offers FIT ON <NAME>; pressing it
+## is a PICK then a REFIT in the run's one action list, and replaying that list gives the same run.
+func _fit_it_now() -> void:
+	var card_script: Script = load("res://scripts/ui/part_card.gd")
+	var db: ContentDB = _run.get("db")
+	var found: int = -1
+	for seed_value: int in [777, 4243, 31, 9001]:
+		RunStore.clear()
+		_run.call("new_run", seed_value)
+		var guard: int = 0
+		while guard < 400:
+			var st: RunState = _run.get("state")
+			if st.outcome != RunState.ONGOING:
+				break
+			if ["reward", "scrapyard"].has(String(st.pending.get("kind", ""))):
+				var options: Array = st.pending["options"]
+				for k: int in options.size():
+					if found < 0 and not (card_script.call("fit_target", db.parts, String(options[k]), st.crew) as Array).is_empty():
+						found = k
+				if found >= 0:
+					break
+			_run.call("apply", RunBot.next_action(st, _run.get("setup")))
+			guard += 1
+		if found >= 0:
+			break
+	_check("(a bot run reached a salvage card that beats a fitted part)", found >= 0)
+	if found < 0:
+		return
+	_run.set("briefed", true)
+	_run.set("bay_seen", true)
+	var state: RunState = _run.get("state")
+	var part: String = String((state.pending["options"] as Array)[found])
+	var target: Array = card_script.call("fit_target", db.parts, part, state.crew)
+	var map: Node = await _open("res://scenes/run_map.tscn")
+	var fit: Button = map.find_child("fit_%d" % found, true, false)
+	_check("the card offers FIT ON %s" % String(state.crew[int(target[0])]["name"]).to_upper(),
+		fit != null and fit.text == "FIT ON %s" % String(state.crew[int(target[0])]["name"]).to_upper())
+	_check("the card carries the part's flavour line", map.find_child("flavour", true, false) != null)
+	var count: int = (_run.get("actions") as Array).size()
+	_press(fit)
+	await _frames(5)
+	state = _run.get("state")
+	var actions: Array = _run.get("actions")
+	_check("FIT IT NOW fits the part in the named socket", String(state.crew[int(target[0])]["parts"][int(target[1])]) == part)
+	_check("as two actions: PICK, then REFIT", actions.size() == count + 2 and int(actions[count][0]) == RunSim.PICK
+		and int(actions[count + 1][0]) == RunSim.REFIT)
+	var replayed: RunState = RunSim.replay(_run.get("setup"), actions)
+	_check("replaying the action list reproduces the same RunState", replayed.fingerprint() == state.fingerprint())
+	var saved: Dictionary = RunStore.load_saved()
+	_check("and so does replaying the save", RunSim.replay(_run.get("setup"), saved.get("actions", [])).fingerprint() == state.fingerprint())
+
+
+## 082 (A23): after a loss the run-over screen calls the roll: three columns, each with a fate.
+func _roll_call() -> void:
+	var map: Node = current_scene
+	var state: RunState = _run.get("state")
+	if map == null or not map.has_method("_roll_call"):
+		_check("(the map is open for the roll call)", false)
+		return
+	var record: Array = map.call("_roll_call")
+	_check("the roll call replays the run: one record per machine", record.size() == state.crew.size())
+	var kills: int = 0
+	for entry: Dictionary in record:
+		kills += int(entry["kills"])
+	_check("kills are counted from the fights (%d over %d fights won)" % [kills, state.fights_won], state.fights_won == 0 or kills > 0)
+	for member: Dictionary in state.crew:
+		member["alive"] = false
+		member["hp"] = 0
+	state.outcome = RunState.LOST
+	state.end_reason = "The whole crew is wrecked."
+	map.call("_refresh")
+	await _frames(3)
+	var roll: Node = map.find_child("roll_call", true, false)
+	var columns: int = 0
+	var fell: int = 0
+	if roll != null:
+		for child: Node in roll.get_children():
+			if String(child.name).begins_with("roll_") and not child.is_queued_for_deletion():
+				columns += 1
+				var fate: Label = child.find_child("fate", true, false)
+				if fate != null and fate.text.begins_with("FELL at ") and fate.text.ends_with("Act %d" % state.act):
+					fell += 1
+	_check("the run-over screen shows three crew columns (%d)" % columns, columns == 3)
+	_check("each wreck says where it fell (%d of 3)" % fell, fell == 3)
+	var lines: Array = (_run.get("db") as ContentDB).story["endings"]["wrecked"]
+	_check("the wrecked ending is this act's line", String(map.call("_ending_text", state, false)) == String(lines[state.act - 1]))
 
 
 func _open(path: String) -> Node:

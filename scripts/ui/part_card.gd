@@ -6,6 +6,11 @@ extends RefCounted
 ## and whether it would beat anything the crew has fitted.
 
 const RARITY_NAMES: PackedStringArray = ["COMMON", "UNCOMMON", "RARE", "LEGENDARY"]
+const SOCKET_NAMES: PackedStringArray = ["frame", "core", "left arm", "right arm", "module"]
+const SOCKETS: Dictionary = {"chassis": [0], "core": [1], "arm": [2, 3], "module": [4]}
+
+## 082 (A22): the flavour line's face -- the body face, slanted, since no italic is bundled.
+static var _italic: FontVariation
 
 
 ## A Button holding the card. `compare_crew`: the run's crew, to say whether the part is
@@ -81,6 +86,12 @@ static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array 
 		inner.add_child(picture)
 	inner.add_child(UIKit.fit(_label(PartText.name_of(parts, id), 20, colour, UIKit.font_comic()), inner_w, 1, 13))
 	inner.add_child(UIKit.fit(_label(PartText.summary(parts, id, db.combat_abilities), UIKit.SIZE_MICRO, UIKit.TEXT_DIM), inner_w, 2, 10))
+	# 082 (A22): the line the part's maker would say about it, in italics.
+	var said: String = flavour(parts, id)
+	if not said.is_empty():
+		var line := UIKit.fit(_label(said, UIKit.SIZE_MICRO, UIKit.TEXT_DIM, italic()), inner_w, 2, 9)
+		line.name = "flavour"
+		inner.add_child(line)
 	if not compare_crew.is_empty():
 		var verdict: Array = compare(parts, id, compare_crew)
 		if not String(verdict[0]).is_empty():
@@ -127,21 +138,46 @@ static func _tiers(db: ContentDB, loadout: Array, maker: String) -> int:
 
 ## `[text, colour]`: which fitted part this one would beat, by rarity, or that it beats none.
 static func compare(parts: Dictionary, id: String, crew: Array) -> Array:
+	var target: Array = fit_target(parts, id, crew)
+	if target.is_empty():
+		# Play-test 11: "not rarer than yours" said nothing a player could use; say nothing.
+		return ["", UIKit.TEXT_FAINT]
+	var member: Dictionary = crew[int(target[0])]
+	var current: String = String((member["parts"] as Array)[int(target[1])])
+	if current.is_empty():
+		return ["FILLS %s'S EMPTY %s" % [String(member["name"]).to_upper(), SOCKET_NAMES[int(target[1])].to_upper()], UIKit.GREEN]
+	return ["BEATS %s'S %s" % [String(member["name"]).to_upper(), PartText.name_of(parts, current).to_upper()], UIKit.GREEN]
+
+
+## 082 (A21): `[crew index, socket]` the verdict names -- the first living machine whose socket for
+## this slot is empty or holds a part of lower rarity -- or `[]`. FIT IT NOW fits it there.
+static func fit_target(parts: Dictionary, id: String, crew: Array) -> Array:
 	var slot: String = String((parts.get(id, {}) as Dictionary).get("slot", ""))
 	var rarity: int = int((parts.get(id, {}) as Dictionary).get("rarity", 1))
-	var sockets: Dictionary = {"chassis": [0], "core": [1], "arm": [2, 3], "module": [4]}
-	var socket_names: PackedStringArray = ["frame", "core", "left arm", "right arm", "module"]
-	for member: Dictionary in crew:
+	for i: int in crew.size():
+		var member: Dictionary = crew[i]
 		if not bool(member["alive"]):
 			continue
-		for s: int in (sockets.get(slot, []) as Array):
+		for s: int in (SOCKETS.get(slot, []) as Array):
 			var current: String = String((member["parts"] as Array)[s])
-			if current.is_empty():
-				return ["FILLS %s'S EMPTY %s" % [String(member["name"]).to_upper(), socket_names[s].to_upper()], UIKit.GREEN]
-			if rarity > int((parts.get(current, {}) as Dictionary).get("rarity", 1)):
-				return ["BEATS %s'S %s" % [String(member["name"]).to_upper(), PartText.name_of(parts, current).to_upper()], UIKit.GREEN]
-	# Play-test 11: "not rarer than yours" said nothing a player could use; say nothing.
-	return ["", UIKit.TEXT_FAINT]
+			if current.is_empty() or rarity > int((parts.get(current, {}) as Dictionary).get("rarity", 1)):
+				return [i, s]
+	return []
+
+
+## 082 (A22): the part's flavour line from its JSON, or "". A tuned part speaks with its base's.
+static func flavour(parts: Dictionary, id: String) -> String:
+	var own: String = String((parts.get(id, {}) as Dictionary).get("flavour", ""))
+	return own if not own.is_empty() else String((parts.get(PartTuning.base_of(id), {}) as Dictionary).get("flavour", ""))
+
+
+## The flavour face: the body face with a slant.
+static func italic() -> Font:
+	if _italic == null:
+		_italic = FontVariation.new()
+		_italic.base_font = UIKit.font()
+		_italic.variation_transform = Transform2D(Vector2(1, 0), Vector2(0.22, 1), Vector2.ZERO)
+	return _italic
 
 
 static func _label(text: String, size: int, colour: Color, face: Font = null) -> Label:

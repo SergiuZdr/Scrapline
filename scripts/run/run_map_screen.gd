@@ -250,7 +250,7 @@ func _build_top_bar() -> void:
 	add_child(_ground_chip)
 
 	var right := HBoxContainer.new()
-	right.position = Vector2(1246, 28)
+	right.position = Vector2(1246 - (80 if ResourceLoader.exists("res://scripts/ui/settings_sheet.gd") else 0), 28)
 	right.add_theme_constant_override("separation", UIKit.SPACE_LG)
 	add_child(right)
 	# 081: scrap carries its own mark, in the gain green of the piles it comes from.
@@ -277,7 +277,15 @@ func _build_top_bar() -> void:
 	words.tooltip_text = "Glossary"
 	words.pressed.connect(func() -> void: Glossary.open(self, Run.db.glossary))
 	right.add_child(words)
-	var quit := _button("TITLE", UIKit.secondary(), UIKit.TEXT, Vector2(130, 56))
+	# 082 (A24): the settings sheet (playback speed, volume, abandon run), behind a gear.
+	if ResourceLoader.exists("res://scripts/ui/settings_sheet.gd"):
+		var gear := _button("", UIKit.secondary(), UIKit.TEXT, Vector2(56, 56))
+		gear.name = "settings_button"
+		gear.tooltip_text = "Settings"
+		gear.add_child(_gear_mark())
+		gear.pressed.connect(func() -> void: load("res://scripts/ui/settings_sheet.gd").open(self))
+		right.add_child(gear)
+	var quit :=_button("TITLE", UIKit.secondary(), UIKit.TEXT, Vector2(130, 56))
 	quit.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/main.tscn"))
 	right.add_child(quit)
 
@@ -286,6 +294,23 @@ func _build_top_bar() -> void:
 	_warning.position = Vector2(760, 140)
 	_warning.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_warning)
+
+
+## A gear drawn in ink (no icon font is bundled): eight teeth round a ring, centred on a 56 px button.
+func _gear_mark() -> Control:
+	var mark := Control.new()
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mark.position = Vector2(28, 28)
+	mark.draw.connect(func() -> void:
+		var teeth := PackedVector2Array()
+		for k: int in 16:
+			var a: float = TAU * float(k) / 16.0
+			var r: float = 17.0 if k % 2 == 0 else 12.5
+			for d: float in [-0.13, 0.13]:
+				teeth.append(Vector2.from_angle(a + d) * r)
+		mark.draw_colored_polygon(teeth, UIKit.TEXT)
+		mark.draw_circle(Vector2.ZERO, 5.5, UIKit.SURFACE))
+	return mark
 
 
 ## A site's line in the world's voice. The gate is each act's own (025: the story's `acts[i].boss`).
@@ -860,9 +885,21 @@ func _pick_panel() -> void:
 	var row := _row(box)
 	var options: Array = state.pending["options"]
 	for i: int in options.size():
+		var column := VBoxContainer.new()
+		column.add_theme_constant_override("separation", UIKit.SPACE_XS)
+		row.add_child(column)
 		var card: Button = PartCard.build(Run.db, String(options[i]), Vector2(380, 236), state.crew)
 		card.pressed.connect(_pick.bind(i))
-		row.add_child(card)
+		column.add_child(card)
+		# 082 (A21): a part that beats a fitted one (or fills an empty socket) goes straight on:
+		# the pick, then the garage's own REFIT -- two actions, no new kind.
+		var target: Array = PartCard.fit_target(Run.db.parts, String(options[i]), state.crew)
+		if not target.is_empty():
+			var fit := _button("FIT ON %s" % String(state.crew[int(target[0])]["name"]).to_upper(), UIKit.choice(), UIKit.TEXT, Vector2(380, 52))
+			fit.name = "fit_%d" % i
+			fit.tooltip_text = "Take it and fit it now; the part it replaces goes to the hold."
+			fit.pressed.connect(_fit_now.bind(i, int(target[0]), int(target[1])))
+			column.add_child(fit)
 	# 011: every salvage screen has a scrap alternative, so leaving the parts is a choice.
 	var skip := _button("TAKE %d SCRAP INSTEAD" % int(state.pending.get("scrap", 0)) if int(state.pending.get("scrap", 0)) > 0
 		else "LEAVE IT", UIKit.secondary(), UIKit.TEXT, Vector2(320, 60))
@@ -1102,9 +1139,7 @@ func _offer(text: String, cost: int, scrap: int, action: Array) -> Control:
 func _run_over() -> void:
 	var state: RunState = Run.state
 	var won: bool = state.outcome == RunState.WON
-	var endings: Dictionary = Run.db.story.get("endings", {})
-	var ending: String = String(endings.get("won", "")) if won else (String(endings.get("gate_held", ""))
-		if state.end_reason.begins_with("The gate held") else String(endings.get("wrecked", "")))
+	var ending: String = _ending_text(state, won)
 	Audio.play("win" if won else "lose", -6.0, 0.0)
 	# 022: what the run leaves behind. Banked once, however often this screen opens.
 	var banked: Dictionary = Run.bank()
@@ -1117,7 +1152,14 @@ func _run_over() -> void:
 		gains += "\nNext unlock: %s  (%s: %d / %d)" % [_unlock_name(next), String(next.get("text", "")).to_lower(), int(p[0]), int(p[1])]
 	var box := _modal("THE RUN IS WON" if won else "RUN OVER",
 		"%s\n\n%d fights won  ·  act %d  ·  %d scrap\n%s" % [ending if not ending.is_empty() else state.end_reason,
-			state.fights_won, state.act, state.scrap, gains], 900)
+			state.fights_won, state.act, state.scrap, gains], 1240)
+	# 082 (A23): the roll call -- who they were, what they did, where they stopped.
+	var roll := _row(box)
+	roll.name = "roll_call"
+	roll.add_theme_constant_override("separation", UIKit.SPACE_LG)
+	var record: Array = _roll_call()
+	for i: int in state.crew.size():
+		roll.add_child(_roll_column(i, record[i] if i < record.size() else {}))
 	var row := _row(box)
 	# 027: every unlock as a goal, the ones this run earned ringed as new.
 	var fresh: Array = (banked.get("new", []) as Array).map(func(e: Dictionary) -> String: return String(e["id"]))
@@ -1139,6 +1181,148 @@ func _run_over() -> void:
 	row.add_child(again)
 
 
+## The ending in the world's words (082): the true ending for a win on the top tier, and a loss
+## told where it happened -- `endings.wrecked` holds one line per act.
+func _ending_text(state: RunState, won: bool) -> String:
+	var endings: Dictionary = Run.db.story.get("endings", {})
+	if won:
+		var top: int = (Run.db.meta.get("tiers", []) as Array).size() - 1
+		if top > 0 and int(Run.setup.options.get("tier", 0)) >= top and endings.has("line_cut"):
+			return String(endings["line_cut"])
+		return String(endings.get("won", ""))
+	if state.end_reason.begins_with("The gate held"):
+		return String(endings.get("gate_held", ""))
+	var wrecked: Variant = endings.get("wrecked", "")
+	if wrecked is Array:
+		var lines: Array = wrecked
+		return String(lines[clampi(state.act - 1, 0, lines.size() - 1)]) if not lines.is_empty() else ""
+	return String(wrecked)
+
+
+## The run told machine by machine (082, A23), from the run's own action list replayed: kills
+## counted from each fight's events, where a machine fell, the rarest part it ever carried.
+## Display only: nothing here changes the run. `[{kills, fell, signature}]` by crew index.
+func _roll_call() -> Array:
+	var setup: RunSetup = Run.setup
+	var state: RunState = RunSim.start(setup)
+	var out: Array = []
+	for i: int in state.crew.size():
+		out.append({"kills": 0, "fell": "", "signature": "", "rarity": 0})
+	for action: Variant in Run.actions:
+		var step: Array = action
+		if step.is_empty():
+			continue
+		if int(step[0]) == RunSim.FIGHT:
+			_count_kills(state, setup, step[1] as Array, out)
+		var where: String = _place_of(state)
+		var act: int = state.act
+		var alive_before: Array = state.crew.map(func(m: Dictionary) -> bool: return bool(m["alive"]))
+		if not RunSim.apply(state, setup, step):
+			continue
+		for i: int in mini(state.crew.size(), out.size()):
+			var member: Dictionary = state.crew[i]
+			if bool(alive_before[i]) and not bool(member["alive"]):
+				out[i]["fell"] = "FELL at %s, Act %d" % [where, act]
+			elif bool(member["alive"]):
+				out[i]["fell"] = ""
+				_note_signature(member, out[i])
+	return out
+
+
+func _count_kills(state: RunState, setup: RunSetup, combat_actions: Array, out: Array) -> void:
+	var fight: CombatSetup = RunSim.fight_setup(state, setup)
+	if fight == null:
+		return
+	var fielded: Array = []
+	for i: int in state.crew.size():
+		if bool(state.crew[i]["alive"]):
+			fielded.append(i)
+	var result: CombatState = CombatSim.replay(fight, combat_actions)
+	var credited: Dictionary = {}
+	for e: Array in result.events:
+		var kind: int = int(e[GridEv.F_KIND])
+		if kind != GridEv.DESTROYED and kind != GridEv.FELL:
+			continue
+		var actor: int = int(e[GridEv.F_ACTOR])
+		var target: int = int(e[GridEv.F_TARGET])
+		var victim: GridUnit = result.unit(target) if target >= 0 else null
+		if victim == null or victim.team != GridUnit.TEAM_ENEMY or credited.has(target) or actor < 0 or actor >= fielded.size():
+			continue
+		credited[target] = true
+		out[int(fielded[actor])]["kills"] = int(out[int(fielded[actor])]["kills"]) + 1
+
+
+## The rarest part a machine has carried (first of the rarest; the frame only if nothing else).
+func _note_signature(member: Dictionary, entry: Dictionary) -> void:
+	var parts: Array = member["parts"]
+	for s: int in [1, 2, 3, 4, 0]:
+		var id: String = String(parts[s])
+		if id.is_empty():
+			continue
+		var rarity: int = int((Run.db.parts.get(id, {}) as Dictionary).get("rarity", 1)) * 2 + (0 if s == 0 else 1)
+		if rarity > int(entry["rarity"]):
+			entry["rarity"] = rarity
+			entry["signature"] = id
+
+
+## Where the crew stands, in words for "FELL at ...".
+func _place_of(state: RunState) -> String:
+	if state.sites.is_empty():
+		return "the road"
+	var kind: String = String(state.site(state.current).get("type", ""))
+	var acts: Array = Run.db.story.get("acts", [])
+	match kind:
+		"boss":
+			var act: Dictionary = acts[clampi(state.act - 1, 0, acts.size() - 1)] if not acts.is_empty() else {}
+			return String(act.get("gate", "THE GATE")).capitalize()
+		"warlord":
+			return "the warlord's camp"
+		"elite":
+			return "an elite fight"
+		"arena":
+			return "the arena"
+		"skirmish":
+			return "a skirmish"
+	return "the road"
+
+
+## One machine's column in the roll call.
+func _roll_column(i: int, entry: Dictionary) -> Control:
+	var member: Dictionary = Run.state.crew[i]
+	var alive: bool = bool(member["alive"])
+	var card := PanelContainer.new()
+	card.name = "roll_%d" % i
+	card.add_theme_stylebox_override("panel", UIKit.card(UIKit.SURFACE, 0, UIKit.SPACE_MD, UIKit.SPACE_MD))
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	card.add_child(box)
+	var width: float = 340.0
+	box.add_child(UIKit.fit(_label(String(member["name"]).to_upper(), 30, UIKit.TEXT if alive else UIKit.RED, UIKit.font_comic()), width, 1, 18))
+	box.add_child(_level_marks(int(member.get("level", 0))))
+	var perks: PackedStringArray = []
+	for id: Variant in (member.get("perks", []) as Array):
+		perks.append(String((Run.db.perks.get(String(id), {}) as Dictionary).get("name", id)))
+	box.add_child(UIKit.fit(_label(("PERKS: " + ", ".join(perks)) if not perks.is_empty() else "No perks",
+		UIKit.SIZE_LABEL, UIKit.TEXT_DIM, UIKit.font_strong()), width, 2, 10))
+	var signature: String = String(entry.get("signature", ""))
+	if signature.is_empty():
+		signature = String((member["parts"] as Array)[0])
+	box.add_child(UIKit.fit(_label("SIGNATURE: %s" % PartText.name_of(Run.db.parts, signature).to_upper(), UIKit.SIZE_LABEL,
+		PartText.rarity_colour(Run.db.parts, signature), UIKit.font_comic()), width, 1, 10))
+	var kills: int = int(entry.get("kills", 0))
+	box.add_child(_label("%d KILL%s" % [kills, "" if kills == 1 else "S"], 22, UIKit.TEXT, UIKit.font_comic()))
+	var fate: String = "STANDING"
+	if not alive:
+		fate = String(entry.get("fell", ""))
+		if fate.is_empty():
+			fate = "FELL at %s, Act %d" % [_place_of(Run.state), Run.state.act]
+	var fate_label := UIKit.fit(_label(fate, UIKit.SIZE_HEADING, UIKit.GREEN if alive else UIKit.RED, UIKit.font_comic()), width, 2, 11)
+	fate_label.name = "fate"
+	box.add_child(fate_label)
+	return card
+
+
 ## What an unlock gives, in words: a part's name, a crew's, a tier's.
 func _unlock_name(entry: Dictionary) -> String:
 	var meta: Dictionary = Run.db.meta
@@ -1158,6 +1342,22 @@ func _unlock_name(entry: Dictionary) -> String:
 func _pick(index: int) -> void:
 	Audio.play("reward", -8.0)
 	_apply([RunSim.PICK, index])
+
+
+## 082 (A21) FIT IT NOW: PICK puts the part at the end of the hold; REFIT moves it from there into
+## the socket the card's verdict named. Both go into the run's one action list, so the save replays it.
+func _fit_now(index: int, member: int, socket: int) -> void:
+	var act: int = Run.state.act
+	if not Run.apply([RunSim.PICK, index]):
+		Audio.play("ui_deny", -10.0)
+		_refresh()
+		return
+	Audio.play("reward", -8.0)
+	Run.apply([RunSim.REFIT, member, socket, Run.state.cargo.size() - 1])
+	if Run.state.act != act:
+		get_tree().reload_current_scene()
+		return
+	_refresh()
 
 
 func _open_garage(crew_index: int = 0) -> void:
