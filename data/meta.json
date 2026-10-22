@@ -110,24 +110,20 @@
       "name": "FOREMAN",
       "text": "Every enemy carries 2 more HP.",
       "rules": {
-        "enemies": {
-          "hp_all": 2
-        }
+        "adds": [
+          {"path": "enemies.hp_all", "delta": 2}
+        ]
       }
     },
     {
       "name": "RECLAIMED",
       "text": "2 more HP and 1 more damage on every enemy; the Reclaimer bites for 3.",
       "rules": {
-        "enemies": {
-          "hp_all": 2,
-          "bonus": {
-            "damage": 1
-          }
-        },
-        "front": {
-          "damage": 3
-        }
+        "adds": [
+          {"path": "enemies.hp_all", "delta": 2},
+          {"path": "enemies.bonus.damage", "delta": 1},
+          {"path": "front.damage", "set": 3}
+        ]
       }
     }
   ],
@@ -377,6 +373,7 @@
       "mission": true
     }
   ],
+  "_082": "Tiers stack on every act (082, B1): a tier's `rules.adds` is a list of `{path, delta}` or `{path, set}` (dotted path into run.json, integers) applied by RunSim.rules_of AFTER the act's overlay, sorted by path -- so FOREMAN in Act 2 is Act 2's hp_all plus 2. A tier's other `rules` keys still overlay run.json once at the start (only safe for keys no act replaces). 085's rungs are each one `adds` list.",
   "_043": "The tier LADDER (043, play-test 13): a tier opens by winning a run on the one below (`wins_t<N>`, counted by Meta.stats_after), becomes the next run's tier the moment it opens, and the game's ending (`kind: ending`) is won only on the top tier.",
   "_034": "Missions (034, play-test 10: 'unlocks need diverse missions'): a `when` may name any feat RunSim.tally_feats counts (kills, multi_kill, pit_kills, bumps, tears, flawless, close_calls, <objective>_wins, elites, arenas, warlords, gates). `mission: true` marks them for the UNLOCKS screen."
 }

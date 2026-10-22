@@ -1000,12 +1000,17 @@ static func act_count(setup: RunSetup) -> int:
 	return maxi(1, (setup.rules.get("acts", []) as Array).size())
 
 
+## 082 (B1): then the tier's `adds` (`RunSetup.apply_adds`) on top of the act, so a tier stacks
+## on every act instead of being replaced by the act's own `enemies` block.
 static func rules_of(state: RunState, setup: RunSetup) -> Dictionary:
 	var acts: Array = setup.rules.get("acts", [])
-	if state.act < 1 or state.act > acts.size():
-		return setup.rules
-	var over: Dictionary = acts[state.act - 1]
-	return setup.rules if over.size() <= 1 else RunSetup.overlay(setup.rules, over)
+	var out: Dictionary = setup.rules
+	if state.act >= 1 and state.act <= acts.size():
+		var over: Dictionary = acts[state.act - 1]
+		if over.size() > 1:
+			out = RunSetup.overlay(setup.rules, over)
+	var adds: Array = setup.rules.get("adds", [])
+	return out if adds.is_empty() else RunSetup.apply_adds(out, adds)
 
 
 ## The gate is broken and there is another act: a new region, the same crew. What arriving

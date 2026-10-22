@@ -41,6 +41,37 @@ static func overlay(base: Dictionary, over: Dictionary) -> Dictionary:
 	return out
 
 
+## 082 (B1): a tier's `adds` -- `{path, delta}` or `{path, set}`, `path` dotted ("enemies.bonus.damage")
+## -- applied to `base` AFTER the act's overlay, so a tier stacks on every act. Integers only; a
+## missing number counts as 0 and missing dictionaries are made. Applied sorted by path (then by
+## list position), never in dictionary order. Copy on write: `base` is never changed. 085's rungs
+## are each one such list.
+static func apply_adds(base: Dictionary, adds: Array) -> Dictionary:
+	var order: Array = []
+	for i: int in adds.size():
+		order.append([String((adds[i] as Dictionary).get("path", "")), i])
+	order.sort_custom(func(a: Array, b: Array) -> bool:
+		return a[0] < b[0] if a[0] != b[0] else int(a[1]) < int(b[1]))
+	var out: Dictionary = base.duplicate()
+	for entry: Array in order:
+		var add: Dictionary = adds[int(entry[1])]
+		var keys: PackedStringArray = String(entry[0]).split(".")
+		if String(entry[0]).is_empty():
+			continue
+		var node: Dictionary = out
+		for k: int in keys.size() - 1:
+			var child: Variant = node.get(keys[k])
+			var copy: Dictionary = (child as Dictionary).duplicate() if child is Dictionary else {}
+			node[keys[k]] = copy
+			node = copy
+		var last: String = keys[keys.size() - 1]
+		if add.has("set"):
+			node[last] = int(add["set"])
+		else:
+			node[last] = int(node.get(last, 0)) + int(add.get("delta", 0))
+	return out
+
+
 static func create(content_parts: Dictionary, content_tiles: Array, content_fights: Dictionary,
 		run_rules: Dictionary, combat_rules_in: Dictionary, wheel_in: Array, seed_value: int,
 		options_in: Dictionary = {}) -> RunSetup:
