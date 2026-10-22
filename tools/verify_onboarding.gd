@@ -9,6 +9,9 @@ extends SceneTree
 ## Uses a test profile, never the player's.
 
 const PROFILE_PATH: String = "user://test_profile_onboarding.json"
+## 082: hints whose screens belong to other work: the words exist, the call site does not yet.
+## Each leaves this list the day its screen calls it (the coverage check then holds it).
+const HINTS_WAITING: Array = ["ladder", "new_part"]
 
 var _passed: int = 0
 var _failed: int = 0
@@ -33,7 +36,10 @@ func _run() -> void:
 	_test_profile(profile)
 	_test_glossary()
 	_test_content()
+	_test_copy()
+	_test_coverage()
 	await _test_hints(profile)
+	await _test_rooted()
 	await _test_shakedown(profile)
 	_clean()
 	print("")
@@ -102,6 +108,151 @@ func _test_content() -> void:
 	for id: Variant in hints:
 		full = full and not String((hints[id] as Dictionary).get("title", "")).is_empty() and not String((hints[id] as Dictionary).get("text", "")).is_empty()
 	_check("%d first-time hints, each with a title and text" % hints.size(), hints.size() >= 8 and full)
+
+
+## 082 (A11, A13): the words the player reads tell the truth and carry no developer notes.
+## A machine is ROOTED once it attacks (only a LINE moves after), so "in any order" is a lie;
+## "(050)" is an iteration number that leaked into a card.
+func _test_copy() -> void:
+	var texts: Array = []   # [where, text]
+	for step: Dictionary in (_db.tutorial.get("steps", []) as Array):
+		texts.append(["tutorial " + String(step.get("id", "?")), String(step.get("title", "")) + " " + String(step.get("text", ""))])
+	var hints: Dictionary = _db.tutorial.get("hints", {})
+	for id: Variant in hints:
+		texts.append(["hint " + String(id), String((hints[id] as Dictionary).get("title", "")) + " " + String((hints[id] as Dictionary).get("text", ""))])
+	var terms: Dictionary = _db.glossary.get("terms", {})
+	for id: Variant in terms:
+		texts.append(["glossary " + String(id), String((terms[id] as Dictionary).get("name", "")) + " " + String((terms[id] as Dictionary).get("text", ""))])
+	var leak := RegEx.create_from_string("\\(\\d{3}\\)")
+	var lies: PackedStringArray = []
+	var leaks: PackedStringArray = []
+	for entry: Array in texts:
+		if String(entry[1]).to_lower().contains("any order"):
+			lies.append(String(entry[0]))
+		if leak.search(String(entry[1])) != null:
+			leaks.append(String(entry[0]))
+	_check("no player text says MOVE and ATTACK go \"in any order\" %s" % [lies], lies.is_empty() and texts.size() > 50)
+	_check("no (NNN) developer leaks in tutorial, hint or glossary text %s" % [leaks], leaks.is_empty())
+	var rooted: Dictionary = terms.get("rooted", {})
+	_check("ROOTED has its own glossary card, linked from the word",
+		not rooted.is_empty() and (rooted.get("forms", []) as Array).has("rooted") and String(rooted.get("text", "")).contains("LINE")
+		and Glossary.linkify("it is rooted", _db.glossary).contains("[url=rooted]"))
+	_check("the welcome and the turn card teach the rooted rule",
+		String(((_db.tutorial["steps"] as Array)[0] as Dictionary)["text"]).contains("rooted")
+		and String((terms["turn"] as Dictionary)["text"]).contains("rooted"))
+
+
+## Every hint id the screens ask for has words, every hint has a screen that asks for it, and
+## every site on the map has a glossary card.
+func _test_coverage() -> void:
+	var used: Dictionary = {}
+	var call := RegEx.create_from_string("Hints\\.show_(?:once|with)\\([^,]+,\\s*\"([a-z_]+)\"")
+	for path: String in _scripts("res://scripts"):
+		for found: RegExMatch in call.search_all(FileAccess.get_file_as_string(path)):
+			used[found.get_string(1)] = path.get_file()
+	var hints: Dictionary = _db.tutorial.get("hints", {})
+	var unknown: PackedStringArray = []
+	for id: Variant in used:
+		if not hints.has(id):
+			unknown.append(String(id))
+	_check("every hint a screen shows has its words in tutorial.json %s" % [unknown], unknown.is_empty() and used.size() >= 8)
+	var unused: PackedStringArray = []
+	var waiting: PackedStringArray = []
+	for id: Variant in hints:
+		if used.has(id):
+			continue
+		if HINTS_WAITING.has(id):
+			waiting.append(String(id))
+		else:
+			unused.append(String(id))
+	_check("every hint in tutorial.json is shown by some screen %s" % [unused], unused.is_empty())
+	if not waiting.is_empty():
+		print("  note  hints with words but no call site yet: %s" % [waiting])
+	var terms: Dictionary = _db.glossary.get("terms", {})
+	var bare: PackedStringArray = []
+	for site: Variant in (_db.run_rules.get("site_weights", {}) as Dictionary):
+		var named: bool = terms.has(site)
+		for id: Variant in terms:
+			named = named or String((terms[id] as Dictionary).get("name", "")).to_lower().contains(String(site))
+		if not named:
+			bare.append(String(site))
+	_check("every site type on the map has a glossary card %s" % [bare], bare.is_empty())
+
+
+func _scripts(dir: String) -> PackedStringArray:
+	var out: PackedStringArray = []
+	var access: DirAccess = DirAccess.open(dir)
+	if access == null:
+		return out
+	for file: String in access.get_files():
+		if file.ends_with(".gd"):
+			out.append(dir.path_join(file))
+	for sub: String in access.get_directories():
+		out.append_array(_scripts(dir.path_join(sub)))
+	return out
+
+
+## 082 (A11): Knuckles (a BRAWLER) armed before it has moved warns that firing ends its move;
+## Needle (a LINE) does not; a machine that has attacked shows ROOTED on its card.
+func _test_rooted() -> void:
+	var packed: PackedScene = load("res://scenes/combat.tscn")
+	_scene = packed.instantiate()
+	root.add_child(_scene)
+	await _settle()
+	await create_timer(0.6).timeout
+	await _settle()
+	var state: CombatState = _scene.get("_state")
+	var hud: CombatHUD = _scene.get("_hud")
+	var knuckles: GridUnit = state.unit(0)
+	_check("the practice fight's first machine is Knuckles, a brawler", knuckles.name == "Knuckles" and not knuckles.move_after_attack)
+	_click_tile(Vector2i(knuckles.x, knuckles.y))
+	await _settle()
+	_check("no warning while nothing is armed", String(hud.call("warning_text")).is_empty())
+	_click_control(hud.control_for("weapon"))
+	await _settle()
+	var armed: bool = bool(_scene.get("_armed"))
+	var warning: String = String(hud.call("warning_text"))
+	_check("arming Knuckles before it moves says \"%s\"" % warning, armed and warning.begins_with("Firing ends Knuckles's move"))
+	var line: RichTextLabel = hud.find_child("rooted_warning", true, false)
+	_check("the warning is on screen, and \"rooted\" in it is a glossary link",
+		line != null and line.is_visible_in_tree() and line.text.contains("[url=rooted]"))
+	_click_control(hud.control_for("weapon"))   # the same weapon again: back to moving
+	await _settle()
+	_check("disarming clears it", not bool(_scene.get("_armed")) and String(hud.call("warning_text")).is_empty())
+	var needle: GridUnit = state.unit(1)
+	_click_tile(Vector2i(needle.x, needle.y))
+	await _settle()
+	_click_control(hud.control_for("weapon"))
+	await _settle()
+	_check("arming Needle, a LINE machine, warns of nothing (it moves after firing)",
+		needle.move_after_attack and bool(_scene.get("_armed")) and String(hud.call("warning_text")).is_empty())
+	var settings: Control = hud.find_child("settings_button", true, false)
+	_check("the HUD has its settings gear (shown once the sheet exists: %s)" % ResourceLoader.exists("res://scripts/ui/settings_sheet.gd"),
+		settings != null and settings.visible == ResourceLoader.exists("res://scripts/ui/settings_sheet.gd"))
+	_scene.queue_free()
+	_scene = null
+	await process_frame
+	# The card: a machine that attacked and cannot move reads ROOTED where MOVE was; a LINE never does.
+	var solo: CombatHUD = CombatHUD.new()
+	solo.glossary = _db.glossary
+	root.add_child(solo)
+	var card: Dictionary = {"ref": 0, "name": "Knuckles", "detail": "Brute  ·  Brawler  ·  move 3", "hp": 9, "max_hp": 9,
+		"alive": true, "can_move": false, "can_act": false, "acted": true, "move_after_attack": false, "selected": true}
+	solo.set_crew([card])
+	var chip: String = _card_chip(solo)
+	var line_card: Dictionary = card.duplicate()
+	line_card["move_after_attack"] = true
+	solo.set_crew([line_card])
+	_check("a card that has attacked reads ROOTED (%s); a LINE's does not (%s)" % [chip, _card_chip(solo)],
+		chip == "ROOTED" and _card_chip(solo) == "MOVE")
+	solo.queue_free()
+
+
+func _card_chip(hud: CombatHUD) -> String:
+	for label: Node in hud.find_children("*", "Label", true, false):
+		if (label as Label).text in ["MOVE", "ROOTED"]:
+			return (label as Label).text
+	return "?"
 
 
 func _test_hints(profile: Node) -> void:
