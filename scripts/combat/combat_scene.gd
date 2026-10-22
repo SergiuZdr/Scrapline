@@ -1036,7 +1036,7 @@ func _generated_tile(id: String, x: int, y: int, top: float) -> Node3D:
 
 ## Beyond the curb: dark asphalt and a ring of yard -- containers, wrecks, tyres and
 ## floodlights -- far enough out that no camera angle loses a tile behind them, placed from
-## a hash of the fight so a map dresses the same way every time.
+## a hash of the fight (its id too: two maps of one size dress differently) so a map dresses the same way every time.
 func _build_surroundings() -> void:
 	var ground := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
@@ -1046,59 +1046,140 @@ func _build_surroundings() -> void:
 	# The yard beyond the board: night ground with a faint drawn grain.
 	ground.material_override = Ink.patterned(Color("1b1e27"), 2, Color("171a22"), 2.5, 0.18)
 	_board.add_child(ground)
-	# 081, the user: the yard laid out as a working yard, not scattered -- every piece square to the
-	# board, in rows along its sides, near enough to be seen from the one camera.
-	# The hash picks which flank stacks containers and which keeps the wrecks, and small turns.
+	# 081, the user: a working yard, but not a drill line -- clusters along each side (two containers
+	# stacked off true, a lone one turned end-on, wrecks with tyres at their feet; the red container
+	# and the bright barriers stay out, they read as danger), the kinds, gaps, turns and sizes hashed from the fight so a map dresses the same
+	# way every time.
 	var half := Vector2(_origin.x + HEX * 1.4, _origin.y + HEX * 1.4)
-	var seed: int = IntentAI.mix(_setup.rng_seed, _setup.width, _setup.height, 77)
+	var seed: int = IntentAI.mix(_setup.rng_seed, _setup.width, _setup.fight_id.hash(), 77)
 	var flip: float = 1.0 if seed & 1 == 0 else -1.0
-	# One flank: a row of containers, long side along the board.
-	var cx: float = flip * (half.x + 1.8)
-	for k: int in 3:
-		_yard_piece("container_%d" % (k % 2), Vector3(cx, 0.0, (float(k) - 1.0) * 3.5), PI * 0.5, IntentAI.mix(seed, k, 3, 11))
-	# The other flank: crushed cars in a row, tyre stacks between them and the board.
-	var wx: float = -flip * (half.x + 1.8)
-	for k: int in 3:
-		var h: int = IntentAI.mix(seed, k, 5, 11)
-		_yard_piece("car_stack_0", Vector3(wx, 0.0, (float(k) - 1.0) * 2.4), PI * 0.5, h, 0.48)
-		_yard_piece("tyre_stack_%d" % (k % 3), Vector3(wx + flip * 1.3, 0.0, (float(k) - 0.5) * 2.4), 0.0, h >> 4, 0.9)
-	# Behind the far side: the gantry crane over a container waiting to be lifted, the service gantry
-	# beside it.
+	_yard_row(Vector3(flip, 0, 0), -half.y, half.y - 0.5, half.x, seed, ["stack", "tyres", "cars", "container", "tyres", "cars"])
+	_yard_row(Vector3(-flip, 0, 0), -half.y, half.y - 0.5, half.x, seed >> 3, ["cars", "tyres", "container", "cars", "tyres", "stack"])
+	# Behind the far side: the gantry crane over a container waiting to be lifted, off centre, and
+	# whatever the far row hashes into around it.
+	var gx: float = -flip * (0.6 + float(_yard_hash(seed, 1, 5) % 25) / 10.0)
 	var far_z: float = -half.y - 2.2
-	_yard_piece("container_1", Vector3(-flip * 1.2, 0.0, far_z), 0.0, seed)
+	_yard_add("container_1", Vector3(gx, 0.0, far_z), float(_yard_hash(seed, 2, 5) % 31 - 15) * 0.01, 0.62)
 	var gantry: Node3D = Surfaces.kit("gantry", 0.3)
 	if gantry != null:
-		gantry.position = Vector3(-flip * 1.2, -0.31, far_z)
+		gantry.position = Vector3(gx, -0.31, far_z)
+		gantry.rotation.y = float(_yard_hash(seed, 3, 5) % 21 - 10) * 0.01
 		gantry.scale = Vector3.ONE * 0.62
 		Ink.dress_scenery(gantry, 0.5)
 		_board.add_child(gantry)
-	_yard_piece("service_gantry", Vector3(flip * (half.x * 0.5), 0.0, far_z + 0.4), 0.0, seed >> 5)
+	_yard_row(Vector3(0, 0, -1), -half.x - 1.0, half.x + 1.0, half.y + 0.3, seed >> 6, ["service", "tyres", "stack", "cars", "tyres"], Vector2(gx - 3.4, gx + 3.4))
 	# The near side stays open: the camera looks in from there, under the HUD (no camera turns).
-	# Floodlights on the corners, turned to the board: the diegetic source of the warm key light.
+	# Floodlights near the corners, turned to the board: the diegetic source of the warm key light.
 	for k: int in 4:
 		var angle: float = TAU * (float(k) + 0.5) / 4.0
-		var at := Vector3(signf(cos(angle)) * (half.x + 2.6), -0.31, signf(sin(angle)) * (half.y + 2.6))
+		var h: int = _yard_hash(seed, k, 9)
+		var at := Vector3(signf(cos(angle)) * (half.x + 2.4 + float(h % 12) / 10.0), -0.31,
+			signf(sin(angle)) * (half.y + 2.2 + float((h >> 4) % 15) / 10.0))
 		var lamp: Node3D = Surfaces.kit("floodlight", 0.2)
 		if lamp == null:
 			continue
 		lamp.position = at
-		lamp.rotation.y = -angle + PI * 0.5
-		lamp.scale = Vector3.ONE * 0.7
+		lamp.rotation.y = -angle + PI * 0.5 + float((h >> 8) % 41 - 20) * 0.01
+		lamp.scale = Vector3.ONE * (0.62 + float((h >> 12) % 16) / 100.0)
 		Ink.dress_scenery(lamp, 0.45)
 		_board.add_child(lamp)
 
 
-## One piece of the yard on the ground at `at` (y lifts it onto another), square to the board but
-## for a hashed turn of a few degrees.
-func _yard_piece(name: String, at: Vector3, yaw: float, h: int, size: float = 0.62) -> void:
+## One side of the yard: clusters walked along the board's edge from `from` to `to`, each set out
+## from the edge (`edge` metres from the centre along `out`) by its own reach, with hashed gaps.
+## `skip` keeps a stretch of the run clear (the gantry's).
+func _yard_row(out: Vector3, from: float, to: float, edge: float, seed: int, kinds: Array, skip: Vector2 = Vector2.ZERO) -> void:
+	var run := Vector3(absf(out.z), 0.0, absf(out.x))
+	var s: float = from + float(_yard_hash(seed, 0, 1) % 15) / 10.0
+	var kind: int = _yard_hash(seed, 0, 2)
+	var k: int = 0
+	while s < to:
+		if skip != Vector2.ZERO and s > skip.x - 2.0 and s < skip.y:
+			s = skip.y
+			continue
+		var h: int = _yard_hash(seed, k, 3)
+		kind += 1 + (h & 1)
+		s += _yard_cluster(kinds[kind % kinds.size()], run * s + out * (edge + 0.3 + float((h >> 2) % 18) / 10.0), out, run, h)
+		s += 0.3 + float((h >> 6) % 13) / 10.0
+		k += 1
+
+
+## One cluster with its near edge at `at`, starting there along `run`; returns how far along the
+## run it reaches. A model's long side is its x, so `along` lays it parallel to the edge.
+func _yard_cluster(kind: String, at: Vector3, out: Vector3, run: Vector3, h: int) -> float:
+	var along: float = PI * 0.5 * absf(out.x)
+	var jitter: float = float((h >> 10) % 41 - 20) * 0.01
+	var main: Node3D
+	match kind:
+		"container", "stack":
+			var yaw: float = along + jitter * 0.5
+			if kind == "container" and (h >> 16) % 3 == 0:
+				yaw = along + PI * 0.5 + jitter * 1.5   # end-on to the board
+			main = _yard_add("container_0", Vector3.ZERO, yaw, 0.62)
+		"cars":
+			main = _yard_add("car_stack_0", Vector3.ZERO, along + jitter * 3.0, 0.42 + float((h >> 14) % 11) / 100.0)
+		"service":
+			main = _yard_add("service_gantry", Vector3.ZERO, along + jitter * 0.5, 0.62)
+		_:
+			main = _yard_add("tyre_stack_0", Vector3.ZERO, jitter * 8.0, 0.9)
+	if main == null:
+		return 1.0
+	var reach: float = _yard_reach(main, run)
+	var centre: Vector3 = at + run * reach + out * _yard_reach(main, out)
+	main.position += centre
+	match kind:
+		"stack":
+			# A second container on top, a little off true: set down in a hurry.
+			var top: Node3D = _yard_add("container_0", centre + run * (float((h >> 18) % 9 - 4) / 10.0),
+				along + (0.15 + float((h >> 20) % 30) / 100.0) * (1.0 if h & 2 else -1.0), 0.62)
+			if top != null:
+				top.position.y += _yard_box(main).end.y * main.scale.y
+		"cars", "tyres":
+			# Tyres at the cluster's feet, toward the board; now and then one stack on another.
+			for t: int in 1 + (h >> 22) % 3:
+				var spot: Vector3 = centre + run * (float((h >> (t * 3)) % 15 - 7) / 10.0) - out * (_yard_reach(main, out) + 0.4 + float(t) * 0.25)
+				var tyre: Node3D = _yard_add("tyre_stack_%d" % (t % 3), spot, float(t) * 1.3 + jitter, 0.9)
+				if tyre != null and kind == "tyres" and t == 2:
+					tyre.position = main.position + Vector3(0, _yard_box(main).end.y * 0.9, 0)
+	return reach * 2.0
+
+
+## A yard piece on the ground at `at`, turned `yaw`, dressed into the night.
+func _yard_add(name: String, at: Vector3, yaw: float, size: float) -> Node3D:
 	var prop: Node3D = Surfaces.kit(name, 0.35)
 	if prop == null:
-		return
+		return null
 	prop.position = at + Vector3(0, -0.31, 0)
-	prop.rotation.y = yaw + float(h % 9 - 4) * 0.012
+	prop.rotation.y = yaw
 	prop.scale = Vector3.ONE * size
-	Ink.dress_scenery(prop, 0.55)
+	# Each piece a little lighter or darker than the next, so a row of one model does not repeat.
+	# The containers are the biggest, so the darkest: they frame the board, never pull the eye.
+	var dim: float = (0.62 if name.begins_with("container") else 0.48) + float(IntentAI.mix(int(at.x * 10.0), int(at.z * 10.0), 7, 0) % 15) / 100.0
+	Ink.dress_scenery(prop, dim)
 	_board.add_child(prop)
+	return prop
+
+
+## Half a placed piece's footprint along `axis` (x or z), its turn and scale included.
+func _yard_reach(prop: Node3D, axis: Vector3) -> float:
+	var box: AABB = _yard_box(prop)
+	var c: float = absf(cos(prop.rotation.y))
+	var s: float = absf(sin(prop.rotation.y))
+	var reach_x: float = (c * box.size.x + s * box.size.z) * 0.5
+	var reach_z: float = (s * box.size.x + c * box.size.z) * 0.5
+	return (absf(axis.x) * reach_x + absf(axis.z) * reach_z) * prop.scale.x
+
+
+## A piece's own bounds, unscaled (the yard pieces are cleaned centred on the ground).
+func _yard_box(prop: Node3D) -> AABB:
+	var box := AABB()
+	for mesh: MeshInstance3D in ConstructView.meshes_of(prop):
+		box = mesh.get_aabb() if box.size == Vector3.ZERO else box.merge(mesh.get_aabb())
+	return box
+
+
+func _yard_hash(seed: int, k: int, salt: int) -> int:
+	return IntentAI.mix(seed, k, salt, 41) & 0xFFFFFF
 
 
 ## A pit (015): pure black, with a torn pale rim -- a hole in the drawing, so "you can be

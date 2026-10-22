@@ -356,7 +356,8 @@ func _place_camera() -> void:
 func _clamp_focus() -> void:
 	var width: float = SPACING_X * float(_columns - 1)
 	_focus_goal.x = clampf(_focus_goal.x, -width * 0.5 - 6.0, width * 0.5 + 6.0)
-	_focus_goal.z = clampf(_focus_goal.z, -DEPTH * 0.5, DEPTH * 0.5)
+	# 081: a drag can carry the view past the far edge, far enough to see the factories there.
+	_focus_goal.z = clampf(_focus_goal.z, -DEPTH * 0.5 - SKYLINE_LOOK, DEPTH * 0.5)
 
 
 func _build_ground() -> void:
@@ -543,57 +544,101 @@ func _add_plain(parent: Node3D, key: String, make: Callable, at: Vector3, materi
 ## the horizon, red lamps blinking on the stacks, and the Crucible's glow beyond the gate
 ## (the story: "the Crucible's glow on the clouds"). Kenney's CC0 shapes, re-materialed:
 ## their own toy palette is never seen (art-sourcing.md).
-## 081: the generated factories' size on the map (they are cleaned to 1 m) and how far toward the night.
-const SKYLINE_SIZE: float = 11.0
-const SKYLINE_DIM: float = 1.1
-const SKYLINE_GAP: float = 6.0
+## 081: the generated factories' size on the map (they are cleaned to 1 m), how far toward the night,
+## the clear ground between the region's hexes and their nearest wall, and the stretch of edge each holds.
+const SKYLINE_SIZE: float = 8.5
+const SKYLINE_DIM: float = 0.8
+const SKYLINE_GAP: float = 3.0
+const SKYLINE_EVERY: float = 24.0
+const SKYLINE_LOOK: float = 9.0
+const SKYLINE_CLEAR: float = -DEPTH * 0.5 - 6.5
 
 
 func _build_skyline() -> void:
 	var width: float = SPACING_X * float(_columns - 1)
+	if Models.prop("sk_factory_a") != null:
+		_build_factories(width)
+		return
 	var names: PackedStringArray = ["building-a", "building-c", "building-f", "building-q", "water-tower", "detail-tank-large", "chimney-large"]
 	var dark: Material = Ink.toon(Color("121419"), "clean")
 	var x: float = -width * 0.5 - 18.0
 	var i: int = 0
 	while x < width * 0.5 + 24.0:
 		var name: String = names[_h(i, 5) % names.size()]
-		# 081: the generated factories (`art/props/sk_factory_a|b.glb`) where they exist, in their own
-		# paint pushed far toward the night; Kenney's shapes as black silhouettes otherwise.
-		var factory: PackedScene = Models.prop("sk_factory_%s" % ("a" if _h(i, 5) % 2 == 0 else "b"))
-		var packed: PackedScene = factory if factory != null else load("res://art/thirdparty/kenney/city-kit-industrial/%s.glb" % name)
+		var packed: PackedScene = load("res://art/thirdparty/kenney/city-kit-industrial/%s.glb" % name)
 		if packed != null:
 			var block: Node3D = packed.instantiate()
-			if factory != null:
-				Ink.dress_scenery(block, SKYLINE_DIM)
-			else:
-				for mesh: MeshInstance3D in ConstructView.meshes_of(block):
-					mesh.material_override = dark
-					Ink.line(mesh, Ink.LINE_WORLD * 0.7, Color("252a38"))
-			var s: float = (SKYLINE_SIZE if factory != null else 4.5) + float(_h(i, 9) % 100) / 40.0
+			for mesh: MeshInstance3D in ConstructView.meshes_of(block):
+				mesh.material_override = dark
+				Ink.line(mesh, Ink.LINE_WORLD * 0.7, Color("252a38"))
+			var s: float = 4.5 + float(_h(i, 9) % 100) / 40.0
 			block.scale = Vector3.ONE * s
-			# 081: the camera never reached a horizon 20 m out; the generated factories stand just past
-			# the region's far edge, where the map can see them.
-			var far: float = SKYLINE_GAP if factory != null else 20.0
-			block.position = Vector3(x, 0, -DEPTH * 0.5 - far - float(_h(i, 13) % 100) / 12.0)
+			block.position = Vector3(x, 0, -DEPTH * 0.5 - 20.0 - float(_h(i, 13) % 100) / 12.0)
 			block.rotation.y = float(_h(i, 17) % 4) * PI * 0.5
 			add_child(block)
 			if name.begins_with("chimney") or name == "water-tower" or i % 3 == 0:
-				var lamp := MeshInstance3D.new()
-				var ball := SphereMesh.new()
-				ball.radius = 0.35
-				ball.height = 0.7
-				lamp.mesh = ball
-				var blink := StandardMaterial3D.new()
-				blink.albedo_color = RECLAIMER_RED
-				blink.emission_enabled = true
-				blink.emission = RECLAIMER_RED
-				blink.emission_energy_multiplier = 0.3
-				lamp.material_override = blink
-				_blinkers.append(blink)
-				lamp.position = block.position + Vector3(0, _model_height(block) * s + 0.5, 0)
-				add_child(lamp)
+				_skyline_lamp(block.position + Vector3(0, _model_height(block) * s + 0.5, 0))
 		x += 9.0 + float(_h(i, 21) % 60) / 10.0
 		i += 1
+
+
+## 081, the user: the generated factories (`art/props/sk_factory_a|b.glb`) beyond the region's far
+## edge -- a few, well apart, each its own size and turned a little off the camera so a long hall
+## shows its side, standing on clear ground past the hexes in their own rust (a wall of identical
+## blocks pushed to black read as one dark smear).
+func _build_factories(width: float) -> void:
+	var x: float = -width * 0.5 - 4.0 + float(_h(0, 23) % 80) / 10.0
+	var i: int = 0
+	while x < width * 0.5 + 8.0:
+		var a: bool = (i + _h(0, 29)) % 2 == 0
+		var block: Node3D = Models.prop("sk_factory_a" if a else "sk_factory_b").instantiate()
+		Ink.dress_scenery(block, SKYLINE_DIM + float(_h(i, 31) % 20) / 100.0)
+		var s: float = SKYLINE_SIZE * (0.8 + float(_h(i, 9) % 45) / 100.0)
+		block.scale = Vector3.ONE * s
+		# Hall A is long in depth: turned a quarter so its sawtooth roof runs along the edge.
+		block.rotation.y = (PI * 0.5 if a else 0.0) + float(_h(i, 17) % 61 - 30) * 0.012
+		var box := AABB()
+		for mesh: MeshInstance3D in ConstructView.meshes_of(block):
+			box = mesh.get_aabb() if box.size == Vector3.ZERO else box.merge(mesh.get_aabb())
+		var depth: float = (absf(sin(block.rotation.y)) * box.size.x + absf(cos(block.rotation.y)) * box.size.z) * 0.5 * s
+		block.position = Vector3(x, 0, -DEPTH * 0.5 - 7.0 - SKYLINE_GAP - depth - float(_h(i, 13) % 30) / 10.0)
+		add_child(block)
+		if _h(i, 37) % 2 == 0:
+			_skyline_lamp(block.position + Vector3(0, box.end.y * s + 0.5, 0))
+		# Its yard at its feet: a container or a wreck stack and tyres between the hall and the
+		# road, so a factory stands in a place and not on an empty page.
+		for k: int in 1 + _h(i, 41) % 3:
+			var name: String = ["container_0", "car_stack_0", "tyre_stack_0", "container_0", "service_gantry"][_h(i * 7 + k, 43) % 5]
+			var piece: Node3D = Surfaces.kit(name, 0.35)
+			if piece == null:
+				continue
+			var side: float = -1.0 if _h(i * 7 + k, 47) % 2 == 0 else 1.0
+			piece.position = block.position + Vector3(side * (2.0 + float(_h(i * 7 + k, 53) % 50) / 10.0), 0,
+				depth + 1.0 + float(_h(i * 7 + k, 59) % 20) / 10.0)
+			piece.rotation.y = float(_h(i * 7 + k, 61) % 360) * PI / 180.0
+			piece.scale = Vector3.ONE * (0.9 if name.begins_with("tyre") else 0.75)
+			Ink.dress_scenery(piece, SKYLINE_DIM)
+			add_child(piece)
+		x += SKYLINE_EVERY * (0.8 + float(_h(i, 21) % 50) / 100.0)
+		i += 1
+
+
+## A red lamp blinking on a rooftop.
+func _skyline_lamp(at: Vector3) -> void:
+	var lamp := MeshInstance3D.new()
+	var ball := SphereMesh.new()
+	ball.radius = 0.35
+	ball.height = 0.7
+	lamp.mesh = ball
+	var blink := StandardMaterial3D.new()
+	blink.albedo_color = RECLAIMER_RED
+	blink.emission_enabled = true
+	blink.emission = RECLAIMER_RED
+	blink.emission_energy_multiplier = 0.3
+	lamp.material_override = blink
+	_blinkers.append(blink)
+	lamp.position = at
+	add_child(lamp)
 
 
 
@@ -1329,6 +1374,10 @@ func _update_fog() -> void:
 			var hidden: float = clampf((nearest - SIGHT) / 5.0, 0.0, 1.0)
 			if world.x < wall_x:
 				hidden = minf(hidden, clampf((world.x - (wall_x - 6.0)) / 6.0, 0.0, 1.0))
+			# 081: past the region's far edge the factories stand in the open; under the fog only
+			# their roofs came through it, as dark smears.
+			if world.y < SKYLINE_CLEAR:
+				hidden = minf(hidden, clampf((world.y - (SKYLINE_CLEAR - 4.0)) / 4.0, 0.0, 1.0))
 			_fog_image.set_pixel(px, py, Color(hidden, hidden, hidden))
 	_fog_texture.update(_fog_image)
 	# What is deep in the fog is not drawn at all -- a haze thin enough to be beautiful is
