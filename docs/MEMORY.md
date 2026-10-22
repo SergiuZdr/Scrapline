@@ -172,6 +172,8 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-22 | **The daily yard is one attempt a day** (abandoning counts); **the weekly contract gives a cosmetic plate**, never power | The user picked it |
 | 2026-10-23 | **A won DEFEND with broken caches pays fewer salvage options** (ceil(choices x saved / placed)) and scaled scrap; all caches broken is still a loss | 083, the user's pick |
 | 2026-10-23 | **Guarded wrecks give back one part in total per fight, at random**, on its own panel before the salvage (TAKE IT / LEAVE IT), also after a lost fight | 083, the user's pick |
+| 2026-10-23 | **Boss escort waves come on top of the normal escorts** (a round-4 wave); **a blocked escort retries next round** on a new mark; piles left when a boss falls are banked | 083, the user's picks |
+| 2026-10-23 | **The Core: a bit less HP but more threatening** (aim ~8 rounds, no lighter on the crew) | 083, the user |
 
 ## Lessons carried over from the old codebase
 
