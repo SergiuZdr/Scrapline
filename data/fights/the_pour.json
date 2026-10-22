@@ -66,7 +66,8 @@
       ],
       "hp": 52,
       "x": 3,
-      "y": 1
+      "y": 1,
+      "keeper": true
     },
     {
       "name": "Bulwark",
@@ -122,5 +123,13 @@
   },
   "boss": true,
   "max_rounds": 22,
-  "_038": "play-test 11: 52 HP, a dressed floor"
+  "_038": "play-test 11: 52 HP, a dressed floor",
+  "_083": "A1: the keeper's fall ends the fight (\"keeper\": true on its spec; RunSim copies the spec). A2: `escort_waves` -- the last rolled escorts are held back and arrive on hexes marked a round ahead (at least one starts on the board). B5: `pile_heal` 0, a boss fight does not heal; piles still pay scrap.",
+  "escort_waves": [
+    {
+      "round": 4,
+      "count": 2
+    }
+  ],
+  "pile_heal": 0
 }
