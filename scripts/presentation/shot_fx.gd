@@ -173,7 +173,7 @@ static func _pellets(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3,
 ## The Slag Mortar: the tube coughs a star and a cloud; an inked iron shell arcs high, a dotted line of
 ## its path drawn behind it and smoke balls left in the air.
 static func _shell(parent: Node3D, vfx: BattleVFX, from: Vector3, to: Vector3, colour: Color) -> float:
-	var travel: float = 0.55
+	var travel: float = 0.45  # 082: 0.55 -> 0.45, shorter beats at every speed
 	_muzzle(parent, from, colour, 0.45)
 	if parent.is_visible_in_tree():
 		vfx.smoke(from, 4, 0.7)
