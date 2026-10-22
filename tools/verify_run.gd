@@ -33,6 +33,8 @@ func _initialize() -> void:
 	_timed(_test_tuning)
 	_timed(_test_sets)
 	_timed(_test_salvage)
+	_timed(_test_defend_partial)
+	_timed(_test_wreck_recovery)
 	_timed(_test_gate_and_reach)
 	_timed(_test_trader)
 	_timed(_test_tower)
@@ -213,10 +215,14 @@ func _test_fight_feeds_the_run() -> void:
 			destroyed += 1
 	_check("feats: kills are the enemies the fight destroyed (%d / %d)" % [int(state.feats.get("kills", 0)), destroyed],
 		int(state.feats.get("kills", 0)) == destroyed and destroyed > 0)
+	# 083: guarded wrecks come first; what follows them is what the fight itself pays.
+	var after: Dictionary = state.pending
+	while String(after.get("kind", "")) == "wreck":
+		after = after.get("next", {})
 	if result.outcome == CombatState.WON:
-		_check("a won fight offers salvage", String(state.pending.get("kind", "")) == "reward")
+		_check("a won fight offers salvage", String(after.get("kind", "")) == "reward")
 	else:
-		_check("a lost objective with the crew alive moves on with no salvage", state.pending.is_empty() or state.outcome != RunState.ONGOING)
+		_check("a lost objective with the crew alive moves on with no salvage", after.is_empty() or state.outcome != RunState.ONGOING)
 
 
 func _test_wreck_and_rebuild() -> void:
@@ -786,6 +792,151 @@ func _test_salvage() -> void:
 	var scrap: int = state.scrap
 	_check("salvage can be left for scrap (8)", RunSim.apply(state, setup, [RunSim.PICK, -1]) and state.scrap == scrap + 8
 		and state.pending.is_empty())
+
+
+## 083 (A7-defend): a won DEFEND pays its salvage in proportion to the caches still standing.
+func _test_defend_partial() -> void:
+	var full: Dictionary = RunSim.salvage(RunSim.start(_setup(12)), _setup(12), "skirmish", 2, 2)
+	var half: Dictionary = RunSim.salvage(RunSim.start(_setup(12)), _setup(12), "skirmish", 1, 2)
+	var plain: Dictionary = RunSim.salvage(RunSim.start(_setup(12)), _setup(12), "skirmish")
+	_check("a DEFEND with both caches standing pays the full salvage (3 parts, 8 scrap)",
+		(full["options"] as Array).size() == 3 and int(full["scrap"]) == 8 and full["options"] == plain["options"])
+	_check("1 of 2 caches standing: 2 of the same 3 parts and 4 scrap (%s, %d)" % [half["options"], int(half["scrap"])],
+		(half["options"] as Array).size() == 2 and int(half["scrap"]) == 4 and half["options"] == (full["options"] as Array).slice(0, 2)
+		and half["caches"] == [1, 2])
+	var off: RunSetup = _setup(12)
+	off.rules = off.rules.duplicate(true)
+	off.rules["rewards"]["defend_partial"] = false
+	var old: Dictionary = RunSim.salvage(RunSim.start(off), off, "skirmish", 1, 2)
+	_check("defend_partial false pays it all, as before 083", (old["options"] as Array).size() == 3 and int(old["scrap"]) == 8)
+	# Through the real fight: DEFEND fights the bot wins with a cache broken (caches at 2 HP here,
+	# so they break), reported to the run and replayed.
+	var seen: int = 0
+	var right: bool = true
+	var losses_clear: bool = true
+	var lost: int = 0
+	for seed_value: int in range(1, 160):
+		if seen >= 3 and lost >= 1:
+			break
+		var setup: RunSetup = _setup(seed_value)
+		setup.combat_rules = setup.combat_rules.duplicate(true)
+		setup.combat_rules["cache_hp"] = 2
+		var state: RunState = RunSim.start(setup)
+		var site: int = RunSim.destinations(state)[0]
+		state.sites[site]["type"] = "skirmish"
+		RunSim.apply(state, setup, [RunSim.TRAVEL, site])
+		if String(state.pending.get("kind", "")) != "fight" or String(state.pending["fight"]["objective"]["type"]) != "defend":
+			continue
+		var combat_setup: CombatSetup = RunSim.fight_setup(state, setup)
+		var actions: Array = RunBot.play_fight(combat_setup)
+		if lost == 0 and seed_value % 2 == 0:
+			# Every other DEFEND the crew only ends its turns, so the caches are left to break.
+			actions = []
+			var idle: CombatState = CombatSim.start(combat_setup)
+			while idle.outcome == CombatState.ONGOING and actions.size() < 40:
+				actions.append([CombatSim.ACT_END, 0, 0, 0])
+				CombatSim.apply(idle, [CombatSim.ACT_END, 0, 0, 0])
+		var result: CombatState = CombatSim.replay(combat_setup, actions)
+		var placed: int = int(CombatSim.objective_status(result)["caches_total"])
+		var saved: int = result.caches().size()
+		if result.outcome == CombatState.LOST and state.alive_crew() > 0 and saved == 0:
+			RunSim.apply(state, setup, [RunSim.FIGHT, actions])
+			var next: Dictionary = state.pending
+			while String(next.get("kind", "")) == "wreck":
+				next = next.get("next", {})
+			losses_clear = losses_clear and (next.is_empty() or state.outcome != RunState.ONGOING)
+			lost += 1
+			continue
+		if result.outcome != CombatState.WON or saved == placed:
+			continue
+		RunSim.apply(state, setup, [RunSim.FIGHT, actions])
+		var pending: Dictionary = state.pending
+		while String(pending.get("kind", "")) == "wreck":
+			pending = pending.get("next", {})
+		right = right and String(pending.get("kind", "")) == "reward" \
+			and (pending["options"] as Array).size() == maxi(1, (3 * saved + placed - 1) / placed) \
+			and int(pending["scrap"]) == (8 * saved + placed - 1) / placed
+		seen += 1
+	_check("DEFEND fights won with caches broken pay scaled salvage (%d fights)" % seen, seen > 0 and right)
+	_check("a DEFEND with every cache broken is still lost, no salvage (%d fights)" % lost, lost > 0 and losses_clear)
+
+
+## 083 (wreck recovery): a wreck whose pile still stands at the fight's end gives back one part.
+func _test_wreck_recovery() -> void:
+	# Staged: crew 1 was wrecked, its pile held; the salvage waits behind it.
+	var setup: RunSetup = _setup(8)
+	var state: RunState = RunSim.start(setup)
+	var member: Dictionary = state.crew[1]
+	var lost: Array = (member["parts"] as Array).slice(1)
+	member["alive"] = false
+	member["hp"] = 0
+	member["parts"] = [String(member["parts"][0]), "", "", "", ""]
+	state.pending = RunSim.salvage(state, setup, "skirmish")
+	var salvage: Dictionary = state.pending
+	var offers: Array = RunSim.wreck_offers(state, [0, 1, 2], {1: lost}, [1])
+	_check("a guarded wreck offers the parts it lost (%s)" % [offers],
+		offers.size() == 1 and int(offers[0]["crew"]) == 1 and offers[0]["options"] == lost.filter(func(p: Variant) -> bool: return not String(p).is_empty()))
+	_check("a wreck whose pile is gone offers nothing", RunSim.wreck_offers(state, [0, 1, 2], {1: lost}, []).is_empty())
+	_check("an enemy ref or a living machine is never a wreck",
+		RunSim.wreck_offers(state, [0, 1, 2], {1: lost}, [11]).is_empty() and RunSim.wreck_offers(state, [0, 1, 2], {0: lost}, [0]).is_empty())
+	RunSim._queue_wrecks(state, offers)
+	_check("the wreck comes before the salvage", String(state.pending.get("kind", "")) == "wreck" and state.pending["next"] == salvage)
+	_check("the salvage cannot be picked while the wreck waits", not RunSim.apply(state, setup, [RunSim.PICK, 0]))
+	_check("an option out of range is refused", not RunSim.apply(state, setup, [RunSim.RECOVER, 9]))
+	var hold: int = state.cargo.size()
+	_check("RECOVER pulls the picked part into the hold, then the salvage shows",
+		RunSim.apply(state, setup, [RunSim.RECOVER, 1]) and state.cargo.size() == hold + 1 and state.cargo[-1] == String(offers[0]["options"][1])
+		and state.pending == salvage)
+	_check("RECOVER with no wreck waiting is refused", not RunSim.apply(state, setup, [RunSim.RECOVER, 0]))
+	var two: RunState = RunSim.start(setup)
+	two.crew[0]["alive"] = false
+	two.crew[2]["alive"] = false
+	RunSim._queue_wrecks(two, [{"crew": 0, "options": ["co_slug"]}, {"crew": 2, "options": ["ar_saw"]}])
+	_check("two guarded wrecks: one part each, in crew order, and -1 leaves one",
+		int(two.pending["crew"]) == 0 and RunSim.apply(two, setup, [RunSim.RECOVER, -1]) and int(two.pending["crew"]) == 2
+		and RunSim.apply(two, setup, [RunSim.RECOVER, 0]) and two.pending.is_empty() and two.cargo.has("ar_saw") and not two.cargo.has("co_slug"))
+	two.pending = {"kind": "wreck", "crew": 0, "options": ["co_slug"], "next": {}}
+	_check("the bot pulls a part out rather than leaving it", RunBot.next_action(two, setup) == [RunSim.RECOVER, 0])
+
+	# Through the real fight: a machine wrecked with its pile standing at the end (enemies hit
+	# harder here so wrecks happen), the wreck offered, the run replayed from its actions and saved.
+	var found: bool = false
+	for seed_value: int in range(1, 120):
+		var hard: RunSetup = _setup(seed_value)
+		hard.rules = hard.rules.duplicate(true)
+		hard.rules["enemies"]["bonus"] = {"damage": 3}
+		var run: RunState = RunSim.start(hard)
+		var site: int = RunSim.destinations(run)[0]
+		run.sites[site]["type"] = "skirmish"
+		var log: Array = [[RunSim.TRAVEL, site]]
+		RunSim.apply(run, hard, log[0])
+		if String(run.pending.get("kind", "")) != "fight":
+			continue
+		var combat_setup: CombatSetup = RunSim.fight_setup(run, hard)
+		var actions: Array = RunBot.play_fight(combat_setup)
+		var result: CombatState = CombatSim.replay(combat_setup, actions)
+		var saved: Array = CombatSim.saved_wrecks(result)
+		if saved.is_empty() or result.crew(GridUnit.TEAM_PLAYER).is_empty():
+			continue
+		var before: Array = []
+		for m: Dictionary in run.crew:
+			before.append((m["parts"] as Array).duplicate())
+		log.append([RunSim.FIGHT, actions])
+		RunSim.apply(run, hard, log[1])
+		var crew_index: int = int(saved[0]) % 10
+		var offered: bool = String(run.pending.get("kind", "")) == "wreck" and int(run.pending["crew"]) == crew_index \
+			and run.pending["options"] == (before[crew_index] as Array).slice(1).filter(func(p: Variant) -> bool: return not String(p).is_empty())
+		_check("a wreck pile standing at the fight's end offers that machine's parts (seed %d, %s)" % [seed_value, run.pending.get("options", [])], offered)
+		var take: Array = RunBot.next_action(run, hard)
+		log.append(take)
+		var taken: String = String(run.pending["options"][int(take[1])]) if offered else ""
+		RunSim.apply(run, hard, take)
+		_check("the pulled part is in the hold (%s)" % taken, offered and run.cargo.has(taken))
+		var again: RunState = RunSim.replay(hard, RunStore.decode(RunStore.encode(seed_value, "test", log, []))["actions"])
+		_check("the save replays the wreck pick exactly", again.fingerprint() == run.fingerprint() and again.cargo == run.cargo)
+		found = true
+		break
+	_check("a run-built fight leaves a guarded wreck (CombatSim.saved_wrecks)", found)
 
 
 ## A fresh run with the first reachable site turned into `kind`, travelled to.
