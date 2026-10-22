@@ -113,12 +113,13 @@ func _ready() -> void:
 	words.custom_minimum_size = Vector2(164, 52)
 	extras.add_child(words)
 
-	var sound := _menu_button("SOUND: ON" if Profile.sound_on() else "SOUND: OFF", false, func() -> void:
-		Profile.set_sound(not Profile.sound_on())
-		Audio.play("ui_confirm")
-		get_tree().reload_current_scene())
-	sound.custom_minimum_size = Vector2(164, 52)
-	extras.add_child(sound)
+	# 082 (A24): SOUND became the settings sheet -- playback speed, volume (OFF included), abandon run.
+	var settings := _menu_button("SETTINGS", false, _open_settings)
+	settings.name = "settings"
+	settings.custom_minimum_size = Vector2(164, 52)
+	extras.add_child(settings)
+	if OS.get_cmdline_user_args().has("--settings"):
+		_open_settings.call_deferred()
 
 	var quit := _menu_button("QUIT", false, func() -> void: get_tree().quit())
 	quit.custom_minimum_size = Vector2(130, 52)
@@ -186,6 +187,8 @@ func _next_run_line() -> Control:
 	box.add_theme_constant_override("separation", UIKit.SPACE_XS)
 	box.add_child(row)
 	box.add_child(_ladder_line(meta, held))
+	# 082 (A13): the first time the ladder shows, a hint says what it is.
+	Hints.show_once(self, "ladder", Run.db, Vector2(1180, 330), 440.0)
 	return box
 
 
@@ -273,6 +276,10 @@ func _choice_button(text: String, chosen: bool, on_press: Callable) -> Button:
 		for state: String in ["normal", "hover", "focus", "pressed"]:
 			button.add_theme_stylebox_override(state, ring)
 	return button
+
+
+func _open_settings() -> void:
+	(load("res://scripts/ui/settings_sheet.gd") as GDScript).call("open", self)
 
 
 func _play_shakedown() -> void:
