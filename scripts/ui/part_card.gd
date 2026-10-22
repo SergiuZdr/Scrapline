@@ -89,8 +89,9 @@ static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array 
 	# 082 (A22): the line the part's maker would say about it, in italics.
 	var said: String = flavour(parts, id)
 	if not said.is_empty():
-		var line := UIKit.fit(_label(said, UIKit.SIZE_MICRO, UIKit.TEXT_DIM, italic()), inner_w, 2, 9)
+		var line := UIKit.fit(_label(said, UIKit.SIZE_MICRO, UIKit.TEXT_DIM, italic()), inner_w, 2 if size.y >= 220.0 else 1, 9)
 		line.name = "flavour"
+		button.tooltip_text = said
 		inner.add_child(line)
 	if not compare_crew.is_empty():
 		var verdict: Array = compare(parts, id, compare_crew)
