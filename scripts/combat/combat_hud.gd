@@ -63,6 +63,12 @@ var _info_body: RichTextLabel
 var glossary: Dictionary = {}
 var _hint: Label
 var _hint_box: PanelContainer
+## 082 (A11): "Firing ends Knuckles's move" -- over the hint, while a machine that would be rooted
+## by its attack has a weapon armed before it has moved. Rich text: "rooted" is a glossary link.
+var _warn: RichTextLabel
+## The cards `set_crew` was last handed, by ref: `set_weapons` reads the picked one.
+var _crew_cards: Dictionary = {}
+const SETTINGS_SHEET: String = "res://scripts/ui/settings_sheet.gd"
 var _undo: Button
 var _end_turn: Button
 var _result: Control
@@ -149,13 +155,25 @@ func _ready() -> void:
 	hint_row.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	hint_row.offset_top = -(WEAPON_SIZE.y + ABILITY_SIZE.y + 76)
 	hint_row.offset_bottom = -(WEAPON_SIZE.y + ABILITY_SIZE.y + 34)
+	# 082: a second line (the rooted warning) grows the caption upward, never into the bar.
+	hint_row.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_hint_box = PanelContainer.new()
 	_hint_box.add_theme_stylebox_override("panel", UIKit.ink_caption())
 	_hint_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hint_row.add_child(_hint_box)
+	var hint_lines := VBoxContainer.new()
+	hint_lines.add_theme_constant_override("separation", 2)
+	hint_lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint_box.add_child(hint_lines)
+	_warn = Glossary.label("", UIKit.SIZE_BODY, UIKit.INK_RED, glossary, 0.0, UIKit.font_comic(), UIKit.INK_LINK)
+	_warn.name = "rooted_warning"
+	_warn.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_warn.visible = false
+	hint_lines.add_child(_warn)
 	_hint = _label("", UIKit.SIZE_BODY, UIKit.INK, UIKit.font_strong())
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint_box.add_child(_hint)
+	hint_lines.add_child(_hint)
 	_hint_box.visible = false
 
 	var actions := HBoxContainer.new()
@@ -186,14 +204,55 @@ func _ready() -> void:
 	camera.add_child(words)
 	camera.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, UIKit.SPACE_XL)
 
+	# 082 (A24): the settings sheet, a small gear in the top-right corner -- above the info panel,
+	# clear of the board and the round caption. Hidden until the sheet's script exists.
+	var gear := _button("", UIKit.PAPER_CARD, Vector2(56, 56))
+	gear.name = "settings_button"
+	gear.tooltip_text = "Settings"
+	gear.visible = ResourceLoader.exists(SETTINGS_SHEET)
+	gear.pressed.connect(_open_settings)
+	var cog := Control.new()
+	cog.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cog.draw.connect(func() -> void: _draw_gear(cog))
+	gear.add_child(cog)
+	cog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(gear)
+	gear.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	# Its right edge on the info panel's.
+	gear.offset_right = -UIKit.SPACE_XL
+	gear.offset_left = gear.offset_right - 56.0
+	gear.offset_top = UIKit.SPACE_SM + 6
+	gear.offset_bottom = gear.offset_top + 56
+
 	_build_result()
+
+
+func _open_settings() -> void:
+	if ResourceLoader.exists(SETTINGS_SHEET):
+		(load(SETTINGS_SHEET) as Script).call("open", self)
+
+
+## A gear in ink: eight teeth round a ring, the hole in paper.
+func _draw_gear(on: Control) -> void:
+	var centre: Vector2 = on.size * 0.5
+	var outer: float = minf(on.size.x, on.size.y) * 0.25
+	for i: int in 8:
+		var angle: float = TAU * float(i) / 8.0
+		on.draw_set_transform(centre, angle, Vector2.ONE)
+		on.draw_rect(Rect2(Vector2(outer - 2.0, -4.0), Vector2(9.0, 8.0)), UIKit.INK)
+	on.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	on.draw_circle(centre, outer + 1.0, UIKit.INK)
+	on.draw_circle(centre, outer * 0.45, UIKit.PAPER_CARD)
 
 
 ## `cards`: one entry per player construct, in slot order:
 ## `{ "ref", "name", "detail", "hp", "max_hp", "alive", "can_move", "can_act", "selected" }`.
+## 082 (A11), optional: `"acted"` and `"move_after_attack"`. Without them the HUD reads the role
+## off `detail` (a LINE machine moves after attacking) and `acted` off `can_act`.
 func set_crew(cards: Array) -> void:
 	for card: Dictionary in cards:
 		var ref: int = int(card["ref"])
+		_crew_cards[ref] = card
 		if not _cards.has(ref):
 			_cards[ref] = _build_card(ref)
 		_fill_card(_cards[ref], card)
@@ -244,6 +303,10 @@ func set_boss(name: String, hp: int, max_hp: int, line: String) -> void:
 	_boss_box.visible = not name.is_empty()
 	if name.is_empty():
 		return
+	# 082 (A13): the first time a boss is caught EXPOSED, say what the opening is worth.
+	if line.contains("EXPOSED"):
+		Hints.show_with(self, "exposed", Hints.texts().get("exposed", {}), glossary,
+			Vector2(size.x * 0.5 - 220.0, 190.0), 440.0, Vector2(size.x * 0.5, 130.0))
 	_boss_name.text = name.to_upper()
 	_boss_bar.max_value = max_hp
 	_boss_bar.value = hp
@@ -276,6 +339,59 @@ func set_weapons(items: Array, selected: int, vent: String) -> void:
 		_ability_bar.add_child(vent_button)
 	(_ability_bar.get_parent() as Control).visible = items.any(func(x: Dictionary) -> bool: return bool(x.get("ability", false))) or not vent.is_empty()
 	(_weapon_bar.get_parent() as Control).visible = not items.is_empty()
+	_set_warning(_rooting_warning(items, selected))
+	# 082 (A13): the first time a machine of yours is SEIZED, say what that means.
+	if items.any(func(x: Dictionary) -> bool: return String(x.get("reason", "")).begins_with("SEIZED")):
+		Hints.show_with(self, "seized", Hints.texts().get("seized", {}), glossary,
+			Vector2(BAR_LEFT + 60.0, size.y - 470.0), 440.0, Vector2(BAR_LEFT + 240.0, size.y - 110.0))
+
+
+## "Firing ends Knuckles's move" while the armed item would root a machine that can still move
+## (A11: only a LINE machine moves after it attacks); "" otherwise.
+func _rooting_warning(items: Array, selected: int) -> String:
+	if selected < 0 or selected >= items.size():
+		return ""
+	var item: Dictionary = items[selected]
+	var ability: bool = bool(item.get("ability", false))
+	# A free ability leaves the action, and the move, alone.
+	if ability and (bool(item.get("free", false)) or not String(item.get("detail", "")).contains("uses the action")):
+		return ""
+	for ref: Variant in _crew_cards:
+		var card: Dictionary = _crew_cards[ref]
+		if not bool(card.get("selected", false)):
+			continue
+		if not bool(card.get("alive", true)) or not bool(card.get("can_move", false)) or _moves_after_attack(card):
+			return ""
+		var who: String = String(card["name"])
+		return ("Using %s ends %s's move: after it, %s is rooted." % [String(item["name"]).to_upper(), who, who]) if ability \
+			else ("Firing ends %s's move: once it fires, it is rooted." % who)
+	return ""
+
+
+func _moves_after_attack(card: Dictionary) -> bool:
+	if card.has("move_after_attack"):
+		return bool(card["move_after_attack"])
+	return String(card.get("detail", "")).contains("·  Line  ·")
+
+
+## ROOTED: it has attacked and cannot move again this turn.
+func _rooted(card: Dictionary) -> bool:
+	if not bool(card.get("alive", true)) or _moves_after_attack(card) or bool(card.get("can_move", false)):
+		return false
+	return bool(card["acted"]) if card.has("acted") else not bool(card.get("can_act", true))
+
+
+func _set_warning(text: String) -> void:
+	_warn.text = Glossary.linkify(text, glossary, UIKit.INK_LINK)
+	# One line, as wide as its words (a rich label sizes its height, not its width, to its text).
+	_warn.custom_minimum_size.x = UIKit.font_comic().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UIKit.SIZE_BODY).x + 12.0
+	_warn.visible = not text.is_empty()
+	_hint_box.visible = _warn.visible or not _hint.text.is_empty()
+
+
+## The rooted warning's text ("" when none shows): for tests.
+func warning_text() -> String:
+	return _warn.get_parsed_text() if _warn.visible else ""
 
 
 ## One row with a small lettered caption on its left, so the two rows name themselves.
@@ -388,7 +504,8 @@ func point_info_at(where: Variant) -> void:
 
 func set_hint(text: String) -> void:
 	_hint.text = text
-	_hint_box.visible = not text.is_empty()
+	_hint.visible = not text.is_empty()
+	_hint_box.visible = _warn.visible or not text.is_empty()
 
 
 func set_controls(can_undo: bool, can_end: bool) -> void:
@@ -549,7 +666,13 @@ func _fill_card(parts: Dictionary, card: Dictionary) -> void:
 	heat.text = "HEAT %d/%d" % [int(card.get("heat", 0)), int(card.get("heat_cap", 0))]
 	heat.add_theme_color_override("font_color",
 		UIKit.INK_RED if int(card.get("heat", 0)) >= int(card.get("heat_cap", 1)) - 1 else Ink.RUST)
-	_chip(parts["move"], alive and bool(card["can_move"]))
+	# 082 (A11): a machine that has attacked and cannot move says so -- ROOTED, in red, where MOVE was.
+	var rooted: bool = _rooted(card)
+	(parts["move"] as Label).text = "ROOTED" if rooted else "MOVE"
+	if rooted:
+		(parts["move"] as Label).add_theme_color_override("font_color", UIKit.INK_RED)
+	else:
+		_chip(parts["move"], alive and bool(card["can_move"]))
 	_chip(parts["act"], alive and bool(card["can_act"]))
 
 
