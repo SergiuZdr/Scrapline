@@ -28,6 +28,14 @@ extends SceneTree
 ## squad made tougher by `--arm-hp` / `--arm-damage` so the crew can lose), each played once per arm
 ## with that arm fitted to every crew machine's left socket and nothing else changed. Every arm meets
 ## the same scenarios, so each is ranked against the average of all arms on the same fights.
+##
+## `--boss DIR` (083) plays the boss and warlord fights a run built (`dump_boss_fights.gd --per N
+## --out DIR`), `--seeds` times each, and reports per act and kind: win rate, rounds, crew HP lost,
+## rounds played after the last keeper fell, and losses in which the crew ended with MORE HP than it
+## started with (the heal-farm). `boss.<key>=json` in `--set` / `--b` lays a key over every such
+## fight (`boss.pile_heal=0`, `boss.escort_waves=[]`; `boss.keeper=false` strips the keeper flags).
+## A key the gate's own file has and the run-built fight lacks (RunSim does not carry it yet) is
+## carried over from the file, and said so.
 
 const Jobs = preload("res://tools/jobs.gd")
 const Stats = preload("res://tools/stats.gd")
@@ -49,17 +57,23 @@ func _initialize() -> void:
 	var quiet: bool = not slice.is_empty()
 	var dbs: Array[ContentDB] = [ContentDB.load_all()]
 	for setting: String in Stats.all_after(args, "--set"):
-		Stats.override(dbs[0], setting, quiet)
+		if not setting.begins_with("boss."):
+			Stats.override(dbs[0], setting, quiet)
 	var b_settings: PackedStringArray = Stats.all_after(args, "--b")
 	if not b_settings.is_empty():
 		dbs.append(ContentDB.load_all())
 		for setting: String in Stats.all_after(args, "--set"):
-			Stats.override(dbs[1], setting, true)
+			if not setting.begins_with("boss."):
+				Stats.override(dbs[1], setting, true)
 		if not quiet:
 			print("  variant B:")
 		for setting: String in b_settings:
-			Stats.override(dbs[1], setting, quiet)
+			if not setting.begins_with("boss."):
+				Stats.override(dbs[1], setting, quiet)
 	_db = dbs[0]
+	if args.has("--boss"):
+		_boss_trial(args, slice, dbs, b_settings)
+		return
 	if args.has("--arms"):
 		_arm_trial(args, slice)
 		return
@@ -262,6 +276,171 @@ func _arm_trial(args: PackedStringArray, slice: Array) -> void:
 			row[6], row[7], row[4], row[5], verdict])
 	print("")
 	quit()
+
+
+## 083: the run-built boss fights (see the header). Item `(f * seeds + k) * variants + v`.
+func _boss_trial(args: PackedStringArray, slice: Array, dbs: Array[ContentDB], b_settings: PackedStringArray) -> void:
+	var dir: String = args[args.find("--boss") + 1]
+	var seeds: int = _arg_int(args, "--seeds", 5)
+	var files: Array = []
+	for f: String in DirAccess.get_files_at(dir):
+		if f.begins_with("real_") and f.ends_with(".json"):
+			files.append(f)
+	files.sort()
+	var overlays: Array = [_boss_overlay(Stats.all_after(args, "--set")), _boss_overlay(Stats.all_after(args, "--set"))]
+	overlays[1].merge(_boss_overlay(b_settings), true)
+	var variants: int = dbs.size()
+	var items: int = files.size() * seeds * variants
+	var jobs: int = _arg_int(args, "--jobs", Jobs.default_count())
+	var numbers: Dictionary = {"A": {}, "B": {}, "pairs": {}, "carried": {}}
+	if slice.is_empty() and jobs > 1:
+		for part: Dictionary in Jobs.run("res://tools/balance_fights.gd", args, jobs, items, "won"):
+			Jobs.merge(numbers, part)
+	else:
+		for item: int in items:
+			if not Jobs.mine(slice, item):
+				continue
+			var v: int = item % variants
+			var base: int = item / variants
+			var file: String = files[base / seeds]
+			# JSON has no integers: every number back to an int, as a resumed run reads its save.
+			var fight: Dictionary = RunStore._ints(JSON.parse_string(FileAccess.get_file_as_string(dir.path_join(file))))
+			_carry_keys(dbs[v], fight, numbers["carried"])
+			for key: String in (overlays[v] as Dictionary):
+				if key == "keeper":
+					for spec: Dictionary in fight["enemy"]:
+						if not bool(overlays[v]["keeper"]):
+							spec.erase("keeper")
+				else:
+					fight[key] = overlays[v][key]
+			var group: String = file.trim_prefix("real_").trim_suffix(".json")
+			group = group.substr(0, group.rfind("_")) if group.count("_") >= 2 else group
+			var seed_value: int = int(fight.get("_combat_seed", 1000)) + base % seeds
+			var row: Dictionary = _boss_play(dbs[v], fight, seed_value)
+			var mine: Dictionary = numbers["A" if v == 0 else "B"]
+			if not mine.has(group):
+				mine[group] = {"fights": 0, "won": 0, "rounds": 0, "hp_lost": 0, "hp_lost_sq": 0, "after_keeper": 0,
+					"keeper_fell": 0, "heal_losses": 0, "lost": 0, "timeout": 0}
+			for key: String in row:
+				mine[group][key] = int(mine[group][key]) + int(row[key])
+			var pair: Array = numbers["pairs"].get(str(base), [0, 0])
+			pair[v] = int(row["won"])
+			numbers["pairs"][str(base)] = pair
+			Jobs.progress(slice, ("+ " if int(row["won"]) > 0 else "- ") + str(item))
+		if not slice.is_empty():
+			Jobs.finish(slice, numbers)
+			quit()
+			return
+	if not (numbers["carried"] as Dictionary).is_empty():
+		print("  carried from the gate's file (RunSim does not copy them yet): %s" % ", ".join(PackedStringArray((numbers["carried"] as Dictionary).keys())))
+	print("")
+	print("=== run-built boss fights: %d files x %d seeds, from %s ===" % [files.size(), seeds, dir])
+	for v: int in variants:
+		var label: String = "A" if v == 0 else "B (%s)" % ", ".join(b_settings)
+		print("##### %s" % label)
+		_boss_report(numbers["A" if v == 0 else "B"])
+	if variants > 1:
+		var t: Array = [0, 0, 0]
+		for key: Variant in numbers["pairs"]:
+			var pair: Array = numbers["pairs"][key]
+			t[2] += 1
+			if int(pair[0]) == 1 and int(pair[1]) == 0:
+				t[0] += 1
+			elif int(pair[1]) == 1 and int(pair[0]) == 0:
+				t[1] += 1
+		print("  boss fights won, B - A: %s" % Stats.verdict(Stats.paired(t[1], t[0], t[2])))
+	print("")
+	quit()
+
+
+## `boss.<key>=json` settings as `{key: value}`.
+func _boss_overlay(settings: PackedStringArray) -> Dictionary:
+	var out: Dictionary = {}
+	for setting: String in settings:
+		if not setting.begins_with("boss."):
+			continue
+		var pair: PackedStringArray = setting.trim_prefix("boss.").split("=", true, 1)
+		out[pair[0]] = JSON.parse_string(pair[1])
+	return out
+
+
+## The keys a gate or warlord file sets for its fight that the run-built fight lacks (083).
+func _carry_keys(db: ContentDB, fight: Dictionary, carried: Dictionary) -> void:
+	for id: Variant in db.fights:
+		var template: Dictionary = db.fights[id]
+		if String(template.get("name", "")) != String(fight.get("name", "")) \
+				or not (bool(template.get("boss", false)) or bool(template.get("warlord", false))):
+			continue
+		for key: String in ["pile_heal", "escort_waves"]:
+			if template.has(key) and not fight.has(key):
+				fight[key] = (template[key] as Variant)
+				carried[key] = 1
+		return
+
+
+## One run-built boss fight played by the bot: the numbers `_boss_trial` adds up.
+func _boss_play(db: ContentDB, fight: Dictionary, seed_value: int) -> Dictionary:
+	var setup: CombatSetup = CombatSetup.build(fight, db.combat_rules, db.parts, db.tiles, db.effectiveness, seed_value)
+	if not setup.errors.is_empty():
+		push_error("setup errors: %s" % [setup.errors])
+	Stats.bot_for(db)
+	var state: CombatState = CombatSim.start(setup)
+	var start_hp: int = 0
+	for u: GridUnit in state.units:
+		if u.team == GridUnit.TEAM_PLAYER and not u.objective:
+			start_hp += u.hp
+	var guard: int = 0
+	while state.outcome == CombatState.ONGOING and guard < 60:
+		CombatBot.take_turn(state)
+		guard += 1
+	var end_hp: int = 0
+	for u: GridUnit in state.units:
+		if u.team == GridUnit.TEAM_PLAYER and not u.objective and u.alive:
+			end_hp += u.hp
+	# The keepers by the fight's own flags, so the old rules (no keepers) are measured the same way.
+	var keepers: Array = []
+	for slot: int in (fight["enemy"] as Array).size():
+		if bool((fight["enemy"][slot] as Dictionary).get("keeper", false)):
+			keepers.append(GridUnit.TEAM_ENEMY * 10 + slot)
+	var dead: Dictionary = {}
+	var round: int = 0
+	var fell_at: int = -1
+	for e: Array in state.events:
+		var kind: int = int(e[GridEv.F_KIND])
+		if kind == GridEv.ROUND_START:
+			round = int(e[GridEv.F_V1])
+		elif kind == GridEv.DESTROYED and keepers.has(int(e[GridEv.F_TARGET])):
+			dead[int(e[GridEv.F_TARGET])] = true
+			if dead.size() == keepers.size() and fell_at < 0:
+				fell_at = round
+		elif kind == GridEv.REBUILT and dead.has(int(e[GridEv.F_TARGET])):
+			dead.erase(int(e[GridEv.F_TARGET]))
+			fell_at = -1
+	var won: bool = state.outcome == CombatState.WON
+	var lost_hp: int = start_hp - end_hp
+	return {"fights": 1, "won": 1 if won else 0, "rounds": state.round_number, "hp_lost": lost_hp, "hp_lost_sq": lost_hp * lost_hp,
+		"keeper_fell": 1 if fell_at >= 0 else 0, "after_keeper": state.round_number - fell_at if fell_at >= 0 else 0,
+		"heal_losses": 1 if not won and end_hp > start_hp else 0, "lost": 0 if won else 1,
+		"timeout": 1 if not won and not state.crew(GridUnit.TEAM_PLAYER).is_empty() else 0}
+
+
+func _boss_report(groups: Dictionary) -> void:
+	var keys: Array = groups.keys()
+	keys.sort()
+	var all: Dictionary = {}
+	for key: Variant in keys:
+		_boss_line(String(key), groups[key])
+		Jobs.merge(all, groups[key])
+	if not all.is_empty():
+		_boss_line("all", all)
+
+
+func _boss_line(label: String, g: Dictionary) -> void:
+	var n: int = maxi(1, int(g["fights"]))
+	print("  %-13s win %-17s | rounds %4.1f | crew HP lost %s | keeper fell %d/%d, rounds after it %.2f | lost %d (timeout %d, with HP risen %d)" % [
+		label, Stats.rate(int(g["won"]), int(g["fights"])), float(g["rounds"]) / n,
+		Stats.mean_text(g["hp_lost"], g["hp_lost_sq"], int(g["fights"])), int(g["keeper_fell"]), int(g["fights"]),
+		float(g["after_keeper"]) / maxi(1, int(g["keeper_fell"])), int(g["lost"]), int(g["timeout"]), int(g["heal_losses"])])
 
 
 func _new_numbers() -> Dictionary:
