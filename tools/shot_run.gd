@@ -11,7 +11,10 @@ extends SceneTree
 ##
 ## `--until` is a pending kind (reward, scrapyard, workshop, fight), "moves:N", "fit" (082: a salvage
 ## card that offers FIT ON <NAME>) or "over" (the run's end). `--wreck` (screenshot only) then wrecks
-## the whole crew, for the run-over screen's roll call after a loss.
+## the whole crew, for the run-over screen's roll call after a loss. "defend_partial" (083) waits for a
+## DEFEND salvage won with a cache broken.
+## 083, screenshot only, both with `--until reward`: `--stage-defend` makes the salvage a DEFEND's with
+## 1 of 2 caches standing; `--stage-wreck` wrecks crew 1 and puts its guarded wreck in front of it.
 ## Uses the real `Run` autoload; under `--script` it saves to `user://tool_run.json` and a profile
 ## of its own (032), never the player's.
 
@@ -46,6 +49,9 @@ func _go() -> void:
 				and (state.pending["options"] as Array).any(func(id: Variant) -> bool:
 					return not (card_script.call("fit_target", (run.get("db") as ContentDB).parts, String(id), state.crew) as Array).is_empty()):
 			break
+		if in_act and until == "defend_partial" and String(state.pending.get("kind", "")) == "reward" \
+				and (state.pending.get("caches", [1, 1]) as Array)[0] < (state.pending.get("caches", [1, 1]) as Array)[1]:
+			break
 		if in_act and until.begins_with("moves:") and state.moves >= until.split(":")[1].to_int() and state.pending.is_empty():
 			break
 		run.call("apply", RunBot.next_action(state, run.get("setup")))
@@ -56,6 +62,17 @@ func _go() -> void:
 		while packed.cargo.size() < packed.hold_size:
 			var part: String = String(packed.crew[packed.cargo.size() % 3]["parts"][1 + packed.cargo.size() % 4])
 			packed.cargo.append(part if not part.is_empty() else "ar_hammer")
+	if args.has("--stage-defend"):
+		var at: RunState = run.get("state")
+		at.pending = RunSim.salvage(at, run.get("setup"), "skirmish", 1, 2)
+	if args.has("--stage-wreck"):
+		var at: RunState = run.get("state")
+		var member: Dictionary = at.crew[1]
+		var lost: Array = (member["parts"] as Array).slice(1)
+		member["alive"] = false
+		member["hp"] = 0
+		member["parts"] = [String(member["parts"][0]), "", "", "", ""]
+		RunSim._queue_wrecks(at, RunSim.wreck_offers(at, [0, 1, 2], {1: lost}, [1]))
 	if args.has("--wreck"):
 		# Screenshot only: the crew is wrecked where it stands, for the roll call after a loss.
 		var lost: RunState = run.get("state")
