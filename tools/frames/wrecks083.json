@@ -1,0 +1,27 @@
+{
+  "id": "wrecks083",
+  "name": "Wreck test",
+  "_comment": "083: a staged frame (NOT content) for verify_combat -- a keeper, two escorts and the crew, to wreck machines and see whose piles still stand when the keeper falls (CombatSim.saved_wrecks).",
+  "rows": [
+    "........",
+    "........",
+    "........",
+    "........",
+    "........",
+    "........",
+    "........",
+    "........"
+  ],
+  "player": [
+    {"name": "Knuckles", "parts": ["ch_brute", "co_dynamo", "ar_saw", "ar_hammer", "mo_scavenger"], "x": 2, "y": 6},
+    {"name": "Needle", "parts": ["ch_brute", "co_dynamo", "ar_saw", "ar_hammer", "mo_scavenger"], "x": 4, "y": 6},
+    {"name": "Relay", "parts": ["ch_brute", "co_dynamo", "ar_saw", "ar_hammer", "mo_scavenger"], "x": 6, "y": 6}
+  ],
+  "enemy": [
+    {"name": "Keeper", "keeper": true, "parts": ["ch_brute", "co_dynamo", "ar_saw", "ar_hammer", "mo_scavenger"], "hp": 30, "x": 4, "y": 2},
+    {"name": "Escort A", "parts": ["ch_brute", "co_dynamo", "ar_saw", "ar_hammer", "mo_scavenger"], "x": 1, "y": 1, "carries": true},
+    {"name": "Escort B", "parts": ["ch_brute", "co_dynamo", "ar_saw", "ar_hammer", "mo_scavenger"], "x": 6, "y": 1, "carries": true}
+  ],
+  "objective": {"type": "rout"},
+  "pile_heal": 0
+}
