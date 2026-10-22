@@ -161,6 +161,10 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-22 | **Legendaries drop only from gate keepers** (1-2 a run), each a strong rule plus a visible drawback; warlords give a rare and scrap | The user picked it (086) |
 | 2026-10-22 | **The story's ending waits for a vision the user will write**; the ladder does not move it | The user |
 | 2026-10-22 | **Wandering costs at the default difficulty** (B3's pace is rung 0) | The user: the player should be pushed forward |
+| 2026-10-22 | **The boss push-in is judged from a before/after sheet** (083) | The user |
+| 2026-10-22 | **Maker sets: 3 pieces of one maker give a verb** (Kessler thorns + unshovable, Arclight arc, Vektor pierce, Cinder tears); heat leaves the sets (086) | The user picked it; answers the 2026-10-08 open question |
+| 2026-10-22 | **One play-test at the end of 088**, not between 082-088 | The user |
+| 2026-10-22 | **A wrecked machine's pile, guarded to the end of the fight, saves one of its parts** (amends 2026-09-24: a wreck's parts are lost) (083) | The user |
 
 ## Lessons carried over from the old codebase
 
