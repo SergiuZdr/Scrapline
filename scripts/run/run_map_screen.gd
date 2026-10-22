@@ -916,33 +916,29 @@ func _pick_panel() -> void:
 
 
 ## 083 (wreck recovery): a crew machine was wrecked, but its pile still stood when the fight ended.
-## One of the parts it lost comes back into the hold, the player's pick; the rest is gone.
+## One part, picked at random among the guarded wrecks' parts, came out of it: TAKE IT or LEAVE IT.
 func _wreck_panel() -> void:
 	var state: RunState = Run.state
 	var member: Dictionary = state.crew[int(state.pending["crew"])]
-	var name: String = String(member["name"]).to_upper()
-	var note: String = "%s's wreck pile held to the end. Pull ONE of its parts into the hold; the rest is scrap. " % member["name"]
+	var part: String = String((state.pending["options"] as Array)[0])
+	var note: String = "%s's wreck pile held to the end, and the crew dug one part out of it. The rest is scrap. " % member["name"]
 	note += ("Rebuild %s at a workshop, then fit it back on." % member["name"]) if not bool(member["alive"]) else ""
 	note += "  Hold: %d / %d." % [state.cargo.size(), state.hold_size]
-	var box := _modal("PULLED FROM %s'S WRECK" % name, note, 1240, true)
+	var box := _modal("PULLED FROM %s'S WRECK" % String(member["name"]).to_upper(), note, 900, true)
 	var row := _row(box)
-	var options: Array = state.pending["options"]
-	for i: int in options.size():
-		var column := VBoxContainer.new()
-		column.add_theme_constant_override("separation", UIKit.SPACE_XS)
-		row.add_child(column)
-		var card: Button = PartCard.build(Run.db, String(options[i]), Vector2(290, 236), state.crew)
-		card.name = "wreck_card_%d" % i
-		card.pressed.connect(_recover.bind(i))
-		column.add_child(card)
-		var take := _button("PULL IT OUT", UIKit.choice(), UIKit.TEXT, Vector2(290, 52))
-		take.name = "wreck_take_%d" % i
-		take.pressed.connect(_recover.bind(i))
-		column.add_child(take)
-	var leave := _button("LEAVE THE WRECK", UIKit.secondary(), UIKit.TEXT, Vector2(320, 60))
+	var card: Button = PartCard.build(Run.db, part, Vector2(380, 236), state.crew)
+	card.name = "wreck_card"
+	card.pressed.connect(_recover.bind(0))
+	row.add_child(card)
+	var buttons := _row(box)
+	var take := _button("TAKE IT", UIKit.choice(), UIKit.TEXT, Vector2(260, 60))
+	take.name = "wreck_take"
+	take.pressed.connect(_recover.bind(0))
+	buttons.add_child(take)
+	var leave := _button("LEAVE IT", UIKit.choice(), UIKit.TEXT, Vector2(260, 60))
 	leave.name = "wreck_leave"
 	leave.pressed.connect(_recover.bind(-1))
-	_row(box).add_child(leave)
+	buttons.add_child(leave)
 
 
 func _recover(index: int) -> void:

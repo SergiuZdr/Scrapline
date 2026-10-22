@@ -873,30 +873,51 @@ func _test_wreck_recovery() -> void:
 	member["parts"] = [String(member["parts"][0]), "", "", "", ""]
 	state.pending = RunSim.salvage(state, setup, "skirmish")
 	var salvage: Dictionary = state.pending
-	var offers: Array = RunSim.wreck_offers(state, [0, 1, 2], {1: lost}, [1])
-	_check("a guarded wreck offers the parts it lost (%s)" % [offers],
-		offers.size() == 1 and int(offers[0]["crew"]) == 1 and offers[0]["options"] == lost.filter(func(p: Variant) -> bool: return not String(p).is_empty()))
-	_check("a wreck whose pile is gone offers nothing", RunSim.wreck_offers(state, [0, 1, 2], {1: lost}, []).is_empty())
+	var parts: Array = lost.filter(func(p: Variant) -> bool: return not String(p).is_empty())
+	var pull: Dictionary = RunSim.wreck_pull(state, setup, [0, 1, 2], {1: lost}, [1])
+	_check("a guarded wreck gives back one of the parts it lost (%s)" % [pull],
+		int(pull.get("crew", -1)) == 1 and parts.has(String(pull.get("part", ""))))
+	_check("and the same one every time (SimRNG, not Dictionary order)",
+		RunSim.wreck_pull(state, setup, [0, 1, 2], {1: lost}, [1]) == pull)
+	_check("a wreck whose pile is gone gives nothing", RunSim.wreck_pull(state, setup, [0, 1, 2], {1: lost}, []).is_empty())
 	_check("an enemy ref or a living machine is never a wreck",
-		RunSim.wreck_offers(state, [0, 1, 2], {1: lost}, [11]).is_empty() and RunSim.wreck_offers(state, [0, 1, 2], {0: lost}, [0]).is_empty())
-	RunSim._queue_wrecks(state, offers)
-	_check("the wreck comes before the salvage", String(state.pending.get("kind", "")) == "wreck" and state.pending["next"] == salvage)
+		RunSim.wreck_pull(state, setup, [0, 1, 2], {1: lost}, [11]).is_empty() and RunSim.wreck_pull(state, setup, [0, 1, 2], {0: lost}, [0]).is_empty())
+	# Two guarded wrecks still give ONE part, drawn over both wrecks' parts (refs in any order).
+	var both: RunState = RunSim.start(setup)
+	var lost0: Array = (both.crew[0]["parts"] as Array).slice(1)
+	var lost1: Array = (both.crew[1]["parts"] as Array).slice(1)
+	both.crew[0]["alive"] = false
+	both.crew[1]["alive"] = false
+	var drawn: Dictionary = {}
+	var spread: bool = true
+	for site: int in 30:
+		both.current = site
+		var one: Dictionary = RunSim.wreck_pull(both, setup, [0, 1, 2], {0: lost0, 1: lost1}, [1, 0])
+		spread = spread and one == RunSim.wreck_pull(both, setup, [0, 1, 2], {0: lost0, 1: lost1}, [0, 1]) \
+			and (lost0 if int(one["crew"]) == 0 else lost1).has(String(one["part"]))
+		drawn[int(one["crew"])] = true
+	_check("two guarded wrecks give one part, from either wreck (%s over 30 sites)" % [drawn.keys()], spread and drawn.size() == 2)
+	both.crew[0]["alive"] = true
+	both.crew[1]["alive"] = true
+	RunSim._queue_wreck(state, pull)
+	_check("the wreck comes before the salvage, one part on it", String(state.pending.get("kind", "")) == "wreck"
+		and state.pending["options"] == [String(pull["part"])] and state.pending["next"] == salvage)
 	_check("the salvage cannot be picked while the wreck waits", not RunSim.apply(state, setup, [RunSim.PICK, 0]))
-	_check("an option out of range is refused", not RunSim.apply(state, setup, [RunSim.RECOVER, 9]))
+	_check("RECOVER 1 is refused (there is one part)", not RunSim.apply(state, setup, [RunSim.RECOVER, 1]))
 	var hold: int = state.cargo.size()
-	_check("RECOVER pulls the picked part into the hold, then the salvage shows",
-		RunSim.apply(state, setup, [RunSim.RECOVER, 1]) and state.cargo.size() == hold + 1 and state.cargo[-1] == String(offers[0]["options"][1])
+	_check("RECOVER 0 takes the part into the hold, then the salvage shows",
+		RunSim.apply(state, setup, [RunSim.RECOVER, 0]) and state.cargo.size() == hold + 1 and state.cargo[-1] == String(pull["part"])
 		and state.pending == salvage)
 	_check("RECOVER with no wreck waiting is refused", not RunSim.apply(state, setup, [RunSim.RECOVER, 0]))
-	var two: RunState = RunSim.start(setup)
-	two.crew[0]["alive"] = false
-	two.crew[2]["alive"] = false
-	RunSim._queue_wrecks(two, [{"crew": 0, "options": ["co_slug"]}, {"crew": 2, "options": ["ar_saw"]}])
-	_check("two guarded wrecks: one part each, in crew order, and -1 leaves one",
-		int(two.pending["crew"]) == 0 and RunSim.apply(two, setup, [RunSim.RECOVER, -1]) and int(two.pending["crew"]) == 2
-		and RunSim.apply(two, setup, [RunSim.RECOVER, 0]) and two.pending.is_empty() and two.cargo.has("ar_saw") and not two.cargo.has("co_slug"))
-	two.pending = {"kind": "wreck", "crew": 0, "options": ["co_slug"], "next": {}}
-	_check("the bot pulls a part out rather than leaving it", RunBot.next_action(two, setup) == [RunSim.RECOVER, 0])
+	var left: RunState = RunSim.start(setup)
+	left.crew[0]["alive"] = false
+	RunSim._queue_wreck(left, {"crew": 0, "part": "co_slug"})
+	_check("RECOVER -1 leaves it and goes on", RunSim.apply(left, setup, [RunSim.RECOVER, -1]) and left.pending.is_empty() and not left.cargo.has("co_slug"))
+	left.pending = {"kind": "wreck", "crew": 0, "options": ["co_slug"], "next": {}}
+	_check("the bot takes the part when the hold has room", RunBot.next_action(left, setup) == [RunSim.RECOVER, 0])
+	while left.cargo.size() < left.hold_size:
+		left.cargo.append("ar_railgun")
+	_check("and leaves it when the hold is full of rarer parts", RunBot.next_action(left, setup) == [RunSim.RECOVER, -1])
 
 	# Through the real fight: a machine wrecked with its pile standing at the end (enemies hit
 	# harder here so wrecks happen), the wreck offered, the run replayed from its actions and saved.
@@ -923,10 +944,11 @@ func _test_wreck_recovery() -> void:
 			before.append((m["parts"] as Array).duplicate())
 		log.append([RunSim.FIGHT, actions])
 		RunSim.apply(run, hard, log[1])
-		var crew_index: int = int(saved[0]) % 10
-		var offered: bool = String(run.pending.get("kind", "")) == "wreck" and int(run.pending["crew"]) == crew_index \
-			and run.pending["options"] == (before[crew_index] as Array).slice(1).filter(func(p: Variant) -> bool: return not String(p).is_empty())
-		_check("a wreck pile standing at the fight's end offers that machine's parts (seed %d, %s)" % [seed_value, run.pending.get("options", [])], offered)
+		var offered: bool = String(run.pending.get("kind", "")) == "wreck" and saved.has(int(run.pending["crew"])) \
+			and (run.pending["options"] as Array).size() == 1 \
+			and (before[int(run.pending["crew"])] as Array).slice(1).has(String(run.pending["options"][0]))
+		_check("a wreck pile standing at the fight's end gives back one of that machine's parts (seed %d, %s from %s)" % [seed_value,
+			run.pending.get("options", []), run.pending.get("crew", -1)], offered)
 		var take: Array = RunBot.next_action(run, hard)
 		log.append(take)
 		var taken: String = String(run.pending["options"][int(take[1])]) if offered else ""

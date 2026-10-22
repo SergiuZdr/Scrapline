@@ -30,7 +30,7 @@ extends RefCounted
 ##   [RENAME, crew_index, name]          give a machine its own name (027), any time but a fight
 ##   [REFINE, cargo_index]               refinery (031): a part becomes one of the next rarity, same slot
 ##   [BID, tier]                         auction (031): a crate of tier 0 or 1, unopened until bought
-##   [RECOVER, index]                    083: take part `index` off a guarded wreck; -1 = leave it
+##   [RECOVER, take]                     083: 0 takes the part pulled from a guarded wreck, -1 leaves it
 
 const TRAVEL: int = 0
 const FIGHT: int = 1
@@ -574,7 +574,7 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 
 	# HP carries: each machine leaves with what the fight left it. Torn arms are bolted back
 	# on. A machine DESTROYED in the fight is a wreck: it keeps its chassis, nothing else --
-	# unless its wreck pile still stands at the end (083): then one of its parts can be pulled out.
+	# unless its wreck pile still stands at the end (083): then one part, at random, comes back.
 	var fielded: Array = _fielded_crew(state)
 	var lost_parts: Dictionary = {}
 	for slot: int in fielded.size():
@@ -590,7 +590,7 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 			member["hp"] = 0
 			member["parts"] = [String(member["parts"][0]), "", "", "", ""]
 			state.log.append("%s was wrecked. Its parts are gone." % member["name"])
-	var wrecks: Array = wreck_offers(state, fielded, lost_parts, CombatSim.saved_wrecks(result))
+	var pull: Dictionary = wreck_pull(state, setup, fielded, lost_parts, CombatSim.saved_wrecks(result))
 	# Scrap piles collected during the fight are banked whatever the outcome.
 	state.scrap += result.scrap_collected
 	tally_feats(state.feats, result, kind)
@@ -607,7 +607,7 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 		# The objective failed but the crew lives: no salvage, and the road goes on.
 		state.pending = {}
 		state.log.append("Driven off. No salvage from this one.")
-		_queue_wrecks(state, wrecks)
+		_queue_wreck(state, pull)
 		return true
 	state.fights_won += 1
 	if kind == "warlord":
@@ -615,14 +615,14 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 		state.scrap += int(rules_of(state, setup).get("rewards", {}).get("warlord_scrap", 30))
 		state.pending = hoard(state, setup, false)
 		state.log.append("The warlord is down. Its hoard is open.")
-		_queue_wrecks(state, wrecks)
+		_queue_wreck(state, pull)
 		return true
 	if kind == "boss":
 		if state.act < act_count(setup):
 			# 029: the keeper's hoard -- a pick with a legendary in it -- then the next act.
 			state.pending = hoard(state, setup)
 			state.log.append("The gate is broken. The keeper's hoard is open.")
-			_queue_wrecks(state, wrecks)
+			_queue_wreck(state, pull)
 			return true
 		_end(state, RunState.WON, "The last gate is broken: the run is won.")
 		return true
@@ -639,15 +639,17 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 		" (+%d from piles)" % result.scrap_collected if result.scrap_collected > 0 else ""])
 	if placed > 0 and saved < placed and bool(rewards.get("defend_partial", true)):
 		state.log.append("%d of %d caches broke: the salvage is thinner." % [placed - saved, placed])
-	_queue_wrecks(state, wrecks)
+	_queue_wreck(state, pull)
 	return true
 
 
-## 083 (wreck recovery, amending 2026-09-24): for each crew machine wrecked in this fight whose
-## pile still stands (`saved` crew refs, as `CombatSim.saved_wrecks` gives them), the parts it lost
-## -- its core, arms and module, as fitted -- in crew order: `[{ "crew", "options" }]`.
-static func wreck_offers(state: RunState, fielded: Array, lost_parts: Dictionary, saved: Array) -> Array:
-	var out: Array = []
+## 083 (wreck recovery, amending 2026-09-24; the user, 2026-10-23: "one part in total, at random"):
+## the crew machines wrecked in this fight whose pile still stands (`saved` crew refs, as
+## `CombatSim.saved_wrecks` gives them) give back ONE part between them, picked by SimRNG from
+## every (wreck, lost part) pair in a fixed order -- the refs sorted, each wreck's core, arms and
+## module as fitted. `{ "crew", "part" }`, or {} when no guarded wreck lost anything.
+static func wreck_pull(state: RunState, setup: RunSetup, fielded: Array, lost_parts: Dictionary, saved: Array) -> Dictionary:
+	var pairs: Array = []
 	var refs: Array = saved.duplicate()
 	refs.sort()
 	for ref: Variant in refs:
@@ -655,23 +657,24 @@ static func wreck_offers(state: RunState, fielded: Array, lost_parts: Dictionary
 		if int(ref) / 10 != GridUnit.TEAM_PLAYER or slot < 0 or slot >= fielded.size():
 			continue
 		var index: int = int(fielded[slot])
-		var options: Array = []
+		if bool(state.crew[index]["alive"]):
+			continue
 		for part: Variant in lost_parts.get(index, []):
 			if not String(part).is_empty():
-				options.append(String(part))
-		if not options.is_empty() and not bool(state.crew[index]["alive"]):
-			out.append({"crew": index, "options": options})
-	return out
+				pairs.append({"crew": index, "part": String(part)})
+	if pairs.is_empty():
+		return {}
+	var rng: SimRNG = _rng(setup, state.current, 41, state.act)
+	return pairs[rng.range_int(0, pairs.size() - 1)]
 
 
-## Puts the guarded wrecks in front of whatever the fight left pending: one RECOVER per wreck,
-## then the salvage (or hoard, or nothing) as before.
-static func _queue_wrecks(state: RunState, wrecks: Array) -> void:
-	for i: int in range(wrecks.size() - 1, -1, -1):
-		var w: Dictionary = wrecks[i]
-		state.pending = {"kind": "wreck", "crew": int(w["crew"]), "options": w["options"], "next": state.pending}
-	for w: Dictionary in wrecks:
-		state.log.append("%s's wreck pile held: one of its parts can be pulled out." % state.crew[int(w["crew"])]["name"])
+## Puts the pulled part in front of whatever the fight left pending (the salvage, a hoard, or
+## nothing): one RECOVER, 0 to take it or -1 to leave it, then the rest as before.
+static func _queue_wreck(state: RunState, pull: Dictionary) -> void:
+	if pull.is_empty():
+		return
+	state.pending = {"kind": "wreck", "crew": int(pull["crew"]), "options": [String(pull["part"])], "next": state.pending}
+	state.log.append("%s's wreck pile held: a part came out of it." % state.crew[int(pull["crew"])]["name"])
 
 
 ## Takes one part off a guarded wreck into the hold (-1 leaves it), then shows what comes next.
