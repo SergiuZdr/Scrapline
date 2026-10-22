@@ -14,9 +14,18 @@
     "turn": {
       "group": "THE FIGHT",
       "name": "Your turn",
-      "text": "Each machine can move once and attack once (or use an ability), in any order. Then END TURN: the enemies do exactly what they showed.",
+      "text": "Each machine can move once and attack once (or use an ability). Move first: a machine that attacks is rooted for the rest of the turn, unless its role is LINE. Then END TURN: the enemies do exactly what they showed.",
       "forms": [
         "end turn"
+      ]
+    },
+    "rooted": {
+      "group": "THE FIGHT",
+      "name": "Rooted",
+      "text": "A machine that has attacked (or vented, or used an ability that takes its action) cannot move again this turn. Only a LINE machine can still move after firing. So walk first, then shoot.",
+      "forms": [
+        "rooted",
+        "roots"
       ]
     },
     "intent": {
@@ -172,9 +181,9 @@
         "shoved"
       ]
     },
-    "exposed": {"group": "ENEMIES", "name": "Exposed", "text": "A boss or warlord caught open (050): for your next turn it has no pylon, conduit or twin armour and takes double from every hit. The Grinder is exposed when its charge sticks, the Sorter when its pad works, The Pour when a coolant tank bursts near it.", "forms": ["exposed", "stuck", "hatch"]},
-    "coolant": {"group": "TERRAIN", "name": "Coolant tank", "text": "On The Pour's floor (050). Burst one within 2 of The Pour and its shell cracks: it takes double for the rest of your turn. The slag around the tank cools.", "forms": ["coolant tank", "coolant tanks", "coolant"]},
-    "open_side": {"group": "ENEMIES", "name": "Open side", "text": "The Core has one open side, ringed in amber on the board, turning a sixth every round (050). Hits from that side do 2 more and ignore its conduits.", "forms": ["open side"]},
+    "exposed": {"group": "ENEMIES", "name": "Exposed", "text": "A boss or warlord caught open: for your next turn it has no pylon, conduit or twin armour and takes double from every hit. The Grinder is exposed when its charge sticks, the Sorter when its pad works, The Pour when a coolant tank bursts near it.", "forms": ["exposed", "stuck", "hatch"]},
+    "coolant": {"group": "TERRAIN", "name": "Coolant tank", "text": "On The Pour's floor. Burst one within 2 of The Pour and its shell cracks: it takes double for the rest of your turn. The slag around the tank cools.", "forms": ["coolant tank", "coolant tanks", "coolant"]},
+    "open_side": {"group": "ENEMIES", "name": "Open side", "text": "The Core has one open side, ringed in amber on the board, turning a sixth every round. Hits from that side do 2 more and ignore its conduits.", "forms": ["open side"]},
     "snare": {"group": "WEAPONS", "name": "Snare", "text": "A snared machine cannot move on its side's next move: your next turn, or the enemy's next move. It can still attack. A Snare Launcher does it.", "forms": ["snare", "snares", "snared"]},
     "mine": {"group": "WEAPONS", "name": "Mine", "text": "A Mine Layer drops a mine on an open hex. It goes off once, for its damage, under whatever starts a round on it -- yours or theirs. Enemies walk round them; so should you.", "forms": ["mine", "mines", "mine layer"]},
     "flail": {"group": "WEAPONS", "name": "Flail", "text": "A Chain Flail hits the hex it is aimed at and the two beside it at the same distance: an arc of three. One step sideways is not always out of it.", "forms": ["flail", "sweep"]},
@@ -433,7 +442,7 @@
     "role": {
       "group": "YOUR MACHINES",
       "name": "Role",
-      "text": "The frame's trait. BRAWLER: +1 melee damage. LINE: can move after attacking. MARKSMAN: +1 range. ANCHOR: cannot be shoved or grappled.",
+      "text": "The frame's trait. BRAWLER: +1 melee damage. LINE: can still move after attacking (every other role is rooted once it attacks). MARKSMAN: +1 range. ANCHOR: cannot be shoved or grappled.",
       "forms": [
         "role",
         "brawler",
@@ -585,6 +594,43 @@
       "text": "Climb it to scout every site within two zones.",
       "forms": [
         "watchtower"
+      ]
+    },
+    "skirmish": {
+      "group": "THE RUN",
+      "name": "Fight (skirmish)",
+      "text": "A FIGHT site on the map: an ordinary fight, and a part from the salvage if you win.",
+      "forms": [
+        "skirmish",
+        "skirmishes"
+      ]
+    },
+    "arena": {
+      "group": "THE RUN",
+      "name": "Arena",
+      "text": "The hardest fight on the map short of a gate. Win it for a rare part.",
+      "forms": []
+    },
+    "scrapyard": {
+      "group": "THE RUN",
+      "name": "Scrapyard",
+      "text": "No fight: pick one free part from the heap, or take the scrap instead.",
+      "forms": []
+    },
+    "refinery": {
+      "group": "THE RUN",
+      "name": "Refinery",
+      "text": "Pay scrap to melt a part down into a random part one rarity higher, for the same socket. A rare becomes a legendary.",
+      "forms": [
+        "refinery"
+      ]
+    },
+    "auction": {
+      "group": "THE RUN",
+      "name": "Salvage auction",
+      "text": "Buy a sealed crate of parts blind. The dearer crate holds better parts and a bigger chance of a legendary.",
+      "forms": [
+        "auction"
       ]
     },
     "signal": {

@@ -6,7 +6,7 @@
     {
       "id": "welcome",
       "title": "THE SHAKEDOWN",
-      "text": "Three machines, a yard, three scrap runners. Each turn every machine can MOVE once and ATTACK once, in any order. Then you END TURN and the enemies act. The enemies always show what they will do first.",
+      "text": "Three machines, a yard, three scrap runners. Each turn every machine can MOVE once and ATTACK once. Move first: a machine that attacks is rooted where it stands (only a LINE machine can still move after firing). Then you END TURN and the enemies act. The enemies always show what they will do first.",
       "until": "next"
     },
     {
@@ -101,6 +101,22 @@
     }
   ],
   "hints": {
+    "ladder": {
+      "title": "THE LADDER",
+      "text": "Unlocks come between runs. Every run you play counts, won or lost: a crew or part opens the moment its goal is met and joins your next run. Win a run to open the next tier: the same yard with tougher enemies."
+    },
+    "new_part": {
+      "title": "NEW PARTS",
+      "text": "An unlocked part is not handed to you: from your next run it can turn up in salvage, at traders and at auctions. Its card says what it does when you meet it."
+    },
+    "exposed": {
+      "title": "EXPOSED!",
+      "text": "The boss is caught open: this turn it has no armour or shields and takes double from every hit. Throw everything at it now."
+    },
+    "seized": {
+      "title": "SEIZED",
+      "text": "This machine hit its heat cap: this round it can still move, but not attack. Watch the heat on its card, and VENT before it reaches the cap."
+    },
     "map": {
       "title": "THE MAP",
       "text": "Click a lit site to travel there: your crew walks the road. Every 2 moves the Reclaimer takes a zone (its gauge is at the top; its red ghost shows the line it takes next). Sites in the fog are not scouted yet."
