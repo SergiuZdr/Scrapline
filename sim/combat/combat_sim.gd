@@ -2082,3 +2082,13 @@ static func _path(came_from: Dictionary, start: Vector2i, goal: Vector2i) -> Arr
 		path.push_front(cell)
 		cell = came_from[cell]
 	return path
+
+
+## 083: rounds until the Core (or any keeper with a pulse) pulses next, for the HUD; -1 when it has none.
+static func pulse_in(state: CombatState, ref: int) -> int:
+	return -1
+
+
+## 083: crew refs whose wreck pile still stands at the end of the fight, sorted (a guarded wreck saves one part).
+static func saved_wrecks(state: CombatState) -> Array:
+	return []
