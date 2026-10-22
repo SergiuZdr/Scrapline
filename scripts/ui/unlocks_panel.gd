@@ -64,6 +64,8 @@ func _ready() -> void:
 			if _fresh.has(String(entry["id"])):
 				names.append(_gives(entry).get_slice("  (", 0))
 		box.add_child(UIKit.fit(_label("NEW SINCE YOU LAST LOOKED:  " + ",  ".join(names), 24, UIKit.INK_GREEN, UIKit.font_comic()), 1440, 2, 14))
+		# 082: the first time something new is held, say where new parts turn up.
+		Hints.show_once(self, "new_part", _db, Vector2(1440, 16))
 	# 034: three columns -- milestones (runs, fights, acts) down the first two, MISSIONS (feats
 	# in fights) in the third, each under its own heading.
 	var columns := HBoxContainer.new()
