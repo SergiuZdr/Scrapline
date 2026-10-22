@@ -5,6 +5,7 @@ extends SceneTree
 ## into the ground while every screenshot still "looks fine".
 ##
 ##   godot --path . --resolution 960x540 --script res://tools/measure_contrast.gd -- --fight slag_pit
+##       [--legacy | --height H]   083: the keeper at its pre-083 look, or H times the crew
 ##
 ## Renders the fight twice from the same camera: as it is (overlays and HUD hidden), then
 ## with everything but the machines hidden against black. The second render is the mask;
@@ -25,6 +26,12 @@ func _initialize() -> void:
 func _run() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var scene: Node = (load("res://scenes/combat.tscn") as PackedScene).instantiate()
+	# 083: --legacy measures the pre-083 keeper (scale and tag) on the same build, --height H a
+	# keeper H times the crew -- so a look change is judged apart from what the sim changed.
+	scene.set("legacy_boss_look", args.has("--legacy"))
+	scene.set("keeper_height", float(_arg(args, "--height", "0")))
+	if args.has("--lift"):
+		scene.set("keeper_paint_lift", float(_arg(args, "--lift", "0")))
 	root.add_child(scene)
 	# 081: wait for the opening to START and then end. With the effects baked the scene can still be
 	# loading at frame 10, not yet busy, and the old "not busy after frame 10" measured a blank screen.
