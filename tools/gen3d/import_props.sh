@@ -25,6 +25,8 @@ typeset -A TURN=(yd_car_stack 90 yd_service_gantry 90 tr_floor_1 30 tr_floor_5 3
 typeset -A COLOURS=(scrap_pile 48 tr_flue 48)
 # The plain floor tiles keep their grain (tread, cracks, gravel): 16 colours turn it to blotches.
 for t in 1 2 3 4 5; COLOURS[tr_floor_$t]=32
+# Texture multiplied before posterizing: the factories came out of TRELLIS baked almost black.
+typeset -A BRIGHT=(sk_factory_a 2.5 sk_factory_b 2.5)
 typeset -A NAME=(pile_a scrap_pile)
 mkdir -p tools/gen3d/raw/props art/props
 clean() {
@@ -32,7 +34,7 @@ clean() {
   # The hexes are drawn square to the grid: the cleaner's own squaring would turn the wall a corner off.
   case $name in wall|hive_pad|tr_*) extra=(--no-square) ;; esac
   blender --background --python tools/blender/clean_generated.py -- --keep-texture --in $raw \
-    --out art/props/$name.glb --size ${SIZE[$name]:-0.8} --budget 6000 --posterize ${COLOURS[$name]:-16} --sharp 45 \
+    --out art/props/$name.glb --size ${SIZE[$name]:-0.8} --budget 6000 --posterize ${COLOURS[$name]:-16} --brighten ${BRIGHT[$name]:-1} --sharp 45 \
     ${extra[@]} --yaw ${YAW:-${TURN[$name]:-0}} 2>&1 | grep -E "^kept|Error" | sed "s/^/$name: /"
 }
 if [ "$1" = "--again" ]; then

@@ -18,6 +18,12 @@ Newest first. One entry per iteration; link to the iteration file for detail.
   cracked concrete, drain grate, gravel, worn hazard paint) by a hash of its cell, turned a hashed sixth.
 - Two generated factories (`sk_factory_a|b`) stand just past the region map's far edge.
 - A green scrap icon beside the map's SCRAP count.
+
+### Changed
+- The yard around the board is laid out in irregular clusters (stacked containers off true, wrecks with
+  tyres, tyre heaps), different for every fight; no red containers or barriers beside the board.
+- The map's factories stand clear of the fog past the far edge, brightened, fewer and further apart,
+  with yard pieces at their feet; the map view can be dragged 9 m past the far edge to see them.
 - `tools/shot_props.gd`: close-ups of the props on hexes; `--props old` draws the scripted ones.
 
 ### Changed

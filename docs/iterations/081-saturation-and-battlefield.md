@@ -86,6 +86,18 @@ approves, then TRELLIS on Colab, then dressed in ink in the game.
   (`TURN` in `import_props.sh`). Contrast went UP: 2.08 / 2.04 / 2.04 (was 1.83) -- the textured floor
   around a machine is darker than the flat slab was. Two factories (A and B) replace Kenney's shapes on the
   region map; the old horizon (20 m past the edge) was never in the camera's reach, so they stand 6 m out.
+- **Yard and factories, again** (`shots/081_curte_fabrici_inainte_dupa.png`; the user: the yard "too
+  uniform", the factory "does not look good on the map"). The yard around the board is now clusters walked
+  along each side (`_yard_row`, `_yard_cluster`): two containers stacked off true, a lone one turned
+  end-on, wrecks with tyres at their feet, tyre heaps; kinds, gaps, turns, sizes and shade hashed from the
+  fight, its id included (four fights of one size had dressed alike). The red container and the barriers
+  stay off the flanks (they read as danger and were the brightest things on screen). Contrast 2.07 / 2.07
+  / 2.17 (was 2.08 / 2.04 / 2.04). On the map the factories were under the fog plane (3.4 m up): only
+  their roofs came through, as dark smears, and TRELLIS had baked their texture almost black. Now the fog
+  clears past the far edge (`SKYLINE_CLEAR`), a drag carries the view 9 m further (`SKYLINE_LOOK`), the
+  texture is brightened 2.5x before posterizing (`clean_generated.py --brighten`, `BRIGHT` in
+  `import_props.sh`), and a few factories stand well apart, each its own size and turn, with yard pieces
+  at their feet.
 - **Scrap icon** in the map header (`art/icons/scrap_gain.png`, concept A), green like the piles.
 
 ## Decisions, lessons, open questions
@@ -107,6 +119,9 @@ approves, then TRELLIS on Colab, then dressed in ink in the game.
   a stale frame with the HUD the tool had hidden), so the numbers (8.98 / 9.46, 1.46-1.80) mean
   nothing. The tool now waits for the card by the clock and keeps props out of the machine mask;
   re-measure (`--props old` against the default) with the screen awake. Open.
+- A scenery model can be hidden by the map's fog plane and still poke through it: check the fog's
+  rectangle before blaming a model's look. TRELLIS can bake a night-shaded concept into near-black paint;
+  measure the texture before tuning tints (a tint above 1 does nothing).
 - A staged board cannot be given piles by poking the scene (the opening replays the fight); a fight
   file's `objective.piles` puts them on the board from the start.
 

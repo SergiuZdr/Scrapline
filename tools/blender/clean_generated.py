@@ -73,6 +73,8 @@ def args():
     p.add_argument("--keep-texture", action="store_true",
                    help="keep the model's geometry and UV texture (a TRELLIS model): no remesh, no zones")
     p.add_argument("--posterize", type=int, default=0, help="with --keep-texture: flat colours in the texture")
+    p.add_argument("--brighten", type=float, default=1.0,
+                   help="with --keep-texture: multiply the texture (linear) before posterizing; for a model baked near black")
     p.add_argument("--no-square", action="store_true",
                    help="keep the model's own facing (020: squaring turned the gate's shutter sideways; a "
                    "TRELLIS model faces the way its concept was drawn, which the map's facing sites rely on)")
@@ -346,6 +348,23 @@ def grey_white(obj, lum_min=0.52, sat_max=0.16, concrete=(0.21, 0.21, 0.23)):
     return float(hit.mean())
 
 
+def brighten(obj, factor):
+    """The base-colour texture multiplied by `factor` (in linear light, clipped). TRELLIS baked
+    081's factories almost black: the concept's night shading went into the paint."""
+    import numpy as np
+    for slot in obj.material_slots:
+        material = slot.material
+        if material is None or not material.use_nodes:
+            continue
+        for node in material.node_tree.nodes:
+            if node.type == "TEX_IMAGE" and node.image is not None:
+                px = np.array(node.image.pixels[:], dtype=np.float32).reshape(-1, 4)
+                px[:, :3] = np.clip(px[:, :3] * factor, 0.0, 1.0)
+                node.image.pixels[:] = px.reshape(-1)
+                node.image.update()
+                node.image.pack()
+
+
 def posterize(obj, colours):
     """The model's base-colour texture reduced to `colours` flat colours (k-means on the pixels,
     seeded, so a rerun gives the same file). Gradients -- TRELLIS bakes soft shading in -- would
@@ -420,6 +439,8 @@ def keep_texture(a):
     collapse(obj, a.budget, a.sharp)
     if a.grey_white:
         print("greyed %.0f%% of the texture (near-white)" % (100.0 * grey_white(obj)))
+    if a.brighten != 1.0:
+        brighten(obj, a.brighten)
     texture = posterize(obj, a.posterize)
     after = sum(len(p.vertices) - 2 for p in obj.data.polygons)
     obj.name = os.path.splitext(os.path.basename(a.out))[0]
