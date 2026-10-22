@@ -23,6 +23,8 @@ static func next_action(state: RunState, setup: RunSetup) -> Array:
 			return [RunSim.FIGHT, play_fight(RunSim.fight_setup(state, setup))]
 		"reward", "scrapyard":
 			return [RunSim.PICK, _choose_part(state, setup, state.pending["options"], kind)]
+		"wreck":
+			return [RunSim.RECOVER, _choose_wreck_part(state, setup, state.pending["options"])]
 		"workshop":
 			for i: int in state.crew.size():
 				if not bool(state.crew[i]["alive"]) and state.scrap >= int((setup.rules["workshop"] as Dictionary)["rebuild_cost"]):
@@ -176,6 +178,24 @@ static func _choose_part(state: RunState, setup: RunSetup, options: Array, _kind
 			best = i
 	# Nothing it would fit: the scrap is worth more than a spare part (011: every salvage
 	# screen offers it).
+	return best
+
+
+## 083: which part to pull out of a guarded wreck. The rebuilt machine comes back with empty
+## sockets, so any of its parts fills one; the bot takes the one worth most -- the biggest gain
+## on a living machine if one beats an empty-socket refill, else the rarest (the core on a tie,
+## since it is listed first). It never leaves one: a spare part still scraps for something.
+static func _choose_wreck_part(state: RunState, setup: RunSetup, options: Array) -> int:
+	var best: int = -1
+	var best_score: int = -1
+	for i: int in options.size():
+		var part: String = String(options[i])
+		var living: int = _best_gain(state, setup, part)
+		# 10 is what filling an empty socket scores in `_best_gain`: the rebuilt machine's own.
+		var score: int = maxi(living, 10) * 10 + setup.rarity(part)
+		if score > best_score:
+			best_score = score
+			best = i
 	return best
 
 

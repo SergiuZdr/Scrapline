@@ -105,6 +105,8 @@
     "warlord_legend_pct": 35,
     "hoard_scrap": 25,
     "salvage_scrap": 8,
+    "defend_partial": true,
+    "_defend_partial": "083 (A7-defend): a won DEFEND keeps ceil(choices x saved / placed) of its salvage options and ceil(salvage_scrap x saved / placed) scrap; false pays it all whenever it is won. All caches broken is still a lost fight.",
     "recent_offers": 6,
     "_recent_offers": "046: no reward offers a part in the hold or among the last `recent_offers` parts offered, while anything else is left; a legendary comes up once a run.",
     "_salvage": "011: every salvage screen offers `choices` parts from different slots (the second leaning to a maker the crew builds sets from) or `salvage_scrap` scrap instead; an elite's first part comes tuned."
