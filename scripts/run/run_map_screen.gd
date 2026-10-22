@@ -723,6 +723,8 @@ func _show_overlay() -> void:
 		"reward", "scrapyard":
 			_pick_panel()
 			Hints.show_once(_overlay, "salvage", Run.db, Vector2(40, 140))
+		"wreck":
+			_wreck_panel()
 		"workshop":
 			_workshop_panel()
 			Hints.show_once(_overlay, "workshop", Run.db, Vector2(40, 140))
@@ -874,6 +876,12 @@ func _pick_panel() -> void:
 	if state.cargo.size() >= state.hold_size:
 		note += "  It is full: you can still take a part, then fit or scrap something in the GARAGE before moving on."
 	# 046: a hoard is not salvage off the wrecks -- it says whose it is and what is in it.
+	# 083 (A7-defend): a DEFEND won with caches broken says why the salvage is thinner.
+	var caches: Array = state.pending.get("caches", [])
+	if caches.size() == 2 and int(caches[0]) < int(caches[1]):
+		note = "%d of %d caches broke: the wrecks give up %d part%s, not %d. " % [int(caches[1]) - int(caches[0]), int(caches[1]),
+			(state.pending["options"] as Array).size(), "" if (state.pending["options"] as Array).size() == 1 else "s",
+			int(Run.setup.rules.get("rewards", {}).get("choices", 3))] + note
 	var title: String = "SCRAPYARD" if scrapyard else "SALVAGE"
 	var site_kind: String = String(state.site(state.current)["type"])
 	if not scrapyard and (site_kind == "boss" or site_kind == "warlord"):
@@ -905,6 +913,42 @@ func _pick_panel() -> void:
 		else "LEAVE IT", UIKit.secondary(), UIKit.TEXT, Vector2(320, 60))
 	skip.pressed.connect(_pick.bind(-1))
 	_row(box).add_child(skip)
+
+
+## 083 (wreck recovery): a crew machine was wrecked, but its pile still stood when the fight ended.
+## One of the parts it lost comes back into the hold, the player's pick; the rest is gone.
+func _wreck_panel() -> void:
+	var state: RunState = Run.state
+	var member: Dictionary = state.crew[int(state.pending["crew"])]
+	var name: String = String(member["name"]).to_upper()
+	var note: String = "%s's wreck pile held to the end. Pull ONE of its parts into the hold; the rest is scrap. " % member["name"]
+	note += ("Rebuild %s at a workshop, then fit it back on." % member["name"]) if not bool(member["alive"]) else ""
+	note += "  Hold: %d / %d." % [state.cargo.size(), state.hold_size]
+	var box := _modal("PULLED FROM %s'S WRECK" % name, note, 1240, true)
+	var row := _row(box)
+	var options: Array = state.pending["options"]
+	for i: int in options.size():
+		var column := VBoxContainer.new()
+		column.add_theme_constant_override("separation", UIKit.SPACE_XS)
+		row.add_child(column)
+		var card: Button = PartCard.build(Run.db, String(options[i]), Vector2(290, 236), state.crew)
+		card.name = "wreck_card_%d" % i
+		card.pressed.connect(_recover.bind(i))
+		column.add_child(card)
+		var take := _button("PULL IT OUT", UIKit.choice(), UIKit.TEXT, Vector2(290, 52))
+		take.name = "wreck_take_%d" % i
+		take.pressed.connect(_recover.bind(i))
+		column.add_child(take)
+	var leave := _button("LEAVE THE WRECK", UIKit.secondary(), UIKit.TEXT, Vector2(320, 60))
+	leave.name = "wreck_leave"
+	leave.pressed.connect(_recover.bind(-1))
+	_row(box).add_child(leave)
+
+
+func _recover(index: int) -> void:
+	if index >= 0:
+		Audio.play("reward", -8.0)
+	_apply([RunSim.RECOVER, index])
 
 
 func _workshop_panel() -> void:
