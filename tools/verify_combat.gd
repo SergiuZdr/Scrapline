@@ -193,6 +193,8 @@ func _test_keepers_083() -> void:
 			standing += 1
 	_check("everything left collapses (DESTROYED each)", standing == 0 and _count(s, since, GridEv.DESTROYED) == others + 1)
 	_check("no action is taken after the fall", not CombatSim.apply(s, [CombatSim.ACT_END, -1, 0, 0]))
+	var fallen: String = String(CombatSim.objective_status(s)["text"])
+	_check("after the fall the line keeps the name and drops the waves (%s)" % fallen, fallen == "DESTROY THE CORE")
 	var status: Dictionary = CombatSim.objective_status(CombatSim.start(setup))
 	_check("the objective reads DESTROY THE CORE (%s)" % status["text"], String(status["type"]) == "keeper" and String(status["text"]).begins_with("DESTROY THE CORE"))
 

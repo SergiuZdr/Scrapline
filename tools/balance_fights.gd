@@ -33,9 +33,8 @@ extends SceneTree
 ## --out DIR`), `--seeds` times each, and reports per act and kind: win rate, rounds, crew HP lost,
 ## rounds played after the last keeper fell, and losses in which the crew ended with MORE HP than it
 ## started with (the heal-farm). `boss.<key>=json` in `--set` / `--b` lays a key over every such
-## fight (`boss.pile_heal=0`, `boss.escort_waves=[]`; `boss.keeper=false` strips the keeper flags).
-## A key the gate's own file has and the run-built fight lacks (RunSim does not carry it yet) is
-## carried over from the file, and said so.
+## fight (`boss.pile_heal=0`, `boss.escort_waves=[]`; `boss.keeper=false` strips the keeper flags;
+## `boss.keeper_hp=60` sets every keeper's HP).
 
 const Jobs = preload("res://tools/jobs.gd")
 const Stats = preload("res://tools/stats.gd")
@@ -292,7 +291,7 @@ func _boss_trial(args: PackedStringArray, slice: Array, dbs: Array[ContentDB], b
 	var variants: int = dbs.size()
 	var items: int = files.size() * seeds * variants
 	var jobs: int = _arg_int(args, "--jobs", Jobs.default_count())
-	var numbers: Dictionary = {"A": {}, "B": {}, "pairs": {}, "carried": {}}
+	var numbers: Dictionary = {"A": {}, "B": {}, "pairs": {}}
 	if slice.is_empty() and jobs > 1:
 		for part: Dictionary in Jobs.run("res://tools/balance_fights.gd", args, jobs, items, "won"):
 			Jobs.merge(numbers, part)
@@ -305,12 +304,15 @@ func _boss_trial(args: PackedStringArray, slice: Array, dbs: Array[ContentDB], b
 			var file: String = files[base / seeds]
 			# JSON has no integers: every number back to an int, as a resumed run reads its save.
 			var fight: Dictionary = RunStore._ints(JSON.parse_string(FileAccess.get_file_as_string(dir.path_join(file))))
-			_carry_keys(dbs[v], fight, numbers["carried"])
 			for key: String in (overlays[v] as Dictionary):
 				if key == "keeper":
 					for spec: Dictionary in fight["enemy"]:
 						if not bool(overlays[v]["keeper"]):
 							spec.erase("keeper")
+				elif key == "keeper_hp":
+					for spec: Dictionary in fight["enemy"]:
+						if bool(spec.get("keeper", false)):
+							spec["hp"] = int(overlays[v]["keeper_hp"])
 				else:
 					fight[key] = overlays[v][key]
 			var group: String = file.trim_prefix("real_").trim_suffix(".json")
@@ -331,8 +333,6 @@ func _boss_trial(args: PackedStringArray, slice: Array, dbs: Array[ContentDB], b
 			Jobs.finish(slice, numbers)
 			quit()
 			return
-	if not (numbers["carried"] as Dictionary).is_empty():
-		print("  carried from the gate's file (RunSim does not copy them yet): %s" % ", ".join(PackedStringArray((numbers["carried"] as Dictionary).keys())))
 	print("")
 	print("=== run-built boss fights: %d files x %d seeds, from %s ===" % [files.size(), seeds, dir])
 	for v: int in variants:
@@ -362,20 +362,6 @@ func _boss_overlay(settings: PackedStringArray) -> Dictionary:
 		var pair: PackedStringArray = setting.trim_prefix("boss.").split("=", true, 1)
 		out[pair[0]] = JSON.parse_string(pair[1])
 	return out
-
-
-## The keys a gate or warlord file sets for its fight that the run-built fight lacks (083).
-func _carry_keys(db: ContentDB, fight: Dictionary, carried: Dictionary) -> void:
-	for id: Variant in db.fights:
-		var template: Dictionary = db.fights[id]
-		if String(template.get("name", "")) != String(fight.get("name", "")) \
-				or not (bool(template.get("boss", false)) or bool(template.get("warlord", false))):
-			continue
-		for key: String in ["pile_heal", "escort_waves"]:
-			if template.has(key) and not fight.has(key):
-				fight[key] = (template[key] as Variant)
-				carried[key] = 1
-		return
 
 
 ## One run-built boss fight played by the bot: the numbers `_boss_trial` adds up.
