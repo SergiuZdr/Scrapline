@@ -116,7 +116,7 @@ func _down(button: BaseButton) -> void:
 
 
 func _up(button: BaseButton) -> void:
-	if not is_instance_valid(button):
+	if not is_instance_valid(button) or not button.is_inside_tree():
 		return
 	# Back past where it rests, then home: the bounce is what reads as springy.
 	var tween := _tween(button)
