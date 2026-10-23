@@ -5,7 +5,8 @@ extends SceneTree
 ##
 ##   godot --path . --resolution 1920x1080 --script res://tools/shot_bosses.gd -- \
 ##       --fight the_pour --out shots/083/pour        board still after the opening: <out>_board.png
-##       --push      the opening push-in ON: <out>_push0.png (start), _push1.png (mid), _push2.png (end)
+##       (push-in)   on by default: <out>_push0.png (its first frame), _push1.png (mid), _push2.png (end)
+##       --no-push   the opening without the push-in
 ##       --fall      stage the keeper at 1 HP beside Knuckles and strike it: <out>_fall0..3.png (the beat, the
 ##                   collapse, the end, the result)
 ##       --ends N    end the turn N times first (escort marks show the round before they land)
@@ -23,7 +24,7 @@ func _run() -> void:
 	var out: String = _arg(args, "--out", "shots/083/boss")
 	DirAccess.make_dir_recursive_absolute(out.get_base_dir())
 	var scene: Node = (load("res://scenes/combat.tscn") as PackedScene).instantiate()
-	scene.set("boss_push_in", args.has("--push"))
+	scene.set("boss_push_in", not args.has("--no-push"))
 	scene.set("legacy_boss_look", args.has("--legacy"))
 	scene.set("keeper_height", float(_arg(args, "--height", "0")))
 	if args.has("--lift"):
@@ -34,7 +35,7 @@ func _run() -> void:
 	for i: int in 3000:
 		await process_frame
 		var phase: float = float(scene.get("_push_phase"))
-		if args.has("--push"):
+		if not args.has("--no-push"):
 			if phase >= 0.0 and not taken[0]:
 				taken[0] = true
 				await _save(out + "_push0.png")
