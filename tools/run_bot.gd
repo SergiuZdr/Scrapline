@@ -12,6 +12,9 @@ extends SceneTree
 ## without editing the data: `--set enemies.count_by_column=[3,3,3,3,4,4,5,5,5]` (`combat.<path>`
 ## and `fight.<id>.<path>` reach the combat rules and one map). A misspelt path is an error.
 ##
+## `--set bot.route="explorer"` (084) plays the explorer, who takes every site it can reach before
+## going on; `--b bot.route="explorer"` compares it with the forward bot on the same seeds.
+##
 ## `--b path=json` (071, repeatable) plays a variant B on the SAME seeds as A (A is the game, or the
 ## game with the `--set`s) and reports B - A with a verdict: real, or no detectable difference and how
 ## big it could still be. Same seeds cancel the luck of the draw, so A/B needs far fewer runs than two
@@ -107,6 +110,10 @@ func _compare(stats: Dictionary, runs: int, ms: int) -> void:
 	print("    seeds both won %d, only A %d, only B %d, neither %d" % [both, only_a, only_b, runs - both - only_a - only_b])
 	print("  fights won per run: A %s, B %s" % [Stats.mean_text(a["fights"], a["fights_sq"], int(a["runs"])),
 		Stats.mean_text(b["fights"], b["fights_sq"], int(b["runs"]))])
+	print("  fights fought per run: A %s, B %s" % [Stats.mean_text(a["fought"], a["fought_sq"], int(a["runs"])),
+		Stats.mean_text(b["fought"], b["fought_sq"], int(b["runs"]))])
+	print("  acts bitten or reached: A %s, B %s" % [Stats.rate(int(a["pressed_acts"]), int(a["acts"])),
+		Stats.rate(int(b["pressed_acts"]), int(b["acts"]))])
 	for act: int in range(1, 4):
 		var key: String = str(act)
 		if int(a["reached_act"].get(key, 0)) + int(b["reached_act"].get(key, 0)) == 0:
@@ -121,7 +128,8 @@ func _new_stats() -> Dictionary:
 	return {"runs": 0, "won": 0, "fights": 0, "moves": 0, "boss_hp": 0, "reached_boss": 0, "errors": 0,
 		"levels": 0, "tunes": 0, "scrap_left": 0, "last_gate_scrap": 0, "last_gate_runs": 0,
 		"last_gate_rares": 0, "reasons": {}, "ended_col": {}, "ended_act": {}, "reached_act": {},
-		"gate_lost": {}, "fights_sq": 0}
+		"gate_lost": {}, "fights_sq": 0, "fought": 0, "fought_sq": 0, "acts": 0, "bitten_acts": 0, "reached_acts": 0,
+		"pressed_acts": 0, "bites": 0, "reaches": 0, "conditions": {}}
 
 
 ## Plays one run to its end and counts it into `stats`. Returns a line about it ("+" if won).
@@ -131,8 +139,17 @@ func _play(db: ContentDB, seed_value: int, stats: Dictionary) -> String:
 	Stats.bot_for(db)
 	var state: RunState = RunSim.start(setup)
 	var guard: int = 0
+	# 084 (B3): per act, whether the Reclaimer bit (a move out of consumed ground) or its drones
+	# reached into a fight; fights fought, won or not.
+	var bitten: Dictionary = {}
+	var reached: Dictionary = {}
+	var fought: int = 0
 	while state.outcome == RunState.ONGOING and guard < 400:
 		var action: Array = RunBot.next_action(state, setup)
+		var act_now: int = state.act
+		var bites: bool = int(action[0]) == RunSim.TRAVEL and state.consumed(state.current)
+		if int(action[0]) == RunSim.FIGHT:
+			fought += 1
 		var was_boss: bool = String(state.pending.get("site_type", "")) == "boss"
 		var hp_before: int = 0
 		for member: Dictionary in state.crew:
@@ -141,6 +158,12 @@ func _play(db: ContentDB, seed_value: int, stats: Dictionary) -> String:
 			stats["errors"] += 1
 			print("  seed %d: illegal bot action %s (pending %s)" % [seed_value, str(action).left(80), state.pending.get("kind", "")])
 			break
+		if bites:
+			bitten[act_now] = true
+			stats["bites"] += 1
+		if int(action[0]) == RunSim.TRAVEL and (state.pending.get("fight", {}) as Dictionary).has("reclaimer"):
+			reached[act_now] = true
+			stats["reaches"] += 1
 		if int(action[0]) == RunSim.LEVEL_UP:
 			stats["levels"] += 1
 		elif int(action[0]) == RunSim.TUNE:
@@ -171,6 +194,14 @@ func _play(db: ContentDB, seed_value: int, stats: Dictionary) -> String:
 		line = "- lost in act %d, seed %d: %s" % [state.act, seed_value, state.end_reason]
 	for a: int in range(1, state.act + 1):
 		_count(stats["reached_act"], str(a))
+	for a: int in range(1, state.act + 1):
+		stats["acts"] += 1
+		stats["bitten_acts"] += 1 if bitten.has(a) else 0
+		stats["reached_acts"] += 1 if reached.has(a) else 0
+		stats["pressed_acts"] += 1 if bitten.has(a) or reached.has(a) else 0
+		_count(stats["conditions"], RunSim.act_condition(state, setup, a))
+	stats["fought"] += fought
+	stats["fought_sq"] += fought * fought
 	stats["fights"] += state.fights_won
 	stats["fights_sq"] += state.fights_won * state.fights_won
 	stats["moves"] += state.moves
@@ -192,6 +223,17 @@ func _report(db: ContentDB, s: Dictionary, ms: int) -> void:
 		Stats.runs_needed(p, 0.05), Stats.runs_needed(p, 0.10)])
 	print("  per run: %.1f moves, %.1f fights won (+-%.1f)" % [s["moves"] / n, s["fights"] / n,
 		Stats.mean_ci(s["fights"], s["fights_sq"], runs)[1]])
+	print("  per run: %s fights fought; the Reclaimer bit %.2f times and reached into %.2f fights" % [
+		Stats.mean_text(s["fought"], s["fought_sq"], runs), s["bites"] / n, s["reaches"] / n])
+	print("    acts played %d: bitten in %s, drones reached in %s, either in %s" % [int(s["acts"]),
+		Stats.rate(int(s["bitten_acts"]), int(s["acts"])), Stats.rate(int(s["reached_acts"]), int(s["acts"])),
+		Stats.rate(int(s["pressed_acts"]), int(s["acts"]))])
+	var conds: PackedStringArray = []
+	var names: Array = (s["conditions"] as Dictionary).keys()
+	names.sort()
+	for c: Variant in names:
+		conds.append("%s %d" % ["none" if String(c).is_empty() else String(c), int(s["conditions"][c])])
+	print("    act conditions: %s" % ", ".join(conds))
 	print("  economy per run: %.1f levels bought, %.1f parts tuned, %.1f scrap unspent at the end" % [
 		s["levels"] / n, s["tunes"] / n, s["scrap_left"] / n])
 	print("  reached the boss: %d, crew HP going in: %.1f avg (total of the three)" % [s["reached_boss"],

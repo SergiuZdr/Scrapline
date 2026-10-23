@@ -115,9 +115,13 @@ static func override(db: ContentDB, setting: String, quiet: bool = false) -> voi
 	var pair: PackedStringArray = setting.split("=", true, 1)
 	var keys: PackedStringArray = pair[0].split(".")
 	if keys[0] == "bot":
-		if pair[0] != "bot.abilities":
-			push_error("override %s: the bot has only bot.abilities" % pair[0])
-		db.set_meta("bot_abilities", bool(JSON.parse_string(pair[1])))
+		if pair[0] == "bot.route":
+			# 084 (B3): `bot.route="explorer"` sweeps every site it can reach (RunBot.route).
+			db.set_meta("bot_route", String(JSON.parse_string(pair[1])))
+		elif pair[0] != "bot.abilities":
+			push_error("override %s: the bot has only bot.abilities and bot.route" % pair[0])
+		else:
+			db.set_meta("bot_abilities", bool(JSON.parse_string(pair[1])))
 		if not quiet:
 			print("  override %s = %s" % [pair[0], pair[1]])
 		return
@@ -142,6 +146,7 @@ static func override(db: ContentDB, setting: String, quiet: bool = false) -> voi
 ## Puts the bot in the mode `db` was given (`--set bot.abilities=false`); call before each game.
 static func bot_for(db: ContentDB) -> void:
 	CombatBot.use_abilities = bool(db.get_meta("bot_abilities", true))
+	RunBot.route = String(db.get_meta("bot_route", "forward"))
 
 
 ## Every value following `flag` in `args`.
