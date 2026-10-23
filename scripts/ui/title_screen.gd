@@ -110,7 +110,12 @@ func _ready() -> void:
 	# marked NEW inside; opening it marks it seen.
 	var unseen: Array = Profile.unseen_unlocks()
 	var goals := _menu_button("UNLOCKS  ·  %d NEW" % unseen.size() if not unseen.is_empty() else "UNLOCKS", false, func() -> void:
-		UnlocksPanel.open(self, Run.db, Profile.unlocked(), Profile.stats(), Profile.unseen_unlocks(), Profile.run_history())
+		UnlocksPanel.open(self, Run.db, Profile.unlocked(), Profile.stats(), Profile.unseen_unlocks(), Profile.run_history(),
+			func(entry: Dictionary) -> String:
+				if not Run.play_entry(entry):
+					return Run.problem
+				get_tree().change_scene_to_file("res://scenes/run_map.tscn")
+				return "")
 		Profile.mark_unlocks_seen())
 	goals.custom_minimum_size = Vector2(250 if not unseen.is_empty() else 164, 52)
 	extras.add_child(goals)

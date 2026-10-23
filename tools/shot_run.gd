@@ -218,7 +218,8 @@ func _title_shot(args: PackedStringArray, run: Node, out: String) -> void:
 	for i: int in 10:
 		await process_frame
 	if args.has("--ledger"):
-		var panel: Node = (load("res://scripts/ui/unlocks_panel.gd") as GDScript).call("open", current_scene, run.get("db"), profile.call("unlocked"), profile.call("stats"), [], profile.call("run_history"))
+		var panel: Node = (load("res://scripts/ui/unlocks_panel.gd") as GDScript).call("open", current_scene, run.get("db"), profile.call("unlocked"), profile.call("stats"), [], profile.call("run_history"),
+			func(_entry: Dictionary) -> String: return "")
 		for i: int in 3:
 			await process_frame
 		panel.call("_show_tab", "RUNS")

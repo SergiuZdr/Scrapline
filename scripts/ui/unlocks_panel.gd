@@ -15,14 +15,20 @@ var _stats: Dictionary
 var _fresh: Array
 ## 084 (B8): the run history (`Profile.run_history`), newest first, for the RUNS ledger.
 var _history: Array = []
+## PLAY THIS SEED on a ledger row: `func(entry) -> String`, "" when the run started, else why not.
+## The caller owns the run; this panel only asks.
+var _on_play: Callable
+var _ledger_problem: Label
 var _unlocks_view: Control
 var _runs_view: Control
 var _tab_buttons: Dictionary = {}
 
 
-static func open(parent: Node, db: ContentDB, held: Array, stats: Dictionary, fresh: Array = [], history: Array = []) -> UnlocksPanel:
+static func open(parent: Node, db: ContentDB, held: Array, stats: Dictionary, fresh: Array = [], history: Array = [],
+		on_play: Callable = Callable()) -> UnlocksPanel:
 	var panel := UnlocksPanel.new()
 	panel._history = history
+	panel._on_play = on_play
 	panel._db = db
 	panel._meta = db.meta
 	panel._held = held
@@ -162,8 +168,11 @@ func _ledger() -> Control:
 	view.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	view.add_child(UIKit.fit(_label("The last %d runs, newest first. A seed code plays that region again from NEW RUN; a seeded run counts for nothing on the ladder." % 50,
 		UIKit.SIZE_BODY, UIKit.INK_DIM, UIKit.font_strong()), 1440, 2, 12))
+	_ledger_problem = _label("", UIKit.SIZE_BODY, Ink.DANGER, UIKit.font_strong())
+	_ledger_problem.name = "ledger_problem"
+	view.add_child(_ledger_problem)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(1460, 780)
+	scroll.custom_minimum_size = Vector2(1460, 750)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	view.add_child(scroll)
 	var rows := VBoxContainer.new()
@@ -185,9 +194,13 @@ func _ledger_row(entry: Dictionary) -> Control:
 	style.band = Ink.GAIN if ended == "won" else (Ink.DANGER if ended != "abandoned" else UIKit.INK_DIM)
 	row.add_theme_stylebox_override("panel", style)
 	row.custom_minimum_size = Vector2(1440, 0)
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	row.add_child(line)
 	var text := VBoxContainer.new()
-	text.add_theme_constant_override("separation", 0)
-	row.add_child(text)
+	text.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.add_child(text)
 	var crews: Dictionary = _meta.get("crews", {})
 	var tiers: Array = _meta.get("tiers", [])
 	var tier: int = int(entry.get("tier", 0))
@@ -203,19 +216,53 @@ func _ledger_row(entry: Dictionary) -> Control:
 		bits.append("SEED " + String(entry["code"]))
 	if bool(entry.get("seeded", false)):
 		bits.append("SEEDED")
-	text.add_child(UIKit.fit(_label("  ·  ".join(bits), 20, UIKit.INK, UIKit.font_comic()), 1400, 1, 12))
-	var machines: PackedStringArray = []
+	text.add_child(UIKit.fit(_label("  ·  ".join(bits), 20, UIKit.INK, UIKit.font_comic()), 1120, 1, 12))
+	# 084 (the user): each machine as its name and the pictures of the parts it finished with.
+	var machines := HBoxContainer.new()
+	machines.add_theme_constant_override("separation", UIKit.SPACE_LG)
+	text.add_child(machines)
 	var crew_names: Array = entry.get("names", [])
 	var all_parts: Array = entry.get("parts", [])
 	for m: int in all_parts.size():
-		var names: PackedStringArray = []
+		var machine := HBoxContainer.new()
+		machine.add_theme_constant_override("separation", 2)
+		machines.add_child(machine)
+		if m < crew_names.size():
+			var who := _label(String(crew_names[m]).to_upper(), UIKit.SIZE_LABEL, UIKit.INK_DIM, UIKit.font_comic())
+			who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			machine.add_child(who)
 		for id: Variant in (all_parts[m] as Array):
-			if not String(id).is_empty():
-				names.append(PartText.name_of(_db.parts, String(id)))
-		var who: String = String(crew_names[m]).to_upper() + ": " if m < crew_names.size() else ""
-		machines.append(who + ", ".join(names))
-	if not machines.is_empty():
-		text.add_child(UIKit.fit(_label("  |  ".join(machines), UIKit.SIZE_LABEL, UIKit.INK_DIM, UIKit.font_strong()), 1400, 2, 11))
+			if String(id).is_empty():
+				continue
+			var picture := TextureRect.new()
+			picture.name = "part_thumb"
+			picture.texture = PartText.thumb(String(id))
+			picture.custom_minimum_size = Vector2(46, 46)
+			picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			picture.tooltip_text = PartText.name_of(_db.parts, String(id))
+			machine.add_child(picture)
+	if _on_play.is_valid() and int(entry.get("seed", -1)) >= 0:
+		var play := Button.new()
+		play.text = "PLAY THIS SEED"
+		play.name = "play_seed"
+		play.custom_minimum_size = Vector2(240, 56)
+		play.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		play.focus_mode = Control.FOCUS_NONE
+		play.add_theme_font_override("font", UIKit.font_comic())
+		play.add_theme_font_size_override("font_size", 20)
+		for key: String in ["font_color", "font_hover_color", "font_pressed_color"]:
+			play.add_theme_color_override(key, UIKit.INK)
+		var ring: InkBox = UIKit.choice()
+		for state: String in ["normal", "hover", "focus"]:
+			play.add_theme_stylebox_override(state, ring)
+		play.add_theme_stylebox_override("pressed", UIKit.pressed(ring))
+		play.pressed.connect(func() -> void:
+			var why: String = String(_on_play.call(entry))
+			_ledger_problem.text = why
+			if why.is_empty():
+				queue_free())
+		line.add_child(play)
 	return row
 
 

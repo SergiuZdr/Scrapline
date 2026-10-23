@@ -602,6 +602,13 @@ func _build_site_labels() -> void:
 		box.add_child(_centred(name, 20, UIKit.PAGE_TEXT if reachable or id == state.current else Color("9a9384")))
 		if not bool(site["visited"]) and SITE_DOES.has(String(site["type"])):
 			box.add_child(_centred(String(SITE_DOES[String(site["type"])]), UIKit.SIZE_MICRO + 2, Color("d8cfb8") if reachable else Color("8d8676")))
+		# 084 (the user): a revealed fight's objective under its name, readable without hovering.
+		if not bool(site["visited"]) and RunSim.FIGHT_TYPES.has(String(site["type"])):
+			var objective: String = String(RunSim.fight_preview(state, Run.setup, id).get("objective", ""))
+			if not objective.is_empty():
+				var word := _centred(objective.to_upper(), UIKit.SIZE_LABEL, UIKit.PAGE_TEXT if reachable else Color("9a9384"))
+				word.name = "objective_%d" % id
+				box.add_child(word)
 		if id == state.current:
 			box.add_child(_centred("YOU ARE HERE", UIKit.SIZE_LABEL, Ink.ACTION))
 		elif reachable:
@@ -1322,7 +1329,14 @@ func _run_over() -> void:
 	var fresh: Array = (banked.get("new", []) as Array).map(func(e: Dictionary) -> String: return String(e["id"]))
 	var goals := _button("UNLOCKS", UIKit.secondary(), UIKit.TEXT, Vector2(200, 64))
 	goals.pressed.connect(func() -> void:
-		UnlocksPanel.open(self, Run.db, Profile.unlocked(), Profile.stats(), Profile.unseen_unlocks(), Profile.run_history())
+		UnlocksPanel.open(self, Run.db, Profile.unlocked(), Profile.stats(), Profile.unseen_unlocks(), Profile.run_history(),
+			func(entry: Dictionary) -> String:
+				# The run on screen is over: it goes, as PLAY THIS SEED's does.
+				Run.end_run()
+				if not Run.play_entry(entry):
+					return Run.problem
+				get_tree().reload_current_scene()
+				return "")
 		Profile.mark_unlocks_seen())
 	row.add_child(goals)
 	var title := _button("TITLE", UIKit.secondary(), UIKit.TEXT, Vector2(200, 64))
