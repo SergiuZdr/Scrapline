@@ -85,8 +85,12 @@ static func opened(unlocked: Array, rules: Dictionary, kind: String) -> Array:
 
 ## The options a run starts with: the crew's specs (or none for the default), the tier's rules
 ## overlay, and the part ids still locked. Everything resolved, so the save needs no meta file.
-static func options(rules: Dictionary, unlocked: Array, crew_id: String, tier: int) -> Dictionary:
+## 084 (B8): `seeded` marks a run started from a seed code (`RunSetup.is_seeded`): its wins stay off
+## the ladder and the unlocks.
+static func options(rules: Dictionary, unlocked: Array, crew_id: String, tier: int, seeded: bool = false) -> Dictionary:
 	var out: Dictionary = {"crew_id": crew_id, "tier": tier}
+	if seeded:
+		out["seeded"] = true
 	var crews: Dictionary = rules.get("crews", {})
 	var crew: Dictionary = crews.get(crew_id, {})
 	if crew.has("crew") and (crew_id == "salvagers" or opened(unlocked, rules, "crew").has(crew_id)):
