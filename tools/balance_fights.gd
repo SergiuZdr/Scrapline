@@ -35,6 +35,8 @@ extends SceneTree
 ## started with (the heal-farm). `boss.<key>=json` in `--set` / `--b` lays a key over every such
 ## fight (`boss.pile_heal=0`, `boss.escort_waves=[]`; `boss.keeper=false` strips the keeper flags;
 ## `boss.keeper_hp=60` sets every keeper's HP).
+## `all.<key>=json` (084) lays a key over every fight: `--b 'all.modifiers=["dust"]'` judges a yard
+## condition on the same fights; `all.enemy_bonus={"hp":20,"damage":2}` makes them losable.
 
 const Jobs = preload("res://tools/jobs.gd")
 const Stats = preload("res://tools/stats.gd")
@@ -56,19 +58,23 @@ func _initialize() -> void:
 	var quiet: bool = not slice.is_empty()
 	var dbs: Array[ContentDB] = [ContentDB.load_all()]
 	for setting: String in Stats.all_after(args, "--set"):
-		if not setting.begins_with("boss."):
+		if not setting.begins_with("boss.") and not setting.begins_with("all."):
 			Stats.override(dbs[0], setting, quiet)
+	dbs[0].set_meta("all_fight", _all_settings(Stats.all_after(args, "--set")))
 	var b_settings: PackedStringArray = Stats.all_after(args, "--b")
 	if not b_settings.is_empty():
 		dbs.append(ContentDB.load_all())
 		for setting: String in Stats.all_after(args, "--set"):
-			if not setting.begins_with("boss."):
+			if not setting.begins_with("boss.") and not setting.begins_with("all."):
 				Stats.override(dbs[1], setting, true)
 		if not quiet:
 			print("  variant B:")
 		for setting: String in b_settings:
-			if not setting.begins_with("boss."):
+			if not setting.begins_with("boss.") and not setting.begins_with("all."):
 				Stats.override(dbs[1], setting, quiet)
+		var both: Dictionary = _all_settings(Stats.all_after(args, "--set"))
+		both.merge(_all_settings(b_settings), true)
+		dbs[1].set_meta("all_fight", both)
 	_db = dbs[0]
 	if args.has("--boss"):
 		_boss_trial(args, slice, dbs, b_settings)
@@ -514,6 +520,7 @@ func _new_stats() -> Dictionary:
 
 ## Plays one fight with the bot. Returns true on a win.
 func _play(db: ContentDB, fight: Dictionary, seed_value: int, stats: Dictionary) -> bool:
+	fight = _lay_all(db, fight, seed_value)
 	var setup: CombatSetup = CombatSetup.build(fight, db.combat_rules, db.parts, db.tiles, db.effectiveness, seed_value)
 	if not setup.errors.is_empty():
 		push_error("setup errors: %s" % [setup.errors])
@@ -603,4 +610,39 @@ func _random_squad(rng: SimRNG, template: Array) -> Array:
 			"parts": [rng.pick(pools["chassis"]), rng.pick(pools["core"]), rng.pick(pools["arm"]),
 				rng.pick(pools["arm"]), rng.pick(pools["module"])],
 		})
+	return out
+
+
+## 084 (B7): `all.<key>=json` in `--set` / `--b` lays a key over every fight played (authored and
+## random). `all.modifiers=["wires"]` also lays the cables the way a run does (`RunSim.lay_wires`);
+## `all.enemy_bonus={"hp":20,"damage":2}` arms every enemy, so a condition is judged on fights the
+## crew can lose (a test the crew always wins cannot show a 5-point change).
+static func _all_settings(settings: PackedStringArray) -> Dictionary:
+	var out: Dictionary = {}
+	for setting: String in settings:
+		if setting.begins_with("all."):
+			var pair: PackedStringArray = setting.split("=", true, 1)
+			out[pair[0].trim_prefix("all.")] = JSON.parse_string(pair[1])
+	return out
+
+
+func _lay_all(db: ContentDB, fight: Dictionary, seed_value: int) -> Dictionary:
+	var lay: Dictionary = db.get_meta("all_fight", {})
+	if lay.is_empty():
+		return fight
+	var out: Dictionary = fight.duplicate(true)
+	var keys: Array = lay.keys()
+	keys.sort()
+	for key: Variant in keys:
+		if String(key) == "enemy_bonus":
+			for spec: Dictionary in out.get("enemy", []):
+				var bonus: Dictionary = spec.get("bonus", {})
+				for k: Variant in lay[key]:
+					bonus[k] = int(bonus.get(k, 0)) + int(lay[key][k])
+				spec["bonus"] = bonus
+		else:
+			out[key] = lay[key]
+	if (out.get("modifiers", []) as Array).has("wires") and not "".join(PackedStringArray(out["rows"])).contains("w"):
+		out["rows"] = (out["rows"] as Array).duplicate()
+		RunSim.lay_wires(db.run_rules.get("modifiers", {}), SimRNG.new(7907 * (seed_value + 1)), out, fight)
 	return out

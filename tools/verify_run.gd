@@ -44,6 +44,10 @@ func _initialize() -> void:
 	_timed(_test_refit)
 	_timed(_test_determinism_and_save)
 	_timed(_test_agent_playtest)
+	_timed(_test_front_pace)
+	_timed(_test_fight_preview)
+	_timed(_test_act_conditions)
+	_timed(_test_seed_codes)
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
 	print("")
@@ -371,7 +375,11 @@ func _test_warlords() -> void:
 			boards.append(String(f["name"]))
 		if act < 2:
 			RunSim._next_act(state, setup)
-	_check("each act's warlord is its own %s" % [boards], boards == ["The Grinder's Yard", "The Magnet King's Lot", "The Twin Furnaces"])
+	# 084 (B7 a'): the three warlords are dealt to the acts in a seeded order, each once.
+	var sorted_boards: Array = boards.duplicate()
+	sorted_boards.sort()
+	_check("each act's warlord is its own, all three dealt once %s" % [boards],
+		sorted_boards == ["The Grinder's Yard", "The Magnet King's Lot", "The Twin Furnaces"])
 	var hoard: Dictionary = RunSim.hoard(state, setup, false)
 	state.pending = hoard
 	var act_now: int = state.act
@@ -928,7 +936,9 @@ func _test_wreck_recovery() -> void:
 		hard.rules["enemies"]["bonus"] = {"damage": 3}
 		var run: RunState = RunSim.start(hard)
 		var site: int = RunSim.destinations(run)[0]
-		run.sites[site]["type"] = "skirmish"
+		# 084: a site as generated, never retyped -- the replay below regenerates the region.
+		if String(run.sites[site]["type"]) != "skirmish":
+			continue
 		var log: Array = [[RunSim.TRAVEL, site]]
 		RunSim.apply(run, hard, log[0])
 		if String(run.pending.get("kind", "")) != "fight":
@@ -1353,3 +1363,268 @@ func _timed(test: Callable) -> void:
 	var ms: int = Time.get_ticks_msec() - start
 	if ms >= 1000:
 		print("  time  %5.1fs  %s%s" % [ms / 1000.0, test.get_method(), "" if test.get_bound_arguments().is_empty() else " " + str(test.get_bound_arguments()[0])])
+
+
+## 084 (B3): the Reclaimer's pace -- moves per column x100 -- and what the move preview says of it.
+func _test_front_pace() -> void:
+	var at: PackedStringArray = []
+	var col: int = -1
+	for moves: int in range(1, 13):
+		if RunSim.front_due({"pace": 150}, moves, col):
+			col += 1
+			at.append(str(moves))
+	_check("pace 150 takes a column on moves %s (every move and a half)" % ",".join(at), ",".join(at) == "2,3,5,6,8,9,11,12")
+	var same: bool = true
+	col = -1
+	var col_b: int = -1
+	for moves: int in range(1, 30):
+		var a: bool = RunSim.front_due({"pace": 200}, moves, col)
+		var b: bool = RunSim.front_due({"every": 2}, moves, col_b)
+		same = same and a == b
+		col += 1 if a else 0
+		col_b += 1 if b else 0
+	_check("pace 200 is the old `every 2`, and `every` is the fallback with no pace", same)
+	_check("the default rules carry a pace (the user: wandering costs at rung 0)", int((_db.run_rules["front"] as Dictionary).get("pace", 0)) > 0)
+	# front_in against what the moves then do, over a bot's route: after a move that promised n,
+	# exactly n more moves pass before the front takes a column (signals that push it aside).
+	var setup: RunSetup = _setup(23)
+	var run: RunState = RunSim.start(setup)
+	var waits: Array = []
+	var honest: bool = true
+	var guard: int = 0
+	var promised: int = -1
+	var waited: int = 0
+	while run.outcome == RunState.ONGOING and run.act == 1 and guard < 200:
+		guard += 1
+		var action: Array = RunBot.next_action(run, setup)
+		if int(action[0]) != RunSim.TRAVEL:
+			RunSim.apply(run, setup, action)
+			continue
+		var before: int = run.front_col
+		var move: Dictionary = RunSim.move_preview(run, setup, int(action[1]))
+		RunSim.apply(run, setup, action)
+		if promised >= 0:
+			if run.front_col != before:
+				honest = honest and waited == promised
+				waits.append(waited)
+				promised = -1
+			else:
+				waited += 1
+		if promised < 0 or run.front_col != before:
+			promised = int(move["front_in"])
+			waited = 0
+	_check("move_preview's front_in held on a bot's road %s" % [waits], honest and waits.size() >= 3)
+	# Simple direct check: front_in = n means the next n moves leave the front, the one after takes.
+	var ok: bool = true
+	for pace: int in [130, 150, 167, 200]:
+		var f: Dictionary = {"pace": pace}
+		for moves: int in range(0, 12):
+			for c: int in range(-1, 6):
+				var n: int = RunSim.front_in(f, moves, c)
+				for k: int in n:
+					ok = ok and not RunSim.front_due(f, moves + 1 + k, c)
+				ok = ok and RunSim.front_due(f, moves + 1 + n, c)
+	_check("front_in counts the moves the front waits, at paces 130/150/167/200", ok)
+
+
+## 084 (B2): the fight card on the map is the fight that travel then makes -- over 300 regions (100
+## seeds x 3 acts), on a hashed route that damages and wrecks the crew and lets the front move.
+func _test_fight_preview() -> void:
+	var compared: int = 0
+	var mismatch: String = ""
+	var hidden_ok: bool = true
+	var conditions_ok: bool = true
+	for seed_value: int in 100:
+		var setup: RunSetup = _setup(seed_value)
+		var state: RunState = RunSim.start(setup)
+		for act: int in range(1, 4):
+			if act > 1:
+				for member: Dictionary in state.crew:
+					member["alive"] = true
+					member["hp"] = RunSim.max_hp(setup, member)
+				RunSim._next_act(state, setup)
+			# Unscouted sites stay "?"; scouted, every fight site's card from the start of the act.
+			for s: Dictionary in state.sites:
+				if not RunSim.revealed(state, int(s["id"])) and not RunSim.fight_preview(state, setup, int(s["id"])).is_empty():
+					hidden_ok = false
+			var cards: Dictionary = {}
+			var full: Dictionary = {}
+			for s: Dictionary in state.sites:
+				var id: int = int(s["id"])
+				if RunSim.FIGHT_TYPES.has(String(s["type"])):
+					if not state.scouted.has(id):
+						state.scouted.append(id)
+					cards[id] = RunSim.fight_preview(state, setup, id)
+					var f: Dictionary = RunSim._make_fight(state, setup, id, String(s["type"]))
+					full[id] = var_to_str([f["enemy"], f["objective"], f["rows"], f.get("modifiers", [])])
+			state.scouted.sort()
+			var steps: int = 0
+			while steps < 30 and state.outcome == RunState.ONGOING:
+				steps += 1
+				var options: Array[int] = RunSim.destinations(state)
+				if options.is_empty():
+					break
+				var to: int = options[IntentAI.mix(seed_value, act, steps, 77) % options.size()]
+				RunSim.apply(state, setup, [RunSim.TRAVEL, to])
+				if String(state.pending.get("kind", "")) == "fight":
+					var kind: String = String(state.pending["site_type"])
+					var fight: Dictionary = state.pending["fight"]
+					var got: Dictionary = RunSim.fight_summary(setup, fight, kind)
+					var made: String = var_to_str([fight["enemy"], fight["objective"], fight["rows"], fight.get("modifiers", [])])
+					compared += 1
+					if got != cards.get(to, {}) or made != full.get(to, ""):
+						mismatch = "seed %d act %d site %d: %s vs %s" % [seed_value, act, to, got, cards.get(to, {})]
+					var cond: String = RunSim.act_condition(state, setup, act)
+					if kind != "boss" and kind != "warlord" and String(got["condition"]) != cond:
+						conditions_ok = false
+					# Change the crew along the way: hurt everyone, wreck one now and then.
+					for member: Dictionary in state.crew:
+						member["hp"] = maxi(1, int(member["hp"]) - 3)
+					if steps % 3 == 0 and state.alive_crew() > 1:
+						state.crew[steps % 3]["alive"] = false
+					if kind == "boss":
+						break
+				state.pending = {}
+			state.pending = {}
+	_check("unscouted fight sites show no card", hidden_ok)
+	_check("every card equals the fight made after travel: %d fights over 300 regions %s" % [compared, mismatch],
+		mismatch.is_empty() and compared > 600)
+	_check("every fight of an act (not the gate or warlord) carries the act's condition", conditions_ok)
+	# The card's shape: what the map shows.
+	var setup2: RunSetup = _setup(5)
+	var st: RunState = RunSim.start(setup2)
+	var shown: Dictionary = {}
+	for id: int in RunSim.destinations(st):
+		if RunSim.FIGHT_TYPES.has(String(st.site(id)["type"])):
+			shown = RunSim.fight_preview(st, setup2, id)
+	var lord: int = -1
+	for s: Dictionary in st.sites:
+		if String(s["type"]) == "warlord":
+			lord = int(s["id"])
+	var lord_card: Dictionary = RunSim.fight_preview(st, setup2, lord)
+	_check("a card has objective, condition, enemies [[name, count]] and elite %s" % [shown],
+		shown.has("objective") and shown.has("condition") and shown.has("elite") and not (shown["enemies"] as Array).is_empty())
+	_check("the warlord's card is known from the start and names its keeper %s" % [lord_card],
+		not lord_card.is_empty() and (lord_card["enemies"] as Array).any(func(e: Array) -> bool:
+			return ["grinder", "magnet", "twin"].has(String(e[0]))))
+	_check("a non-fight site has no card", RunSim.fight_preview(st, setup2, 0).is_empty())
+
+
+## 084 (B7): one condition per act from the seed, each in 20-35% of acts; the warlords dealt in a
+## seeded order; the same seed gives the same region, conditions and warlords.
+func _test_act_conditions() -> void:
+	var counts: Dictionary = {}
+	var orders: Dictionary = {}
+	var acts: int = 0
+	for seed_value: int in 300:
+		var setup: RunSetup = _setup(seed_value)
+		var order: PackedStringArray = []
+		for act: int in range(1, 4):
+			var c: String = RunSim.act_condition(null, setup, act)
+			counts[c] = int(counts.get(c, 0)) + 1
+			acts += 1
+			order.append(RunSim.act_warlord(setup, act))
+		orders[",".join(order)] = true
+	var shares: PackedStringArray = []
+	var in_band: bool = counts.size() == 4
+	for c: String in ["dust", "heat_wave", "scrap_rain", "wires"]:
+		var pct: int = int(counts.get(c, 0)) * 100 / acts
+		shares.append("%s %d%%" % [c, pct])
+		in_band = in_band and pct >= 20 and pct <= 35
+	_check("each condition in 20-35%% of 900 acts (%s)" % ", ".join(shares), in_band)
+	_check("all six warlord orders turn up over 300 seeds (%d)" % orders.size(), orders.size() == 6)
+	var same: bool = true
+	for seed_value: int in [3, 41, 977]:
+		var a: RunState = RunSim.start(_setup(seed_value))
+		var b: RunState = RunSim.start(_setup(seed_value))
+		var sa: RunSetup = _setup(seed_value)
+		var sb: RunSetup = _setup(seed_value)
+		for act: int in range(1, 4):
+			same = same and _region_text(a) == _region_text(b)
+			same = same and RunSim.act_condition(a, sa, act) == RunSim.act_condition(b, sb, act)
+			same = same and RunSim.act_warlord(sa, act) == RunSim.act_warlord(sb, act)
+			if act < 3:
+				RunSim._next_act(a, sa)
+				RunSim._next_act(b, sb)
+	_check("the same seed gives the same region, conditions and warlord order", same)
+	# A fixed list (085's daily) overrides the roll; a tier's adds still reach every act.
+	var fixed: RunSetup = RunSetup.create(_db.parts, _db.tiles, _db.fights, _db.run_rules, _db.combat_rules,
+		_db.effectiveness, 7, {"rules": {"modifiers": {"acts": ["wires", "", "dust"]}}})
+	_check("modifiers.acts fixes each act's condition (wires, none, dust)",
+		RunSim.act_condition(null, fixed, 1) == "wires" and RunSim.act_condition(null, fixed, 2) == ""
+		and RunSim.act_condition(null, fixed, 3) == "dust")
+	var tiered: RunSetup = RunSetup.create(_db.parts, _db.tiles, _db.fights, _db.run_rules, _db.combat_rules,
+		_db.effectiveness, 7, {"rules": {"adds": [{"path": "enemies.bonus.damage", "delta": 1}, {"path": "front.pace", "delta": -20}]}})
+	var stacked: bool = true
+	for act: int in range(1, 4):
+		var st := RunState.new()
+		st.act = act
+		var plain: Dictionary = RunSim.rules_for_act(_setup(7), act)
+		var with: Dictionary = RunSim.rules_of(st, tiered)
+		stacked = stacked and _dig(with, "enemies.bonus.damage") == _dig(plain, "enemies.bonus.damage") + 1
+		stacked = stacked and _dig(with, "front.pace") == _dig(plain, "front.pace") - 20
+		stacked = stacked and var_to_str(RunSim.rules_for_act(tiered, act)) == var_to_str(with)
+	_check("a tier's adds (damage, the front's pace) still stack on every act", stacked)
+	# Warlords away from home: keepers' HP by the act, escorts by the act's rules.
+	var hp: Dictionary = {}
+	for act: int in range(1, 4):
+		for id: String in ["warlord_grinder", "warlord_magnet", "warlord_twins"]:
+			hp["%s@%d" % [id.trim_prefix("warlord_"), act]] = int(((RunSim._warlord_for_act(_setup(1), id, act)["enemy"] as Array)[0] as Dictionary)["hp"])
+	_check("a warlord's keeper HP follows the act it is dealt to %s" % [hp],
+		int(hp["grinder@1"]) == 26 and int(hp["grinder@3"]) > 26 and int(hp["twins@3"]) == 34 and int(hp["twins@1"]) < 34
+		and int(_db.fights["warlord_twins"]["enemy"][0]["hp"]) == 34)
+
+
+## 084 (B8): seed codes -- round trip, typos, other versions, and the same run from the code.
+func _test_seed_codes() -> void:
+	var version: String = _db.content_version()
+	var round_trip: bool = true
+	var codes: Dictionary = {}
+	var seeds: Dictionary = {}
+	for i: int in 3000:
+		var seed_value: int = IntentAI.mix(i, 1, 2, 3) & RunSetup.SEED_MASK if i > 2 else [0, 1, RunSetup.SEED_MASK][i]
+		var code: String = RunSetup.seed_code(seed_value, version)
+		var back: Dictionary = RunSetup.parse_seed_code(code, version)
+		round_trip = round_trip and not back.is_empty() and int(back["seed"]) == seed_value and not bool(back["stale"])
+		codes[code] = seed_value
+		seeds[seed_value] = true
+	_check("3000 seed codes read back to their seeds, one code per seed", round_trip and codes.size() == seeds.size() and seeds.size() > 2990)
+	var sample: String = RunSetup.seed_code(4242, version)
+	_check("a code is three words and a number (%s); case and separators do not matter" % sample,
+		sample.split("-").size() == 4 and int(RunSetup.parse_seed_code(sample.to_lower().replace("-", " "), version).get("seed", -1)) == 4242
+		and int(RunSetup.parse_seed_code(" " + sample.replace("-", ". ") + " ", version).get("seed", -1)) == 4242)
+	var other: Dictionary = RunSetup.parse_seed_code(sample, "0000beef" if RunSetup.version_tag("0000beef") != RunSetup.version_tag(version) else "0000cafe")
+	_check("a code from another content version is read but marked stale", not other.is_empty() and bool(other["stale"]))
+	var caught: int = 0
+	var tried: int = 0
+	var words: PackedStringArray = sample.split("-")
+	for w: int in 3:
+		for k: int in 40:
+			var typo: PackedStringArray = words.duplicate()
+			typo[w] = RunSetup.SEED_WORDS[(RunSetup.SEED_WORDS.find(words[w]) + 1 + k) % 256]
+			tried += 1
+			caught += 1 if RunSetup.parse_seed_code("-".join(typo), version).is_empty() else 0
+	_check("a wrong word is caught by the check %d of %d times" % [caught, tried], caught * 100 >= tried * 90)
+	_check("nonsense is not a code", RunSetup.parse_seed_code("", version).is_empty()
+		and RunSetup.parse_seed_code("CRANE SLAG", version).is_empty() and RunSetup.parse_seed_code("FOO-BAR-BAZ-1234", version).is_empty())
+	_check("a seed over SEED_MASK has no code", RunSetup.seed_code(RunSetup.SEED_MASK + 1, version).is_empty())
+	# The code to the identical run: the same RunState after the same bot actions, fights included.
+	var seed_value: int = 1234567
+	var code: String = RunSetup.seed_code(seed_value, version)
+	var a_setup: RunSetup = _setup(seed_value)
+	var b_setup: RunSetup = RunSetup.create(_db.parts, _db.tiles, _db.fights, _db.run_rules, _db.combat_rules,
+		_db.effectiveness, int(RunSetup.parse_seed_code(code, version)["seed"]), {"seeded": true})
+	var a: RunState = RunSim.start(a_setup)
+	var b: RunState = RunSim.start(b_setup)
+	var same: bool = a.fingerprint() == b.fingerprint()
+	var fights: int = 0
+	for n: int in 40:
+		var action: Array = RunBot.next_action(a, a_setup)
+		if action.is_empty():
+			break
+		fights += 1 if int(action[0]) == RunSim.FIGHT else 0
+		RunSim.apply(a, a_setup, action)
+		RunSim.apply(b, b_setup, action)
+		same = same and a.fingerprint() == b.fingerprint() and var_to_str(a.pending) == var_to_str(b.pending)
+	_check("a run started from its code is the identical run (%s, %d fights)" % [code, fights], same and fights >= 2)
+	_check("a seeded run is marked so (options.seeded)", RunSetup.is_seeded(b_setup.options) and not RunSetup.is_seeded(a_setup.options))

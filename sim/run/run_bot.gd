@@ -13,6 +13,13 @@ extends RefCounted
 ## tool should surface, not hide.
 
 
+## 084 (B3): how the bot picks its road. "forward" (the default) leans to the next column;
+## "explorer" takes every unvisited site it can reach before going on, sideways first, and steps
+## back from a column the front is about to take -- the greedy player the Reclaimer must price.
+## Set by the bot tools (`--set bot.route="explorer"`), never by the game.
+static var route: String = "forward"
+
+
 ## The next action for the run as it stands, or [] if the run is over.
 static func next_action(state: RunState, setup: RunSetup) -> Array:
 	if state.outcome != RunState.ONGOING:
@@ -246,6 +253,8 @@ static func _choose_site(state: RunState, setup: RunSetup) -> int:
 			hp += int(member["hp"])
 			full += RunSim.max_hp(setup, member)
 	var hurt: bool = hp * 2 < full
+	if route == "explorer":
+		return _explore(state, setup, options, hurt)
 	for id: int in options:
 		var s: Dictionary = state.site(id)
 		var score: int = int(s["col"]) * 12
@@ -283,3 +292,53 @@ static func _choose_site(state: RunState, setup: RunSetup) -> int:
 			best_score = score
 			best = id
 	return best
+
+
+## 084 (B3): the explorer's road. Any unvisited site beats any visited one; among them the lowest
+## column first (a sweep), then the forward bot's taste in site types; a site the front takes with
+## this very move counts against it (the crew would stand in consumed ground). The gate waits until
+## nothing unvisited is next to the crew. Visited sites only when there is nothing new: then forward.
+static func _explore(state: RunState, setup: RunSetup, options: Array[int], hurt: bool) -> int:
+	var best: int = options[0] if not options.is_empty() else state.current
+	var best_score: int = -1000000
+	var here: int = int(state.site(state.current)["col"])
+	for id: int in options:
+		var s: Dictionary = state.site(id)
+		var col: int = int(s["col"])
+		var kind: String = String(s["type"])
+		var score: int = col * 12 - 400
+		if not bool(s["visited"]) and kind != "boss":
+			score = 200 - (col - here) * 20 + _taste(kind, hurt, state)
+			if col <= int(RunSim.move_preview(state, setup, id)["front_after"]):
+				score -= 60
+		elif kind == "boss":
+			score = -100
+		score = score * 1000 + (IntentAI.mix(setup.rng_seed, id, state.moves, 3) & 0x3FF)
+		if score > best_score:
+			best_score = score
+			best = id
+	return best
+
+
+## The forward bot's bonus for a site type, shared with the explorer.
+static func _taste(kind: String, hurt: bool, state: RunState) -> int:
+	match kind:
+		"workshop":
+			return 30 if hurt or state.alive_crew() < state.crew.size() else 4
+		"elite":
+			return -20 if hurt else 6
+		"warlord":
+			return -30 if hurt else 10
+		"scrapyard":
+			return 5
+		"skirmish":
+			return 9
+		"signal":
+			return 6
+		"trader", "refinery", "auction":
+			return 3
+		"arena":
+			return -25 if hurt else 5
+		"tower":
+			return 2
+	return 0
