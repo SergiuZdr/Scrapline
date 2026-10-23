@@ -122,11 +122,113 @@ static func socket_slot(socket: int) -> String:
 			return "module"
 
 
-## 084 (B8): a run's seed as a short word code that carries the content version, and back.
+## 084 (B8): a seed code is three words and a number, "CRANE-SLAG-RUST-4721". The words carry
+## the seed (8 bits each, through a keyed shuffle so neighbouring seeds look nothing alike); the
+## number carries a 7-bit tag of the content version and a 6-bit check. So a seed must fit
+## SEED_MASK: the run session draws fresh seeds inside it. Never reorder SEED_WORDS (old codes).
+const SEED_MASK: int = 0xFFFFFF
+const SEED_WORDS: PackedStringArray = [
+	"ANVIL", "ARC", "ASH", "AXLE", "BALE", "BARGE", "BARREL", "BEAM", "BELL", "BELT", "BOLT", "BONE",
+	"BOOM", "BOX", "BRACE", "BRASS", "BRICK", "BRINE", "BUCKET", "BULB", "BUMP", "BURN", "BURR",
+	"CABLE", "CAGE", "CAN", "CARGO", "CART", "CHAIN", "CHALK", "CHUTE", "CINDER", "CLAMP", "CLAW",
+	"CLOCK", "COAL", "COG", "COIL", "COKE", "CONE", "COPPER", "CORD", "CORE", "CRANE", "CRATE",
+	"CREEK", "CROW", "CRUSH", "CUP", "DENT", "DIAL", "DIESEL", "DOCK", "DRAIN", "DRILL", "DRUM",
+	"DUCT", "DUSK", "DUST", "ECHO", "EMBER", "ENGINE", "FAN", "FENDER", "FERRY", "FILE", "FLARE",
+	"FLINT", "FLUE", "FOG", "FORGE", "FORK", "FRAME", "FUEL", "FUSE", "GAP", "GATE", "GAUGE", "GEAR",
+	"GIRDER", "GLASS", "GLOVE", "GRATE", "GRIME", "GRIT", "HATCH", "HAUL", "HEAP", "HELM", "HINGE",
+	"HOIST", "HOOK", "HORN", "HOSE", "HULL", "HUSK", "INGOT", "IRON", "JACK", "JAR", "JOLT", "KEEL",
+	"KETTLE", "KEY", "KILN", "KNOB", "LADDER", "LAMP", "LATCH", "LEAD", "LEVER", "LID", "LIME",
+	"LINK", "LOCK", "LOG", "LOOM", "LUG", "MAST", "MESH", "MILL", "MINE", "MOLD", "MOTOR", "MUD",
+	"NAIL", "NEEDLE", "NET", "NICKEL", "NUT", "OAR", "OIL", "ORE", "OVEN", "PAIL", "PAN", "PANEL",
+	"PATCH", "PEG", "PIER", "PIN", "PIPE", "PISTON", "PIT", "PITCH", "PLANK", "PLATE", "PLUG", "POLE",
+	"PORT", "POST", "POT", "PULLEY", "PUMP", "RACK", "RAFT", "RAIL", "RAKE", "RAMP", "RASP", "REEL",
+	"RIDGE", "RIG", "RIM", "RIVET", "ROD", "ROPE", "ROTOR", "RUNG", "RUST", "SACK", "SAND", "SAW",
+	"SCALE", "SCOOP", "SCRAP", "SCREW", "SEAM", "SHAFT", "SHED", "SHELL", "SHIM", "SHOVEL", "SIGNAL",
+	"SILO", "SINK", "SKID", "SLAB", "SLAG", "SLATE", "SLED", "SLOT", "SMOKE", "SOCKET", "SOOT",
+	"SPADE", "SPAN", "SPARK", "SPIKE", "SPOKE", "SPOOL", "SPRING", "SPROCKET", "STACK", "STAKE",
+	"STEAM", "STEEL", "STOVE", "STRAP", "STUD", "SUMP", "TANK", "TAR", "TIN", "TONGS", "TOOTH",
+	"TORCH", "TOWER", "TRACK", "TRAM", "TRAP", "TRAY", "TRUSS", "TUB", "TUBE", "TURBINE", "TYRE",
+	"VALVE", "VAN", "VENT", "VICE", "VOLT", "WAGON", "WASHER", "WEDGE", "WELD", "WHEEL", "WHISTLE",
+	"WICK", "WIDGET", "WINCH", "WIRE", "WRENCH", "YARD", "ZINC", "BLADE", "BRAKE", "BUOY", "CASK",
+	"CHISEL", "COMB", "FLASK", "GRIND", "HAMMER", "HOPPER", "JIB"
+]
+
+
+## Whether a run was started from a typed or replayed seed (B8): `options.seeded`. Such a run is a
+## replay, not a climb -- 085 keeps its wins off the ladder and the unlocks.
+static func is_seeded(options_in: Dictionary) -> bool:
+	return bool(options_in.get("seeded", false))
+
+
+## A content version's 7-bit tag in a seed code, as two hex digits.
+static func version_tag(version: String) -> String:
+	return "%02x" % _version_bits(version)
+
+
+static func _version_bits(version: String) -> int:
+	var h: int = 0x811C9DC5
+	for b: int in version.to_utf8_buffer():
+		h = ((h ^ b) * 0x01000193) & 0xFFFFFFFF
+	return IntentAI.mix(h, 0, 0x5EED, 7) & 0x7F
+
+
+static func _check(seed_value: int, tag: int) -> int:
+	return IntentAI.mix(seed_value, tag, 0x5EED, 11) & 0x3F
+
+
+## The keyed 24-bit shuffle (a 4-round Feistel net over two 12-bit halves) and its inverse.
+static func _scramble(x: int, back: bool) -> int:
+	var l: int = (x >> 12) & 0xFFF
+	var r: int = x & 0xFFF
+	for i: int in 4:
+		if back:
+			var prev_r: int = l
+			l = r ^ (IntentAI.mix(prev_r, 3 - i, 0x5EED, 3) & 0xFFF)
+			r = prev_r
+		else:
+			var next_l: int = r
+			r = l ^ (IntentAI.mix(r, i, 0x5EED, 3) & 0xFFF)
+			l = next_l
+	return (l << 12) | r
+
+
+## A run's seed as a short word code that carries the content version, and back.
+## "" when the seed does not fit SEED_MASK.
 static func seed_code(seed_value: int, version: String) -> String:
-	return ""
+	if seed_value < 0 or seed_value > SEED_MASK:
+		return ""
+	var x: int = _scramble(seed_value, false)
+	var tag: int = _version_bits(version)
+	return "%s-%s-%s-%04d" % [SEED_WORDS[(x >> 16) & 0xFF], SEED_WORDS[(x >> 8) & 0xFF], SEED_WORDS[x & 0xFF],
+		tag * 64 + _check(seed_value, tag)]
 
 
-## {"seed": int, "version": String}, or {} when the code does not parse.
-static func parse_seed_code(code: String) -> Dictionary:
-	return {}
+## {"seed": int, "version": String (the code's version tag, `version_tag`), "stale": bool}, or {} when
+## the code does not parse or its check fails (a typo). Case, spaces, dots and dashes do not matter.
+## Given the game's `version`, "stale" says the code was made by another content version: the same
+## seed would make a different region, so the screen refuses it and says why.
+static func parse_seed_code(code: String, version: String = "") -> Dictionary:
+	var clean: String = code.strip_edges().to_upper()
+	for sep: String in [" ", ".", "_", ",", "/", ":"]:
+		clean = clean.replace(sep, "-")
+	var parts: PackedStringArray = []
+	for token: String in clean.split("-"):
+		if not token.is_empty():
+			parts.append(token)
+	if parts.size() != 4 or not parts[3].is_valid_int() or parts[3].length() > 4:
+		return {}
+	var x: int = 0
+	for i: int in 3:
+		var at: int = SEED_WORDS.find(parts[i])
+		if at < 0:
+			return {}
+		x = (x << 8) | at
+	var number: int = parts[3].to_int()
+	if number < 0 or number > 0x1FFF:
+		return {}
+	var seed_value: int = _scramble(x, true)
+	var tag: int = number / 64
+	if number % 64 != _check(seed_value, tag):
+		return {}
+	return {"seed": seed_value, "version": "%02x" % tag,
+		"stale": not version.is_empty() and _version_bits(version) != tag}
