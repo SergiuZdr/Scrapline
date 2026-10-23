@@ -25,6 +25,7 @@ func _initialize() -> void:
 	_test_rejects_future_version()
 	_test_recovers_from_corruption()
 	_test_settings_survive_reload()
+	_test_run_history()
 
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
@@ -147,6 +148,38 @@ func _test_settings_survive_reload() -> void:
 	profile.call("use_path", TEST_PATH)
 	_check("speeds clamp to 1-3, volume 0 mutes the bus", int(profile.call("playback")) == 3 and AudioServer.is_bus_mute(0))
 	profile.call("set_volume", 100)
+	profile.call("use_path", "user://tool_profile.json")
+
+
+## 084 (B8): the run history is written by a Profile command, survives a restart (a reload of the
+## file), keeps each run once, and keeps the last 50, newest first.
+func _test_run_history() -> void:
+	_cleanup()
+	var profile: Node = root.get_node_or_null("Profile")
+	if profile == null:
+		_check("(precondition) the Profile autoload exists", false)
+		return
+	profile.call("use_path", TEST_PATH)
+	_check("a fresh profile has no run history", (profile.call("run_history") as Array).is_empty())
+	var first: Dictionary = {"key": "11:40", "seed": 11, "code": "ANVIL-ARC-ASH-0001", "seeded": false, "crew": "salvagers",
+		"tier": 1, "act": 2, "ended": "wrecked", "reason": "The whole crew is wrecked.", "fights": 7,
+		"parts": [["ch_a", "ar_hammer", "", "co_slug", "mo_governor:a"], ["ch_b"], ["ch_c"]]}
+	profile.call("record_run", first)
+	profile.call("record_run", first)
+	profile.call("use_path", TEST_PATH)
+	var back: Array = profile.call("run_history")
+	_check("a run in the history survives a restart, once (%d)" % back.size(), back.size() == 1)
+	var entry: Dictionary = back[0] if not back.is_empty() else {}
+	_check("with its seed code, crew, tier, act, ending, fights and parts", String(entry.get("code", "")) == "ANVIL-ARC-ASH-0001"
+		and String(entry.get("crew", "")) == "salvagers" and int(entry.get("tier", -1)) == 1 and int(entry.get("act", 0)) == 2
+		and String(entry.get("ended", "")) == "wrecked" and int(entry.get("fights", 0)) == 7
+		and str(entry.get("parts", [])) == str(first["parts"]) and not String(entry.get("date", "")).is_empty())
+	for i: int in 60:
+		profile.call("record_run", {"key": "run%d" % i, "seed": i, "ended": "won" if i % 3 == 0 else "wrecked", "act": 1 + i % 3})
+	profile.call("use_path", TEST_PATH)
+	back = profile.call("run_history")
+	_check("the history keeps the last 50 (%d), newest first" % back.size(), back.size() == 50
+		and String((back[0] as Dictionary)["key"]) == "run59" and String((back[49] as Dictionary)["key"]) == "run10")
 	profile.call("use_path", "user://tool_profile.json")
 
 

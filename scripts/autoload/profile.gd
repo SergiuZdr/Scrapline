@@ -107,7 +107,11 @@ func mark_unlocks_seen() -> void:
 ## Counts a finished run once (`key` names it) and returns the unlock ids it newly earned.
 ## 043, the ladder: a tier that opens becomes the next run's tier at once -- the player is
 ## carried up it without a choice screen, and may step back down from the title.
-func bank_run(key: String, state: RunState, rules: Dictionary, tier: int = 0) -> Array:
+## 084 (B8): a SEEDED run (one the player chose the seed of) banks nothing -- no stats, no unlocks,
+## no tier -- or a known winning seed would farm the ladder. It still goes into the run history.
+func bank_run(key: String, state: RunState, rules: Dictionary, tier: int = 0, seeded: bool = false) -> Array:
+	if seeded:
+		return []
 	if String(_data.get("banked", "")) == key:
 		return _data.get("banked_new", [])
 	var after: Dictionary = Meta.stats_after(stats(), state, tier)
@@ -126,6 +130,33 @@ func bank_run(key: String, state: RunState, rules: Dictionary, tier: int = 0) ->
 	_data["banked_new"] = fresh
 	_save()
 	return fresh
+
+
+## 084 (B8): how many finished runs the ledger keeps, newest first.
+const HISTORY_CAP: int = 50
+
+
+## The last runs, newest first: `{key, code, seeded, crew, tier, act, ended, reason, fights, parts, date}`
+## (`ended` is "won", "wrecked", "gate" or "abandoned"; `parts` holds each machine's part ids).
+func run_history() -> Array:
+	return (_data.get("run_history", []) as Array).duplicate(true)
+
+
+## Writes one finished run into the ledger, once per `entry.key`, and keeps the last 50.
+func record_run(entry: Dictionary) -> void:
+	var history: Array = _data.get("run_history", [])
+	var key: String = String(entry.get("key", ""))
+	for old: Variant in history:
+		if not key.is_empty() and String((old as Dictionary).get("key", "")) == key:
+			return
+	var kept: Dictionary = entry.duplicate(true)
+	if not kept.has("date"):
+		kept["date"] = Time.get_date_string_from_system()
+	history.push_front(kept)
+	while history.size() > HISTORY_CAP:
+		history.pop_back()
+	_data["run_history"] = history
+	_save()
 
 
 ## The crew and tier the next run starts with, as last chosen.
