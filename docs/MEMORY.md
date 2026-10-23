@@ -178,6 +178,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-23 | **Acts 2-3 bosses and warlords get a second escort wave at round 6** (`boss_late_waves` in the act); the Twins' timeouts are left | 083, the user |
 | 2026-10-23 | **The act's condition replaces the mission line under the map header**; the objective word shows under each revealed fight site (touch) | 084, the user |
 | 2026-10-23 | **Seeded runs count for nothing** (no stats, unlocks or tiers) and refuse to start over a live run; they stay in the run history as SEEDED; the history has PLAY THIS SEED per row and part pictures | 084, the user |
+| 2026-10-23 | **The front's pace is 150** (a column every 1.5 moves; wandering costs, going forward is safe); **every act has a condition**, gates and warlords stay clean; warlords rotate (the Twins may land in Act 1); **more Reclaimer drones the longer you linger** | 084, the user |
 
 ## Lessons carried over from the old codebase
 
