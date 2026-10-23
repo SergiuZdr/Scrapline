@@ -192,10 +192,11 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 			if spec.has("carries"):
 				u.carries_scrap = bool(spec["carries"])
 
-	# A kind may plate and anchor its machine (021: the yard sentinels).
+	# A kind may plate and anchor its machine (021: the yard sentinels), and (083: the Core) hit harder.
 	for u: GridUnit in setup.units:
 		var kind_rules: Dictionary = setup.kinds.get(u.kind, {}) if not u.kind.is_empty() else {}
 		u.armor += int(kind_rules.get("plate", 0))
+		u.damage_bonus += int(kind_rules.get("damage", 0))
 		if bool(kind_rules.get("anchored", false)):
 			u.unshovable = true
 	var drone_spec: Dictionary = (setup.kinds.get("hive", {}) as Dictionary).get("drone", {})

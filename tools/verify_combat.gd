@@ -414,9 +414,12 @@ func _test_act3() -> void:
 		moved = moved or _at(c, 10) != core_at
 		if c.pulse_marks.has(near) and not marked:
 			marked = true
+			# 083: it marks every round now, so the copy's ring is marked again: the leak test is the
+			# pulse's damage, taken on the copy and not in the fight.
+			var hp_now: int = c.unit(0).hp
 			var copy: CombatState = c.clone()
 			CombatSim.apply(copy, [CombatSim.ACT_END, 0, 0, 0])
-			leak = not c.pulse_marks.has(near) or copy.pulse_marks.has(near)
+			leak = not c.pulse_marks.has(near) or c.unit(0).hp != hp_now or copy.unit(0).hp >= hp_now
 		elif marked and pulse_hp < 0:
 			pulse_hp = before - c.unit(0).hp
 	_check("the Core never leaves its hex", not moved)
@@ -790,7 +793,7 @@ func _test_bosses_038() -> void:
 	state.act = 3
 	var gate: Dictionary = RunSim._make_gate_fight(state, setup, 0, RunSim.widen(_db.fights["the_core"], _db.run_rules.get("board", {})), SimRNG.new(1))
 	var conduits: int = (gate["enemy"] as Array).filter(func(e: Dictionary) -> bool: return String(e.get("kind", "")) == "conduit").size()
-	_check("the Core's gate fields both of its conduits (%d)" % conduits, conduits == 2 and int((gate["enemy"] as Array)[0]["hp"]) == 72)
+	_check("the Core's gate fields both of its conduits (%d)" % conduits, conduits == 2 and int((gate["enemy"] as Array)[0]["hp"]) == 60)
 
 
 # --- Fixtures ---------------------------------------------------------------
