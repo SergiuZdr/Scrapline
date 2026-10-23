@@ -120,3 +120,13 @@ static func socket_slot(socket: int) -> String:
 			return "arm"
 		_:
 			return "module"
+
+
+## 084 (B8): a run's seed as a short word code that carries the content version, and back.
+static func seed_code(seed_value: int, version: String) -> String:
+	return ""
+
+
+## {"seed": int, "version": String}, or {} when the code does not parse.
+static func parse_seed_code(code: String) -> Dictionary:
+	return {}

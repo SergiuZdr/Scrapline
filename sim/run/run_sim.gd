@@ -1782,3 +1782,15 @@ static func _roll_parts(setup: RunSetup, rng: SimRNG, min_rarity: int, favour: A
 		if not pool.is_empty():
 			out.append(String(rng.pick(pool)))
 	return out
+
+
+## 084 (B2): what a fight site holds, for the map's card, from the same roll `_make_fight` makes:
+## {"objective": String, "condition": String ("" none), "enemies": [[kind name, count], ...] sorted, "elite": bool}.
+## {} when the site is not a fight or is not revealed (unscouted sites stay "?").
+static func fight_preview(state: RunState, setup: RunSetup, site_id: int) -> Dictionary:
+	return {}
+
+
+## 084 (B7): the condition every fight of `act` carries ("" for none), rolled from the run's seed.
+static func act_condition(state: RunState, setup: RunSetup, act: int) -> String:
+	return ""
