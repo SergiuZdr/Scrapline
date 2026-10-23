@@ -747,6 +747,11 @@
         "survives its first wreck",
         "last stand"
       ]
-    }
+    },
+    "cond_dust": {"group": "THE RUN", "name": "Dust storm", "text": "Dust over the yard: every shot and lob reaches 1 hex less. As an act's condition, every fight in that act has it; the map's header names it.", "forms": ["dust storm"]},
+    "cond_wires": {"group": "THE RUN", "name": "Live wires", "text": "Cables down and sparking: 2 damage to whatever starts a round on one. As an act's condition, every fight in that act has it; the map's header names it.", "forms": ["live wires"]},
+    "cond_scrap_rain": {"group": "THE RUN", "name": "Scrap rain", "text": "A cargo hauler spilled its load: every scrap pile is worth double. As an act's condition, every fight in that act has it; the map's header names it.", "forms": ["scrap rain"]},
+    "cond_heat_wave": {"group": "THE RUN", "name": "Heat wave", "text": "The furnaces are running: your machines vent 1 less heat a round. As an act's condition, every fight in that act has it; the map's header names it.", "forms": ["heat wave"]},
+    "seed_code": {"group": "THE RUN", "name": "Seed code", "text": "A run's region, sites and fights come from one seed, shown as a short code at the run's end. Type it at NEW RUN to play the same run again. A seeded run counts for nothing on the ladder or toward unlocks.", "forms": ["seed code", "seed codes"]}
   }
 }

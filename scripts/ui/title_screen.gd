@@ -7,6 +7,10 @@ extends Control
 
 var _problem: Label
 var _column: VBoxContainer
+## 084 (B8): NEW RUN's seed field -- empty for a fresh seed, or a code typed or pasted.
+var _seed_field: LineEdit
+## The seed NEW RUN will play (-1: a fresh one), read from the field when NEW RUN is pressed.
+var _seed: int = -1
 
 
 func _ready() -> void:
@@ -66,6 +70,7 @@ func _ready() -> void:
 	if saved:
 		column.add_child(_menu_button("CONTINUE", true, _continue_run))
 	column.add_child(_menu_button("NEW RUN", not saved, _new_run))
+	column.add_child(_seed_row())
 	# 043 (play-test 13: no click-through after NEW RUN): the next run's crew and tier are said
 	# here, and changed here, before NEW RUN -- which then starts at once.
 	var next_run: Control = _next_run_line()
@@ -105,7 +110,7 @@ func _ready() -> void:
 	# marked NEW inside; opening it marks it seen.
 	var unseen: Array = Profile.unseen_unlocks()
 	var goals := _menu_button("UNLOCKS  ·  %d NEW" % unseen.size() if not unseen.is_empty() else "UNLOCKS", false, func() -> void:
-		UnlocksPanel.open(self, Run.db, Profile.unlocked(), Profile.stats(), Profile.unseen_unlocks())
+		UnlocksPanel.open(self, Run.db, Profile.unlocked(), Profile.stats(), Profile.unseen_unlocks(), Profile.run_history())
 		Profile.mark_unlocks_seen())
 	goals.custom_minimum_size = Vector2(250 if not unseen.is_empty() else 164, 52)
 	extras.add_child(goals)
@@ -130,6 +135,17 @@ func _ready() -> void:
 ## the start would solve most of it"). Skipping counts: it is offered once, then lives on
 ## the title as TUTORIAL.
 func _new_run() -> void:
+	_seed = -1
+	if _seed_field != null and not _seed_field.text.strip_edges().is_empty():
+		var read: Dictionary = Run.read_code(_seed_field.text)
+		if read.has("error"):
+			_problem.text = String(read["error"])
+			return
+		# A seeded run never overwrites a live save (084): it refuses while one is saved.
+		if Run.has_saved():
+			_problem.text = "A run is in progress. Finish it, or abandon it in SETTINGS, before playing a seed."
+			return
+		_seed = int(read["seed"])
 	if Profile.tutorial_done():
 		_begin()
 		return
@@ -212,8 +228,41 @@ func _ladder_line(meta: Dictionary, held: Array) -> Label:
 
 
 func _go() -> void:
-	Run.new_run_from_profile()
+	if _seed >= 0:
+		if not Run.new_seeded_run(_seed, Run.profile_options()):
+			_problem.text = Run.problem
+			return
+	else:
+		Run.new_run_from_profile()
 	get_tree().change_scene_to_file("res://scenes/run_map.tscn")
+
+
+## "SEED [ code ]" under NEW RUN (084, B8): NEW RUN plays the code typed here, if any.
+func _seed_row() -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	var caption := Label.new()
+	caption.text = "SEED"
+	caption.add_theme_font_override("font", UIKit.font_comic())
+	caption.add_theme_font_size_override("font_size", 24)
+	caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	UIKit.on_page(caption, 6)
+	row.add_child(caption)
+	_seed_field = LineEdit.new()
+	_seed_field.name = "seed_field"
+	_seed_field.placeholder_text = "empty for a new seed, or paste a code"
+	_seed_field.custom_minimum_size = Vector2(420, 48)
+	_seed_field.add_theme_font_override("font", UIKit.font_strong())
+	_seed_field.add_theme_font_size_override("font_size", UIKit.SIZE_BODY)
+	for key: String in ["normal", "focus", "read_only"]:
+		_seed_field.add_theme_stylebox_override(key, UIKit.ink_card(UIKit.PAPER, UIKit.SPACE_SM, 2, 3))
+	_seed_field.add_theme_color_override("font_color", UIKit.INK)
+	_seed_field.add_theme_color_override("font_placeholder_color", UIKit.INK_DIM)
+	_seed_field.add_theme_color_override("caret_color", UIKit.INK)
+	_seed_field.text_changed.connect(func(_text: String) -> void: _problem.text = "")
+	_seed_field.text_submitted.connect(func(_text: String) -> void: _new_run())
+	row.add_child(_seed_field)
+	return row
 
 
 func _choose_run() -> void:
