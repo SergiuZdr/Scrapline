@@ -144,8 +144,10 @@ const CONCURRENT: Array[int] = [GridEv.DAMAGE, GridEv.DESTROYED, GridEv.PROP_HIT
 
 ## 083 (A19): a keeper stands this many times the crew's tallest machine (measured, real vertices),
 ## unless its kind sets `view_scale` (presentation only). Never smaller than its pre-083 scale.
-const KEEPER_HEIGHT_BOSS: float = 2.0
-const KEEPER_HEIGHT_WARLORD: float = 1.6
+## The user's pick from the 083 sheet: 1.6 (option B). Warlords keep the sheet's boss:warlord ratio
+## (2.0 : 1.6 = 1 : 0.8), so 1.28 -- floored, like every keeper, at their pre-083 scale.
+const KEEPER_HEIGHT_BOSS: float = 1.6
+const KEEPER_HEIGHT_WARLORD: float = 1.28
 const KEEPER_PAINT_LIFT: float = 0.45
 ## 083 (A19): the opening push-in on the keeper -- held on it, then eased back to the board.
 const PUSH_HOLD: float = 0.7
@@ -155,9 +157,9 @@ const T_KEEPERS_FALL: float = 1.1
 
 ## The shakedown (012): set in `scenes/shakedown.tscn`.
 @export var tutorial: bool = false
-## 083 (A19): the opening push-in on a boss, OFF until the user picks it from the before/after sheet
-## (`--push-in` turns it on for a run of the scene; `tools/shot_bosses.gd --push` films it).
-var boss_push_in: bool = false
+## 083 (A19): the opening push-in on a keeper -- ON (the user's pick from the sheet); `--no-push-in`
+## turns it off for a run of the scene, `tools/shot_bosses.gd --no-push` for a still.
+var boss_push_in: bool = true
 ## 083: the pre-083 keeper scale and tag, for the before/after sheet only (`shot_bosses.gd --legacy`).
 var legacy_boss_look: bool = false
 ## 083: a keeper height for every kind at once (times the crew), for the sheet's columns; 0 = the data.
@@ -298,7 +300,7 @@ func _read_args() -> void:
 	var at: int = args.find("--fight")
 	if at >= 0 and at + 1 < args.size():
 		_fight_id = args[at + 1]
-	boss_push_in = boss_push_in or args.has("--push-in")
+	boss_push_in = boss_push_in and not args.has("--no-push-in")
 	at = args.find("--seed")
 	if at >= 0 and at + 1 < args.size():
 		_seed = args[at + 1].to_int()
@@ -489,6 +491,17 @@ func _push_in() -> void:
 			break
 	if keeper == null:
 		return
+	# The user (083 sheet): the first frame must be the whole board. The fight's opening props are
+	# events played after the opening; the ones placed before round 1 are built now (playback finds
+	# them built), and the camera waits for them to be drawn before the first frame.
+	for e: Array in _state.events:
+		if int(e[GridEv.F_KIND]) == GridEv.ROUND_START:
+			break
+		var at_cell := Vector2i(int(e[GridEv.F_X]), int(e[GridEv.F_Y]))
+		if int(e[GridEv.F_KIND]) == GridEv.PROP_PLACED:
+			_spawn_prop(at_cell, GridEv.PROP_KINDS[clampi(int(e[GridEv.F_V1]), 0, GridEv.PROP_KINDS.size() - 1)])
+		elif int(e[GridEv.F_KIND]) == GridEv.PILE_DROPPED:
+			_spawn_pile(at_cell)
 	var pitch: float = deg_to_rad(PITCH_DEG)
 	var back := Vector3(0.0, sin(pitch), cos(pitch))
 	var end_aim := Vector3(0.0, 0.0, AIM_NEAR - _boss_shift)
@@ -499,11 +512,21 @@ func _push_in() -> void:
 	var place := func(k: float) -> void:
 		var e: float = k * k * (3.0 - 2.0 * k)
 		var aim: Vector3 = near_aim.lerp(end_aim, e)
-		_camera.position = aim + back * lerpf(near_zoom, end_zoom, e)
+		var dist: float = lerpf(near_zoom, end_zoom, e)
+		_camera.position = aim + back * dist
 		_camera.look_at_from_position(_camera.position, aim, Vector3.UP)
+		# Tags are sized for the board's distance: close up they shrink with the camera (to no less
+		# than half), so they stay readable without filling the frame.
+		var tag_scale: float = clampf(dist / end_zoom * 1.25, 0.5, 1.0)
+		for view: Dictionary in _views.values():
+			(view["tag"] as Label3D).scale = Vector3.ONE * tag_scale
 		_push_phase = k
 	_hud.visible = false
 	place.call(0.0)
+	_push_phase = -1.0
+	for i: int in 3:
+		await RenderingServer.frame_post_draw
+	_push_phase = 0.0
 	var name: String = String((_setup.kinds.get(keeper.kind, {}) as Dictionary).get("name", keeper.name)).to_upper()
 	_letters(near_aim + Vector3(0.3, head * 0.75, 0), name, Ink.DANGER, 150, -0.08, PUSH_HOLD + PUSH_BACK * 0.4)
 	_vfx.shake(0.3)
@@ -3413,6 +3436,11 @@ func _refresh() -> void:
 	_volley_badges(threats)
 
 	for ref: Variant in _state.spawn_marks:
+		# 083: a pad dies with its builder (the sim drops it at the next round's start, unbuilt), so
+		# a dead builder's pad -- the Core's, after the Core -- is no longer drawn.
+		var builder: GridUnit = _state.unit(int(ref))
+		if builder == null or not builder.alive:
+			continue
 		_mark(_threat_quads, _state.spawn_marks[ref], COL_THREAT if CombatSim.drone_in(_state, int(ref)) <= 1 else COL_SPAWN)
 		_spawn_marker(int(ref), _state.spawn_marks[ref])
 	for cell: Vector2i in _state.arrivals:
