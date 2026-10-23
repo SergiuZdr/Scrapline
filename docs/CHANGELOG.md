@@ -2,6 +2,36 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [083] The boss is the fight — done ([detail](iterations/083-the-boss-is-the-fight.md))
+
+### Added
+- Keepers: a boss or warlord marked `"keeper": true` ends its fight when it falls (`GridEv.KEEPERS_FALL`);
+  the rest collapse, their piles go to the crew's scrap and do not count as kills. The objective reads
+  "DESTROY THE CORE · 1 escort wave to come".
+- Escort waves on top of a boss's escorts: one at round 4 in every boss and warlord fight, a second at round 6
+  in Acts 2-3 (`run.json` `boss_late_waves`), each marked a round ahead with a ghost of the arrival; a crew
+  machine on a mark takes 2 and the escort retries next round on a new mark.
+- The Core's clock on the boss bar (PULSE IN n); boss bars show the name, HP and two icons, the sentences
+  moved to the tooltip.
+- A guarded wreck: when a crew machine's wreck pile still stands at the end of a fight, one random part of it
+  comes back (PULLED FROM NEEDLE'S WRECK, TAKE IT / LEAVE IT; `RunSim.RECOVER`).
+- A won DEFEND with broken caches pays fewer salvage options and scaled scrap (`rewards.defend_partial`).
+- The opening push-in on the boss (on; starts on a complete board, tags shrink while close).
+- A comic beat when the last keeper falls (THE POUR IS DOWN!, a forced hit-stop, 1.1 s).
+- Tools: `balance_fights --boss DIR`, `dump_boss_fights --per N`, `shot_bosses.gd`, `play_fight` shows keepers.
+
+### Changed
+- Bosses stand 1.6x the crew's tallest machine, livery lifted 0.45 (contrast the_pour 1.68 -> 1.79,
+  the_core 1.62 -> 1.78).
+- Boss and warlord fights do not heal the crew from piles (`pile_heal` 0).
+- The Pour floods four hexes in the crew's way, toward it, never under a machine.
+- The Core: 72 -> 60 HP, pulses every round, guns +2, eruption 6.
+- `cache_hp` 5 -> 7; `block_damage` 2.
+
+### Fixed
+- The run's gate and warlord fights now keep their file's `pile_heal` and `escort_waves`.
+- The Core's pad countdown no longer outlives the Core.
+
 ## [082] Truth, speed and an honest ladder — done ([detail](iterations/082-truth-and-speed.md))
 
 ### Added

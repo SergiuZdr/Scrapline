@@ -47,6 +47,11 @@ as blueprints later.
 
 ## Elites and bosses
 
+**083:** a boss or warlord is a *keeper* (`"keeper": true` on its spec): its fall ends the fight and the rest
+collapse into banked scrap. Escort waves come on top of its escorts (round 4; round 6 too in Acts 2-3 via
+`boss_late_waves`), marked a round ahead; blocking a mark costs 2 and delays the escort a round. Boss fights
+do not heal from piles. Bosses stand 1.6x the crew, with a push-in at the start and a beat at the fall.
+
 **Built (013): the Sorter at the Sorting Gate** (`data/fights/sorting_gate.json`). The gate is
 its own authored map -- the Sorter between two pylons, scrap walls, three escorts rolled by
 the run -- and the first boss teaches the lesson the plan asked for: part targeting, by way of

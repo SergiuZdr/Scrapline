@@ -175,6 +175,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-23 | **Boss escort waves come on top of the normal escorts** (a round-4 wave); **a blocked escort retries next round** on a new mark; piles left when a boss falls are banked | 083, the user's picks |
 | 2026-10-23 | **The Core: a bit less HP but more threatening** (aim ~8 rounds, no lighter on the crew) | 083, the user |
 | 2026-10-23 | **Bosses stand 1.6x the crew's tallest machine, livery lifted 0.45; the opening push-in is ON** and starts only on a complete board; the keeper-fall beat holds 1.1 s | 083, the user picked from the before/after sheets |
+| 2026-10-23 | **Acts 2-3 bosses and warlords get a second escort wave at round 6** (`boss_late_waves` in the act); the Twins' timeouts are left | 083, the user |
 
 ## Lessons carried over from the old codebase
 
@@ -331,6 +332,8 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-14 | Noise-painted drawings cost seconds in GDScript (3.3 s at a fight's opening): bake them to `art/fx/` with `tools/bake_fx.gd`, rerun after any drawing or weapon-colour change |
 | 2026-10-14 | **A T4 out-of-memory on one object is a concept problem**: the dense Tesla and Crucible failed every run; redrawn with a few large smooth shapes, each took a minute |
 | 2026-10-22 | A one-level dictionary overlay loses nested keys without a sound: the tiers did nothing in Acts 2-3 for 60 iterations. Merge layered rules by path and print the result per layer in a test |
+| 2026-10-23 | A boss file's keys only reach a run if `RunSim._make_gate_fight` copies them; measure bosses on run-built fights (`dump_boss_fights`), never the plain files |
+| 2026-10-23 | A bigger telegraphed hit changes nothing when the crew can step out of it: threat comes from what a boss does every round |
 
 ## Open questions
 
