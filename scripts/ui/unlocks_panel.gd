@@ -13,10 +13,16 @@ var _held: Array
 var _stats: Dictionary
 ## Unlock ids the run just earned, ringed as new.
 var _fresh: Array
+## 084 (B8): the run history (`Profile.run_history`), newest first, for the RUNS ledger.
+var _history: Array = []
+var _unlocks_view: Control
+var _runs_view: Control
+var _tab_buttons: Dictionary = {}
 
 
-static func open(parent: Node, db: ContentDB, held: Array, stats: Dictionary, fresh: Array = []) -> UnlocksPanel:
+static func open(parent: Node, db: ContentDB, held: Array, stats: Dictionary, fresh: Array = [], history: Array = []) -> UnlocksPanel:
 	var panel := UnlocksPanel.new()
+	panel._history = history
 	panel._db = db
 	panel._meta = db.meta
 	panel._held = held
@@ -46,6 +52,22 @@ func _ready() -> void:
 	var head := HBoxContainer.new()
 	box.add_child(head)
 	head.add_child(UIKit.caption_title("UNLOCKS", 44))
+	# 084 (B8): two tabs -- the unlocks, and the ledger of the last runs.
+	for tab: String in ["UNLOCKS", "RUNS  ·  %d" % _history.size()]:
+		var button := Button.new()
+		button.text = tab
+		button.name = "tab_" + tab.get_slice(" ", 0).to_lower()
+		button.custom_minimum_size = Vector2(200, 52)
+		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		button.focus_mode = Control.FOCUS_NONE
+		button.add_theme_font_override("font", UIKit.font_comic())
+		button.add_theme_font_size_override("font_size", 22)
+		for key: String in ["font_color", "font_hover_color", "font_pressed_color"]:
+			button.add_theme_color_override(key, UIKit.INK)
+		var which: String = tab.get_slice(" ", 0)
+		button.pressed.connect(func() -> void: _show_tab(which))
+		_tab_buttons[which] = button
+		head.add_child(button)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(spacer)
@@ -54,6 +76,13 @@ func _ready() -> void:
 	head.add_child(_label("%d of %d held  ·  %d runs  ·  %d fights won  ·  furthest act %d  ·  %d won" % [held_count, entries.size(),
 		int(_stats.get("runs", 0)), int(_stats.get("fights", 0)), int(_stats.get("act", 1)), int(_stats.get("wins", 0))],
 		UIKit.SIZE_BODY, UIKit.INK_DIM, UIKit.font_strong()))
+	_unlocks_view = VBoxContainer.new()
+	(_unlocks_view as VBoxContainer).add_theme_constant_override("separation", UIKit.SPACE_SM)
+	box.add_child(_unlocks_view)
+	_runs_view = _ledger()
+	box.add_child(_runs_view)
+	var page: VBoxContainer = box
+	box = _unlocks_view as VBoxContainer
 	box.add_child(UIKit.fit(_label("Runs leave these behind. Each is earned at the END of a run, when its numbers are reached; a new run then has it. Parts join the salvage, scrapyards and traders; crews and tiers are chosen at NEW RUN.",
 		UIKit.SIZE_BODY, UIKit.INK_DIM, UIKit.font_strong()), 1440, 2, 12))
 
@@ -94,6 +123,7 @@ func _ready() -> void:
 	for entry: Dictionary in missions:
 		cols[2].add_child(_row(entry, false))
 
+	box = page
 	var close := Button.new()
 	close.text = "CLOSE"
 	close.custom_minimum_size = Vector2(220, 60)
@@ -110,6 +140,80 @@ func _ready() -> void:
 		closed.emit()
 		queue_free())
 	box.add_child(close)
+	_show_tab("UNLOCKS")
+
+
+## Shows one tab, the other hidden; the open tab's button is ringed (equal choices: `UIKit.choice`).
+func _show_tab(which: String) -> void:
+	_unlocks_view.visible = which == "UNLOCKS"
+	_runs_view.visible = which == "RUNS"
+	for key: String in _tab_buttons:
+		var style: InkBox = UIKit.choice() if key == which else UIKit.secondary()
+		for state: String in ["normal", "hover", "focus"]:
+			(_tab_buttons[key] as Button).add_theme_stylebox_override(state, style)
+		(_tab_buttons[key] as Button).add_theme_stylebox_override("pressed", UIKit.pressed(style))
+
+
+## 084 (B8): the last runs, newest first -- when, which crew and tier, how far, how it ended, the
+## seed code, and the parts each machine finished with.
+func _ledger() -> Control:
+	var view := VBoxContainer.new()
+	view.name = "ledger"
+	view.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	view.add_child(UIKit.fit(_label("The last %d runs, newest first. A seed code plays that region again from NEW RUN; a seeded run counts for nothing on the ladder." % 50,
+		UIKit.SIZE_BODY, UIKit.INK_DIM, UIKit.font_strong()), 1440, 2, 12))
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(1460, 780)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	view.add_child(scroll)
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	scroll.add_child(rows)
+	if _history.is_empty():
+		rows.add_child(_label("No run has ended yet.", 24, UIKit.INK_DIM, UIKit.font_comic()))
+	for entry: Variant in _history:
+		rows.add_child(_ledger_row(entry as Dictionary))
+	return view
+
+
+func _ledger_row(entry: Dictionary) -> Control:
+	var row := PanelContainer.new()
+	row.name = "run_row"
+	var ended: String = String(entry.get("ended", ""))
+	var style: InkBox = UIKit.ink_card(UIKit.PAPER if ended == "won" else UIKit.PAPER_DIM, UIKit.SPACE_MD, UIKit.SPACE_XS, 3)
+	style.band_width = 9.0
+	style.band = Ink.GAIN if ended == "won" else (Ink.DANGER if ended != "abandoned" else UIKit.INK_DIM)
+	row.add_theme_stylebox_override("panel", style)
+	row.custom_minimum_size = Vector2(1440, 0)
+	var text := VBoxContainer.new()
+	text.add_theme_constant_override("separation", 0)
+	row.add_child(text)
+	var crews: Dictionary = _meta.get("crews", {})
+	var tiers: Array = _meta.get("tiers", [])
+	var tier: int = int(entry.get("tier", 0))
+	var how: String = {"won": "WON", "wrecked": "WRECKED IN ACT %d", "gate": "THE GATE HELD, ACT %d",
+		"abandoned": "ABANDONED IN ACT %d"}.get(ended, "ENDED IN ACT %d")
+	if how.contains("%d"):
+		how = how % int(entry.get("act", 1))
+	var bits: PackedStringArray = [String(entry.get("date", "")),
+		String((crews.get(String(entry.get("crew", "")), {}) as Dictionary).get("name", entry.get("crew", ""))),
+		String((tiers[clampi(tier, 0, tiers.size() - 1)] as Dictionary).get("name", "")) if not tiers.is_empty() else "",
+		how, "%d fights won" % int(entry.get("fights", 0))]
+	if not String(entry.get("code", "")).is_empty():
+		bits.append("SEED " + String(entry["code"]))
+	if bool(entry.get("seeded", false)):
+		bits.append("SEEDED")
+	text.add_child(UIKit.fit(_label("  ·  ".join(bits), 20, UIKit.INK, UIKit.font_comic()), 1400, 1, 12))
+	var machines: PackedStringArray = []
+	for parts: Variant in (entry.get("parts", []) as Array):
+		var names: PackedStringArray = []
+		for id: Variant in (parts as Array):
+			if not String(id).is_empty():
+				names.append(PartText.name_of(_db.parts, String(id)))
+		machines.append(", ".join(names))
+	if not machines.is_empty():
+		text.add_child(UIKit.fit(_label("  |  ".join(machines), UIKit.SIZE_LABEL, UIKit.INK_DIM, UIKit.font_strong()), 1400, 2, 11))
+	return row
 
 
 ## One unlock: a mark (held, new, or a progress bar), what it gives, and what earns it.
