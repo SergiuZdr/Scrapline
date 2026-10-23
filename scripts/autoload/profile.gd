@@ -136,7 +136,7 @@ func bank_run(key: String, state: RunState, rules: Dictionary, tier: int = 0, se
 const HISTORY_CAP: int = 50
 
 
-## The last runs, newest first: `{key, code, seeded, crew, tier, act, ended, reason, fights, parts, date}`
+## The last runs, newest first: `{key, seed, code, seeded, crew, tier, act, ended, reason, fights, parts, names, date}`
 ## (`ended` is "won", "wrecked", "gate" or "abandoned"; `parts` holds each machine's part ids).
 func run_history() -> Array:
 	return (_data.get("run_history", []) as Array).duplicate(true)

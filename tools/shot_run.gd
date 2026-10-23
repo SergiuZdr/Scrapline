@@ -15,6 +15,10 @@ extends SceneTree
 ## DEFEND salvage won with a cache broken.
 ## 083, screenshot only, both with `--until reward`: `--stage-defend` makes the salvage a DEFEND's with
 ## 1 of 2 caches standing; `--stage-wreck` wrecks crew 1 and puts the part pulled from its guarded wreck in front of it.
+## 084: `--hover-fight` hovers a revealed fight site the crew can reach (its card names the fight);
+## `--title [--seed-text TEXT] [--press]` photographs the title instead, TEXT in NEW RUN's seed field
+## (`--press` presses NEW RUN, to show a refusal); `--ledger` opens UNLOCKS on its RUNS tab after
+## writing a few made-up runs into the tool profile's history.
 ## Uses the real `Run` autoload; under `--script` it saves to `user://tool_run.json` and a profile
 ## of its own (032), never the player's.
 
@@ -29,6 +33,9 @@ func _go() -> void:
 	var until: String = _arg(args, "--until", "reward")
 	var out: String = _arg(args, "--out", "shots/run.png")
 	run.call("new_run", seed_value)
+	if args.has("--title") or args.has("--ledger"):
+		await _title_shot(args, run, out)
+		return
 	if args.has("--force"):
 		# Screenshot only: every site reachable from the camp becomes this kind, so the first
 		# move lands on one (for the sites a seeded bot run may never visit).
@@ -95,6 +102,19 @@ func _go() -> void:
 			current_scene.call("_refresh")
 			for i: int in 5:
 				await process_frame
+	if args.has("--hover-fight"):
+		var at_state: RunState = run.get("state")
+		var pick: int = -1
+		for id: int in RunSim.destinations(at_state):
+			if RunSim.FIGHT_TYPES.has(String(at_state.site(id)["type"])) and RunSim.revealed(at_state, id):
+				pick = id
+		if pick >= 0:
+			current_scene.set("_hover", pick)
+			current_scene.call("_refresh")
+			for i: int in 5:
+				await process_frame
+		else:
+			print("no revealed fight site within reach")
 	if args.has("--dump-fog"):
 		var fog_image: Image = current_scene.get("_yard").get("_fog_image")
 		fog_image.save_png("shots/_fogmask.png")
@@ -169,6 +189,45 @@ func _go() -> void:
 		# gone (`--until fight --enter`).
 		change_scene_to_file("res://scenes/combat.tscn")
 		await create_timer(_arg(args, "--enter", "8").to_float()).timeout
+	var image: Image = root.get_texture().get_image()
+	DirAccess.make_dir_recursive_absolute(out.get_base_dir())
+	print("shot: %s (%s)" % [out, error_string(image.save_png(out))])
+	RunStore.clear()
+	quit()
+
+
+## 084: the title (its seed field) or the UNLOCKS panel's RUNS ledger.
+func _title_shot(args: PackedStringArray, run: Node, out: String) -> void:
+	var profile: Node = root.get_node("Profile")
+	if args.has("--ledger"):
+		var db: ContentDB = run.get("db")
+		var crews: Array = (db.meta.get("crews", {}) as Dictionary).keys()
+		var ends: Array = ["wrecked", "won", "gate", "wrecked", "abandoned", "wrecked"]
+		for i: int in 6:
+			run.call("new_run", 1000 + i * 77)
+			var st: RunState = run.get("state")
+			profile.call("record_run", {"key": "ledger%d" % i, "seed": 1000 + i * 77, "code": String(run.call("seed_code")),
+				"seeded": i == 3, "crew": String(crews[i % crews.size()]), "tier": i % 2, "act": 1 + i % 3, "ended": ends[i],
+				"reason": "", "fights": 3 + i * 2, "parts": st.crew.map(func(m: Dictionary) -> Array: return (m["parts"] as Array).duplicate()),
+				"names": st.crew.map(func(m: Dictionary) -> String: return String(m["name"])),
+				"date": "2026-10-%02d" % (10 + i)})
+	RunStore.clear()
+	if args.has("--press"):
+		run.call("new_run", 4242)   # a live run behind the title, for the refusal
+	change_scene_to_file("res://scenes/main.tscn")
+	for i: int in 10:
+		await process_frame
+	if args.has("--ledger"):
+		var panel: Node = (load("res://scripts/ui/unlocks_panel.gd") as GDScript).call("open", current_scene, run.get("db"), profile.call("unlocked"), profile.call("stats"), [], profile.call("run_history"))
+		for i: int in 3:
+			await process_frame
+		panel.call("_show_tab", "RUNS")
+	else:
+		var field: LineEdit = current_scene.find_child("seed_field", true, false)
+		field.text = _arg(args, "--seed-text", "")
+		if args.has("--press"):
+			current_scene.call("_new_run")
+	await create_timer(1.0).timeout
 	var image: Image = root.get_texture().get_image()
 	DirAccess.make_dir_recursive_absolute(out.get_base_dir())
 	print("shot: %s (%s)" % [out, error_string(image.save_png(out))])

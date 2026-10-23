@@ -67,7 +67,7 @@ const SEEDED: String = "seeded"
 
 
 func is_seeded() -> bool:
-	return setup != null and bool(setup.options.get(SEEDED, false))
+	return setup != null and RunSetup.is_seeded(setup.options)
 
 
 ## This run's seed as the short word code shown at its end ("" until the sim gives one).
@@ -80,12 +80,11 @@ func read_code(code: String) -> Dictionary:
 	var text: String = code.strip_edges()
 	if text.is_empty():
 		return {"error": "Type or paste a seed code."}
-	var parsed: Dictionary = RunSetup.parse_seed_code(text)
+	var parsed: Dictionary = RunSetup.parse_seed_code(text, db.content_version())
 	if parsed.is_empty():
 		return {"error": "\"%s\" is not a seed code." % text.left(40)}
-	# The code carries the content version: compare it in the form the code itself keeps it.
-	var here: Dictionary = RunSetup.parse_seed_code(RunSetup.seed_code(int(parsed["seed"]), db.content_version()))
-	if String(parsed.get("version", "")) != String(here.get("version", "")):
+	# The code carries the content version: another build's code would make another region.
+	if bool(parsed.get("stale", false)):
 		return {"error": "That code is from another version of the game: its region would not be the same."}
 	return {"seed": int(parsed["seed"])}
 
@@ -115,14 +114,15 @@ func _record(key: String, ended: String = "") -> void:
 		parts.append((member["parts"] as Array).duplicate())
 	Profile.record_run({"key": key, "seed": setup.rng_seed, "code": seed_code(), "seeded": is_seeded(),
 		"crew": crew_id(), "tier": int(setup.options.get("tier", 0)), "act": state.act, "ended": ended,
-		"reason": state.end_reason, "fights": state.fights_won, "parts": parts})
+		"reason": state.end_reason, "fights": state.fights_won, "parts": parts,
+		"names": state.crew.map(func(m: Dictionary) -> String: return String(m["name"]))})
 
 
 func new_run(seed_value: int = -1, options: Dictionary = {}) -> void:
 	# The only place a run reads the clock: choosing a seed. Everything after is seeded.
 	if seed_value < 0:
 		# 084: inside 24 bits (`RunSetup.SEED_MASK`), so every run's seed has a word code.
-		seed_value = int(Time.get_unix_time_from_system() * 1000.0) & 0xFFFFFF
+		seed_value = int(Time.get_unix_time_from_system() * 1000.0) & RunSetup.SEED_MASK
 	setup = _make_setup(seed_value, options)
 	state = RunSim.start(setup)
 	actions = []
