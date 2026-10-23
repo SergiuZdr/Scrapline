@@ -329,6 +329,9 @@ func _go() -> void:
 	await _fit_it_now()
 	await _wreck_pick()
 	await _roll_call()
+	await _seed_replay()
+	await _the_road()
+	await _seed_field()
 
 	RunStore.clear()
 	print("")
@@ -471,6 +474,148 @@ func _roll_call() -> void:
 	_check("each wreck says where it fell (%d of 3)" % fell, fell == 3)
 	var lines: Array = (_run.get("db") as ContentDB).story["endings"]["wrecked"]
 	_check("the wrecked ending is this act's line", String(map.call("_ending_text", state, false)) == String(lines[state.act - 1]))
+
+
+## 084 (B8): the run-over screen offers PLAY THIS SEED (after `_roll_call` the crew lies wrecked):
+## a real click starts the same seed again, as a seeded run; a seeded run refuses over a live save.
+func _seed_replay() -> void:
+	var map: Node = current_scene
+	var setup: RunSetup = _run.get("setup")
+	var old_seed: int = setup.rng_seed
+	var old_options: Dictionary = setup.options.duplicate(true)
+	var code: String = String(_run.call("seed_code"))
+	var shown: Label = map.find_child("seed_code", true, false) as Label
+	if code.is_empty():
+		print("  (staged: RunSetup.seed_code is still a stub, so the run-over screen shows no code)")
+	else:
+		_check("the run-over screen shows the seed code (%s)" % code, shown != null and shown.text.ends_with(code))
+	var play: Button = map.find_child("play_seed", true, false) as Button
+	_check("the run-over screen offers PLAY THIS SEED", play != null and play.text == "PLAY THIS SEED")
+	if play == null:
+		return
+	_click(play.get_global_rect().get_center())
+	await _frames(6)
+	setup = _run.get("setup")
+	var state: RunState = _run.get("state")
+	var fresh: RunState = RunSim.start(_run.call("_make_setup", old_seed, old_options))
+	# (The crew's names come back as RENAME actions: compare the run as it starts.)
+	_check("PLAY THIS SEED starts the same seed again (%d)" % setup.rng_seed, setup.rng_seed == old_seed
+		and state.outcome == RunState.ONGOING and RunSim.start(setup).fingerprint() == fresh.fingerprint())
+	_check("as a seeded run, with the same crew and tier", bool(_run.call("is_seeded"))
+		and String(setup.options.get("crew_id", "")) == String(old_options.get("crew_id", ""))
+		and int(setup.options.get("tier", 0)) == int(old_options.get("tier", 0)))
+	_check("and it is the save now", int(RunStore.load_saved().get("seed", -1)) == old_seed
+		and bool((RunStore.load_saved().get("options", {}) as Dictionary).get("seeded", false)))
+	# A seeded run never overwrites a live save: with this run saved, another seed is refused.
+	var refused: bool = not bool(_run.call("new_seeded_run", 99, {}))
+	_check("a seeded run refuses while a run is saved (%s)" % String(_run.get("problem")), refused
+		and int(RunStore.load_saved()["seed"]) == old_seed and int((_run.get("setup") as RunSetup).rng_seed) == old_seed)
+
+
+## 084 (B2, B7): a revealed fight site's card names its fight; the header names the act's condition.
+func _the_road() -> void:
+	_run.call("abandon")
+	_run.call("new_run", 4243)
+	_run.set("briefed", true)
+	_run.set("bay_seen", true)
+	var setup: RunSetup = _run.get("setup")
+	var state: RunState = _run.get("state")
+	# Stage the condition when this seed rolls none: `modifiers.acts` fixes one per act.
+	var staged: bool = RunSim.act_condition(state, setup, state.act).is_empty()
+	if staged:
+		var mods: Dictionary = (setup.rules.get("modifiers", {}) as Dictionary).duplicate(true)
+		mods["acts"] = ["heat_wave", "dust", "wires"]
+		setup.rules["modifiers"] = mods
+	var condition: String = RunSim.act_condition(state, setup, state.act)
+	var map: Node = await _open("res://scenes/run_map.tscn")
+	var title: Label = map.find_child("act_title", true, false) as Label
+	var cond_name: String = String(((_run.get("db") as ContentDB).combat_rules["modifiers"] as Dictionary).get(condition, {}).get("name", "?"))
+	if condition.is_empty():
+		print("  (staged: RunSim.act_condition is still a stub: no condition to show)")
+		_check("no condition, no condition line", map.find_child("act_condition", true, false) == null)
+	else:
+		_check("the map header names the act's condition (%s%s)" % [title.text if title != null else "none", ", staged" if staged else ""],
+			title != null and title.text.ends_with(cond_name))
+		var line: RichTextLabel = map.find_child("act_condition", true, false) as RichTextLabel
+		_check("and its line links the condition to the glossary", line != null
+			and Glossary.terms_in(line.get_parsed_text(), (_run.get("db") as ContentDB).glossary).has("cond_" + condition))
+	# A revealed fight site among the destinations; hover it with the mouse.
+	var site: int = -1
+	for id: int in RunSim.destinations(state):
+		if RunSim.FIGHT_TYPES.has(String(state.site(id)["type"])) and RunSim.revealed(state, id):
+			site = id
+	if site < 0:
+		site = RunSim.destinations(state)[0]
+		state.sites[site]["type"] = "skirmish"
+		state.scouted.append(site)
+	var yard: YardView = map.get("_yard")
+	var motion := InputEventMouseMotion.new()
+	motion.position = yard.screen_pos(site)
+	root.push_input(motion, true)
+	await _frames(3)
+	_check("(the fight site is hovered)", int(map.get("_hover")) == site)
+	var expect: String = String(map.call("_fight_line", site))
+	var shown: Label = (map.get("_preview") as Node).find_child("fight_line", true, false) as Label
+	if RunSim.fight_preview(state, setup, site).is_empty():
+		print("  (staged: RunSim.fight_preview is still a stub: no fight line)")
+		_check("no preview, no fight line on the card", shown == null)
+	else:
+		_check("a revealed fight site's card has its fight line (%s)" % expect, shown != null and shown.text == expect and expect.contains(" · "))
+	# An unscouted site stays "?": no fight line.
+	var hidden: int = -1
+	for s: Dictionary in state.sites:
+		if hidden < 0 and not RunSim.revealed(state, int(s["id"])):
+			hidden = int(s["id"])
+	_check("an unscouted site has no fight line", hidden < 0 or String(map.call("_fight_line", hidden)).is_empty())
+	# B3: whether the next move brings the Reclaimer is the sim's word, and the card says it.
+	var move: Dictionary = RunSim.move_preview(state, setup, site)
+	var says: bool = _find_label_prefix(map.get("_preview"), "The Reclaimer moves as you go") != null
+	_check("the card says the Reclaimer moves exactly when the sim says it will (%s)" % bool(move["advances"]), says == bool(move["advances"]))
+
+
+## 084 (B8): NEW RUN's seed field: junk is refused with a reason, a code from another version too,
+## a code is refused over a live run, and a good one starts that seed as a seeded run.
+func _seed_field() -> void:
+	(root.get_node("Profile") as Node).call("finish_tutorial")
+	var title: Node = await _open("res://scenes/main.tscn")
+	var field: LineEdit = title.find_child("seed_field", true, false) as LineEdit
+	_check("NEW RUN has a seed field", field != null)
+	if field == null:
+		return
+	var saved_seed: int = int(RunStore.load_saved().get("seed", -1))
+	field.text = "not a seed at all"
+	_click(_find_button(title, "NEW RUN").get_global_rect().get_center())
+	await _frames(3)
+	var problem: Label = title.get("_problem")
+	_check("junk in the seed field is refused with a reason (%s)" % problem.text, current_scene == title
+		and not problem.text.is_empty() and int(RunStore.load_saved().get("seed", -1)) == saved_seed)
+	var db: ContentDB = _run.get("db")
+	var code: String = RunSetup.seed_code(4321, db.content_version())
+	if code.is_empty():
+		print("  (staged: RunSetup.seed_code is still a stub: the good-code checks wait for it)")
+		return
+	var other: String = RunSetup.seed_code(4321, "another build")
+	if other != code:
+		field.text = other
+		_click(_find_button(title, "NEW RUN").get_global_rect().get_center())
+		await _frames(3)
+		_check("a code from another version is refused and says so (%s)" % problem.text, current_scene == title and problem.text.contains("version"))
+	field.text = code.to_lower()
+	_click(_find_button(title, "NEW RUN").get_global_rect().get_center())
+	await _frames(3)
+	_check("a good code over a live run is refused (%s)" % problem.text, current_scene == title and problem.text.contains("in progress")
+		and int(RunStore.load_saved().get("seed", -1)) == saved_seed)
+	_run.call("abandon")
+	title = await _open("res://scenes/main.tscn")
+	field = title.find_child("seed_field", true, false) as LineEdit
+	field.text = code
+	_click(_find_button(title, "NEW RUN").get_global_rect().get_center())
+	await _frames(6)
+	_check("with no run saved, a good code starts that seed as a seeded run", int((_run.get("setup") as RunSetup).rng_seed) == 4321
+		and bool(_run.call("is_seeded")) and int(RunStore.load_saved().get("seed", -1)) == 4321)
+	var history: Array = (root.get_node("Profile") as Node).call("run_history")
+	_check("abandoned runs are in the history (%d)" % history.size(), history.size() >= 2
+		and String((history[0] as Dictionary).get("ended", "")) == "abandoned")
 
 
 func _open(path: String) -> Node:

@@ -64,6 +64,9 @@ var _state: RunState
 ## tool that names this class compiles it before autoloads exist).
 var _db: ContentDB
 var _setup_every: int = 2
+## 084 (B3): moves until the Reclaimer's next step when the screen knows it from the sim (a
+## fractional pace); -1 falls back to the fixed `every` the yard was built with.
+var front_eta: int = -1
 var _columns: int = 9
 var _camera: Camera3D
 var _focus := Vector3.ZERO
@@ -151,7 +154,7 @@ func refresh(state: RunState, targets: Array[int], hover: int) -> void:
 	for id: int in _sites:
 		_style_site(id, targets)
 	_mark_roads(targets)
-	var left: int = _setup_every - state.moves % _setup_every
+	var left: int = front_eta if front_eta > 0 else _setup_every - state.moves % _setup_every
 	_urgent = left == 1
 	_hover_triggers = _urgent and hover >= 0 and targets.has(hover)
 	var goal: float = _front_target()

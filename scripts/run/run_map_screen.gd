@@ -211,12 +211,29 @@ func _build_top_bar() -> void:
 	add_child(rule)
 	var act: Dictionary = _act()
 	# Ink & Rust (016): the act's name lettered on the page, paper on an ink edge.
-	var title := UIKit.on_page(_label("ACT %d  ·  %s" % [Run.state.act, String(act.get("name", "THE CRANE YARDS"))], 44, UIKit.PAGE_TEXT, UIKit.font_display()), 10)
+	# 084 (B7): the act's condition stands beside its name -- "THE SLAG FLATS · HEAT WAVE".
+	var condition: Dictionary = _condition()
+	var heading: String = "ACT %d  ·  %s" % [Run.state.act, String(act.get("name", "THE CRANE YARDS"))]
+	if not condition.is_empty():
+		heading += "  ·  %s" % String(condition["name"])
+	var title := UIKit.fit(UIKit.on_page(_label(heading, 44, UIKit.PAGE_TEXT, UIKit.font_display()), 10), 700, 1, 28)
+	title.name = "act_title"
 	title.position = Vector2(40, 12)
 	add_child(title)
-	var mission := UIKit.on_page(_label(String(act.get("mission", "")), UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()), 5)
-	mission.position = Vector2(42, 76)
-	add_child(mission)
+	if condition.is_empty():
+		var mission := UIKit.on_page(_label(String(act.get("mission", "")), UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()), 5)
+		mission.position = Vector2(42, 76)
+		add_child(mission)
+	else:
+		# The condition's own words take the mission's line (the mission is on the act card and
+		# in the briefing); its name is a glossary link.
+		var line := Glossary.label("%s: %s" % [String(condition["name"]).capitalize(), String(condition["text"])],
+			UIKit.SIZE_LABEL, UIKit.PAGE_TEXT, Run.db.glossary, 700, UIKit.font_strong(), UIKit.AMBER)
+		line.name = "act_condition"
+		line.add_theme_color_override("font_outline_color", UIKit.HAIRLINE)
+		line.add_theme_constant_override("outline_size", 5)
+		line.position = Vector2(42, 74)
+		add_child(line)
 
 	# The Reclaimer as a gauge (play-test 4: "should not come from text"): its name, and one
 	# pip per move of its step. Pips fill as you move; the last pulses when your next move
@@ -325,17 +342,75 @@ func _act() -> Dictionary:
 	return acts[clampi(Run.state.act - 1, 0, acts.size() - 1)] if not acts.is_empty() else {}
 
 
+## 084 (B7): the condition every fight of this act carries, `{id, name, text}`, or {} for none.
+func _condition() -> Dictionary:
+	var id: String = RunSim.act_condition(Run.state, Run.setup, Run.state.act)
+	if id.is_empty():
+		return {}
+	var m: Dictionary = (Run.db.combat_rules.get("modifiers", {}) as Dictionary).get(id, {})
+	return {"id": id, "name": String(m.get("name", id.to_upper().replace("_", " "))), "text": String(m.get("text", ""))}
+
+
+## The condition as a line for the act's card, with its name a glossary link; null for none.
+func _condition_line(width: float) -> Control:
+	var condition: Dictionary = _condition()
+	if condition.is_empty():
+		return null
+	var line := Glossary.label("THIS ACT: %s. %s Every fight in the act has it." % [String(condition["name"]).capitalize(), String(condition["text"])],
+		UIKit.SIZE_HEADING, UIKit.TEXT, Run.db.glossary, width, UIKit.font_strong())
+	line.name = "act_condition_card"
+	return line
+
+
+## 084 (B2): a revealed fight site's fight in one line -- "DEFEND · dust storm · 2 shredders, 1 mortar"
+## -- from `RunSim.fight_preview` (the same roll the fight is made with). "" when there is none.
+func _fight_line(id: int) -> String:
+	var p: Dictionary = RunSim.fight_preview(Run.state, Run.setup, id)
+	if p.is_empty():
+		return ""
+	var bits: PackedStringArray = []
+	if bool(p.get("elite", false)):
+		bits.append("ELITE")
+	if not String(p.get("objective", "")).is_empty():
+		bits.append(String(p["objective"]).to_upper())
+	var condition: String = String(p.get("condition", ""))
+	if not condition.is_empty():
+		bits.append(String(((Run.db.combat_rules.get("modifiers", {}) as Dictionary).get(condition, {}) as Dictionary).get("name", condition)).to_lower())
+	var squad: PackedStringArray = []
+	for entry: Variant in (p.get("enemies", []) as Array):
+		var pair: Array = entry
+		var count: int = int(pair[1]) if pair.size() > 1 else 1
+		var kind: String = String(pair[0]).to_lower()
+		squad.append("%d %s" % [count, kind if count == 1 or kind.ends_with("s") else kind + "s"])
+	if not squad.is_empty():
+		bits.append(", ".join(squad))
+	return "  ·  ".join(bits)
+
+
+## The warlord this act sends, by name, from the fight its site would hold ("" while unknown).
+func _warlord_name(id: int) -> String:
+	return String(RunSim.fight_preview(Run.state, Run.setup, id).get("name", ""))
+
+
 func _refresh_gauge() -> void:
 	for child: Node in _gauge_pips.get_children():
 		child.queue_free()
 	var every: int = maxi(1, int((Run.setup.rules["front"] as Dictionary)["every"]))
 	var done: int = Run.state.moves % every
+	# 084 (B3): a fractional pace steps after 1 move or 2; the sim says how many are left, and
+	# the gauge shows those, the one that brings it pulsing.
+	var eta: int = _front_eta()
+	if eta == every - done:
+		eta = -1   # the fixed `every` rule: the old gauge, lit pips and all
+	if eta > 0:
+		every = eta
+		done = 0
 	for i: int in every:
 		var pip := Panel.new()
 		pip.custom_minimum_size = Vector2(26, 26)
 		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var lit: bool = i < done
-		var next: bool = i == done and done == every - 1
+		var next: bool = (i == done and done == every - 1) if eta <= 0 else (eta == 1 and i == 0)
 		var style := UIKit.plain(Ink.DANGER if lit else UIKit.SURFACE, 0)
 		style.border_color = UIKit.RED if next else UIKit.HAIRLINE
 		style.set_border_width_all(4 if next else 3)
@@ -347,6 +422,15 @@ func _refresh_gauge() -> void:
 			pulse.tween_property(pip, "modulate", Color(1.6, 0.7, 0.6), 0.4)
 			pulse.tween_property(pip, "modulate", Color(1, 1, 1), 0.4)
 	_ground_chip.visible = Run.state.consumed(Run.state.current)
+
+
+## 084 (B3): moves until the Reclaimer next steps (1: the next move brings it), from the sim's
+## `move_preview` (its `front_in` knows a fractional `front.pace`); -1 when the sim gives no count.
+func _front_eta() -> int:
+	var move: Dictionary = RunSim.move_preview(Run.state, Run.setup, Run.state.current)
+	if not move.has("front_in"):
+		return -1
+	return 1 if bool(move["advances"]) else 2 + int(move["front_in"])
 
 
 # --- Crew dock ----------------------------------------------------------------
@@ -484,6 +568,7 @@ func _refresh() -> void:
 			state.cargo.size(), state.hold_size, state.cargo.size() - state.hold_size], UIKit.SIZE_BODY, UIKit.TEXT))
 	if _hover >= 0 and not RunSim.destinations(state).has(_hover) and _hover != state.current:
 		_hover = -1
+	_yard.front_eta = _front_eta()
 	_yard.refresh(state, RunSim.destinations(state), _hover)
 	_yard.set_crew(state.crew)
 	_build_site_labels()
@@ -621,6 +706,9 @@ func _show_preview() -> void:
 		card.band = Ink.ACTION
 	_preview.add_theme_stylebox_override("panel", card)
 	var head: String = String(SITE_NAMES.get(String(site["type"]), "?")) if known else "NOT SCOUTED"
+	var lord: String = _warlord_name(_hover) if known and String(site["type"]) == "warlord" else ""
+	if not lord.is_empty():
+		head += "  ·  " + lord.to_upper()
 	if reachable:
 		head = "%s  ·  %s" % [_direction(_hover), head]
 	box.add_child(_label(head, 24, UIKit.TEXT, UIKit.font_comic()))
@@ -629,6 +717,14 @@ func _show_preview() -> void:
 	if bool(site["visited"]) and _hover != state.current:
 		text = "Already cleared. Nothing happens there now."
 	box.add_child(_wrap(text, UIKit.SIZE_BODY, UIKit.TEXT, 340))
+	# 084 (B2): what the fight there is, for a site you have scouted; unscouted stays "?".
+	if known and not bool(site["visited"]):
+		var fight: String = _fight_line(_hover)
+		if not fight.is_empty():
+			var line := _wrap(fight, UIKit.SIZE_BODY, UIKit.TEXT, 340)
+			line.name = "fight_line"
+			line.add_theme_font_override("font", UIKit.font_comic())
+			box.add_child(line)
 	if reachable:
 		# 014 (review point R5-3): what the move gives, what it risks, and what it gives up.
 		var move: Dictionary = RunSim.move_preview(state, Run.setup, _hover)
@@ -637,7 +733,7 @@ func _show_preview() -> void:
 			if int(move["enemies"]) > 0:
 				box.add_child(_wrap("%d enemies%s" % [int(move["enemies"]), ", the Reclaimer's drones join at round 3" if bool(move["reach"]) else ""],
 					UIKit.SIZE_LABEL, UIKit.RED, 340))
-		for line: String in _move_costs(_hover):
+		for line: String in _move_costs(_hover, move):
 			box.add_child(_wrap(line, UIKit.SIZE_LABEL, UIKit.RED, 340))
 		if bool(move["advances"]):
 			var lost: Array = move["lost"]
@@ -685,14 +781,14 @@ func _gives(kind: String) -> String:
 	return ""
 
 
-func _move_costs(to: int) -> PackedStringArray:
+## 084 (B3): whether the Reclaimer moves comes from `RunSim.move_preview` (its pace is the sim's).
+func _move_costs(to: int, move: Dictionary) -> PackedStringArray:
 	var state: RunState = Run.state
 	var front: Dictionary = Run.setup.rules["front"]
-	var every: int = maxi(1, int(front["every"]))
 	var out: PackedStringArray = []
 	if state.consumed(state.current):
 		out.append("Leaving reclaimed ground: every machine loses %d HP." % int(front["damage"]))
-	if (state.moves + 1) % every == 0 and int(state.site(to)["col"]) <= state.front_col + 1:
+	if bool(move["advances"]) and int(state.site(to)["col"]) <= int(move["front_after"]):
 		out.append("The Reclaimer will take that ground as you arrive: the next move out costs %d HP each." % int(front["damage"]))
 	return out
 
@@ -807,6 +903,7 @@ func _briefing() -> void:
 	# each panel is the lore AND what the player needs -- the Reclaimer on the map, the key, the
 	# crew of parts, the road of three gates.
 	box.add_child(ComicStrip.build(brief.get("panels", []), 4, Vector2(380, 360)))
+	_add_act_facts(box, 1600)
 	var go := _button(String(brief.get("go", "ROLL OUT")), UIKit.primary(), UIKit.BG, Vector2(280, 64))
 	go.pressed.connect(func() -> void:
 		Run.briefed = true
@@ -820,12 +917,29 @@ func _act_arrival() -> void:
 	box.add_child(ComicStrip.build(act.get("arrival", [
 		{"caption": "MEANWHILE...", "big": String(act.get("name", "")), "text": String(act.get("mission", ""))},
 		{"caption": "AT THE END", "big": String(act.get("gate", "THE GATE")), "text": String(act.get("boss", "")), "red": true}]), 3, Vector2(420, 360)))
+	_add_act_facts(box, 1280)
 	var go := _button("ON THE ROAD", UIKit.primary(), UIKit.BG, Vector2(280, 64))
 	go.pressed.connect(func() -> void:
 		# Told once a run (play-test 12: a CONTINUE told it again), remembered with the profile.
 		Profile.tell_act(str(Run.setup.rng_seed), Run.state.act)
 		_refresh())
 	_row(box).add_child(go)
+
+
+## 084 (B7): under an act's card, its condition and the warlord it sends.
+func _add_act_facts(box: Control, width: float) -> void:
+	var line: Control = _condition_line(width)
+	if line != null:
+		box.add_child(line)
+	for site: Dictionary in Run.state.sites:
+		if String(site["type"]) == "warlord":
+			var lord: String = _warlord_name(int(site["id"]))
+			if not lord.is_empty():
+				var named := _wrap("THIS ACT'S WARLORD: %s" % lord.to_upper(), UIKit.SIZE_HEADING, UIKit.RED, width)
+				named.name = "act_warlord"
+				named.add_theme_font_override("font", UIKit.font_comic())
+				box.add_child(named)
+			break
 
 
 func _fight_panel() -> void:
@@ -1200,12 +1314,13 @@ func _run_over() -> void:
 	var record: Array = _roll_call()
 	for i: int in state.crew.size():
 		roll.add_child(_roll_column(i, record[i] if i < record.size() else {}))
+	_seed_row(box)
 	var row := _row(box)
 	# 027: every unlock as a goal, the ones this run earned ringed as new.
 	var fresh: Array = (banked.get("new", []) as Array).map(func(e: Dictionary) -> String: return String(e["id"]))
 	var goals := _button("UNLOCKS", UIKit.secondary(), UIKit.TEXT, Vector2(200, 64))
 	goals.pressed.connect(func() -> void:
-		UnlocksPanel.open(self, Run.db, Profile.unlocked(), Profile.stats(), Profile.unseen_unlocks())
+		UnlocksPanel.open(self, Run.db, Profile.unlocked(), Profile.stats(), Profile.unseen_unlocks(), Profile.run_history())
 		Profile.mark_unlocks_seen())
 	row.add_child(goals)
 	var title := _button("TITLE", UIKit.secondary(), UIKit.TEXT, Vector2(200, 64))
@@ -1219,6 +1334,41 @@ func _run_over() -> void:
 		Run.new_run_from_profile()
 		get_tree().reload_current_scene())
 	row.add_child(again)
+
+
+## 084 (B8): the run's seed as its code, to copy or share, and PLAY THIS SEED -- the same region,
+## crew and tier again, as a seeded run (it banks nothing; `Run.new_seeded_run`).
+func _seed_row(box: Control) -> void:
+	var row := _row(box)
+	row.name = "seed_row"
+	var code: String = Run.seed_code()
+	if not code.is_empty():
+		var label := _label("SEED  ·  %s" % code, UIKit.SIZE_HEADING, UIKit.TEXT, UIKit.font_comic())
+		label.name = "seed_code"
+		label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(label)
+		var copy := _button("COPY", UIKit.secondary(), UIKit.TEXT, Vector2(120, 56))
+		copy.name = "copy_seed"
+		copy.pressed.connect(func() -> void:
+			DisplayServer.clipboard_set(code)
+			copy.text = "COPIED")
+		row.add_child(copy)
+	if Run.is_seeded():
+		row.add_child(_label("A seeded run: it counts for nothing on the ladder.", UIKit.SIZE_LABEL, UIKit.TEXT_DIM))
+	var again := _button("PLAY THIS SEED", UIKit.choice(), UIKit.TEXT, Vector2(280, 56))
+	again.name = "play_seed"
+	again.pressed.connect(_play_this_seed)
+	row.add_child(again)
+
+
+func _play_this_seed() -> void:
+	var seed_value: int = Run.setup.rng_seed
+	var options: Dictionary = Run.setup.options.duplicate(true)
+	Run.end_run()
+	if Run.new_seeded_run(seed_value, options):
+		get_tree().reload_current_scene()
+	else:
+		Audio.play("ui_deny", -10.0)
 
 
 ## The ending in the world's words (082): the true ending for a win on the top tier, and a loss
