@@ -103,6 +103,19 @@ func new_seeded_run(seed_value: int, options: Dictionary) -> bool:
 	return true
 
 
+## PLAY THIS SEED from a line of the history: that seed with the options the run had (kept in the
+## line), or -- for a line from before they were kept -- its crew and tier with today's unlocks.
+func play_entry(entry: Dictionary) -> bool:
+	var options: Dictionary = entry.get("options", {})
+	if options.is_empty():
+		options = Meta.options(db.meta, Profile.unlocked(), String(entry.get("crew", "salvagers")), int(entry.get("tier", 0)))
+	# The profile is JSON: its numbers come back as floats, and an option holding a float is a
+	# different option.
+	options = RunStore._ints(options.duplicate(true))
+	options.erase(SEEDED)
+	return new_seeded_run(int(entry.get("seed", -1)), options) if int(entry.get("seed", -1)) >= 0 else false
+
+
 ## The run as one line of the history (`Profile.record_run`), once per `key`.
 func _record(key: String, ended: String = "") -> void:
 	if setup == null or state == null:
@@ -115,7 +128,8 @@ func _record(key: String, ended: String = "") -> void:
 	Profile.record_run({"key": key, "seed": setup.rng_seed, "code": seed_code(), "seeded": is_seeded(),
 		"crew": crew_id(), "tier": int(setup.options.get("tier", 0)), "act": state.act, "ended": ended,
 		"reason": state.end_reason, "fights": state.fights_won, "parts": parts,
-		"names": state.crew.map(func(m: Dictionary) -> String: return String(m["name"]))})
+		"names": state.crew.map(func(m: Dictionary) -> String: return String(m["name"])),
+		"options": setup.options.duplicate(true)})
 
 
 func new_run(seed_value: int = -1, options: Dictionary = {}) -> void:

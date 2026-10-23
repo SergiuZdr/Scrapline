@@ -554,6 +554,19 @@ func _the_road() -> void:
 	root.push_input(motion, true)
 	await _frames(3)
 	_check("(the fight site is hovered)", int(map.get("_hover")) == site)
+	# 084 (the user): every revealed fight site says its objective under its name, without hovering.
+	var named: int = 0
+	var fights: int = 0
+	for s: Dictionary in state.sites:
+		var at_id: int = int(s["id"])
+		var preview: Dictionary = RunSim.fight_preview(state, setup, at_id)
+		if preview.is_empty() or bool(s["visited"]):
+			continue
+		fights += 1
+		var word: Label = map.find_child("objective_%d" % at_id, true, false) as Label
+		if word != null and word.text == String(preview["objective"]).to_upper():
+			named += 1
+	_check("each revealed fight site shows its objective under its name (%d of %d)" % [named, fights], fights > 0 and named == fights)
 	var expect: String = String(map.call("_fight_line", site))
 	var shown: Label = (map.get("_preview") as Node).find_child("fight_line", true, false) as Label
 	if RunSim.fight_preview(state, setup, site).is_empty():
@@ -616,6 +629,57 @@ func _seed_field() -> void:
 	var history: Array = (root.get_node("Profile") as Node).call("run_history")
 	_check("abandoned runs are in the history (%d)" % history.size(), history.size() >= 2
 		and String((history[0] as Dictionary).get("ended", "")) == "abandoned")
+	await _ledger_play(int((history[0] as Dictionary)["seed"]))
+
+
+## 084 (the user): the RUNS ledger shows each machine's parts as pictures and offers PLAY THIS SEED
+## per row -- refused over a live run with the title's words, and the same seed again when none is.
+func _ledger_play(seed_value: int) -> void:
+	var title: Node = await _open("res://scenes/main.tscn")
+	var ledger: Node = await _open_ledger(title)
+	if ledger == null:
+		_check("(the RUNS ledger opens)", false)
+		return
+	var row: Node = ledger.find_child("run_row", true, false)
+	var thumbs: Array = row.find_children("part_thumb", "TextureRect", true, false) if row != null else []
+	_check("a ledger row pictures the final parts (%d)" % thumbs.size(), thumbs.size() >= 3
+		and thumbs.all(func(t: TextureRect) -> bool: return t.texture != null))
+	var play: Button = row.find_child("play_seed", true, false) as Button if row != null else null
+	_check("a ledger row offers PLAY THIS SEED", play != null)
+	if play == null:
+		return
+	var live: int = int(RunStore.load_saved().get("seed", -1))
+	_click(play.get_global_rect().get_center())
+	await _frames(3)
+	var problem: Label = ledger.find_child("ledger_problem", true, false) as Label
+	_check("over a live run it is refused with the title's words (%s)" % problem.text, problem.text.contains("in progress")
+		and int(RunStore.load_saved().get("seed", -1)) == live and current_scene == title)
+	_run.call("abandon")
+	# That run is now the ledger's first row.
+	seed_value = int(((root.get_node("Profile") as Node).call("run_history") as Array)[0]["seed"])
+	title = await _open("res://scenes/main.tscn")
+	ledger = await _open_ledger(title)
+	row = ledger.find_child("run_row", true, false)
+	play = row.find_child("play_seed", true, false) as Button
+	_click(play.get_global_rect().get_center())
+	await _frames(6)
+	_check("with none live, it starts that seed again as a seeded run (%d)" % seed_value,
+		int((_run.get("setup") as RunSetup).rng_seed) == seed_value and bool(_run.call("is_seeded"))
+		and int(RunStore.load_saved().get("seed", -1)) == seed_value)
+
+
+func _open_ledger(title: Node) -> Node:
+	var goals: Button = _find_button_prefix(title, "UNLOCKS")
+	if goals == null:
+		return null
+	_click(goals.get_global_rect().get_center())
+	await _frames(3)
+	var tab: Button = title.find_child("tab_runs", true, false) as Button
+	if tab == null:
+		return null
+	_click(tab.get_global_rect().get_center())
+	await _frames(3)
+	return title.find_child("ledger", true, false)
 
 
 func _open(path: String) -> Node:
