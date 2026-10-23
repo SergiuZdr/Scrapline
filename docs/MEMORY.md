@@ -176,6 +176,8 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-23 | **The Core: a bit less HP but more threatening** (aim ~8 rounds, no lighter on the crew) | 083, the user |
 | 2026-10-23 | **Bosses stand 1.6x the crew's tallest machine, livery lifted 0.45; the opening push-in is ON** and starts only on a complete board; the keeper-fall beat holds 1.1 s | 083, the user picked from the before/after sheets |
 | 2026-10-23 | **Acts 2-3 bosses and warlords get a second escort wave at round 6** (`boss_late_waves` in the act); the Twins' timeouts are left | 083, the user |
+| 2026-10-23 | **The act's condition replaces the mission line under the map header**; the objective word shows under each revealed fight site (touch) | 084, the user |
+| 2026-10-23 | **Seeded runs count for nothing** (no stats, unlocks or tiers) and refuse to start over a live run; they stay in the run history as SEEDED; the history has PLAY THIS SEED per row and part pictures | 084, the user |
 
 ## Lessons carried over from the old codebase
 
