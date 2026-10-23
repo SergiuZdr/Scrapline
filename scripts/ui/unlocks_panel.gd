@@ -53,7 +53,7 @@ func _ready() -> void:
 	box.add_child(head)
 	head.add_child(UIKit.caption_title("UNLOCKS", 44))
 	# 084 (B8): two tabs -- the unlocks, and the ledger of the last runs.
-	for tab: String in ["UNLOCKS", "RUNS  ·  %d" % _history.size()]:
+	for tab: String in ["GOALS", "RUNS  ·  %d" % _history.size()]:
 		var button := Button.new()
 		button.text = tab
 		button.name = "tab_" + tab.get_slice(" ", 0).to_lower()
@@ -140,12 +140,12 @@ func _ready() -> void:
 		closed.emit()
 		queue_free())
 	box.add_child(close)
-	_show_tab("UNLOCKS")
+	_show_tab("GOALS")
 
 
 ## Shows one tab, the other hidden; the open tab's button is ringed (equal choices: `UIKit.choice`).
 func _show_tab(which: String) -> void:
-	_unlocks_view.visible = which == "UNLOCKS"
+	_unlocks_view.visible = which == "GOALS"
 	_runs_view.visible = which == "RUNS"
 	for key: String in _tab_buttons:
 		var style: InkBox = UIKit.choice() if key == which else UIKit.secondary()
@@ -205,12 +205,15 @@ func _ledger_row(entry: Dictionary) -> Control:
 		bits.append("SEEDED")
 	text.add_child(UIKit.fit(_label("  ·  ".join(bits), 20, UIKit.INK, UIKit.font_comic()), 1400, 1, 12))
 	var machines: PackedStringArray = []
-	for parts: Variant in (entry.get("parts", []) as Array):
+	var crew_names: Array = entry.get("names", [])
+	var all_parts: Array = entry.get("parts", [])
+	for m: int in all_parts.size():
 		var names: PackedStringArray = []
-		for id: Variant in (parts as Array):
+		for id: Variant in (all_parts[m] as Array):
 			if not String(id).is_empty():
 				names.append(PartText.name_of(_db.parts, String(id)))
-		machines.append(", ".join(names))
+		var who: String = String(crew_names[m]).to_upper() + ": " if m < crew_names.size() else ""
+		machines.append(who + ", ".join(names))
 	if not machines.is_empty():
 		text.add_child(UIKit.fit(_label("  |  ".join(machines), UIKit.SIZE_LABEL, UIKit.INK_DIM, UIKit.font_strong()), 1400, 2, 11))
 	return row

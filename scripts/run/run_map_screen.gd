@@ -369,7 +369,8 @@ func _fight_line(id: int) -> String:
 	if p.is_empty():
 		return ""
 	var bits: PackedStringArray = []
-	if bool(p.get("elite", false)):
+	# (An elite or arena site's card already says so in its head.)
+	if bool(p.get("elite", false)) and not ["elite", "arena"].has(String(Run.state.site(id)["type"])):
 		bits.append("ELITE")
 	if not String(p.get("objective", "")).is_empty():
 		bits.append(String(p["objective"]).to_upper())
@@ -718,21 +719,22 @@ func _show_preview() -> void:
 		text = "Already cleared. Nothing happens there now."
 	box.add_child(_wrap(text, UIKit.SIZE_BODY, UIKit.TEXT, 340))
 	# 084 (B2): what the fight there is, for a site you have scouted; unscouted stays "?".
-	if known and not bool(site["visited"]):
-		var fight: String = _fight_line(_hover)
-		if not fight.is_empty():
-			var line := _wrap(fight, UIKit.SIZE_BODY, UIKit.TEXT, 340)
-			line.name = "fight_line"
-			line.add_theme_font_override("font", UIKit.font_comic())
-			box.add_child(line)
+	var fight: String = _fight_line(_hover) if known and not bool(site["visited"]) else ""
+	if not fight.is_empty():
+		var line := _wrap(fight, UIKit.SIZE_BODY, UIKit.TEXT, 340)
+		line.name = "fight_line"
+		line.add_theme_font_override("font", UIKit.font_comic())
+		box.add_child(line)
 	if reachable:
 		# 014 (review point R5-3): what the move gives, what it risks, and what it gives up.
 		var move: Dictionary = RunSim.move_preview(state, Run.setup, _hover)
 		if known and not bool(site["visited"]):
 			box.add_child(_wrap(_gives(String(site["type"])), UIKit.SIZE_LABEL, UIKit.GREEN, 340))
-			if int(move["enemies"]) > 0:
+			if int(move["enemies"]) > 0 and fight.is_empty():
 				box.add_child(_wrap("%d enemies%s" % [int(move["enemies"]), ", the Reclaimer's drones join at round 3" if bool(move["reach"]) else ""],
 					UIKit.SIZE_LABEL, UIKit.RED, 340))
+			elif bool(move["reach"]):
+				box.add_child(_wrap("The Reclaimer's drones join at round 3.", UIKit.SIZE_LABEL, UIKit.RED, 340))
 		for line: String in _move_costs(_hover, move):
 			box.add_child(_wrap(line, UIKit.SIZE_LABEL, UIKit.RED, 340))
 		if bool(move["advances"]):
