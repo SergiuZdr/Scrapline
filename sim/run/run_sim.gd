@@ -341,7 +341,7 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 		state.log.append("The Reclaimer tears at the crew as it pulls out: -%d each." % bite)
 	state.current = to
 	state.moves += 1
-	if state.moves % maxi(1, int(front.get("every", 2))) == 0:
+	if front_due(front, state.moves, state.front_col):
 		state.front_col += 1
 		state.log.append("The Reclaimer swallows column %d." % (state.front_col + 1))
 	var s: Dictionary = state.sites[to]
@@ -399,9 +399,11 @@ static func _start_fight(state: RunState, setup: RunSetup, to: int, kind: String
 ## What a move to `to` costs and gives up (014, review point R5-3): whether the Reclaimer
 ## advances with it and the column it takes, the unvisited sites it swallows there for good,
 ## whether its drones would reach into a fight at `to`, and for a fight how many enemies.
+## 084 (B3): also `front_in`, the moves after this one before the Reclaimer takes its next column
+## (0: the very next move), and `pace` -- the cost of a sideways step shows before it is taken.
 static func move_preview(state: RunState, setup: RunSetup, to: int) -> Dictionary:
 	var front: Dictionary = rules_of(state, setup).get("front", {})
-	var advances: bool = (state.moves + 1) % maxi(1, int(front.get("every", 2))) == 0
+	var advances: bool = front_due(front, state.moves + 1, state.front_col)
 	var front_after: int = state.front_col + (1 if advances else 0)
 	var site: Dictionary = state.site(to)
 	var lost: Array = []
@@ -423,7 +425,28 @@ static func move_preview(state: RunState, setup: RunSetup, to: int) -> Dictionar
 			enemies = 1 + int(rules.get("warlord_escorts", 3))
 	return {"advances": advances, "front_after": front_after, "lost": lost, "enemies": enemies,
 		"reach": FIGHT_TYPES.has(kind) and int(site.get("col", -9)) == front_after + 1,
-		"leaving_costs": state.consumed(state.current)}
+		"leaving_costs": state.consumed(state.current),
+		"front_in": front_in(front, state.moves + 1, front_after)}
+
+
+## 084 (B3): whether the Reclaimer takes a column on the move that brings the count to `moves`,
+## standing at `front_col`. `front.pace` is moves per column x100: it advances when
+## moves*100 >= (front_col+2)*pace, so pace 150 takes a column every move and a half (200 is the old
+## `every 2`). Without a pace, `every` (one column every `every` moves) is the fallback.
+static func front_due(front: Dictionary, moves: int, front_col: int) -> bool:
+	var pace: int = int(front.get("pace", 0))
+	if pace > 0:
+		return moves * 100 >= (front_col + 2) * pace
+	return moves % maxi(1, int(front.get("every", 2))) == 0
+
+
+## How many moves after the `moves`-th, the front standing at `front_col`, before it takes its
+## next column (0 = on the very next move).
+static func front_in(front: Dictionary, moves: int, front_col: int) -> int:
+	for n: int in 64:
+		if front_due(front, moves + 1 + n, front_col):
+			return n
+	return 64
 
 
 ## Whether a fight at `id` would have the Reclaimer's drones: it stands in the column the
@@ -1086,10 +1109,15 @@ static func act_count(setup: RunSetup) -> int:
 ## 082 (B1): then the tier's `adds` (`RunSetup.apply_adds`) on top of the act, so a tier stacks
 ## on every act instead of being replaced by the act's own `enemies` block.
 static func rules_of(state: RunState, setup: RunSetup) -> Dictionary:
+	return rules_for_act(setup, state.act)
+
+
+## The rules of act `act` (084: the act conditions are rolled for every act, not only the crew's).
+static func rules_for_act(setup: RunSetup, act: int) -> Dictionary:
 	var acts: Array = setup.rules.get("acts", [])
 	var out: Dictionary = setup.rules
-	if state.act >= 1 and state.act <= acts.size():
-		var over: Dictionary = acts[state.act - 1]
+	if act >= 1 and act <= acts.size():
+		var over: Dictionary = acts[act - 1]
 		if over.size() > 1:
 			out = RunSetup.overlay(setup.rules, over)
 	var adds: Array = setup.rules.get("adds", [])
@@ -1306,13 +1334,17 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 		elif not bool(map.get("tutorial", false)):
 			ids.append(id)
 	ids.sort()
+	# 084 (B7 a'): the act's warlord comes from the run's own order of them, not the file's act.
+	var rotated: String = act_warlord(setup, state.act)
+	if not rotated.is_empty():
+		warlord = rotated
 	# The act may change the board (032: Acts 2 and 3 hold one more enemy).
 	var board: Dictionary = rules_of(state, setup).get("board", {})
 	var template: Dictionary = widen(setup.fights[ids[rng.range_int(0, ids.size() - 1)]], board)
 	if kind == "boss" and not gate.is_empty():
 		return _make_gate_fight(state, setup, site_id, widen(setup.fights[gate], board), rng)
 	if kind == "warlord" and not warlord.is_empty():
-		return _make_gate_fight(state, setup, site_id, widen(setup.fights[warlord], board), rng, "warlord_escorts")
+		return _make_gate_fight(state, setup, site_id, widen(_warlord_for_act(setup, warlord, state.act), board), rng, "warlord_escorts")
 	var col: int = int(state.sites[site_id]["col"])
 	var enemies_rules: Dictionary = rules_of(state, setup).get("enemies", {})
 	var counts: Array = enemies_rules.get("count_by_column", [3])
@@ -1387,32 +1419,41 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 
 ## The yard's condition for a fight (028): by column, one of `run.json` `modifiers.weights`, or
 ## none. LIVE WIRES lays `wires` cables on open hexes in the middle rows, clear of the objective.
+## 084 (B7): an act with a condition (`act_condition`) gives it to every fight in it, with no roll.
 static func _roll_modifier(state: RunState, setup: RunSetup, rng: SimRNG, fight: Dictionary, template: Dictionary) -> void:
 	var rules: Dictionary = rules_of(state, setup).get("modifiers", {})
 	if rules.is_empty():
 		return
-	var col: int = int(state.sites[state.current if fight.get("id", "") == "" else int(String(fight["id"]).get_slice("_", 2))]["col"])
-	var chances: Array = rules.get("chance_by_column", [0])
-	if not rng.chance_percent(int(chances[mini(col, chances.size() - 1)])):
-		return
-	var weights: Dictionary = rules.get("weights", {})
-	var id: String = _weighted(rng, weights.keys(), weights, true)
+	var id: String = act_condition(state, setup, state.act)
+	if id.is_empty():
+		var col: int = int(state.sites[state.current if fight.get("id", "") == "" else int(String(fight["id"]).get_slice("_", 2))]["col"])
+		var chances: Array = rules.get("chance_by_column", [0])
+		if not rng.chance_percent(int(chances[mini(col, chances.size() - 1)])):
+			return
+		var weights: Dictionary = rules.get("weights", {})
+		id = _weighted(rng, weights.keys(), weights, true)
 	if id.is_empty():
 		return
 	fight["modifiers"] = [id]
 	if id == "wires":
-		var rows: Array = fight["rows"]
-		var taken: Array = []
-		for spec: Dictionary in (template.get("player", []) as Array) + (template.get("enemy", []) as Array):
-			taken.append(Vector2i(int(spec["x"]), int(spec["y"])))
-		var o: Dictionary = fight.get("objective", {})
-		for key: String in ["cells", "caches", "piles"]:
-			for c: Variant in (o.get(key, []) as Array):
-				taken.append(Vector2i(int((c as Dictionary)["x"]), int((c as Dictionary)["y"])))
-		var span: Array = rules.get("wires", [2, 4])
-		for cell: Vector2i in _free_cells(rng, rows, taken, middle_rows(rows), rng.range_int(int(span[0]), int(span[1]))):
-			var row: String = String(rows[cell.y])
-			rows[cell.y] = row.substr(0, cell.x) + "w" + row.substr(cell.x + 1)
+		lay_wires(rules, rng, fight, template)
+
+
+## LIVE WIRES (028): `modifiers.wires` cables on open hexes in the middle rows of `fight["rows"]`,
+## clear of every start and the objective. Public so the balance tool lays them the same way.
+static func lay_wires(rules: Dictionary, rng: SimRNG, fight: Dictionary, template: Dictionary) -> void:
+	var rows: Array = fight["rows"]
+	var taken: Array = []
+	for spec: Dictionary in (template.get("player", []) as Array) + (template.get("enemy", []) as Array):
+		taken.append(Vector2i(int(spec["x"]), int(spec["y"])))
+	var o: Dictionary = fight.get("objective", {})
+	for key: String in ["cells", "caches", "piles"]:
+		for c: Variant in (o.get(key, []) as Array):
+			taken.append(Vector2i(int((c as Dictionary)["x"]), int((c as Dictionary)["y"])))
+	var span: Array = rules.get("wires", [2, 4])
+	for cell: Vector2i in _free_cells(rng, rows, taken, middle_rows(rows), rng.range_int(int(span[0]), int(span[1]))):
+		var row: String = String(rows[cell.y])
+		rows[cell.y] = row.substr(0, cell.x) + "w" + row.substr(cell.x + 1)
 
 
 ## The act's gate (013): its authored map and keeper, escorts rolled at its other positions.
@@ -1787,10 +1828,103 @@ static func _roll_parts(setup: RunSetup, rng: SimRNG, min_rarity: int, favour: A
 ## 084 (B2): what a fight site holds, for the map's card, from the same roll `_make_fight` makes:
 ## {"objective": String, "condition": String ("" none), "enemies": [[kind name, count], ...] sorted, "elite": bool}.
 ## {} when the site is not a fight or is not revealed (unscouted sites stay "?").
+## It IS `_make_fight` (the fight a travel there would start), summarised by `fight_summary`: the
+## roll reads only the seed, the site and the act, never the route (verify_run checks it after travel).
+## A kind name is the enemy's kind when it has one (tracker, sentinel, grinder...), else its chassis
+## role (brawler, line, marksman, anchor). Sorted by count, most first, then by name. Also
+## "site_type", "count" (every enemy on the board at the start) and "name" (the board's).
 static func fight_preview(state: RunState, setup: RunSetup, site_id: int) -> Dictionary:
-	return {}
+	var s: Dictionary = state.site(site_id)
+	if s.is_empty() or not FIGHT_TYPES.has(String(s["type"])) or not revealed(state, site_id):
+		return {}
+	if bool(s["visited"]) and site_id != state.current:
+		return {}
+	return fight_summary(setup, _make_fight(state, setup, site_id, String(s["type"])), String(s["type"]))
+
+
+## The card line of a made fight (the preview's, and the arrived fight's in verify_run).
+static func fight_summary(setup: RunSetup, fight: Dictionary, kind: String) -> Dictionary:
+	var counts: Dictionary = {}
+	for spec: Variant in (fight.get("enemy", []) as Array):
+		var e: Dictionary = spec
+		var name: String = String(e.get("kind", ""))
+		if name.is_empty():
+			var chassis: String = PartTuning.base_of(String((e.get("parts", [""]) as Array)[0]))
+			name = String((setup.parts.get(chassis, {}) as Dictionary).get("role", "line"))
+		counts[name] = int(counts.get(name, 0)) + 1
+	var enemies: Array = []
+	for name: Variant in counts:
+		enemies.append([String(name), int(counts[name])])
+	enemies.sort_custom(func(a: Array, b: Array) -> bool:
+		return int(a[1]) > int(b[1]) if int(a[1]) != int(b[1]) else String(a[0]) < String(b[0]))
+	var mods: Array = fight.get("modifiers", [])
+	return {"objective": String((fight.get("objective", {}) as Dictionary).get("type", "rout")),
+		"condition": String(mods[0]) if not mods.is_empty() else "", "enemies": enemies,
+		"elite": kind == "elite" or kind == "arena", "site_type": kind,
+		"count": (fight.get("enemy", []) as Array).size(), "name": String(fight.get("name", ""))}
 
 
 ## 084 (B7): the condition every fight of `act` carries ("" for none), rolled from the run's seed.
-static func act_condition(state: RunState, setup: RunSetup, act: int) -> String:
-	return ""
+## `modifiers.per_act` turns it on; `modifiers.act_weights` (else `weights`) picks it, keys sorted, from
+## its own RNG stream, so it never moves another roll. `modifiers.acts` (a list, one id per act, ""
+## for none) fixes them instead -- 085's daily yard. Gates and warlords keep their own boards (none).
+static func act_condition(_state: RunState, setup: RunSetup, act: int) -> String:
+	var mods: Dictionary = rules_for_act(setup, act).get("modifiers", {})
+	var fixed: Array = mods.get("acts", [])
+	if act >= 1 and act <= fixed.size():
+		return String(fixed[act - 1])
+	if not bool(mods.get("per_act", false)):
+		return ""
+	var weights: Dictionary = mods.get("act_weights", mods.get("weights", {}))
+	var ids: Array = weights.keys()
+	ids.sort()
+	if ids.is_empty():
+		return ""
+	var id: String = _weighted(_rng(setup, -3, 17, act), ids, weights, true)
+	return "" if id == "none" else id
+
+
+## 084 (B7 a'): the fight id of act `act`'s warlord. With `warlords.rotate`, every warlord board
+## (any act) in an order shuffled once per run from the seed, act N taking the Nth; otherwise the
+## one whose file names the act. "" when there is none.
+static func act_warlord(setup: RunSetup, act: int) -> String:
+	var ids: Array = []
+	var home: String = ""
+	for id: Variant in setup.fights:
+		var map: Dictionary = setup.fights[id]
+		if not bool(map.get("warlord", false)):
+			continue
+		ids.append(String(id))
+		var acts: Array = map.get("acts", [1])
+		if acts.has(act) or acts.has(float(act)):
+			home = String(id)
+	ids.sort()
+	if ids.is_empty() or not bool((setup.rules.get("warlords", {}) as Dictionary).get("rotate", false)):
+		return home
+	var rng: SimRNG = _rng(setup, -4, 19)
+	for i: int in range(ids.size() - 1, 0, -1):
+		var j: int = rng.range_int(0, i)
+		var t: Variant = ids[i]
+		ids[i] = ids[j]
+		ids[j] = t
+	return String(ids[(act - 1) % ids.size()])
+
+
+## A warlord's board as it stands in act `act` (084): every keeper's HP moved by
+## `warlords.keeper_hp_step` for each act away from the file's own (its first `acts` entry). Escorts,
+## their arming and late waves already follow the act's `enemies` rules.
+static func _warlord_for_act(setup: RunSetup, id: String, act: int) -> Dictionary:
+	var template: Dictionary = setup.fights[id]
+	var step: int = int((setup.rules.get("warlords", {}) as Dictionary).get("keeper_hp_step", 0))
+	var home: int = int((template.get("acts", [1]) as Array)[0]) if not (template.get("acts", [1]) as Array).is_empty() else 1
+	if step == 0 or home == act:
+		return template
+	var out: Dictionary = template.duplicate()
+	var enemy: Array = (template.get("enemy", []) as Array).duplicate(true)
+	var keepers: int = maxi(1, int(template.get("keepers", 1)))
+	for k: int in mini(keepers, enemy.size()):
+		var spec: Dictionary = enemy[k]
+		if spec.has("hp"):
+			spec["hp"] = maxi(1, int(spec["hp"]) + (act - home) * step)
+	out["enemy"] = enemy
+	return out

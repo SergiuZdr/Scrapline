@@ -38,8 +38,15 @@
   "first_column_calm": ["scrapyard", "trader", "signal"],
   "front": {
     "every": 2,
+    "pace": 150,
     "damage": 2,
-    "_comment": "The Reclaimer consumes one column every `every` moves. Each move made while standing in consumed ground costs every machine `damage` HP (never below 1)."
+    "_comment": "The Reclaimer consumes one column every `every` moves. Each move made while standing in consumed ground costs every machine `damage` HP (never below 1).",
+    "_pace": "084 (B3, the user: wandering costs at the default difficulty): moves per column x100. The front takes its next column when moves*100 >= (front_col+2)*pace (200 is `every 2`); `every` is the fallback when there is no pace. An act may set its own."
+  },
+  "warlords": {
+    "rotate": true,
+    "keeper_hp_step": 4,
+    "_comment": "084 (B7 a'): the three warlord boards are dealt to the acts in an order shuffled from the seed (`RunSim.act_warlord`). A keeper's HP moves by `keeper_hp_step` for each act away from its file's own act; escorts, their arming and late waves follow the act's `enemies` rules."
   },
   "starting_scrap": 10,
   "starting_crew": [
@@ -130,6 +137,9 @@
     "_comment": "028: the chance, by column, that a fight (not a gate) rolls one yard condition (combat rules `modifiers`), and which. LIVE WIRES lays `wires` tiles.",
     "chance_by_column": [0, 15, 20, 25, 30, 35, 40, 45, 50],
     "weights": {"dust": 25, "wires": 25, "scrap_rain": 20, "heat_wave": 25},
+    "per_act": true,
+    "act_weights": {"dust": 25, "heat_wave": 25, "scrap_rain": 25, "wires": 25},
+    "_per_act": "084 (B7): each act rolls one condition from the seed (`act_weights`) and every fight in it (not the gate, not the warlord) carries it, instead of the per-fight roll by column. `acts`: a list of ids, one per act, fixes them (085's daily yard).",
     "wires": [2, 4]
   },
   "objectives": {
