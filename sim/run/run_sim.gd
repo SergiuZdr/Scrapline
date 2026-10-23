@@ -1427,6 +1427,13 @@ static func _make_gate_fight(state: RunState, setup: RunSetup, site_id: int, tem
 	for key: String in ["pile_heal", "escort_waves"]:
 		if template.has(key):
 			fight[key] = (template[key] as Array).duplicate(true) if template[key] is Array else template[key]
+	# 083 (the user): Acts 2-3 bosses and warlords get a second marked wave late in the fight.
+	var late: Array = enemies_rules.get("boss_late_waves", [])
+	if not late.is_empty():
+		var waves: Array = fight.get("escort_waves", [])
+		for w: Variant in late:
+			waves.append((w as Dictionary).duplicate(true))
+		fight["escort_waves"] = waves
 	var player: Array = []
 	var slots: Array = template.get("player", [])
 	var fielded: Array = _fielded_crew(state)
