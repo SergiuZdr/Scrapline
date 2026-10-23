@@ -2139,8 +2139,10 @@ static func is_keeper(state: CombatState, ref: int) -> bool:
 
 
 ## A1 (083): the last keeper fell. KEEPERS_FALL, then everything left on its side collapses where
-## it stands -- a DESTROYED and, for a machine that carried scrap, its pile, as any wreck (no drum
-## blast, no rebuild: the fight is over) -- and the fight is won.
+## it stands -- a DESTROYED with actor -1 (no one's kill; no drum blast, no rebuild: the fight is
+## over) -- and the fight is won. The scrap the collapse leaves, and every pile still lying on the
+## board except the crew's own wrecks (`saved_wrecks`), goes to the crew at once (the user,
+## 2026-10-22): PILE_TAKEN with actor -1, into `scrap_collected`, so the run banks it as any pile.
 static func _keepers_fall(state: CombatState) -> void:
 	var last: GridUnit = state.unit(state.setup.keepers[state.setup.keepers.size() - 1])
 	for i: int in range(state.events.size() - 1, -1, -1):
@@ -2159,6 +2161,13 @@ static func _keepers_fall(state: CombatState) -> void:
 		if u.carries_scrap:
 			state.piles[cell] = int(state.piles.get(cell, 0)) + state.setup.pile_value
 			state.emit(GridEv.PILE_DROPPED, -1, u.ref, cell.x, cell.y, state.setup.pile_value)
+	for cell: Vector2i in state.pile_cells():
+		if state.wreck_piles.has(cell):
+			continue
+		var value: int = int(state.piles[cell])
+		state.piles.erase(cell)
+		state.scrap_collected += value
+		state.emit(GridEv.PILE_TAKEN, -1, -1, cell.x, cell.y, value, 0)
 	state.rebuilds.clear()
 	state.summons.clear()
 	_finish(state, CombatState.WON)
@@ -2233,7 +2242,7 @@ static func _next_slot(state: CombatState) -> int:
 
 ## A2 (083): escort waves still to come (marked or not).
 static func escort_waves_left(state: CombatState) -> int:
-	var left: int = 0
+	var left: int = 1 if not state.held_escorts.is_empty() else 0
 	for wave: Dictionary in state.setup.escort_waves:
 		if int(wave["round"]) > state.round_number:
 			left += 1
@@ -2242,31 +2251,39 @@ static func escort_waves_left(state: CombatState) -> int:
 
 ## A2 (083): a round before a wave of escorts is due, its hexes are marked on the enemy's half
 ## (open ground, picked by a hash), one per escort, with the same WAVE_MARKED the SURVIVE waves use.
+## An escort whose mark was blocked is marked again on a new hex, for the next round.
 static func _mark_escorts(state: CombatState) -> void:
+	var refs: Array = state.held_escorts.duplicate()
+	state.held_escorts.clear()
 	for wave: Dictionary in state.setup.escort_waves:
-		if int(wave["round"]) != state.round_number + 1:
+		if int(wave["round"]) == state.round_number + 1:
+			refs.append_array(wave["refs"])
+	if refs.is_empty():
+		return
+	var open: Array[Vector2i] = []
+	for y: int in maxi(1, state.height / 2):
+		for x: int in state.width:
+			var cell := Vector2i(x, y)
+			if not state.solid(cell) and not state.is_pit(cell) and state.unit_at(x, y) == null \
+					and not state.wave_marks.has(cell) and not state.spawn_marks.values().has(cell):
+				open.append(cell)
+	open.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		var ha: int = IntentAI.mix(state.setup.rng_seed, a.y * 64 + a.x, state.round_number, 73)
+		var hb: int = IntentAI.mix(state.setup.rng_seed, b.y * 64 + b.x, state.round_number, 73)
+		return ha < hb or (ha == hb and (a.y < b.y or (a.y == b.y and a.x < b.x))))
+	for i: int in refs.size():
+		if i >= open.size():
+			state.held_escorts.append(int(refs[i]))   # no room: it waits for the next round
 			continue
-		var open: Array[Vector2i] = []
-		for y: int in maxi(1, state.height / 2):
-			for x: int in state.width:
-				var cell := Vector2i(x, y)
-				if not state.solid(cell) and not state.is_pit(cell) and state.unit_at(x, y) == null \
-						and not state.wave_marks.has(cell) and not state.spawn_marks.values().has(cell):
-					open.append(cell)
-		open.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
-			var ha: int = IntentAI.mix(state.setup.rng_seed, a.y * 64 + a.x, state.round_number, 73)
-			var hb: int = IntentAI.mix(state.setup.rng_seed, b.y * 64 + b.x, state.round_number, 73)
-			return ha < hb or (ha == hb and (a.y < b.y or (a.y == b.y and a.x < b.x))))
-		var refs: Array = wave["refs"]
-		for i: int in mini(refs.size(), open.size()):
-			state.wave_marks.append(open[i])
-			state.wave_refs.append(int(refs[i]))
-			state.emit(GridEv.WAVE_MARKED, -1, int(refs[i]), open[i].x, open[i].y, 1)
+		state.wave_marks.append(open[i])
+		state.wave_refs.append(int(refs[i]))
+		state.emit(GridEv.WAVE_MARKED, -1, int(refs[i]), open[i].x, open[i].y, 1)
 
 
 ## A2 (083): the marked escorts come in at the round's start, before anyone moves. A mark that
-## something stands on is blocked: that escort never comes, and a crew machine on it takes
-## `block_damage`. Run from `_round_hazards`, so `incoming` shows the block's cost on the board.
+## something stands on is blocked: a crew machine on it takes `block_damage`, and that escort is
+## marked again elsewhere for the next round (blocking delays it; the user, 2026-10-22). Run from
+## `_round_hazards`, so `incoming` shows the block's cost on the board.
 static func _escort_arrivals(state: CombatState) -> void:
 	if state.wave_refs.is_empty():
 		return
@@ -2276,6 +2293,8 @@ static func _escort_arrivals(state: CombatState) -> void:
 		var occupant: GridUnit = state.unit_at(cell.x, cell.y)
 		if held == null or occupant != null or state.solid(cell) or state.is_pit(cell):
 			state.emit(GridEv.SPAWN_BLOCKED, -1, int(state.wave_refs[i]), cell.x, cell.y, 0)
+			if held != null:
+				state.held_escorts.append(int(state.wave_refs[i]))
 			if occupant != null and occupant.team == GridUnit.TEAM_PLAYER and not occupant.objective \
 					and state.setup.block_damage > 0:
 				hurt(state, -1, occupant, state.setup.block_damage)
