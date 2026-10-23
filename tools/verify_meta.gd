@@ -168,6 +168,35 @@ func _run() -> void:
 	_check("a tier that opens becomes the next run's tier (%s)" % [profile.call("run_choice")], int((profile.call("run_choice") as Dictionary)["tier"]) == 1)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
+	# 084 (B8): a seeded run banks nothing -- a win on a known seed opens no tier and no unlock --
+	# but it is in the run history.
+	var seeded_path: String = "user://verify_meta_seeded.json"
+	for file: String in [seeded_path, SaveFile.backup_of(seeded_path)]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(file))
+	profile.call("use_path", seeded_path)
+	var plain_tier: int = int((profile.call("run_choice") as Dictionary)["tier"])
+	var seeded_new: Array = profile.call("bank_run", "2:2", veteran, meta, 0, true)
+	_check("a seeded win unlocks nothing and opens no tier (%s, tier %d)" % [seeded_new, int((profile.call("run_choice") as Dictionary)["tier"])],
+		seeded_new.is_empty() and (profile.call("unlocked") as Array).is_empty()
+		and int((profile.call("run_choice") as Dictionary)["tier"]) == plain_tier and int((profile.call("stats") as Dictionary).get("wins", 0)) == 0)
+	var run: Node = root.get_node("Run")
+	RunStore.clear()
+	_check("(a seeded run starts with no run saved)", bool(run.call("new_seeded_run", 321, run.call("profile_options"))))
+	var live: RunState = run.get("state")
+	live.outcome = RunState.WON
+	live.fights_won = 12
+	live.act = 3
+	var banked: Dictionary = run.call("bank")
+	var history: Array = profile.call("run_history")
+	_check("and through the Run: a seeded win banks nothing (%d new)" % (banked.get("new", []) as Array).size(),
+		(banked.get("new", []) as Array).is_empty() and (profile.call("unlocked") as Array).is_empty()
+		and int((profile.call("stats") as Dictionary).get("runs", 0)) == 0)
+	_check("but goes into the history, marked seeded", not history.is_empty() and bool((history[0] as Dictionary).get("seeded", false))
+		and String((history[0] as Dictionary).get("ended", "")) == "won")
+	run.call("end_run")
+	for file: String in [seeded_path, SaveFile.backup_of(seeded_path)]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(file))
+
 	# 023: every sound a script asks for is in the bank, and the switch is kept.
 	var audio: Node = root.get_node("Audio")
 	var bank: Array = audio.call("names")
