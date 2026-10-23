@@ -90,8 +90,9 @@
   "heart": {
     "keeps_arms": true,
     "name": "The Core",
-    "text": "The Crucible's heart and the run's last boss, bolted to the floor: it never moves and cannot be shoved. It has one OPEN SIDE, marked on the board, which turns a sixth every round: hits from that side do 2 more and ignore its conduits. While a CONDUIT stands every other hit takes 2 less. Every other round it marks every hex within 2 of it, and a round later it pulses: 4 damage to each of your machines still in the ring. Its pad builds a drone every 3 rounds. At half HP it ERUPTS: it pulses EVERY round, 3 hexes out, for 5, and calls three drones.",
-    "pulse_every": 2,
+    "text": "The Crucible's heart and the run's last boss, bolted to the floor: it never moves and cannot be shoved. It has one OPEN SIDE, marked on the board, which turns a sixth every round: hits from that side do 2 more and ignore its conduits. While a CONDUIT stands every other hit takes 2 less. Every round it marks every hex within 2 of it, and a round later it pulses: 4 damage to each of your machines still in the ring. Its guns hit 2 harder than their parts. Its pad builds a drone every 3 rounds. At half HP it ERUPTS: it pulses 3 hexes out, for 6, and calls three drones.",
+    "damage": 2,
+    "pulse_every": 1,
     "pulse_radius": 2,
     "pulse_damage": 4,
     "still": true,
@@ -101,7 +102,7 @@
     "enraged": {
       "pulse_every": 1,
       "pulse_radius": 3,
-      "pulse_damage": 5,
+      "pulse_damage": 6,
       "summons": 3
     },
     "cover_kind": "conduit",

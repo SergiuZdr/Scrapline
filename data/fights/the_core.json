@@ -66,7 +66,7 @@
       "x": 4,
       "y": 1,
       "kind": "heart",
-      "hp": 72,
+      "hp": 60,
       "keeper": true
     },
     {
@@ -146,5 +146,6 @@
       "count": 2
     }
   ],
-  "pile_heal": 0
+  "pile_heal": 0,
+  "_083b": "the user (2026-10-22): a bit less HP but more threatening -- 72 -> 60 HP; enemy_kinds.heart: pulses every round, guns +2 (`damage`), erupts for 6. Measured on run-built Act 3 gates: 8.3 -> 7.5 rounds, crew HP lost 8.4 -> 9.1, timeouts 1 -> 0 of 100."
 }
