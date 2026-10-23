@@ -1577,8 +1577,14 @@ static func tally_feats(feats: Dictionary, result: CombatState, kind: String) ->
 	var crew_hurt: bool = false
 	var kills_this_attack: int = 0
 	var attacking: bool = false
+	var keepers_fell: bool = false
 	for e: Array in result.events:
 		var ev: int = int(e[GridEv.F_KIND])
+		# 083: what collapses after the last keeper falls is not a kill.
+		if ev == GridEv.KEEPERS_FALL:
+			keepers_fell = true
+		if keepers_fell and ev == GridEv.DESTROYED:
+			continue
 		var actor: int = int(e[GridEv.F_ACTOR])
 		var target: int = int(e[GridEv.F_TARGET])
 		var victim: GridUnit = result.unit(target) if target >= 0 else null
