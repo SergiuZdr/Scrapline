@@ -174,6 +174,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-23 | **Guarded wrecks give back one part in total per fight, at random**, on its own panel before the salvage (TAKE IT / LEAVE IT), also after a lost fight | 083, the user's pick |
 | 2026-10-23 | **Boss escort waves come on top of the normal escorts** (a round-4 wave); **a blocked escort retries next round** on a new mark; piles left when a boss falls are banked | 083, the user's picks |
 | 2026-10-23 | **The Core: a bit less HP but more threatening** (aim ~8 rounds, no lighter on the crew) | 083, the user |
+| 2026-10-23 | **Bosses stand 1.6x the crew's tallest machine, livery lifted 0.45; the opening push-in is ON** and starts only on a complete board; the keeper-fall beat holds 1.1 s | 083, the user picked from the before/after sheets |
 
 ## Lessons carried over from the old codebase
 
