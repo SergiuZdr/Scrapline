@@ -196,34 +196,51 @@ func _test_keepers_083() -> void:
 	var status: Dictionary = CombatSim.objective_status(CombatSim.start(setup))
 	_check("the objective reads DESTROY THE CORE (%s)" % status["text"], String(status["type"]) == "keeper" and String(status["text"]).begins_with("DESTROY THE CORE"))
 
-	# Escort waves (A2): the Sorting Gate holds two escorts back to round 4, marked in round 3.
+	# Escort waves (A2): the Sorting Gate gets two MORE escorts in round 4, marked in round 3.
 	var gate: CombatSetup = CombatSetup.build(_db.fights["sorting_gate"], _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 3)
-	_check("two escorts are held back for round 4", gate.reserves.size() == 2 and gate.escort_waves.size() == 1
-		and int(gate.escort_waves[0]["round"]) == 4)
-	var g: CombatState = CombatSim.start(gate)
-	var log: Array = []
-	var blocker_hp: int = 0
+	var on_board: int = gate.units.filter(func(u: GridUnit) -> bool: return u.team == GridUnit.TEAM_ENEMY).size()
+	_check("two escorts come in round 4, on top of the five on the board (%d)" % on_board, gate.reserves.size() == 2
+		and gate.escort_waves.size() == 1 and int(gate.escort_waves[0]["round"]) == 4 and on_board == 5
+		and gate.reserves[0].ref == 15 and gate.reserves[0].part_ids == gate.units.filter(
+			func(u: GridUnit) -> bool: return u.ref == 11)[0].part_ids)
+	# Played on the staged frame (tools/frames/wrecks083.json) with machines too tough to fall, so
+	# the waves are what is measured: two extra escorts in round 3, Relay blocking the first mark.
+	var staged: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://tools/frames/wrecks083.json"))
+	staged["escort_waves"] = [{"round": 3, "count": 2}]
+	for spec: Dictionary in staged["player"] + staged["enemy"]:
+		spec["hp"] = 99
+	var wsetup: CombatSetup = CombatSetup.build(staged, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 5)
+	var g: CombatState = CombatSim.start(wsetup)
+	var a: int = wsetup.reserves[0].ref
+	var b: int = wsetup.reserves[1].ref
 	var blocked_cell := Vector2i(-1, -1)
-	while g.round_number < 4 and g.outcome == CombatState.ONGOING:
-		for u: GridUnit in g.crew(GridUnit.TEAM_PLAYER):
-			u.hp = u.max_hp
-		if g.round_number == 3:
-			_check("round 3 marks one hex per held escort", g.wave_marks.size() == 2 and g.wave_refs.size() == 2)
-			# Relay stands on the first mark: it blocks that escort and takes block_damage.
-			blocked_cell = g.wave_marks[0]
-			_place(g, 2, blocked_cell)
-			blocker_hp = g.unit(2).hp
-		var end: Array = [CombatSim.ACT_END, -1, 0, 0]
-		CombatSim.apply(g, end)
-		log.append(end)
+	while g.round_number < 2:
+		CombatSim.apply(g, [CombatSim.ACT_END, -1, 0, 0])
+	_check("round 2 marks one hex per escort of round 3", g.wave_refs == [a, b])
+	blocked_cell = g.wave_marks[0]
+	_place(g, 2, blocked_cell)
+	var blocker_hp: int = g.unit(2).hp
+	var since_block: int = g.events.size()
+	CombatSim.apply(g, [CombatSim.ACT_END, -1, 0, 0])
+	var blocked_events: int = 0
+	for i: int in range(since_block, g.events.size()):
+		var e: Array = g.events[i]
+		if int(e[GridEv.F_KIND]) == GridEv.SPAWN_BLOCKED and int(e[GridEv.F_TARGET]) == a:
+			blocked_events += 1
+	_check("the escort under Relay is blocked", blocked_events == 1 and g.unit(a) == null)
+	_check("the blocker took block_damage (%d)" % wsetup.block_damage, g.unit(2).hp <= blocker_hp - wsetup.block_damage)
+	_check("the blocked escort is marked again, on a new hex", g.wave_refs.has(a) and not g.wave_marks.has(blocked_cell))
+	for i: int in 3:
+		if g.unit(a) != null and g.unit(b) != null:
+			break
+		CombatSim.apply(g, [CombatSim.ACT_END, -1, 0, 0])
+	_check("both come in in the end (blocking only delays)", g.unit(a) != null and g.unit(b) != null)
 	var in_play: Array = []
 	var unique: bool = true
 	for u: GridUnit in g.units:
 		if in_play.has(u.ref):
 			unique = false
 		in_play.append(u.ref)
-	_check("the unblocked escort came in, the blocked one did not", g.unit(gate.reserves[1].ref) != null and g.unit(gate.reserves[0].ref) == null)
-	_check("the blocker took block_damage (%d)" % gate.block_damage, g.unit(2).hp <= blocker_hp - gate.block_damage)
 	_check("no two units share a ref", unique)
 
 	# Wreck recovery: a staged frame. Knuckles and Needle are wrecked; an escort takes Needle's pile;
@@ -248,7 +265,13 @@ func _test_keepers_083() -> void:
 	_check("Relay's blow is legal", CombatSim.apply(ws, [CombatSim.ACT_ATTACK, 2, _shape_index(ws.unit(2), "melee"), 4, 2]))
 	_check("the keeper falls, the fight is won", ws.outcome == CombatState.WON and _count(ws, 0, GridEv.KEEPERS_FALL) == 1)
 	_check("saved_wrecks names Knuckles alone", CombatSim.saved_wrecks(ws) == [0])
-	_check("the escorts left piles where they collapsed", ws.piles.has(Vector2i(1, 1)))
+	_check("the scrap the collapse left went to the crew (%d)" % ws.scrap_collected,
+		ws.scrap_collected >= 2 * ws.setup.pile_value and not ws.piles.has(Vector2i(1, 1)) and ws.piles.has(Vector2i(2, 6)))
+	var credited: bool = true
+	for e: Array in ws.events:
+		if int(e[GridEv.F_KIND]) == GridEv.DESTROYED and int(e[GridEv.F_TARGET]) != 10 and int(e[GridEv.F_TARGET]) >= 10:
+			credited = credited and int(e[GridEv.F_ACTOR]) == -1
+	_check("the collapsed escorts are no one's kills (actor -1)", credited)
 
 
 ## Play-test 7: the enemy's volley as totals (`incoming`), a tied shove taking the better hex,

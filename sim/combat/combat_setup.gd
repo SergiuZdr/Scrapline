@@ -74,9 +74,9 @@ var units: Array[GridUnit] = []
 ## A1 (083): the enemy refs whose fall ends the fight (`"keeper": true` on an enemy spec), sorted.
 ## When every one is dead the fight is won and the rest collapse into piles.
 var keepers: Array[int] = []
-## A2 (083): escorts held back to arrive later, `[{ "round": int, "refs": [int] }]` by round, and the
-## held machines themselves (`reserves`, by ref). Never in `units`: `CombatSim` copies one in on
-## its wave's mark. Their refs stay reserved, so no drone is ever given one.
+## A2 (083): escort waves that arrive later, `[{ "round": int, "refs": [int] }]` by round, and the
+## waiting machines themselves (`reserves`, by ref) -- extra escorts, never in `units`: `CombatSim`
+## copies one in on its mark. Their refs stay reserved, so no drone is ever given one.
 var escort_waves: Array = []
 var reserves: Array[GridUnit] = []
 ## A2 (083): what a crew machine standing on an escort's mark takes when it blocks the arrival.
@@ -242,45 +242,60 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 		for u: GridUnit in setup.units:
 			if u.team == GridUnit.TEAM_PLAYER and not u.objective:
 				u.vent = maxi(0, u.vent + setup.vent_mod)
-	_keepers_and_escorts(setup, fight, slot_lists[1])
+	_keepers_and_escorts(setup, fight, slot_lists[1], parts, rules)
 	return setup
 
 
-## A1 / A2 (083): which enemies are keepers, and which escorts wait for a later wave. An escort is
-## an enemy that is neither a keeper nor of a kind (a conduit, a twin); the LAST ones are held back,
-## the latest wave taking the last of them, and at least one escort always starts on the board.
-static func _keepers_and_escorts(setup: CombatSetup, fight: Dictionary, specs: Array) -> void:
-	var escorts: Array[GridUnit] = []
-	for u: GridUnit in setup.units:
-		if u.team != GridUnit.TEAM_ENEMY or u.slot >= specs.size():
-			continue
-		if bool((specs[u.slot] as Dictionary).get("keeper", false)):
-			setup.keepers.append(u.ref)
-		elif u.kind.is_empty():
-			escorts.append(u)
+## A1 / A2 (083): which enemies are keepers, and the escort waves that come later. A wave is
+## EXTRA machines on top of the fight's escorts (the user, 2026-10-22): each wave's `enemy` specs
+## when it names them, else copies of the fight's own escorts (the run rolled those from the act's
+## pool), taken in order and round again. They are built like any enemy and held in `reserves`,
+## with refs after every enemy slot, so no drone is given one.
+static func _keepers_and_escorts(setup: CombatSetup, fight: Dictionary, specs: Array, parts: Dictionary,
+		rules: Dictionary) -> void:
+	var escorts: Array = []
+	for slot: int in specs.size():
+		var spec: Dictionary = specs[slot]
+		if bool(spec.get("keeper", false)):
+			setup.keepers.append(GridUnit.TEAM_ENEMY * 10 + slot)
+		elif String(spec.get("kind", "")).is_empty():
+			escorts.append(spec)
 	setup.keepers.sort()
+	if setup.keepers.is_empty():
+		return
 	var waves: Array = []
 	for w: Variant in (fight.get("escort_waves", []) as Array):
 		var round: int = int((w as Dictionary).get("round", 0))
-		if round >= 2 and int((w as Dictionary).get("count", 0)) > 0:
-			waves.append({"round": round, "count": int((w as Dictionary)["count"])})
-	if waves.is_empty() or setup.keepers.is_empty():
-		return
+		var given: Array = (w as Dictionary).get("enemy", [])
+		var count: int = given.size() if not given.is_empty() else int((w as Dictionary).get("count", 0))
+		if round >= 2 and count > 0:
+			waves.append({"round": round, "count": count, "enemy": given})
 	waves.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["round"]) < int(b["round"]))
-	var spare: int = escorts.size() - 1
-	var held: Array = []
-	for i: int in range(waves.size() - 1, -1, -1):
+	var slot: int = specs.size()
+	var next_copy: int = 0
+	for wave: Dictionary in waves:
 		var refs: Array = []
-		for k: int in mini(int(waves[i]["count"]), maxi(0, spare)):
-			var u: GridUnit = escorts.pop_back()
-			refs.push_front(u.ref)
-			setup.reserves.push_front(u)
-			setup.units.erase(u)
-			spare -= 1
+		for k: int in int(wave["count"]):
+			var spec: Dictionary = {}
+			if not (wave["enemy"] as Array).is_empty():
+				spec = wave["enemy"][k]
+			elif not escorts.is_empty():
+				spec = escorts[next_copy % escorts.size()]
+				next_copy += 1
+			else:
+				break
+			var u: GridUnit = _build_unit(spec, GridUnit.TEAM_ENEMY, slot, parts, rules.get("roles", {}),
+				rules.get("damage_types", []), rules.get("armor_types", []), setup.errors)
+			u.carries_scrap = IntentAI.mix(setup.rng_seed, u.ref, 0, 53) % 100 < setup.pile_drop_pct
+			var kind_rules: Dictionary = setup.kinds.get(u.kind, {}) if not u.kind.is_empty() else {}
+			u.armor += int(kind_rules.get("plate", 0))
+			if bool(kind_rules.get("anchored", false)):
+				u.unshovable = true
+			setup.reserves.append(u)
+			refs.append(u.ref)
+			slot += 1
 		if not refs.is_empty():
-			held.push_front({"round": int(waves[i]["round"]), "refs": refs})
-	setup.escort_waves = held
-	setup.reserves.sort_custom(func(a: GridUnit, b: GridUnit) -> bool: return a.ref < b.ref)
+			setup.escort_waves.append({"round": int(wave["round"]), "refs": refs})
 
 
 ## A held escort by ref (083), or null.

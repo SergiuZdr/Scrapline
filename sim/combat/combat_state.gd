@@ -65,6 +65,8 @@ var rebuilds: Dictionary = {}
 ## 083 (A2): the escort each of `wave_marks` brings in, by ref, in the same order (empty for a
 ## SURVIVE wave, which brings drones).
 var wave_refs: Array = []
+## 083: escorts whose mark was blocked: they come in on a new mark next round (blocking delays).
+var held_escorts: Array = []
 ## 083: crew wreck piles still on the board -- `Vector2i -> [crew refs]` -- so the run can tell
 ## whose wreck the crew guarded to the end (`CombatSim.saved_wrecks`).
 var wreck_piles: Dictionary = {}
@@ -222,6 +224,7 @@ func clone() -> CombatState:
 	c.facing = facing.duplicate()
 	c.rebuilds = rebuilds.duplicate()
 	c.wave_refs = wave_refs.duplicate()
+	c.held_escorts = held_escorts.duplicate()
 	c.wreck_piles = wreck_piles.duplicate(true)
 	return c
 
