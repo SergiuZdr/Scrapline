@@ -886,13 +886,20 @@ static func objective_status(state: CombatState) -> Dictionary:
 		_ when not state.setup.keepers.is_empty():
 			# A1 (083): a boss fight ends when its keepers fall.
 			status["type"] = "keeper"
+			# The keepers still standing by name; once they are all down, every keeper's name (the
+			# line still says what the fight was), and no waves or rounds: the fight is won.
 			var names: PackedStringArray = []
+			var all: PackedStringArray = []
 			for ref: int in state.setup.keepers:
 				var k: GridUnit = state.unit(ref)
-				if k != null and k.alive:
-					names.append(k.name.to_upper())
+				if k != null:
+					all.append(k.name.to_upper())
+					if k.alive:
+						names.append(k.name.to_upper())
 			status["keepers_left"] = names.size()
-			status["text"] = "DESTROY %s" % " AND ".join(names)
+			status["text"] = "DESTROY %s" % " AND ".join(names if not names.is_empty() else all)
+			if names.is_empty():
+				return status
 			var waves: int = escort_waves_left(state)
 			if waves > 0:
 				status["text"] += "  ·  %d escort wave%s to come" % [waves, "" if waves == 1 else "s"]
