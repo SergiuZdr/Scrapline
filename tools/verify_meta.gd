@@ -197,6 +197,8 @@ func _run() -> void:
 	for file: String in [seeded_path, SaveFile.backup_of(seeded_path)]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(file))
 
+	_yard_runs_count_for_nothing(db, profile, run, veteran)
+
 	# 023: every sound a script asks for is in the bank, and the switch is kept.
 	var audio: Node = root.get_node("Audio")
 	var bank: Array = audio.call("names")
@@ -220,6 +222,68 @@ func _run() -> void:
 
 	print("\n  %d passed, %d failed\n" % [_passed, _failed])
 	quit(1 if _failed > 0 else 0)
+
+
+## 085: a daily or weekly win banks nothing on the ladder -- no stats, unlocks, tier, medals or crew
+## record -- but writes its result to the yard board (and the weekly's plate) and the run history.
+func _yard_runs_count_for_nothing(db: ContentDB, profile: Node, run: Node, veteran: RunState) -> void:
+	var path: String = "user://verify_meta_yard.json"
+	for file: String in [path, SaveFile.backup_of(path)]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(file))
+	profile.call("use_path", path)
+	var tier_before: int = int((profile.call("run_choice") as Dictionary)["tier"])
+	for mode: String in ["daily", "weekly"]:
+		RunStore.clear()
+		var yard: Dictionary = {"seed": 4400 if mode == "daily" else 4401}
+		if mode == "weekly":
+			yard["crew_id"] = "wall"
+			yard["rung"] = 2
+		var options: Dictionary = run.call("yard_run_options", yard)
+		options["mode"] = mode
+		options["day" if mode == "daily" else "week"] = 20385 if mode == "daily" else 2911
+		if mode == "daily":
+			profile.call("start_daily", 20385, 4400, "salvagers")
+		else:
+			profile.call("start_weekly", 2911)
+		run.call("new_run", int(yard["seed"]), options)
+		_check("(a %s run is not counted: %s)" % [mode, run.call("counts")], not bool(run.call("counts")))
+		if mode == "weekly":
+			var setup: RunSetup = run.get("setup")
+			_check("a weekly run plays its fixed crew and rung (%s, rung %d)" % [setup.options.get("crew_id"), int(setup.options.get("tier", -1))],
+				String(setup.options.get("crew_id", "")) == "wall" and int(setup.options.get("tier", -1)) == 2 and setup.options.has("crew")
+				and setup.options.has("rules"))
+		var live: RunState = run.get("state")
+		live.outcome = RunState.WON
+		live.fights_won = veteran.fights_won
+		live.act = 3
+		var banked: Dictionary = run.call("bank")
+		_check("a %s win opens no rung, unlocks nothing, counts no run, earns no medal or record" % mode,
+			(banked.get("new", []) as Array).is_empty() and (profile.call("unlocked") as Array).is_empty()
+			and int((profile.call("stats") as Dictionary).get("runs", 0)) == 0
+			and int((profile.call("run_choice") as Dictionary)["tier"]) == tier_before
+			and (banked.get("medals", []) as Array).is_empty() and int(profile.call("crew_record", run.call("crew_id"))) == -1)
+		var history: Array = profile.call("run_history")
+		_check("but goes into the history marked %s" % mode.to_upper(), not history.is_empty()
+			and String((history[0] as Dictionary).get("mode", "")) == mode)
+		if mode == "daily":
+			_check("and its result is the day's score", String((profile.call("daily", 20385) as Dictionary).get("ended", "")) == "won"
+				and int((profile.call("daily_best") as Dictionary).get("acts", 0)) == 3)
+		else:
+			_check("and clearing the weekly gives its plate, carried by its crew", not (banked.get("plate", {}) as Dictionary).is_empty()
+				and String((profile.call("plate_for", "wall") as Dictionary).get("id", "")) == "plate_w2911" and bool((profile.call("weekly", 2911) as Dictionary)["cleared"]))
+		run.call("end_run")
+	# And an ordinary win does earn its crew's record.
+	RunStore.clear()
+	run.call("new_run", 4402, run.call("profile_options"))
+	var won: RunState = run.get("state")
+	won.outcome = RunState.WON
+	won.act = 3
+	run.call("bank")
+	_check("an ordinary win stamps its crew's record (rung %d)" % int(profile.call("crew_record", "salvagers")),
+		int(profile.call("crew_record", "salvagers")) == tier_before and int((profile.call("stats") as Dictionary).get("wins", 0)) == 1)
+	run.call("end_run")
+	for file: String in [path, SaveFile.backup_of(path)]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(file))
 
 
 func _pool_size(setup: RunSetup) -> int:
