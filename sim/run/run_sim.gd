@@ -392,9 +392,8 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 static func _start_fight(state: RunState, setup: RunSetup, to: int, kind: String) -> void:
 	var fight: Dictionary = _make_fight(state, setup, to, kind)
 	if reclaimer_reaches(state, to):
-		var reach: Dictionary = setup.rules.get("reclaimer_reach", {"round": 3, "count": 2})
-		fight["reclaimer"] = {"round": int(reach.get("round", 3)),
-			"count": reach_drones(setup, state.moves, int(state.site(to)["col"]))}
+		var col: int = int(state.site(to)["col"])
+		fight["reclaimer"] = {"round": reach_round(setup, state.moves, col), "count": reach_drones(setup, state.moves, col)}
 	state.pending = {"kind": "fight", "site_type": kind, "fight": fight}
 
 
@@ -430,7 +429,8 @@ static func move_preview(state: RunState, setup: RunSetup, to: int) -> Dictionar
 		"leaving_costs": state.consumed(state.current),
 		"front_in": front_in(front, state.moves + 1, front_after),
 		"drones": reach_drones(setup, state.moves + 1, int(site.get("col", 0)))
-			if FIGHT_TYPES.has(kind) and int(site.get("col", -9)) == front_after + 1 else 0}
+			if FIGHT_TYPES.has(kind) and int(site.get("col", -9)) == front_after + 1 else 0,
+		"drones_round": reach_round(setup, state.moves + 1, int(site.get("col", 0)))}
 
 
 ## 084 (B3): whether the Reclaimer takes a column on the move that brings the count to `moves`,
@@ -464,6 +464,17 @@ static func reach_drones(setup: RunSetup, moves: int, col: int) -> int:
 	if per <= 0:
 		return base
 	return mini(maxi(base, int(reach.get("max", base))), base + maxi(0, moves - col) / per)
+
+
+## 084 (the user): and they come in earlier -- one round before `reclaimer_reach.round` for every
+## `round_per_linger` steps of lingering (the same `moves - col`), never before `round_min`.
+static func reach_round(setup: RunSetup, moves: int, col: int) -> int:
+	var reach: Dictionary = setup.rules.get("reclaimer_reach", {})
+	var base: int = int(reach.get("round", 3))
+	var per: int = int(reach.get("round_per_linger", 0))
+	if per <= 0:
+		return base
+	return maxi(mini(base, int(reach.get("round_min", base))), base - maxi(0, moves - col) / per)
 
 
 ## Whether a fight at `id` would have the Reclaimer's drones: it stands in the column the

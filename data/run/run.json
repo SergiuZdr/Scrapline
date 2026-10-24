@@ -28,7 +28,7 @@
     "_comment": "A trader stocks three parts (one tuned) priced by rarity (+tuned_extra if tuned), and buys parts from the hold for buy_multiplier x what breaking them down pays."
   },
   "tower": {"radius": 2, "_comment": "A watchtower scouts every site within `radius` columns."},
-  "reclaimer_reach": {"round": 3, "count": 2, "per_linger": 2, "max": 6, "_comment": "A fight at a site in the column the Reclaimer takes next: `count` of its drones arrive on the crew's back row at round `round`, marked a round ahead.", "_084": "The user: MORE DRONES the longer you linger. Lingering = this act's moves minus the site's column (the sideways and backward steps); every `per_linger` of them adds one drone, up to `max` (RunSim.reach_drones). Their piles stay."},
+  "reclaimer_reach": {"round": 3, "count": 2, "per_linger": 1, "max": 8, "round_per_linger": 3, "round_min": 2, "_comment": "A fight at a site in the column the Reclaimer takes next: `count` of its drones arrive on the crew's back row at round `round`, marked a round ahead.", "_084": "The user: MORE DRONES the longer you linger. Lingering = this act's moves minus the site's column (the sideways and backward steps); every `per_linger` of them adds one drone, up to `max` (RunSim.reach_drones); every `round_per_linger` of them brings the drones a round earlier, never before `round_min` (RunSim.reach_round). Their piles stay and still heal (the user)."},
   "elite_from_column": 2,
   "warlord_column": 5,
   "_warlord": "030: each act has one warlord site in this column (never its only site): its board (`warlord: true`, by act), `enemies.warlord_escorts`, `rewards.warlord_scrap` and a hoard with a legendary.",

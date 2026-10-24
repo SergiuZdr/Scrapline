@@ -738,10 +738,10 @@ func _show_preview() -> void:
 		if known and not bool(site["visited"]):
 			box.add_child(_wrap(_gives(String(site["type"])), UIKit.SIZE_LABEL, UIKit.GREEN, 340))
 			if int(move["enemies"]) > 0 and fight.is_empty():
-				box.add_child(_wrap("%d enemies%s" % [int(move["enemies"]), (", %s join at round %d" % [_drones_text(move), _reach_round()]) if bool(move["reach"]) else ""],
+				box.add_child(_wrap("%d enemies%s" % [int(move["enemies"]), (", %s join at round %d" % [_drones_text(move), _reach_round(move)]) if bool(move["reach"]) else ""],
 					UIKit.SIZE_LABEL, UIKit.RED, 340))
 			elif bool(move["reach"]):
-				box.add_child(_wrap("%s join at round %d." % [_drones_text(move), _reach_round()], UIKit.SIZE_LABEL, UIKit.RED, 340))
+				box.add_child(_wrap("%s join at round %d." % [_drones_text(move), _reach_round(move)], UIKit.SIZE_LABEL, UIKit.RED, 340))
 		for line: String in _move_costs(_hover, move):
 			box.add_child(_wrap(line, UIKit.SIZE_LABEL, UIKit.RED, 340))
 		if bool(move["advances"]):
@@ -798,8 +798,9 @@ func _drones_text(move: Dictionary) -> String:
 	return "%d Reclaimer drone%s" % [n, "" if n == 1 else "s"]
 
 
-func _reach_round() -> int:
-	return int((Run.setup.rules.get("reclaimer_reach", {}) as Dictionary).get("round", 3))
+## 084: lingering also brings them in earlier (`RunSim.reach_round`, in the move preview).
+func _reach_round(move: Dictionary) -> int:
+	return int(move.get("drones_round", 3))
 
 
 func _move_costs(to: int, move: Dictionary) -> PackedStringArray:
