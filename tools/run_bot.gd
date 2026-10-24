@@ -231,6 +231,7 @@ func _play(db: ContentDB, seed_value: int, stats: Dictionary) -> String:
 		rec[key] = int(summary[key])
 	rec["seed"] = seed_value
 	rec["rounds"] = rounds
+	rec["act"] = state.act
 	stats["records"][str(seed_value)] = rec
 	var line: String = ""
 	if state.outcome == RunState.WON:
