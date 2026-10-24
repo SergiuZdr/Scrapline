@@ -1020,9 +1020,26 @@ func _test_gate_and_reach() -> void:
 	state.pending = {}
 	state.moves = 2 + per * 2
 	RunSim._start_fight(state, setup, near, "skirmish")
-	_check("a fight reached after lingering carries the bigger count (%s)" % [(state.pending["fight"] as Dictionary).get("reclaimer", {})],
-		int(((state.pending["fight"] as Dictionary).get("reclaimer", {}) as Dictionary).get("count", 0))
-			== RunSim.reach_drones(setup, state.moves, int(state.site(near)["col"])))
+	var lingered: Dictionary = (state.pending["fight"] as Dictionary).get("reclaimer", {})
+	_check("a fight reached after lingering carries the bigger count and the earlier round (%s)" % [lingered],
+		int(lingered.get("count", 0)) == RunSim.reach_drones(setup, state.moves, int(state.site(near)["col"]))
+		and int(lingered.get("round", 0)) == RunSim.reach_round(setup, state.moves, int(state.site(near)["col"]))
+		and int(lingered.get("count", 0)) > int(reach_rules["count"]))
+	var round_per: int = int(reach_rules["round_per_linger"])
+	var rounds: Array = []
+	for extra: int in [0, round_per - 1, round_per, round_per * 50]:
+		rounds.append(RunSim.reach_round(setup, 3 + extra, 3))
+	_check("lingering brings the drones a round earlier per %d steps, never before round %d %s" % [round_per, int(reach_rules["round_min"]), rounds],
+		int(rounds[0]) == int(reach_rules["round"]) and int(rounds[1]) == int(rounds[0]) and int(rounds[2]) == int(rounds[0]) - 1
+		and int(rounds[3]) == int(reach_rules["round_min"]))
+	# The drones really come in at round 2: a fight built from such a reach marks them in round 1.
+	var early: Dictionary = (state.pending["fight"] as Dictionary).duplicate(true)
+	early["reclaimer"] = {"round": int(reach_rules["round_min"]), "count": 3}
+	var early_combat: CombatState = CombatSim.start(CombatSetup.build(early, setup.combat_rules, setup.parts, setup.tiles, setup.wheel, 1))
+	var marked: int = 0
+	for e: Array in early_combat.events:
+		marked += 1 if int(e[GridEv.F_KIND]) == GridEv.ARRIVAL_MARKED else 0
+	_check("drones due at round %d are marked from the first round (%d marks)" % [int(reach_rules["round_min"]), marked], marked == 3)
 
 
 ## 013: traders sell three parts (one tuned) and buy from the hold at twice the scrap value.
@@ -1181,6 +1198,8 @@ func _test_recap_and_preview() -> void:
 		if String(run.pending.get("kind", "")) == "fight":
 			ok = ok and ((run.pending["fight"] as Dictionary).has("reclaimer") == bool(move["reach"]))
 			ok = ok and int(((run.pending["fight"] as Dictionary).get("reclaimer", {}) as Dictionary).get("count", 0)) == int(move["drones"])
+			if bool(move["reach"]):
+				ok = ok and int(((run.pending["fight"] as Dictionary)["reclaimer"] as Dictionary)["round"]) == int(move["drones_round"])
 			ok = ok and ((run.pending["fight"] as Dictionary)["enemy"] as Array).size() == int(move["enemies"])
 		if not ok:
 			honest = false
