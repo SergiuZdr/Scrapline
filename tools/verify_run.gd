@@ -1008,6 +1008,21 @@ func _test_gate_and_reach() -> void:
 		int(reach.get("round", 0)) == 3 and int(reach.get("count", 0)) == 2)
 	RunSim._start_fight(state, setup, far, "skirmish")
 	_check("a fight further from the line does not", not (state.pending["fight"] as Dictionary).has("reclaimer"))
+	# 084 (the user: "MORE DRONES"): lingering -- moves this act beyond the site's column -- sends more.
+	var reach_rules: Dictionary = setup.rules["reclaimer_reach"]
+	var per: int = int(reach_rules["per_linger"])
+	var counts: Array = []
+	for extra: int in [0, per - 1, per, per * 2, per * 50]:
+		counts.append(RunSim.reach_drones(setup, 3 + extra, 3))
+	_check("drones grow with lingering, one per %d extra moves, capped at %d %s" % [per, int(reach_rules["max"]), counts],
+		int(counts[0]) == int(reach_rules["count"]) and int(counts[1]) == int(counts[0]) and int(counts[2]) == int(counts[0]) + 1
+		and int(counts[3]) == int(counts[0]) + 2 and int(counts[4]) == int(reach_rules["max"]))
+	state.pending = {}
+	state.moves = 2 + per * 2
+	RunSim._start_fight(state, setup, near, "skirmish")
+	_check("a fight reached after lingering carries the bigger count (%s)" % [(state.pending["fight"] as Dictionary).get("reclaimer", {})],
+		int(((state.pending["fight"] as Dictionary).get("reclaimer", {}) as Dictionary).get("count", 0))
+			== RunSim.reach_drones(setup, state.moves, int(state.site(near)["col"])))
 
 
 ## 013: traders sell three parts (one tuned) and buy from the hold at twice the scrap value.
@@ -1165,6 +1180,7 @@ func _test_recap_and_preview() -> void:
 			ok = ok and run.consumed(int(id)) and not bool(run.site(int(id))["visited"])
 		if String(run.pending.get("kind", "")) == "fight":
 			ok = ok and ((run.pending["fight"] as Dictionary).has("reclaimer") == bool(move["reach"]))
+			ok = ok and int(((run.pending["fight"] as Dictionary).get("reclaimer", {}) as Dictionary).get("count", 0)) == int(move["drones"])
 			ok = ok and ((run.pending["fight"] as Dictionary)["enemy"] as Array).size() == int(move["enemies"])
 		if not ok:
 			honest = false

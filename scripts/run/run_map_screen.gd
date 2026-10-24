@@ -738,10 +738,10 @@ func _show_preview() -> void:
 		if known and not bool(site["visited"]):
 			box.add_child(_wrap(_gives(String(site["type"])), UIKit.SIZE_LABEL, UIKit.GREEN, 340))
 			if int(move["enemies"]) > 0 and fight.is_empty():
-				box.add_child(_wrap("%d enemies%s" % [int(move["enemies"]), ", the Reclaimer's drones join at round 3" if bool(move["reach"]) else ""],
+				box.add_child(_wrap("%d enemies%s" % [int(move["enemies"]), (", %s join at round %d" % [_drones_text(move), _reach_round()]) if bool(move["reach"]) else ""],
 					UIKit.SIZE_LABEL, UIKit.RED, 340))
 			elif bool(move["reach"]):
-				box.add_child(_wrap("The Reclaimer's drones join at round 3.", UIKit.SIZE_LABEL, UIKit.RED, 340))
+				box.add_child(_wrap("%s join at round %d." % [_drones_text(move), _reach_round()], UIKit.SIZE_LABEL, UIKit.RED, 340))
 		for line: String in _move_costs(_hover, move):
 			box.add_child(_wrap(line, UIKit.SIZE_LABEL, UIKit.RED, 340))
 		if bool(move["advances"]):
@@ -791,6 +791,17 @@ func _gives(kind: String) -> String:
 
 
 ## 084 (B3): whether the Reclaimer moves comes from `RunSim.move_preview` (its pace is the sim's).
+## 084 (the user: "MORE DRONES"): how many of the Reclaimer's drones a move brings into the fight;
+## lingering this act sends more (`RunSim.reach_drones`).
+func _drones_text(move: Dictionary) -> String:
+	var n: int = int(move.get("drones", 2))
+	return "%d Reclaimer drone%s" % [n, "" if n == 1 else "s"]
+
+
+func _reach_round() -> int:
+	return int((Run.setup.rules.get("reclaimer_reach", {}) as Dictionary).get("round", 3))
+
+
 func _move_costs(to: int, move: Dictionary) -> PackedStringArray:
 	var state: RunState = Run.state
 	var front: Dictionary = Run.setup.rules["front"]
@@ -982,7 +993,8 @@ func _fight_panel() -> void:
 			enemies.size(), ", ".join(enemies)], 960)
 	if (fight as Dictionary).has("reclaimer"):
 		# 013: fighting by the line -- say so before the player walks in.
-		box.add_child(_label("THE RECLAIMER IS CLOSE: its drones come in behind you at round %d." % int((fight["reclaimer"] as Dictionary).get("round", 3)),
+		var reach: Dictionary = fight["reclaimer"]
+		box.add_child(_label("THE RECLAIMER IS CLOSE: %d of its drones come in behind you at round %d." % [int(reach.get("count", 2)), int(reach.get("round", 3))],
 			UIKit.SIZE_HEADING, UIKit.RED, UIKit.font_comic()))
 	if Run.fight_actions.size() > 0:
 		box.add_child(_label("This fight is in progress. It resumes where you left it.", UIKit.SIZE_BODY, UIKit.GOLD))
