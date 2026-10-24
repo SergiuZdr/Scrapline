@@ -392,7 +392,9 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 static func _start_fight(state: RunState, setup: RunSetup, to: int, kind: String) -> void:
 	var fight: Dictionary = _make_fight(state, setup, to, kind)
 	if reclaimer_reaches(state, to):
-		fight["reclaimer"] = (setup.rules.get("reclaimer_reach", {"round": 3, "count": 2}) as Dictionary).duplicate()
+		var reach: Dictionary = setup.rules.get("reclaimer_reach", {"round": 3, "count": 2})
+		fight["reclaimer"] = {"round": int(reach.get("round", 3)),
+			"count": reach_drones(setup, state.moves, int(state.site(to)["col"]))}
 	state.pending = {"kind": "fight", "site_type": kind, "fight": fight}
 
 
@@ -426,7 +428,9 @@ static func move_preview(state: RunState, setup: RunSetup, to: int) -> Dictionar
 	return {"advances": advances, "front_after": front_after, "lost": lost, "enemies": enemies,
 		"reach": FIGHT_TYPES.has(kind) and int(site.get("col", -9)) == front_after + 1,
 		"leaving_costs": state.consumed(state.current),
-		"front_in": front_in(front, state.moves + 1, front_after)}
+		"front_in": front_in(front, state.moves + 1, front_after),
+		"drones": reach_drones(setup, state.moves + 1, int(site.get("col", 0)))
+			if FIGHT_TYPES.has(kind) and int(site.get("col", -9)) == front_after + 1 else 0}
 
 
 ## 084 (B3): whether the Reclaimer takes a column on the move that brings the count to `moves`,
@@ -447,6 +451,19 @@ static func front_in(front: Dictionary, moves: int, front_col: int) -> int:
 		if front_due(front, moves + 1 + n, front_col):
 			return n
 	return 64
+
+
+## 084 (the user: "MORE DRONES"): how many of the Reclaimer's drones reach into a fight at column
+## `col` reached on this act's `moves`-th move. Lingering is the moves this act spent not going
+## forward -- `moves - col`, the sideways and backward steps (a straight road has none): every
+## `reclaimer_reach.per_linger` of them sends one more drone over `count`, up to `max`.
+static func reach_drones(setup: RunSetup, moves: int, col: int) -> int:
+	var reach: Dictionary = setup.rules.get("reclaimer_reach", {})
+	var base: int = int(reach.get("count", 2))
+	var per: int = int(reach.get("per_linger", 0))
+	if per <= 0:
+		return base
+	return mini(maxi(base, int(reach.get("max", base))), base + maxi(0, moves - col) / per)
 
 
 ## Whether a fight at `id` would have the Reclaimer's drones: it stands in the column the
