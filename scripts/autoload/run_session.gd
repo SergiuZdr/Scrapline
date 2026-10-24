@@ -180,31 +180,13 @@ func new_weekly() -> bool:
 	return true
 
 
-## A yard's options as a run's: the crew it fixes (or the one the player chose) and the rung it
-## fixes, resolved by `Meta.options` as if that crew and rung were open, then the yard's own keys
-## (its seed aside) over them.
+## A yard's options as a run's (`Meta.challenge_options`).
 func yard_run_options(yard: Dictionary) -> Dictionary:
-	var crew: String = String(yard.get("crew_id", Profile.run_choice()["crew"]))
-	# The sim's own resolution, the same for every profile (`Meta.challenge_options`), when it has one.
-	var meta_script: GDScript = load("res://sim/run/meta.gd")
-	if meta_script.get_script_method_list().any(func(m: Dictionary) -> bool: return String(m["name"]) == "challenge_options"):
-		var resolved: Dictionary = meta_script.call("challenge_options", db.meta, yard, crew)
-		resolved.erase(SEEDED)
-		return resolved
-	var rung: int = int(yard.get("rung", 0))
-	var held: Array = Profile.unlocked()
-	for entry: Dictionary in (db.meta.get("unlocks", []) as Array):
-		var kind: String = String(entry.get("kind", ""))
-		var opens: bool = (kind == "tier" and int(entry["what"]) <= rung) or (kind == "crew" and String(entry["what"]) == crew and yard.has("crew_id"))
-		if opens and not held.has(String(entry["id"])):
-			held.append(String(entry["id"]))
-	var out: Dictionary = Meta.options(db.meta, held, crew, rung)
-	for key: Variant in yard:
-		if String(key) != "seed":
-			out[key] = yard[key].duplicate(true) if (yard[key] is Dictionary or yard[key] is Array) else yard[key]
-	out["tier"] = rung
-	out.erase(SEEDED)
-	return out
+	# The sim's own resolution, the same for every profile: the yard's crew (or the one the player
+	# chose, for a daily) with its rule, the rung's adds then the yard's, a fresh profile's pools.
+	var resolved: Dictionary = Meta.challenge_options(db.meta, yard, String(Profile.run_choice()["crew"]))
+	resolved.erase(SEEDED)
+	return resolved
 
 
 ## A new run as the profile has it (022): the crew and tier last chosen, the parts unlocked.
