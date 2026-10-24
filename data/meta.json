@@ -51,9 +51,10 @@
         {
           "id": "sal_clean",
           "name": "CLEAN SHEET",
-          "text": "Win a run without losing a fight",
+          "text": "Win on rung 2 or higher without losing a fight",
           "need": {
-            "won": 1
+            "won": 1,
+            "rung": 2
           },
           "max": {
             "fights_lost": 0
@@ -62,9 +63,9 @@
         {
           "id": "sal_pits",
           "name": "GRAVEDIGGER",
-          "text": "Drop 3 enemies into pits in one run",
+          "text": "Drop 5 enemies into pits in one run",
           "need": {
-            "pit_kills": 3
+            "pit_kills": 5
           }
         }
       ]
@@ -114,9 +115,10 @@
         {
           "id": "wall_whole",
           "name": "NOT A DENT",
-          "text": "Win a run with no machine wrecked",
+          "text": "Win on rung 2 or higher with no machine wrecked",
           "need": {
-            "won": 1
+            "won": 1,
+            "rung": 2
           },
           "max": {
             "wrecked": 0
@@ -137,9 +139,9 @@
         {
           "id": "wall_shove",
           "name": "IMMOVABLE",
-          "text": "Shove enemies into things 12 times in one run",
+          "text": "Shove enemies into things 15 times in one run",
           "need": {
-            "bumps": 12
+            "bumps": 15
           }
         }
       ]
@@ -203,9 +205,9 @@
         {
           "id": "run_ghost",
           "name": "GHOSTS",
-          "text": "Win 5 fights without a scratch in one run",
+          "text": "Win 8 fights without a scratch in one run",
           "need": {
-            "flawless": 5
+            "flawless": 8
           }
         },
         {
