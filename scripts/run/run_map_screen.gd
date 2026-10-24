@@ -1695,7 +1695,7 @@ func _unlock_name(entry: Dictionary) -> String:
 		"ending":
 			return "THE LINE IS CUT (the ending)"
 		_:
-			return "%s (harder tier)" % String(((meta.get("tiers", []) as Array)[int(entry["what"])] as Dictionary).get("name", ""))
+			return "RUNG %d: %s (the next rung)" % [int(entry["what"]), String(((meta.get("tiers", []) as Array)[int(entry["what"])] as Dictionary).get("name", ""))]
 
 
 # --- Actions ------------------------------------------------------------------

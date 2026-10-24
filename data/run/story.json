@@ -36,6 +36,12 @@
   ],
   "_039": "040 (play-test 12: 'random text, no useful lore'): every panel is lore AND what the player needs to know"
  },
+ "deals": {
+  "title": "THREE FIXERS",
+  "text": "Three fixers wait at the yard gate, each with one deal: a gift now, a cost for the whole run. Take one, or walk on.",
+  "fixers": ["Old Marrow", "The Tallyman", "Sister Solder"],
+  "walk": "WALK ON  ·  no gift, no cost"
+ },
  "acts": [
   {
    "name": "THE CRANE YARDS",

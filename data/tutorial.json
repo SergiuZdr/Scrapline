@@ -103,7 +103,7 @@
   "hints": {
     "ladder": {
       "title": "THE LADDER",
-      "text": "Unlocks come between runs. Every run you play counts, won or lost: a crew or part opens the moment its goal is met and joins your next run. Win a run to open the next tier: the same yard with tougher enemies."
+      "text": "Unlocks come between runs: a crew or part opens the moment its goal is met. Win a run to open the next RUNG: one more announced rule, on top of every rung below. NEW RUN starts on the highest open rung; CHANGE steps down."
     },
     "new_part": {
       "title": "NEW PARTS",

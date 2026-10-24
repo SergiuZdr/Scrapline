@@ -434,7 +434,7 @@ func _picture(entry: Dictionary) -> Control:
 		style.content_margin_right = 4
 		badge.add_theme_stylebox_override("panel", style)
 		var mark := Label.new()
-		mark.text = ["I", "II", "III", "IV"][clampi(int(entry["what"]), 0, 3)] if kind == "tier" else "END"
+		mark.text = str(int(entry["what"])) if kind == "tier" else "END"
 		mark.add_theme_font_override("font", UIKit.font_letters())
 		mark.add_theme_font_size_override("font_size", 30 if kind == "tier" else 24)
 		mark.add_theme_color_override("font_color", UIKit.PAPER if kind == "tier" else UIKit.INK)
@@ -481,7 +481,7 @@ func _gives(entry: Dictionary) -> String:
 		"ending":
 			return "THE LINE IS CUT  (the ending)"
 		_:
-			return "%s  (harder tier)" % String(((_meta.get("tiers", []) as Array)[int(entry["what"])] as Dictionary).get("name", ""))
+			return "RUNG %d  ·  %s" % [int(entry["what"]), String(((_meta.get("tiers", []) as Array)[int(entry["what"])] as Dictionary).get("name", ""))]
 
 
 func _label(text: String, size: int, colour: Color, face: Font) -> Label:
