@@ -2,6 +2,31 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [084] The road — done ([detail](iterations/084-the-road.md))
+
+### Added
+- The fight on the map: a revealed fight site's card says what it holds ("DEFEND · dust storm · 2 lines,
+  1 warden") and its objective word stands under its name; `RunSim.fight_preview` runs the same roll as
+  `_make_fight` (equal after travel over 2016 fights); unscouted sites stay "?".
+- An act condition (dust storm, live wires, scrap rain, heat wave) rolled per act from the seed, on the act
+  card and the map header, in every ordinary fight of the act (`modifiers.per_act`; `modifiers.acts` fixes them).
+- Warlords rotate across acts by the seed (6 orders), keeper HP stepped by act (`warlords.keeper_hp_step`).
+- Seed codes (BRASS-SLED-ROD-1890: three words + version tag + check), COPY and PLAY THIS SEED on the run-over
+  screen, a SEED field at NEW RUN; seeded runs bank nothing and refuse to start over a live run.
+- Run history: the last 50 runs (`Profile.run_history`) as a RUNS ledger beside GOALS, with part pictures and
+  PLAY THIS SEED per row.
+- An explorer route for the run bot (`--set bot.route="explorer"`), bite/reach/condition counts in run_bot,
+  `all.<key>` lays in balance_fights.
+
+### Changed
+- The Reclaimer as a budget: `front.pace` 150 (a column every 1.5 moves); wandering is a bet.
+- Lingering (sideways or backward steps this act) brings more Reclaimer drones (2 + 1 per step, up to 8) and
+  sooner (a round earlier per 3 steps, round 2 at the earliest); the move preview says how many and when.
+- The map header: "ACT 1 · THE CRANE YARDS · HEAT WAVE", the condition's line in place of the mission line.
+
+### Fixed
+- Juice no longer logs an error when a button's click changes the scene.
+
 ## [083] The boss is the fight — done ([detail](iterations/083-the-boss-is-the-fight.md))
 
 ### Added

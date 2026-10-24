@@ -338,6 +338,7 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-22 | A one-level dictionary overlay loses nested keys without a sound: the tiers did nothing in Acts 2-3 for 60 iterations. Merge layered rules by path and print the result per layer in a test |
 | 2026-10-23 | A boss file's keys only reach a run if `RunSim._make_gate_fight` copies them; measure bosses on run-built fights (`dump_boss_fights`), never the plain files |
 | 2026-10-23 | A bigger telegraphed hit changes nothing when the crew can step out of it: threat comes from what a boss does every round |
+| 2026-10-24 | A cost the crew can heal back is not a cost: more Reclaimer drones changed nothing (their piles heal) until they also came sooner. Measure a new cost with the explorer bot against the forward bot on paired seeds |
 
 ## Open questions
 

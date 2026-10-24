@@ -231,3 +231,11 @@ add `board.enemies` (Acts 2-3: +1). Rarity, by act, of what salvage offers: Act 
 each at weight 4. A gate's hoard holds a legendary; a warlord's a rare, legendary 35%. The arena:
 an elite's count +2, +3 HP and +1 damage each, parts to rare, salvage from a rare. The bot reports
 rare+ parts fitted at the last gate: 5.5 of 15 (031: 6.8).
+
+## The road (084)
+
+The front advances by `front.pace` (moves per column x100; 150 at rung 0) and lingering -- this act's moves
+minus the site's column -- brings more Reclaimer drones, sooner (`reclaimer_reach`: per_linger, max,
+round_per_linger, round_min). Every revealed fight shows its objective, condition and enemies
+(`RunSim.fight_preview`). Each act carries one condition (`modifiers.per_act`); warlords rotate by seed.
+Seed codes (`RunSetup.seed_code`) replay a run; seeded runs bank nothing; the profile keeps 50 runs.
