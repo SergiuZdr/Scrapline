@@ -993,10 +993,7 @@ func _refresh_costs() -> void:
 
 
 func _active_costs() -> Array:
-	var sim: GDScript = load("res://sim/run/run_sim.gd")
-	if not sim.get_script_method_list().any(func(m: Dictionary) -> bool: return String(m["name"]) == "active_costs"):
-		return []
-	return sim.call("active_costs", Run.state, Run.setup)
+	return Array(RunSim.active_costs(Run.state, Run.setup))
 
 
 ## The assembly bay: the crew built from the bench before the first move.
