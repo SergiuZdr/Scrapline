@@ -28,11 +28,6 @@ var bay_seen: bool = false
 
 func _ready() -> void:
 	db = ContentDB.load_all()
-	# 085: the start deals' pool, until ContentDB loads (and hashes) data/run/deals.json itself.
-	if not db.run_rules.has("deals") and FileAccess.file_exists("res://data/run/deals.json"):
-		var pool: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/run/deals.json"))
-		if pool is Dictionary:
-			db.run_rules["deals"] = RunStore._ints(pool)
 
 
 func has_saved() -> bool:

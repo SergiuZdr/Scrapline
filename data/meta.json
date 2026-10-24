@@ -358,13 +358,14 @@
       }
     },
     {
-      "name": "HEAVY HANDS",
-      "text": "Every enemy hits 1 harder again.",
+      "name": "LEAN PAY",
+      "text": "Skirmishes pay 6 scrap, not 10.",
       "rules": {
         "adds": [
           {
-            "path": "enemies.bonus.damage",
-            "delta": 1
+            "path": "rewards.skirmish_scrap",
+            "delta": -4,
+            "harder": "down"
           }
         ]
       }

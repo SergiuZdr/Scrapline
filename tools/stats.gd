@@ -192,17 +192,6 @@ static func run_options(db: ContentDB) -> Dictionary:
 	return out
 
 
-## 085: data/run/deals.json into the run rules when ContentDB has not put it there (the tools run
-## before ContentDB learns of the file).
-static func with_deals(db: ContentDB) -> void:
-	if db.run_rules.has("deals"):
-		return
-	var text: String = FileAccess.get_file_as_string("res://data/run/deals.json")
-	var data: Variant = JSON.parse_string(text) if not text.is_empty() else null
-	if data is Dictionary:
-		db.run_rules["deals"] = data
-
-
 ## Every value following `flag` in `args`.
 static func all_after(args: PackedStringArray, flag: String) -> PackedStringArray:
 	var out: PackedStringArray = []

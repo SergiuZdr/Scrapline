@@ -16,9 +16,6 @@ var _failed: int = 0
 
 func _initialize() -> void:
 	_db = ContentDB.load_all()
-	# 085: the deal pool, until ContentDB loads data/run/deals.json into the run rules itself.
-	if not _db.run_rules.has("deals"):
-		_db.run_rules["deals"] = JSON.parse_string(FileAccess.get_file_as_string("res://data/run/deals.json"))
 	print("")
 	print("=== run ===")
 	_timed(_test_generation)
@@ -1774,6 +1771,7 @@ func _test_deals() -> void:
 		shaped = shaped and offer.size() == 3 and softs == 1 and unique.size() == 3
 	_check("300 seeds: three distinct deals, exactly one soft, the same three for the same seed", shaped and same)
 	_check("every deal turns up (%s)" % [seen], seen.size() == pool.size())
+	_check("ContentDB carries the pool in the run rules (so the content hash covers it)", _db.run_rules.has("deals") and not pool.is_empty())
 	_check("every cost and gift has words", pool.all(func(d: Dictionary) -> bool:
 		return not String(d.get("gift", "")).is_empty() and not String(d.get("cost", "")).is_empty()))
 	var setup: RunSetup = _opts_setup(31, {"deals": true})
