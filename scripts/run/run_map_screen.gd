@@ -43,6 +43,8 @@ var _site_labels: Dictionary = {}     # id -> Control
 var _edge_marks: Dictionary = {}      # id -> Button: a reachable site off screen (046)
 var _preview: PanelContainer
 var _gauge_pips: HBoxContainer
+## 085: the start deals' costs in force, as chips under the top bar's right end.
+var _costs_box: VBoxContainer
 var _ground_chip: PanelContainer
 var _scrap_label: Label
 var _garage_button: Button
@@ -311,6 +313,13 @@ func _build_top_bar() -> void:
 	_warning.position = Vector2(760, 140)
 	_warning.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_warning)
+	_costs_box = VBoxContainer.new()
+	_costs_box.name = "deal_costs"
+	_costs_box.position = Vector2(1300, 132)
+	_costs_box.custom_minimum_size = Vector2(596, 0)
+	_costs_box.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	_costs_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_costs_box)
 
 
 ## A gear drawn in ink (no icon font is bundled): eight teeth round a ring, centred on a 56 px button.
@@ -569,6 +578,7 @@ func _refresh() -> void:
 			state.cargo.size(), state.hold_size, state.cargo.size() - state.hold_size], UIKit.SIZE_BODY, UIKit.TEXT))
 	if _hover >= 0 and not RunSim.destinations(state).has(_hover) and _hover != state.current:
 		_hover = -1
+	_refresh_costs()
 	_yard.front_eta = _front_eta()
 	_yard.refresh(state, RunSim.destinations(state), _hover)
 	_yard.set_crew(state.crew)
@@ -834,6 +844,10 @@ func _show_overlay() -> void:
 	if RunSim.can_assemble(state) and not Run.bay_seen:
 		_assembly()
 		return
+	# 085: after the bay, before the first move, three fixers' deals (and WALK ON).
+	if state.pending.is_empty() and not RunSim.deals_on_offer(state, Run.setup).is_empty():
+		_deals_panel()
+		return
 	match String(state.pending.get("kind", "")):
 		"fight":
 			_fight_panel()
@@ -904,6 +918,85 @@ func _row(parent: Control) -> HBoxContainer:
 	row.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	parent.add_child(row)
 	return row
+
+
+## 085: the run's start -- three fixers, each a gift now and a cost for the run, both in full, and
+## WALK ON (neither). One click is one `[DEAL, i]` (-1 walks on); the save replays it.
+func _deals_panel() -> void:
+	var words: Dictionary = Run.db.story.get("deals", {})
+	var box := _modal(String(words.get("title", "THREE FIXERS")), String(words.get("text",
+		"Three fixers wait at the yard gate, each with one deal: a gift now, a cost for the whole run. Take one, or walk on.")), 1560)
+	var row := _row(box)
+	row.name = "deals"
+	row.add_theme_constant_override("separation", UIKit.SPACE_LG)
+	var deals: Array = RunSim.deals_on_offer(Run.state, Run.setup)
+	var fixers: Array = words.get("fixers", [])
+	for i: int in deals.size():
+		var deal: Dictionary = deals[i]
+		var fixer: String = String(fixers[i % fixers.size()]) if not fixers.is_empty() else "FIXER %d" % (i + 1)
+		row.add_child(_deal_card(i, fixer, deal))
+	var foot := _row(box)
+	var walk := _button(String(words.get("walk", "WALK ON  ·  no gift, no cost")), UIKit.secondary(), UIKit.TEXT, Vector2(420, 60))
+	walk.name = "walk_on"
+	walk.pressed.connect(func() -> void:
+		Audio.play("ui_confirm", -10.0)
+		_apply([RunSim.DEAL, -1]))
+	foot.add_child(walk)
+
+
+## One deal as a card of equal weight (`UIKit.choice`): who offers it, the GIFT, the COST.
+func _deal_card(i: int, fixer: String, deal: Dictionary) -> Button:
+	var card := Button.new()
+	card.name = "deal_%d" % i
+	card.custom_minimum_size = Vector2(480, 300)
+	card.focus_mode = Control.FOCUS_NONE
+	var style: InkBox = UIKit.choice()
+	for key: String in ["normal", "focus", "hover"]:
+		card.add_theme_stylebox_override(key, style)
+	card.add_theme_stylebox_override("pressed", UIKit.pressed(style))
+	card.tooltip_text = "Take this deal"
+	card.pressed.connect(func() -> void:
+		Audio.play("reward", -8.0)
+		_apply([RunSim.DEAL, i]))
+	var box := VBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	card.add_child(box)
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_LG)
+	box.add_child(UIKit.fit(_label(fixer.to_upper(), 28, UIKit.TEXT, UIKit.font_display()), 440, 1, 16))
+	for part: Array in [["GIFT", String(deal.get("gift", "")), UIKit.GREEN], ["COST", String(deal.get("cost", "")), UIKit.RED]]:
+		box.add_child(_label(String(part[0]), 22, part[2] as Color, UIKit.font_comic()))
+		var text := _wrap(String(part[1]), UIKit.SIZE_HEADING, UIKit.TEXT, 440)
+		text.add_theme_font_override("font", UIKit.font_strong())
+		text.name = "deal_" + String(part[0]).to_lower()
+		box.add_child(text)
+	return card
+
+
+## The deal costs in force (`RunSim.active_costs`), one chip each, under the top bar.
+func _refresh_costs() -> void:
+	for child: Node in _costs_box.get_children():
+		child.queue_free()
+	for cost: Variant in _active_costs():
+		var chip := PanelContainer.new()
+		chip.name = "deal_cost"
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.size_flags_horizontal = Control.SIZE_SHRINK_END
+		chip.add_theme_stylebox_override("panel", UIKit.card(UIKit.SURFACE, 0, UIKit.SPACE_MD, UIKit.SPACE_XS))
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", UIKit.SPACE_SM)
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.add_child(line)
+		line.add_child(_label("DEAL", UIKit.SIZE_LABEL, UIKit.RED, UIKit.font_comic()))
+		line.add_child(UIKit.fit(_label(String(cost), UIKit.SIZE_LABEL, UIKit.TEXT, UIKit.font_strong()), 520, 2, 11))
+		_costs_box.add_child(chip)
+
+
+func _active_costs() -> Array:
+	var sim: GDScript = load("res://sim/run/run_sim.gd")
+	if not sim.get_script_method_list().any(func(m: Dictionary) -> bool: return String(m["name"]) == "active_costs"):
+		return []
+	return sim.call("active_costs", Run.state, Run.setup)
 
 
 ## The assembly bay: the crew built from the bench before the first move.
@@ -1318,10 +1411,24 @@ func _run_over() -> void:
 	var ending: String = _ending_text(state, won)
 	Audio.play("win" if won else "lose", -6.0, 0.0)
 	# 022: what the run leaves behind. Banked once, however often this screen opens.
+	var record_before: int = Profile.crew_record(Run.crew_id())
 	var banked: Dictionary = Run.bank()
 	var gains: String = ""
 	for entry: Dictionary in (banked.get("new", []) as Array):
 		gains += "\nUNLOCKED  ·  %s" % _unlock_name(entry)
+	# 085: medals this run earned for its crew, the weekly's plate, the yard's score.
+	var medals: Array = UnlocksPanel.crew_medals(Run.db.meta, Run.crew_id())
+	for id: Variant in (banked.get("medals", []) as Array):
+		var medal: Array = medals.filter(func(m: Dictionary) -> bool: return String(m.get("id", "")) == String(id))
+		gains += "\nMEDAL  ·  %s" % (String((medal[0] as Dictionary).get("name", id)) if not medal.is_empty() else String(id))
+	var plate: Dictionary = banked.get("plate", {})
+	if not plate.is_empty():
+		gains += "\nPLATE  ·  %s: this crew carries it from now on" % String(plate.get("name", "")).to_upper()
+	if Run.mode() == Run.DAILY:
+		gains += "\nTODAY'S YARD  ·  %s%s" % [_result_text(Run.result()), "  ·  STREAK %d" % Profile.daily_streak(Run.today())]
+	elif Run.mode() == Run.WEEKLY:
+		var week: Dictionary = Profile.weekly(int(Run.setup.options.get("week", Run.this_week())))
+		gains += "\nTHIS WEEK'S CONTRACT  ·  %s  ·  attempt %d" % [_result_text(Run.result()), int(week["attempts"])]
 	var next: Dictionary = banked.get("next", {})
 	if not next.is_empty():
 		var p: Array = Meta.progress(Profile.stats(), next)
@@ -1336,6 +1443,13 @@ func _run_over() -> void:
 	var record: Array = _roll_call()
 	for i: int in state.crew.size():
 		roll.add_child(_roll_column(i, record[i] if i < record.size() else {}))
+	# 085 (B4): the crew's record stamp, the highest rung it has won, and its medals.
+	var stamp: String = _crew_stamp(record_before)
+	if not stamp.is_empty():
+		var line := _label(stamp, UIKit.SIZE_HEADING, UIKit.TEXT, UIKit.font_comic())
+		line.name = "crew_record"
+		box.add_child(line)
+		box.move_child(line, roll.get_index())
 	_seed_row(box)
 	var row := _row(box)
 	# 027: every unlock as a goal, the ones this run earned ringed as new.
@@ -1349,7 +1463,7 @@ func _run_over() -> void:
 				if not Run.play_entry(entry):
 					return Run.problem
 				get_tree().reload_current_scene()
-				return "")
+				return "", Profile.crew_marks())
 		Profile.mark_unlocks_seen())
 	row.add_child(goals)
 	var title := _button("TITLE", UIKit.secondary(), UIKit.TEXT, Vector2(200, 64))
@@ -1382,7 +1496,9 @@ func _seed_row(box: Control) -> void:
 			DisplayServer.clipboard_set(code)
 			copy.text = "COPIED")
 		row.add_child(copy)
-	if Run.is_seeded():
+	if Run.mode() == Run.DAILY or Run.mode() == Run.WEEKLY:
+		row.add_child(_label("A %s run: it counts for nothing on the ladder; its score is on the yard board." % Run.mode(), UIKit.SIZE_LABEL, UIKit.TEXT_DIM))
+	elif Run.is_seeded():
 		row.add_child(_label("A seeded run: it counts for nothing on the ladder.", UIKit.SIZE_LABEL, UIKit.TEXT_DIM))
 	var again := _button("PLAY THIS SEED", UIKit.choice(), UIKit.TEXT, Vector2(280, 56))
 	again.name = "play_seed"
@@ -1398,6 +1514,28 @@ func _play_this_seed() -> void:
 		get_tree().reload_current_scene()
 	else:
 		Audio.play("ui_deny", -10.0)
+
+
+## "THE WALL  ·  RECORD: RUNG 3 (NEW)  ·  MEDALS 1 / 3" -- "" while the crew has neither.
+func _crew_stamp(record_before: int) -> String:
+	var crew: String = Run.crew_id()
+	var record: int = Profile.crew_record(crew)
+	var total: int = UnlocksPanel.crew_medals(Run.db.meta, crew).size()
+	if record < 0 and total == 0:
+		return ""
+	var bits: PackedStringArray = [String(((Run.db.meta.get("crews", {}) as Dictionary).get(crew, {}) as Dictionary).get("name", crew.to_upper()))]
+	if record >= 0:
+		bits.append("RECORD: RUNG %d%s" % [record, "  (NEW)" if record > record_before else ""])
+	if total > 0:
+		bits.append("MEDALS %d / %d" % [Profile.medals(crew).size(), total])
+	return "  ·  ".join(bits)
+
+
+## A yard result in a line: "WRECKED · 1 act cleared · 6 fights won · 0 HP left".
+func _result_text(result: Dictionary) -> String:
+	var acts: int = int(result.get("acts", 0))
+	return "%s  ·  %d act%s cleared  ·  %d fights won  ·  %d HP left" % [String(result.get("ended", "")).to_upper(), acts,
+		"" if acts == 1 else "s", int(result.get("fights", 0)), int(result.get("hp", 0))]
 
 
 ## The ending in the world's words (082): the true ending for a win on the top tier, and a loss
@@ -1518,6 +1656,10 @@ func _roll_column(i: int, entry: Dictionary) -> Control:
 	card.add_child(box)
 	var width: float = 340.0
 	box.add_child(UIKit.fit(_label(String(member["name"]).to_upper(), 30, UIKit.TEXT if alive else UIKit.RED, UIKit.font_comic()), width, 1, 18))
+	# 085: the crew's weekly plate by the name (cosmetic only).
+	var plate: Dictionary = Profile.plate_for(Run.crew_id())
+	if not plate.is_empty():
+		box.add_child((load("res://scripts/ui/yard_board.gd") as GDScript).call("plate_badge", String(plate.get("name", "")), false, 14))
 	box.add_child(_level_marks(int(member.get("level", 0))))
 	var perks: PackedStringArray = []
 	for id: Variant in (member.get("perks", []) as Array):

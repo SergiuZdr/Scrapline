@@ -22,11 +22,14 @@ var _ledger_problem: Label
 var _unlocks_view: Control
 var _runs_view: Control
 var _tab_buttons: Dictionary = {}
+## 085 (B10): every crew's medals held and record rung (`Profile.crew_marks`): `{crew: {medals, record}}`.
+var _marks: Dictionary = {}
 
 
 static func open(parent: Node, db: ContentDB, held: Array, stats: Dictionary, fresh: Array = [], history: Array = [],
-		on_play: Callable = Callable()) -> UnlocksPanel:
+		on_play: Callable = Callable(), marks: Dictionary = {}) -> UnlocksPanel:
 	var panel := UnlocksPanel.new()
+	panel._marks = marks
 	panel._history = history
 	panel._on_play = on_play
 	panel._db = db
@@ -119,13 +122,24 @@ func _ready() -> void:
 		cols.append(col)
 	var milestones: Array = entries.filter(func(e: Dictionary) -> bool: return not bool(e.get("mission", false)))
 	var missions: Array = entries.filter(func(e: Dictionary) -> bool: return bool(e.get("mission", false)))
-	cols[0].add_child(_label("MILESTONES", 24, UIKit.INK, UIKit.font_comic()))
-	cols[1].add_child(_label(" ", 24, UIKit.INK, UIKit.font_comic()))
 	cols[2].add_child(_label("MISSIONS  ·  do it in a fight", 24, UIKit.INK, UIKit.font_comic()))
-	var half: int = (milestones.size() + 1) / 2
 	var next_id: String = String(Meta.next_unlock(_held, _meta).get("id", ""))
-	for i: int in milestones.size():
-		cols[0 if i < half else 1].add_child(_row(milestones[i], String(milestones[i]["id"]) == next_id))
+	# 085 (B10): three medals per crew take the first column, in place of the grind counters; what
+	# milestones the rules still hold share the second.
+	var crews: Array = (_meta.get("crews", {}) as Dictionary).keys().filter(func(c: Variant) -> bool: return not crew_medals(_meta, String(c)).is_empty())
+	if not crews.is_empty():
+		cols[0].add_child(_label("MEDALS  ·  three a crew, at the end of a run", 24, UIKit.INK, UIKit.font_comic()))
+		for crew: Variant in crews:
+			cols[0].add_child(_medal_block(String(crew)))
+		cols[1].add_child(_label("MILESTONES", 24, UIKit.INK, UIKit.font_comic()))
+		for entry: Dictionary in milestones:
+			cols[1].add_child(_row(entry, String(entry["id"]) == next_id))
+	else:
+		cols[0].add_child(_label("MILESTONES", 24, UIKit.INK, UIKit.font_comic()))
+		cols[1].add_child(_label(" ", 24, UIKit.INK, UIKit.font_comic()))
+		var half: int = (milestones.size() + 1) / 2
+		for i: int in milestones.size():
+			cols[0 if i < half else 1].add_child(_row(milestones[i], String(milestones[i]["id"]) == next_id))
 	for entry: Dictionary in missions:
 		cols[2].add_child(_row(entry, false))
 
@@ -149,6 +163,73 @@ func _ready() -> void:
 	_show_tab("GOALS")
 
 
+## The medals a crew can earn (B10), `{id, name, text}` each: `meta.medals[crew]` (a list, or a list of
+## entries naming their `crew`), else `meta.crews[crew].medals`.
+static func crew_medals(meta: Dictionary, crew: String) -> Array:
+	var medals: Variant = meta.get("medals", {})
+	if medals is Dictionary and (medals as Dictionary).has(crew):
+		return (medals as Dictionary)[crew]
+	if medals is Array:
+		return (medals as Array).filter(func(m: Variant) -> bool: return m is Dictionary and String((m as Dictionary).get("crew", "")) == crew)
+	return (((meta.get("crews", {}) as Dictionary).get(crew, {}) as Dictionary).get("medals", []) as Array)
+
+
+## One crew's medals: its name and record stamp, then each medal held or not, with what earns it.
+func _medal_block(crew: String) -> Control:
+	var marks: Dictionary = _marks.get(crew, {})
+	var held: Array = marks.get("medals", [])
+	var record: int = int(marks.get("record", -1))
+	var block := PanelContainer.new()
+	block.name = "medals_" + crew
+	block.add_theme_stylebox_override("panel", UIKit.ink_card(UIKit.PAPER, UIKit.SPACE_MD, UIKit.SPACE_SM, 3))
+	block.custom_minimum_size = Vector2(476, 0)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", UIKit.SPACE_XS)
+	block.add_child(box)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	box.add_child(head)
+	head.add_child(_label(String(((_meta.get("crews", {}) as Dictionary).get(crew, {}) as Dictionary).get("name", crew.to_upper())),
+		22, UIKit.INK, UIKit.font_comic()))
+	var stamp := _label("RECORD: RUNG %d" % record if record >= 0 else "no rung won yet", UIKit.SIZE_LABEL,
+		UIKit.INK_RED if record >= 0 else UIKit.INK_DIM, UIKit.font_comic())
+	stamp.name = "record"
+	stamp.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(stamp)
+	for medal: Variant in crew_medals(_meta, crew):
+		var m: Dictionary = medal
+		var has: bool = held.has(String(m.get("id", "")))
+		var row := HBoxContainer.new()
+		row.name = "medal"
+		row.add_theme_constant_override("separation", UIKit.SPACE_SM)
+		box.add_child(row)
+		row.add_child(_medal_mark(has))
+		var text := VBoxContainer.new()
+		text.add_theme_constant_override("separation", 0)
+		row.add_child(text)
+		text.add_child(UIKit.fit(_label(String(m.get("name", m.get("id", ""))).to_upper(), 18, UIKit.INK if has else UIKit.INK_DIM, UIKit.font_comic()), 380, 1, 11))
+		text.add_child(UIKit.fit(_label(String(m.get("text", "")), UIKit.SIZE_LABEL, UIKit.INK_DIM, UIKit.font_strong()), 380, 2, 10))
+	return block
+
+
+## A medal as a small ink disc: struck (amber, ringed) when held, an empty outline when not.
+func _medal_mark(held: bool) -> Control:
+	var mark := Control.new()
+	mark.name = "medal_held" if held else "medal_open"
+	mark.custom_minimum_size = Vector2(34, 34)
+	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mark.draw.connect(func() -> void:
+		var c := Vector2(17, 17)
+		mark.draw_circle(c, 15.0, UIKit.INK)
+		mark.draw_circle(c, 12.0, UIKit.AMBER if held else UIKit.PAPER_DIM)
+		if held:
+			mark.draw_arc(c, 7.0, 0.0, TAU, 20, UIKit.INK, 2.5)
+		else:
+			mark.draw_arc(c, 7.0, 0.0, TAU, 20, UIKit.INK_FAINT, 1.5))
+	return mark
+
+
 ## Shows one tab, the other hidden; the open tab's button is ringed (equal choices: `UIKit.choice`).
 func _show_tab(which: String) -> void:
 	_unlocks_view.visible = which == "GOALS"
@@ -166,7 +247,7 @@ func _ledger() -> Control:
 	var view := VBoxContainer.new()
 	view.name = "ledger"
 	view.add_theme_constant_override("separation", UIKit.SPACE_SM)
-	view.add_child(UIKit.fit(_label("The last %d runs, newest first. A seed code plays that region again from NEW RUN; a seeded run counts for nothing on the ladder." % 50,
+	view.add_child(UIKit.fit(_label("The last %d runs, newest first. A seed code plays that region again from NEW RUN; a seeded, daily or weekly run counts for nothing on the ladder." % 50,
 		UIKit.SIZE_BODY, UIKit.INK_DIM, UIKit.font_strong()), 1440, 2, 12))
 	_ledger_problem = _label("", UIKit.SIZE_BODY, Ink.DANGER, UIKit.font_strong())
 	_ledger_problem.name = "ledger_problem"
@@ -214,7 +295,9 @@ func _ledger_row(entry: Dictionary) -> Control:
 		how, "%d fights won" % int(entry.get("fights", 0))]
 	if not String(entry.get("code", "")).is_empty():
 		bits.append("SEED " + String(entry["code"]))
-	if bool(entry.get("seeded", false)):
+	if not String(entry.get("mode", "")).is_empty():
+		bits.append(String(entry["mode"]).to_upper())
+	elif bool(entry.get("seeded", false)):
 		bits.append("SEEDED")
 	text.add_child(UIKit.fit(_label("  ·  ".join(bits), 20, UIKit.INK, UIKit.font_comic()), 1120, 1, 12))
 	# 084 (the user): each machine as its name and the pictures of the parts it finished with.

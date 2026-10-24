@@ -135,7 +135,7 @@ func _ready() -> void:
 				if not Run.play_entry(entry):
 					return Run.problem
 				get_tree().change_scene_to_file("res://scenes/run_map.tscn")
-				return "")
+				return "", Profile.crew_marks())
 		Profile.mark_unlocks_seen())
 	goals.custom_minimum_size = Vector2(250 if not unseen.is_empty() else 164, 52)
 	extras.add_child(goals)
@@ -295,7 +295,7 @@ func _ladder_line(meta: Dictionary, held: Array) -> Control:
 func _record_stamp(crew_id: String) -> Control:
 	var record: int = Profile.crew_record(crew_id)
 	var medals: int = Profile.medals(crew_id).size()
-	var total: int = _crew_medals(crew_id).size()
+	var total: int = UnlocksPanel.crew_medals(Run.db.meta, crew_id).size()
 	if record < 0 and medals == 0:
 		return null
 	var badge := PanelContainer.new()
@@ -321,14 +321,6 @@ func _record_stamp(crew_id: String) -> Control:
 	mark.add_theme_color_override("font_color", UIKit.PAPER)
 	badge.add_child(mark)
 	return badge
-
-
-## The medals a crew can earn (B10): `meta.medals[crew]` or `meta.crews[crew].medals`.
-func _crew_medals(crew_id: String) -> Array:
-	var medals: Variant = Run.db.meta.get("medals", {})
-	if medals is Dictionary and (medals as Dictionary).has(crew_id):
-		return (medals as Dictionary)[crew_id]
-	return (((Run.db.meta.get("crews", {}) as Dictionary).get(crew_id, {}) as Dictionary).get("medals", []) as Array)
 
 
 func _go() -> void:
