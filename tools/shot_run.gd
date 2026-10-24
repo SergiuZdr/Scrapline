@@ -38,7 +38,7 @@ func _go() -> void:
 	var out: String = _arg(args, "--out", "shots/run.png")
 	if args.has("--stage-085"):
 		_stage_085(run)
-	run.call("new_run", seed_value)
+	run.call("new_run", seed_value, run.call("profile_options") if args.has("--stage-085") else {})
 	if args.has("--deal"):
 		run.call("apply", [RunSim.DEAL, _arg(args, "--deal", "0").to_int()])
 	if args.has("--title") or args.has("--ledger") or args.has("--yard") or args.has("--goals"):
