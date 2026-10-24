@@ -684,14 +684,18 @@ func _ledger_play(seed_value: int) -> void:
 ## deal's cost is on the map (RunSim.active_costs, as chips under the top bar).
 func _deals() -> void:
 	RunStore.clear()
-	_run.call("new_run", 5151)
+	_run.call("new_run", 5151, _run.call("profile_options"))
 	_run.set("briefed", true)
-	_run.set("bay_seen", true)
 	var map: Node = await _open("res://scenes/run_map.tscn")
 	var offer: Array = RunSim.deals_on_offer(_run.get("state"), _run.get("setup"))
 	if offer.is_empty():
 		_check("(staged: RunSim.deals_on_offer is still empty: no deals screen, the map opens)", map.find_child("deal_0", true, false) == null)
 		return
+	var bay: Node = map.get("_overlay")
+	_check("the assembly bay comes first, while the deals wait", bay != null and _find_button(bay, "ROLL OUT") != null
+		and map.find_child("deal_0", true, false) == null)
+	_press(_find_button(bay, "ROLL OUT"))
+	await _frames(4)
 	_check("before the first move, the deals screen offers %d deals and WALK ON" % offer.size(),
 		map.find_child("deal_%d" % (offer.size() - 1), true, false) != null and map.find_child("walk_on", true, false) != null)
 	var card: Button = map.find_child("deal_0", true, false) as Button
