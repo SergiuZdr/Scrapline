@@ -159,6 +159,206 @@ func record_run(entry: Dictionary) -> void:
 	_save()
 
 
+# --- 085: the daily yard, the weekly contract, medals, plates, crew records -----------
+
+## How many days of daily results the profile keeps (the streak is counted on its own).
+const DAILY_CAP: int = 120
+
+
+## A result as it is scored: acts cleared, then fights won, then HP left.
+static func _score(result: Dictionary) -> Array:
+	return [int(result.get("acts", 0)), int(result.get("fights", 0)), int(result.get("hp", 0))]
+
+
+## Whether result `a` beats `b` ({} is beaten by anything).
+static func better(a: Dictionary, b: Dictionary) -> bool:
+	if b.is_empty():
+		return true
+	var x: Array = _score(a)
+	var y: Array = _score(b)
+	for i: int in 3:
+		if int(x[i]) != int(y[i]):
+			return int(x[i]) > int(y[i])
+	return false
+
+
+## A day's daily (`day`: days since 1970-01-01 UTC) as the profile has it: {} when not played, else
+## `{day, seed, crew, ended, acts, fights, hp}` -- `ended` is "" while the attempt is still out.
+func daily(day: int) -> Dictionary:
+	return ((_data.get("daily", {}) as Dictionary).get(str(day), {}) as Dictionary).duplicate()
+
+
+## Takes the day's one attempt (the user, 2026-10-22: abandoning counts). False if already taken.
+func start_daily(day: int, seed_value: int, crew: String) -> bool:
+	var all: Dictionary = (_data.get("daily", {}) as Dictionary).duplicate(true)
+	if all.has(str(day)):
+		return false
+	all[str(day)] = {"day": day, "seed": seed_value, "crew": crew, "ended": "", "acts": 0, "fights": 0, "hp": 0}
+	var days: Array = all.keys().map(func(k: Variant) -> int: return int(k))
+	days.sort()
+	while days.size() > DAILY_CAP:
+		all.erase(str(days.pop_front()))
+	_data["daily"] = all
+	var streak: Dictionary = _data.get("daily_streak", {})
+	var last: int = int(streak.get("last", -10))
+	var count: int = int(streak.get("count", 0))
+	_data["daily_streak"] = {"last": day, "count": count + 1 if last == day - 1 else (count if last == day else 1)}
+	_save()
+	return true
+
+
+## The attempt's result, once: `{ended, acts, fights, hp}`. The best daily ever is kept beside it.
+func finish_daily(day: int, result: Dictionary) -> void:
+	var all: Dictionary = (_data.get("daily", {}) as Dictionary).duplicate(true)
+	var entry: Dictionary = all.get(str(day), {})
+	if entry.is_empty() or not String(entry.get("ended", "")).is_empty():
+		return
+	for key: String in ["ended", "acts", "fights", "hp"]:
+		entry[key] = result.get(key, entry.get(key))
+	all[str(day)] = entry
+	_data["daily"] = all
+	if better(entry, _data.get("daily_best", {})):
+		_data["daily_best"] = entry.duplicate()
+	_save()
+
+
+## The best daily result ever played, or {}.
+func daily_best() -> Dictionary:
+	return (_data.get("daily_best", {}) as Dictionary).duplicate()
+
+
+## Days in a row with a daily played, up to today (a streak still stands on a day not yet played).
+func daily_streak(today: int) -> int:
+	var streak: Dictionary = _data.get("daily_streak", {})
+	return int(streak.get("count", 0)) if int(streak.get("last", -10)) >= today - 1 else 0
+
+
+## A week's contract as the profile has it: `{attempts, best, cleared}`.
+func weekly(week: int) -> Dictionary:
+	var entry: Dictionary = ((_data.get("weekly", {}) as Dictionary).get(str(week), {}) as Dictionary).duplicate(true)
+	return {"attempts": int(entry.get("attempts", 0)), "best": entry.get("best", {}), "cleared": bool(entry.get("cleared", false))}
+
+
+## An attempt at the week's contract begins (any number are allowed).
+func start_weekly(week: int) -> void:
+	var all: Dictionary = (_data.get("weekly", {}) as Dictionary).duplicate(true)
+	var entry: Dictionary = all.get(str(week), {})
+	entry["attempts"] = int(entry.get("attempts", 0)) + 1
+	all[str(week)] = entry
+	# Only the last weeks are worth keeping; the plates outlive them.
+	var weeks: Array = all.keys().map(func(k: Variant) -> int: return int(k))
+	weeks.sort()
+	while weeks.size() > 12:
+		all.erase(str(weeks.pop_front()))
+	_data["weekly"] = all
+	_save()
+
+
+## An attempt ends (once per `key`): the best is kept, and clearing it (`result.won`) gives the
+## week's PLATE, cosmetic only. Returns the plate when this attempt earned it, else {}.
+func finish_weekly(week: int, key: String, result: Dictionary, plate: Dictionary) -> Dictionary:
+	if String(_data.get("weekly_banked", "")) == key:
+		return {}
+	_data["weekly_banked"] = key
+	var all: Dictionary = (_data.get("weekly", {}) as Dictionary).duplicate(true)
+	var entry: Dictionary = all.get(str(week), {"attempts": 1})
+	if better(result, entry.get("best", {})):
+		entry["best"] = result.duplicate()
+	var fresh: Dictionary = {}
+	if bool(result.get("won", false)) and not bool(entry.get("cleared", false)):
+		entry["cleared"] = true
+		var held: Array = _data.get("plates", [])
+		if not held.any(func(p: Variant) -> bool: return String((p as Dictionary).get("id", "")) == String(plate.get("id", ""))):
+			held.append(plate.duplicate())
+			_data["plates"] = held
+			fresh = plate.duplicate()
+	all[str(week)] = entry
+	_data["weekly"] = all
+	_save()
+	return fresh
+
+
+## Every plate earned, oldest first: `{id, week, crew, name}`.
+func plates() -> Array:
+	return (_data.get("plates", []) as Array).duplicate(true)
+
+
+## The plate a crew's machines carry: the newest earned with that crew, or {} (cosmetic only).
+func plate_for(crew: String) -> Dictionary:
+	var all: Array = plates()
+	for i: int in range(all.size() - 1, -1, -1):
+		if String((all[i] as Dictionary).get("crew", "")) == crew:
+			return all[i]
+	return {}
+
+
+## The medal ids a crew holds (B10).
+func medals(crew: String) -> Array:
+	return ((_data.get("medals", {}) as Dictionary).get(crew, []) as Array).duplicate()
+
+
+## Adds the medals a finished run earned for its crew; returns those that are new.
+func award_medals(crew: String, ids: Array) -> Array:
+	var all: Dictionary = (_data.get("medals", {}) as Dictionary).duplicate(true)
+	var held: Array = all.get(crew, [])
+	var fresh: Array = []
+	for id: Variant in ids:
+		if not held.has(String(id)):
+			held.append(String(id))
+			fresh.append(String(id))
+	if fresh.is_empty():
+		return []
+	all[crew] = held
+	_data["medals"] = all
+	_save()
+	return fresh
+
+
+## The highest rung a crew has won (-1: none) -- the record stamp on its card (B4).
+func crew_record(crew: String) -> int:
+	return int((_data.get("crew_records", {}) as Dictionary).get(crew, -1))
+
+
+func note_win(crew: String, rung: int) -> void:
+	if crew_record(crew) >= rung:
+		return
+	var all: Dictionary = (_data.get("crew_records", {}) as Dictionary).duplicate()
+	all[crew] = rung
+	_data["crew_records"] = all
+	_save()
+
+
+## 085: what an older profile lacks, worked out once from what it holds. Crew records come from the
+## run history's wins (seeded, daily and weekly runs never counted); the unlocks pass through
+## `Meta.migrate_unlocks` when the rules provide one -- and nothing held is ever taken away.
+func _migrate() -> void:
+	var changed: bool = false
+	if not _data.has("crew_records"):
+		var records: Dictionary = {}
+		for entry: Variant in (_data.get("run_history", []) as Array):
+			var e: Dictionary = entry
+			if String(e.get("ended", "")) == "won" and not bool(e.get("seeded", false)) and String(e.get("mode", "")).is_empty():
+				var crew: String = String(e.get("crew", "salvagers"))
+				records[crew] = maxi(int(records.get(crew, -1)), int(e.get("tier", 0)))
+		_data["crew_records"] = records
+		changed = not records.is_empty()
+	var meta_script: GDScript = load("res://sim/run/meta.gd")
+	var can: bool = meta_script.get_script_method_list().any(func(m: Dictionary) -> bool: return String(m["name"]) == "migrate_unlocks")
+	if can and _data.has("unlocked"):
+		var before: Array = unlocked()
+		var meta: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/meta.json"))
+		if meta is Dictionary:
+			var after: Array = (meta_script.call("migrate_unlocks", before, stats(), meta) as Array).duplicate()
+			for id: Variant in before:
+				if not after.has(id):
+					after.append(id)
+			if after != before:
+				_data["unlocked"] = after
+				changed = true
+	if changed:
+		_save()
+
+
 ## The crew and tier the next run starts with, as last chosen.
 func run_choice() -> Dictionary:
 	return {"crew": String(_data.get("crew", "salvagers")), "tier": int(_data.get("tier", 0))}
@@ -229,6 +429,7 @@ func _apply_volume() -> void:
 
 func _load() -> void:
 	_data = SaveFile.load_from(_path).data
+	_migrate()
 	Audio.set_enabled(sound_on())
 	_apply_volume()
 
