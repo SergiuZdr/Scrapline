@@ -26,6 +26,8 @@ func _initialize() -> void:
 	_test_recovers_from_corruption()
 	_test_settings_survive_reload()
 	_test_run_history()
+	_test_yard_and_medals()
+	_test_old_profile_migrates()
 
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
@@ -186,6 +188,89 @@ func _test_run_history() -> void:
 	back = profile.call("run_history")
 	_check("the history keeps the last 50 (%d), newest first" % back.size(), back.size() == 50
 		and String((back[0] as Dictionary)["key"]) == "run59" and String((back[49] as Dictionary)["key"]) == "run10")
+	profile.call("use_path", "user://tool_profile.json")
+
+
+## 085: the daily attempt, its best and streak, the weekly best and its plate, medals and crew
+## records are Profile commands and survive a restart (a reload of the file).
+func _test_yard_and_medals() -> void:
+	_cleanup()
+	var profile: Node = root.get_node_or_null("Profile")
+	if profile == null:
+		_check("(precondition) the Profile autoload exists", false)
+		return
+	profile.call("use_path", TEST_PATH)
+	_check("a fresh profile has played no daily, no streak, no plate, no medal",
+		(profile.call("daily", 20385) as Dictionary).is_empty() and int(profile.call("daily_streak", 20385)) == 0
+		and (profile.call("plates") as Array).is_empty() and (profile.call("medals", "wall") as Array).is_empty()
+		and int(profile.call("crew_record", "wall")) == -1)
+	_check("the day's attempt is taken once", bool(profile.call("start_daily", 20384, 77, "wall"))
+		and not bool(profile.call("start_daily", 20384, 77, "wall")))
+	profile.call("finish_daily", 20384, {"ended": "wrecked", "acts": 1, "fights": 6, "hp": 0})
+	profile.call("finish_daily", 20384, {"ended": "won", "acts": 3, "fights": 20, "hp": 30})
+	profile.call("start_daily", 20385, 78, "wall")
+	profile.call("finish_daily", 20385, {"ended": "abandoned", "acts": 0, "fights": 2, "hp": 40})
+	profile.call("start_weekly", 2911)
+	profile.call("start_weekly", 2911)
+	var plate: Dictionary = {"id": "plate_w2911", "week": 2911, "crew": "runners", "name": "CONTRACT 2025-10-20"}
+	var lost: Dictionary = profile.call("finish_weekly", 2911, "a:1", {"ended": "wrecked", "won": false, "acts": 1, "fights": 5, "hp": 0}, plate)
+	var won: Dictionary = profile.call("finish_weekly", 2911, "a:2", {"ended": "won", "won": true, "acts": 3, "fights": 18, "hp": 12}, plate)
+	var again: Dictionary = profile.call("finish_weekly", 2911, "a:2", {"ended": "won", "won": true, "acts": 3, "fights": 18, "hp": 12}, plate)
+	_check("a lost attempt earns no plate; the first clear does, once", lost.is_empty() and String(won.get("id", "")) == "plate_w2911" and again.is_empty())
+	_check("medals are added once each", (profile.call("award_medals", "wall", ["m_wall_1"]) as Array) == ["m_wall_1"]
+		and (profile.call("award_medals", "wall", ["m_wall_1", "m_wall_2"]) as Array) == ["m_wall_2"])
+	profile.call("note_win", "wall", 3)
+	profile.call("note_win", "wall", 1)
+	profile.call("use_path", TEST_PATH)
+	var day: Dictionary = profile.call("daily", 20384)
+	_check("a daily's result survives a restart, and only the first finish counts (%s)" % [day],
+		String(day.get("ended", "")) == "wrecked" and int(day.get("fights", 0)) == 6 and int(day.get("seed", 0)) == 77)
+	_check("the best daily is kept (an abandoned one with more HP but fewer acts does not beat it)",
+		int((profile.call("daily_best") as Dictionary).get("fights", 0)) == 6)
+	_check("two days in a row are a streak of 2, still standing the next day, gone after a gap",
+		int(profile.call("daily_streak", 20385)) == 2 and int(profile.call("daily_streak", 20386)) == 2
+		and int(profile.call("daily_streak", 20387)) == 0)
+	var week: Dictionary = profile.call("weekly", 2911)
+	_check("the week's attempts, best and clear survive a restart (%s)" % [week], int(week["attempts"]) == 2 and bool(week["cleared"])
+		and int((week["best"] as Dictionary).get("acts", 0)) == 3)
+	_check("the plate survives, and the crew that cleared it carries it", (profile.call("plates") as Array).size() == 1
+		and String((profile.call("plate_for", "runners") as Dictionary).get("id", "")) == "plate_w2911"
+		and (profile.call("plate_for", "wall") as Dictionary).is_empty())
+	_check("medals and the crew record survive (the record only rises)", (profile.call("medals", "wall") as Array) == ["m_wall_1", "m_wall_2"]
+		and int(profile.call("crew_record", "wall")) == 3)
+	profile.call("use_path", "user://tool_profile.json")
+
+
+## 085: a profile from before 085 keeps every unlock, tier and stat, and its crew records come from
+## its run history's wins (seeded and yard runs left out).
+func _test_old_profile_migrates() -> void:
+	_cleanup()
+	var profile: Node = root.get_node_or_null("Profile")
+	if profile == null:
+		return
+	var old: Dictionary = SaveFile.default_profile()
+	old["unlocked"] = ["u01", "u02", "u05", "u13"]
+	old["stats"] = {"runs": 6, "fights": 30, "wins": 2, "wins_t0": 2}
+	old["tier"] = 1
+	old["crew"] = "wall"
+	old["run_history"] = [
+		{"key": "1:1", "seed": 1, "crew": "wall", "tier": 0, "ended": "won"},
+		{"key": "2:1", "seed": 2, "crew": "wall", "tier": 2, "ended": "won", "seeded": true},
+		{"key": "3:1", "seed": 3, "crew": "salvagers", "tier": 1, "ended": "won"},
+		{"key": "4:1", "seed": 4, "crew": "runners", "tier": 1, "ended": "wrecked"}]
+	var handle: FileAccess = FileAccess.open(TEST_PATH, FileAccess.WRITE)
+	handle.store_string(JSON.stringify(old))
+	handle.close()
+	profile.call("use_path", TEST_PATH)
+	var held: Array = profile.call("unlocked")
+	_check("an old profile keeps every unlock it held (%s)" % [held], ["u01", "u02", "u05", "u13"].all(func(id: String) -> bool: return held.has(id)))
+	_check("and its stats and chosen crew and tier", int((profile.call("stats") as Dictionary).get("wins", 0)) == 2
+		and (profile.call("run_choice") as Dictionary) == {"crew": "wall", "tier": 1})
+	_check("its crew records come from the history's counted wins (wall 0, salvagers 1, runners none)",
+		int(profile.call("crew_record", "wall")) == 0 and int(profile.call("crew_record", "salvagers")) == 1
+		and int(profile.call("crew_record", "runners")) == -1)
+	profile.call("use_path", TEST_PATH)
+	_check("the migration is on disk", int(profile.call("crew_record", "salvagers")) == 1)
 	profile.call("use_path", "user://tool_profile.json")
 
 
