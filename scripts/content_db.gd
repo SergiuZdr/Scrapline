@@ -76,6 +76,10 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	var event_data: Variant = db._read_json("%s/run/events.json" % root)
 	if event_data is Dictionary:
 		db.run_rules["events"] = _without_comments(event_data as Dictionary)
+	# 085: the start deals' pool travels in the run rules too, so the content hash covers it.
+	var deal_data: Variant = db._read_json("%s/run/deals.json" % root)
+	if deal_data is Dictionary:
+		db.run_rules["deals"] = deal_data as Dictionary
 	var meta_data: Variant = db._read_json("%s/meta.json" % root)
 	if meta_data is Dictionary:
 		db.meta = meta_data as Dictionary

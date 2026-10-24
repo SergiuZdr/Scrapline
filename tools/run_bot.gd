@@ -40,13 +40,11 @@ func _initialize() -> void:
 	var quiet: bool = not slice.is_empty()
 	# Variant A: the game with every `--set`. Variant B (071): A plus every `--b`.
 	var dbs: Array[ContentDB] = [ContentDB.load_all()]
-	Stats.with_deals(dbs[0])
 	for setting: String in Stats.all_after(args, "--set"):
 		Stats.override(dbs[0], setting, quiet)
 	var b_settings: PackedStringArray = Stats.all_after(args, "--b")
 	if not b_settings.is_empty():
 		dbs.append(ContentDB.load_all())
-		Stats.with_deals(dbs[1])
 		for setting: String in Stats.all_after(args, "--set"):
 			Stats.override(dbs[1], setting, true)
 		for setting: String in b_settings:
