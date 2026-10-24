@@ -73,11 +73,31 @@ func _ready() -> void:
 	column.add_child(_seed_row())
 	# 043 (play-test 13: no click-through after NEW RUN): the next run's crew and tier are said
 	# here, and changed here, before NEW RUN -- which then starts at once.
-	var next_run: Control = _next_run_line()
-	if next_run != null:
-		column.add_child(next_run)
-	column.add_child(_menu_button("PRACTICE FIGHT", false, func() -> void:
-		get_tree().change_scene_to_file("res://scenes/combat.tscn")))
+	column.add_child(_next_run_line())
+	# 085: the yard board -- today's daily and this week's contract -- beside PRACTICE FIGHT.
+	var more := HBoxContainer.new()
+	more.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	column.add_child(more)
+	var practice := _menu_button("PRACTICE FIGHT", false, func() -> void:
+		get_tree().change_scene_to_file("res://scenes/combat.tscn"))
+	practice.custom_minimum_size = Vector2(300, 64)
+	more.add_child(practice)
+	var yard := _menu_button("DAILY  ·  WEEKLY", false, func() -> void:
+		(load("res://scripts/ui/yard_board.gd") as GDScript).call("open", self))
+	yard.name = "yard_button"
+	yard.custom_minimum_size = Vector2(300, 64)
+	more.add_child(yard)
+	var today: Dictionary = Profile.daily(Run.today())
+	var streak: int = Profile.daily_streak(Run.today())
+	var status := Label.new()
+	status.name = "yard_status"
+	status.text = ("TODAY'S YARD IS OPEN" if today.is_empty() else "TODAY'S YARD PLAYED") + \
+		("  ·  STREAK %d" % streak if streak > 0 else "")
+	status.add_theme_font_override("font", UIKit.font_comic())
+	status.add_theme_font_size_override("font_size", 18)
+	status.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	UIKit.on_page(status, 5)
+	more.add_child(status)
 
 	# 022: what the runs so far have opened; 027: always shown, with the next goal and how far.
 	var total: int = (Run.db.meta.get("unlocks", []) as Array).size()
@@ -182,54 +202,133 @@ func _begin() -> void:
 	_go()
 
 
-## "NEXT RUN: THE WALL · FOREMAN  [CHANGE]", and the ladder's rungs -- or null while there is
-## nothing to choose.
+## 085 (B4): "NEXT RUN:  RUNG 5 · TRACKERS LOCK ON  ·  THE WALL  [CHANGE]", the rung's rule under it,
+## and the ladder as pips. Always shown: rung 0 is a rung too. CHANGE only while there is a choice.
 func _next_run_line() -> Control:
 	var meta: Dictionary = Run.db.meta
 	var held: Array = Profile.unlocked()
-	if Meta.opened(held, meta, "crew").is_empty() and Meta.opened(held, meta, "tier").is_empty():
-		return null
 	var choice: Dictionary = Profile.run_choice()
-	var crew: Dictionary = (meta["crews"] as Dictionary).get(String(choice["crew"]), (meta["crews"] as Dictionary)["salvagers"])
-	var tier: Dictionary = (meta["tiers"] as Array)[clampi(int(choice["tier"]), 0, (meta["tiers"] as Array).size() - 1)]
+	var crew_id: String = String(choice["crew"])
+	var crew: Dictionary = (meta["crews"] as Dictionary).get(crew_id, (meta["crews"] as Dictionary)["salvagers"])
+	var rungs: Array = meta.get("tiers", [])
+	var rung: int = clampi(int(choice["tier"]), 0, maxi(0, rungs.size() - 1))
+	var entry: Dictionary = rungs[rung] if not rungs.is_empty() else {}
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	var text := Label.new()
-	text.text = "NEXT RUN:  %s  ·  %s" % [String(crew["name"]), String(tier["name"])]
+	text.name = "next_run"
+	text.text = "NEXT RUN:  RUNG %d  ·  %s  ·  %s" % [rung, String(entry.get("name", "")), String(crew["name"])]
 	text.add_theme_font_override("font", UIKit.font_comic())
 	text.add_theme_font_size_override("font_size", 24)
 	UIKit.on_page(text, 6)
 	row.add_child(text)
-	var change := _menu_button("CHANGE", false, _choose_run)
-	change.custom_minimum_size = Vector2(130, 44)
-	change.add_theme_font_size_override("font_size", 20)
-	row.add_child(change)
+	var stamp: Control = _record_stamp(crew_id)
+	if stamp != null:
+		row.add_child(stamp)
+	if not Meta.opened(held, meta, "crew").is_empty() or not Meta.opened(held, meta, "tier").is_empty():
+		var change := _menu_button("CHANGE", false, _choose_run)
+		change.custom_minimum_size = Vector2(130, 44)
+		change.add_theme_font_size_override("font_size", 20)
+		row.add_child(change)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", UIKit.SPACE_XS)
 	box.add_child(row)
+	var rule := Label.new()
+	rule.name = "next_rule"
+	rule.text = String(entry.get("text", ""))
+	rule.add_theme_font_override("font", UIKit.font_strong())
+	rule.add_theme_font_size_override("font_size", UIKit.SIZE_BODY)
+	UIKit.on_page(rule, 5)
+	UIKit.fit(rule, 900, 2, 12)
+	box.add_child(rule)
 	box.add_child(_ladder_line(meta, held))
 	# 082 (A13): the first time the ladder shows, a hint says what it is.
-	Hints.show_once(self, "ladder", Run.db, Vector2(1180, 330), 440.0)
+	if rungs.size() > 1 and not Meta.opened(held, meta, "tier").is_empty():
+		Hints.show_once(self, "ladder", Run.db, Vector2(1180, 330), 440.0)
 	return box
 
 
-## The tier ladder as one line: each rung won, open, or shut, and what finishes the game.
-func _ladder_line(meta: Dictionary, held: Array) -> Label:
+## The ladder as one pip per rung (won, open, shut) and a count -- ten rungs do not fit as words.
+func _ladder_line(meta: Dictionary, held: Array) -> Control:
 	var stats: Dictionary = Profile.stats()
 	var top: int = Meta.top_tier(held, meta)
-	var parts: PackedStringArray = []
-	var tiers: Array = meta.get("tiers", [])
-	for t: int in tiers.size():
-		var name: String = String((tiers[t] as Dictionary)["name"])
+	var rungs: Array = meta.get("tiers", [])
+	var row := HBoxContainer.new()
+	row.name = "ladder"
+	row.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	var caption := Label.new()
+	caption.text = "THE LADDER"
+	caption.add_theme_font_override("font", UIKit.font_comic())
+	caption.add_theme_font_size_override("font_size", 20)
+	caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	UIKit.on_page(caption, 5)
+	row.add_child(caption)
+	var won_top: int = -1
+	for t: int in rungs.size():
 		var won: bool = int(stats.get("wins_t%d" % t, 0)) > 0 or (t == 0 and int(stats.get("wins", 0)) > 0)
-		parts.append(("%s WON" if won else ("%s OPEN" if t <= top else "%s SHUT")) % name)
-	var line := Label.new()
-	line.text = "THE LADDER:  " + "  >  ".join(parts) + \
-		("   ·   THE LINE IS CUT" if Meta.finished(held, meta) else "   ·   win the top tier to cut the line")
-	line.add_theme_font_override("font", UIKit.font_strong())
-	line.add_theme_font_size_override("font_size", UIKit.SIZE_BODY)
-	UIKit.on_page(line, 5)
-	return line
+		if won:
+			won_top = t
+		var pip := Panel.new()
+		pip.custom_minimum_size = Vector2(26, 18)
+		pip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		pip.mouse_filter = Control.MOUSE_FILTER_PASS
+		pip.tooltip_text = "RUNG %d  ·  %s%s" % [t, String((rungs[t] as Dictionary).get("name", "")), "  (won)" if won else ("" if t <= top else "  (shut)")]
+		var box := UIKit.plain(Ink.GAIN if won else (UIKit.AMBER if t <= top else UIKit.SURFACE_SUNK), 0)
+		box.border_color = UIKit.HAIRLINE
+		box.set_border_width_all(2)
+		box.skew = Vector2(0.3, 0.0)
+		pip.add_theme_stylebox_override("panel", box)
+		row.add_child(pip)
+	var count := Label.new()
+	count.text = "%d OF %d OPEN  ·  %s" % [top + 1, rungs.size(), "THE LINE IS CUT" if Meta.finished(held, meta)
+		else ("best won: RUNG %d" % won_top if won_top >= 0 else "win a run to open the next rung")]
+	count.add_theme_font_override("font", UIKit.font_strong())
+	count.add_theme_font_size_override("font_size", UIKit.SIZE_BODY)
+	count.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	UIKit.on_page(count, 5)
+	row.add_child(count)
+	return row
+
+
+## 085: a crew's record stamp (the highest rung it has won) and its medals, as a small ink badge;
+## null while it has neither.
+func _record_stamp(crew_id: String) -> Control:
+	var record: int = Profile.crew_record(crew_id)
+	var medals: int = Profile.medals(crew_id).size()
+	var total: int = _crew_medals(crew_id).size()
+	if record < 0 and medals == 0:
+		return null
+	var badge := PanelContainer.new()
+	badge.name = "record_stamp"
+	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style: InkBox = UIKit.ink_button(Ink.DANGER)
+	style.jag = 3.0
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 0
+	style.content_margin_bottom = 0
+	badge.add_theme_stylebox_override("panel", style)
+	var bits: PackedStringArray = []
+	if record >= 0:
+		bits.append("RECORD: RUNG %d" % record)
+	if total > 0:
+		bits.append("MEDALS %d/%d" % [medals, total])
+	var mark := Label.new()
+	mark.text = "  ·  ".join(bits)
+	mark.add_theme_font_override("font", UIKit.font_comic())
+	mark.add_theme_font_size_override("font_size", 16)
+	mark.add_theme_color_override("font_color", UIKit.PAPER)
+	badge.add_child(mark)
+	return badge
+
+
+## The medals a crew can earn (B10): `meta.medals[crew]` or `meta.crews[crew].medals`.
+func _crew_medals(crew_id: String) -> Array:
+	var medals: Variant = Run.db.meta.get("medals", {})
+	if medals is Dictionary and (medals as Dictionary).has(crew_id):
+		return (medals as Dictionary)[crew_id]
+	return (((Run.db.meta.get("crews", {}) as Dictionary).get(crew_id, {}) as Dictionary).get("medals", []) as Array)
 
 
 func _go() -> void:
@@ -286,19 +385,48 @@ func _choose_run() -> void:
 	_column.add_child(_choice_caption("CREW"))
 	for id: Variant in crews:
 		var crew: Dictionary = (meta["crews"] as Dictionary)[id]
-		_column.add_child(_choice_button("%s  ·  %s" % [crew["name"], crew["text"]], String(id) == String(choice["crew"]),
+		var crew_button: Button = _choice_button("%s  ·  %s" % [crew["name"], crew["text"]], String(id) == String(choice["crew"]),
 			func() -> void:
 				Profile.choose_run(String(id), int(Profile.run_choice()["tier"]))
-				_choose_run()))
+				_choose_run())
+		crew_button.name = "crew_" + String(id)
+		_column.add_child(crew_button)
+		# 085: the crew card carries its record stamp and medals, at its right edge.
+		var stamp: Control = _record_stamp(String(id))
+		if stamp != null:
+			crew_button.custom_minimum_size.x = 1100
+			var holder := HBoxContainer.new()
+			holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			holder.alignment = BoxContainer.ALIGNMENT_END
+			crew_button.add_child(holder)
+			holder.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 12)
+			holder.add_child(stamp)
+	# 085 (B4): ten rungs as a row of small buttons; the chosen one's rule is written under them.
 	var tiers: Array = [0] + Meta.opened(held, meta, "tier").map(func(t: Variant) -> int: return int(t))
 	if tiers.size() > 1:
-		_column.add_child(_choice_caption("TIER"))
+		_column.add_child(_choice_caption("RUNG"))
+		var grid := GridContainer.new()
+		grid.columns = 6
+		grid.add_theme_constant_override("h_separation", UIKit.SPACE_SM)
+		grid.add_theme_constant_override("v_separation", UIKit.SPACE_SM)
+		_column.add_child(grid)
 		for t: Variant in tiers:
-			var tier: Dictionary = (meta["tiers"] as Array)[int(t)]
-			_column.add_child(_choice_button("%s  ·  %s" % [tier["name"], tier["text"]], int(t) == int(choice["tier"]),
+			var pick: Button = _choice_button("RUNG %d" % int(t), int(t) == int(choice["tier"]),
 				func() -> void:
 					Profile.choose_run(String(Profile.run_choice()["crew"]), int(t))
-					_choose_run()))
+					_choose_run())
+			pick.name = "rung_%d" % int(t)
+			pick.custom_minimum_size = Vector2(160, 52)
+			pick.alignment = HORIZONTAL_ALIGNMENT_CENTER
+			grid.add_child(pick)
+		var chosen: Dictionary = (meta["tiers"] as Array)[clampi(int(choice["tier"]), 0, (meta["tiers"] as Array).size() - 1)]
+		var rule := Label.new()
+		rule.text = "RUNG %d  ·  %s  ·  %s" % [int(choice["tier"]), chosen["name"], chosen.get("text", "")]
+		rule.add_theme_font_override("font", UIKit.font_strong())
+		rule.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
+		UIKit.on_page(rule, 5)
+		UIKit.fit(rule, 1100, 2, 12)
+		_column.add_child(rule)
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 12)
 	_column.add_child(gap)
