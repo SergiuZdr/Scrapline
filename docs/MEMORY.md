@@ -181,6 +181,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-23 | **The front's pace is 150** (a column every 1.5 moves; wandering costs, going forward is safe); **every act has a condition**, gates and warlords stay clean; warlords rotate (the Twins may land in Act 1); **more Reclaimer drones the longer you linger** | 084, the user |
 | 2026-10-24 | **Lingering brings more drones, sooner**: +1 drone per sideways/back step (up to 8), a round earlier per 3 such steps (round 2 earliest); their piles still heal | 084, the user |
 | 2026-10-24 | **The yard board shows daily and weekly side by side; deal costs are chips under the map's top bar; the weekly plate is a 3D plate riveted on the machine**, made the 081 way (concept the user approves -> TRELLIS) | 085, the user |
+| 2026-10-24 | **Plate concepts: the user likes 1 (name plate, to be redrawn), 2 (shield with star) and 4 (skull medallion), and wants more versions of 2 and 4** (too similar in concept); made in ChatGPT Images once Chrome is connected | 085, the user |
 
 ## Lessons carried over from the old codebase
 
