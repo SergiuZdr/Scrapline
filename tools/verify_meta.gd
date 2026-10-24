@@ -238,6 +238,7 @@ func _yard_runs_count_for_nothing(db: ContentDB, profile: Node, run: Node, veter
 		if mode == "weekly":
 			yard["crew_id"] = "wall"
 			yard["rung"] = 2
+			yard["tier"] = 2
 		var options: Dictionary = run.call("yard_run_options", yard)
 		options["mode"] = mode
 		options["day" if mode == "daily" else "week"] = 20385 if mode == "daily" else 2911

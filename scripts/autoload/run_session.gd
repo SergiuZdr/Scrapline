@@ -180,6 +180,12 @@ func new_weekly() -> bool:
 ## (its seed aside) over them.
 func yard_run_options(yard: Dictionary) -> Dictionary:
 	var crew: String = String(yard.get("crew_id", Profile.run_choice()["crew"]))
+	# The sim's own resolution, the same for every profile (`Meta.challenge_options`), when it has one.
+	var meta_script: GDScript = load("res://sim/run/meta.gd")
+	if meta_script.get_script_method_list().any(func(m: Dictionary) -> bool: return String(m["name"]) == "challenge_options"):
+		var resolved: Dictionary = meta_script.call("challenge_options", db.meta, yard, crew)
+		resolved.erase(SEEDED)
+		return resolved
 	var rung: int = int(yard.get("rung", 0))
 	var held: Array = Profile.unlocked()
 	for entry: Dictionary in (db.meta.get("unlocks", []) as Array):
