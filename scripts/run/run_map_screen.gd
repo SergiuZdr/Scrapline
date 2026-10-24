@@ -845,7 +845,7 @@ func _show_overlay() -> void:
 		_assembly()
 		return
 	# 085: after the bay, before the first move, three fixers' deals (and WALK ON).
-	if state.pending.is_empty() and not RunSim.deals_on_offer(state, Run.setup).is_empty():
+	if not RunSim.deals_on_offer(state, Run.setup).is_empty():
 		_deals_panel()
 		return
 	match String(state.pending.get("kind", "")):
