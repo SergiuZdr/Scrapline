@@ -19,6 +19,12 @@ extends RefCounted
 ## Set by the bot tools (`--set bot.route="explorer"`), never by the game.
 static var route: String = "forward"
 
+## 085: how the bot takes a run-start deal. "best" (the default): the offered deal that comes first in
+## `data/run/deals.json`, whose order is the bot's taste (the file lists the deals the bot rates most
+## first); "walk": always WALK ON; any deal id: that deal when offered, else WALK ON. Set by the bot
+## tools (`--set bot.deals="walk"`), never by the game.
+static var deals: String = "best"
+
 
 ## The next action for the run as it stands, or [] if the run is over.
 static func next_action(state: RunState, setup: RunSetup) -> Array:
@@ -68,6 +74,8 @@ static func next_action(state: RunState, setup: RunSetup) -> Array:
 			return [RunSim.LEAVE]
 		"signal":
 			return [RunSim.CHOOSE, _signal_choice(state, setup)]
+		"deals":
+			return [RunSim.DEAL, _deal_choice(state, setup)]
 	var refit: Array = _best_refit(state, setup)
 	if not refit.is_empty():
 		return refit
@@ -342,3 +350,22 @@ static func _taste(kind: String, hurt: bool, state: RunState) -> int:
 		"tower":
 			return 2
 	return 0
+
+
+## 085: the deal by the stated policy (`deals`): its index in the offer, or -1 for WALK ON.
+static func _deal_choice(state: RunState, setup: RunSetup) -> int:
+	if deals == "walk":
+		return -1
+	var offer: Array = state.deal_offer
+	if deals != "best":
+		return offer.find(deals)
+	var best: int = -1
+	var best_rank: int = 1 << 30
+	var pool: Array = (setup.rules.get("deals", {}) as Dictionary).get("deals", [])
+	for i: int in offer.size():
+		for rank: int in pool.size():
+			if String((pool[rank] as Dictionary).get("id", "")) == String(offer[i]) and rank < best_rank:
+				best_rank = rank
+				best = i
+	return best
+

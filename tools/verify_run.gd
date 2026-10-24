@@ -6,12 +6,19 @@ extends SceneTree
 ##   godot --headless --path . --script res://tools/verify_run.gd
 
 var _db: ContentDB
+## 085: the seeds of the daily of 2026-10-24 and the contract of its week, pinned: every player gets
+## these, so changing the formula changes the yard for everyone.
+const DAILY_20750_SEED: int = 16423198
+const WEEKLY_2963_SEED: int = 12004024
 var _passed: int = 0
 var _failed: int = 0
 
 
 func _initialize() -> void:
 	_db = ContentDB.load_all()
+	# 085: the deal pool, until ContentDB loads data/run/deals.json into the run rules itself.
+	if not _db.run_rules.has("deals"):
+		_db.run_rules["deals"] = JSON.parse_string(FileAccess.get_file_as_string("res://data/run/deals.json"))
 	print("")
 	print("=== run ===")
 	_timed(_test_generation)
@@ -48,6 +55,12 @@ func _initialize() -> void:
 	_timed(_test_fight_preview)
 	_timed(_test_act_conditions)
 	_timed(_test_seed_codes)
+	_timed(_test_rung_rules)
+	_timed(_test_deals)
+	_timed(_test_deal_effects)
+	_timed(_test_challenges)
+	_timed(_test_crew_rules)
+	_timed(_test_medals)
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
 	print("")
@@ -443,20 +456,26 @@ func _test_names() -> void:
 
 ## 082 (B1): a tier stacks on every act. Its `adds` are applied after the act's overlay, so
 ## FOREMAN in Act 2 is Act 2's numbers plus FOREMAN's, never Act 2's numbers alone.
+## 085 (B4): the ladder is cumulative (`Meta.rung_adds`): rung N is rung N-1 plus its own adds, every
+## one of which makes its number harder in every act (`harder: down` for the ones that fall), and
+## nothing else moves.
 func _test_tiers_stack() -> void:
 	var tiers: Array = _db.meta.get("tiers", [])
 	# Every key any tier touches, plus the ones the acts set that a tier might shadow.
 	var keys: Array = ["enemies.hp_all", "enemies.bonus.damage", "front.damage", "front.every"]
+	var down: Dictionary = {}
 	for tier: Dictionary in tiers:
 		for add: Dictionary in ((tier.get("rules", {}) as Dictionary).get("adds", []) as Array):
 			if not keys.has(String(add["path"])):
 				keys.append(String(add["path"]))
+			if String(add.get("harder", "up")) == "down":
+				down[String(add["path"])] = true
 	keys.sort()
 	var table: Array = []  # [tier][act] -> {path: value}
 	for t: int in tiers.size():
 		var options: Dictionary = {}
-		if (tiers[t] as Dictionary).has("rules"):
-			options["rules"] = ((tiers[t] as Dictionary)["rules"] as Dictionary).duplicate(true)
+		if t > 0:
+			options["rules"] = {"adds": Meta.rung_adds(_db.meta, t)}
 		var setup: RunSetup = RunSetup.create(_db.parts, _db.tiles, _db.fights, _db.run_rules,
 			_db.combat_rules, _db.effectiveness, 7, options)
 		var row: Array = []
@@ -466,37 +485,49 @@ func _test_tiers_stack() -> void:
 			var rules: Dictionary = RunSim.rules_of(state, setup)
 			var values: Dictionary = {}
 			for path: String in keys:
-				values[path] = _dig(rules, path)
+				values[path] = _dig(rules, path) if _has_path(rules, path) else _default_of(path)
 			row.append(values)
 		table.append(row)
 	for t: int in table.size():
-		var line: String = "  tier %d %-10s" % [t, String(tiers[t]["name"])]
+		var line: String = "  rung %2d %-16s" % [t, String(tiers[t]["name"])]
 		for act: int in (table[t] as Array).size():
 			var parts: PackedStringArray = []
 			for path: String in keys:
-				parts.append("%s=%d" % [path.trim_prefix("enemies."), int(table[t][act][path])])
-			line += "  | act %d: %s" % [act + 1, " ".join(parts)]
+				if t == 0 or int(table[t][act][path]) != int(table[0][act][path]):
+					parts.append("%s=%d" % [path.trim_prefix("enemies."), int(table[t][act][path])])
+			line += "  | act %d: %s" % [act + 1, " ".join(parts) if t > 0 else "%d keys" % keys.size()]
 		print(line)
 	var monotone: bool = true
 	var where: String = ""
 	for t: int in range(1, table.size()):
-		for act: int in (table[t] as Array).size():
-			for path: String in keys:
-				if int(table[t][act][path]) < int(table[t - 1][act][path]):
+		var own: Array = (((tiers[t] as Dictionary).get("rules", {}) as Dictionary).get("adds", []) as Array).map(
+			func(a: Dictionary) -> String: return String(a["path"]))
+		for path: String in keys:
+			var moved: bool = false
+			for act: int in (table[t] as Array).size():
+				var now: int = int(table[t][act][path])
+				var before: int = int(table[t - 1][act][path])
+				moved = moved or now != before
+				var ok: bool = (now <= before if down.has(path) else now >= before) if own.has(path) else now == before
+				if not ok:
 					monotone = false
-					where = "tier %d act %d %s" % [t, act + 1, path]
-	_check("tier N >= tier N-1 on every key in every act%s" % ("" if monotone else " (FAILS at %s)" % where), monotone)
+					where = "rung %d act %d %s %d after %d" % [t, act + 1, path, now, before]
+			if own.has(path) and not moved:
+				monotone = false
+				where = "rung %d %s changes nothing" % [t, path]
+	_check("%d rungs: each is the one below plus its own adds, each harder in every act, nothing else moves%s" % [
+		tiers.size(), "" if monotone else " (FAILS at %s)" % where], monotone)
 	# The bug B1 fixes: the act's own enemies block replaced the tier's, so tiers did nothing past Act 1.
 	var stacks: bool = table.size() >= 2
 	for act: int in (table[0] as Array).size():
 		stacks = stacks and int(table[1][act]["enemies.hp_all"]) == int(table[0][act]["enemies.hp_all"]) + 2
 	_check("FOREMAN adds 2 HP on top of EVERY act (%s vs %s)" % [table[1].map(func(v: Dictionary) -> int: return int(v["enemies.hp_all"])),
 		table[0].map(func(v: Dictionary) -> int: return int(v["enemies.hp_all"]))], stacks)
-	var top: int = table.size() - 1
-	var bites: bool = true
+	var bites: bool = table.size() >= 3
 	for act: int in (table[0] as Array).size():
-		bites = bites and int(table[top][act]["enemies.bonus.damage"]) == int(table[0][act]["enemies.bonus.damage"]) + 1
-	_check("RECLAIMED adds 1 damage on top of every act's", bites)
+		bites = bites and int(table[2][act]["enemies.bonus.damage"]) == int(table[0][act]["enemies.bonus.damage"]) + 1 \
+			and int(table[2][act]["enemies.hp_all"]) == int(table[0][act]["enemies.hp_all"]) + 2 and int(table[2][act]["front.damage"]) == 3
+	_check("RECLAIMED (rung 2) is FOREMAN plus 1 damage and a bite of 3, on top of every act: the old tier exactly", bites)
 	# And it reaches an Act 2 fight: the same rolled squad, every enemy 2 HP tougher on FOREMAN.
 	var hp: Array = []
 	for t: int in 2:
@@ -516,6 +547,26 @@ func _test_tiers_stack() -> void:
 	_check("apply_adds: set then delta on one path in list order, new paths made, base untouched (%s)" % [got],
 		got == {"a": {"x": 11, "y": {"z": 3}}, "b": 3} and base == {"a": {"x": 1}, "b": 4})
 	_check("apply_adds holds integers only", typeof(RunSetup.apply_adds({}, [{"path": "q", "delta": 2.0}])["q"]) == TYPE_INT)
+
+
+## Whether a dotted path exists in the rules.
+func _has_path(rules: Dictionary, path: String) -> bool:
+	var node: Variant = rules
+	for key: String in path.split("."):
+		if not (node is Dictionary) or not (node as Dictionary).has(key):
+			return false
+		node = (node as Dictionary)[key]
+	return true
+
+
+## What the game reads for a path the rules do not hold (the code's own fallback).
+func _default_of(path: String) -> int:
+	match path:
+		"fight_rules.pile_heal":
+			return int(_db.combat_rules.get("pile_heal", 2))
+		"start.hp_pct":
+			return 100
+	return 0
 
 
 func _dig(rules: Dictionary, path: String) -> int:
@@ -1663,3 +1714,308 @@ func _test_seed_codes() -> void:
 		same = same and a.fingerprint() == b.fingerprint() and var_to_str(a.pending) == var_to_str(b.pending)
 	_check("a run started from its code is the identical run (%s, %d fights)" % [code, fights], same and fights >= 2)
 	_check("a seeded run is marked so (options.seeded)", RunSetup.is_seeded(b_setup.options) and not RunSetup.is_seeded(a_setup.options))
+
+
+# --- 085 ---------------------------------------------------------------------
+
+func _opts_setup(seed_value: int, options: Dictionary) -> RunSetup:
+	return RunSetup.create(_db.parts, _db.tiles, _db.fights, _db.run_rules, _db.combat_rules,
+		_db.effectiveness, seed_value, options)
+
+
+func _all_unlocked() -> Array:
+	return (_db.meta["unlocks"] as Array).map(func(e: Dictionary) -> String: return String(e["id"]))
+
+
+## 085 (B4): the rungs' rules reach the game: piles, the start, workshops, the gates, the front.
+func _test_rung_rules() -> void:
+	var top: int = (_db.meta["tiers"] as Array).size() - 1
+	var plain: RunSetup = _setup(21)
+	var hard: RunSetup = _opts_setup(21, {"tier": top, "rules": {"adds": Meta.rung_adds(_db.meta, top)}})
+	var a: RunState = RunSim.start(plain)
+	var b: RunState = RunSim.start(hard)
+	_check("rung 0's fights carry no pile rule of their own; the top rung's heal 1 (%s)" % str(RunSim._make_fight(b, hard, 1, "skirmish").get("pile_heal")),
+		not RunSim._make_fight(a, plain, 1, "skirmish").has("pile_heal") and int(RunSim._make_fight(b, hard, 1, "skirmish")["pile_heal"]) == 1)
+	_check("and a gate that heals nothing still heals nothing (%s)" % str(RunSim._make_fight(b, hard, a.sites.size() - 1, "boss").get("pile_heal")),
+		int(RunSim._make_fight(b, hard, b.sites.size() - 1, "boss").get("pile_heal", -1)) == mini(1, int(_db.fights["sorting_gate"].get("pile_heal", 2))))
+	_check("the top rung starts the crew on 80%% HP (%d of %d)" % [int(b.crew[0]["hp"]), RunSim.max_hp(hard, b.crew[0])],
+		int(b.crew[0]["hp"]) == RunSim.max_hp(hard, b.crew[0]) * 80 / 100 and int(a.crew[0]["hp"]) == RunSim.max_hp(plain, a.crew[0]))
+	for st: RunState in [a, b]:
+		for member: Dictionary in st.crew:
+			member["hp"] = 1
+		st.scrap = 50
+		st.pending = {"kind": "workshop"}
+	RunSim.apply(a, plain, [RunSim.REPAIR])
+	RunSim.apply(b, hard, [RunSim.REPAIR])
+	_check("a workshop patches 3 on rung 0, 2 on the top rung (%d, %d)" % [int(a.crew[0]["hp"]), int(b.crew[0]["hp"])],
+		int(a.crew[0]["hp"]) == 4 and int(b.crew[0]["hp"]) == 3)
+	var gate: Dictionary = RunSim._make_fight(RunSim.start(hard), hard, RunSim.start(hard).sites.size() - 1, "boss")
+	var gate0: Dictionary = RunSim._make_fight(RunSim.start(plain), plain, RunSim.start(plain).sites.size() - 1, "boss")
+	_check("the gate brings one more escort on the top rung (%d vs %d)" % [(gate["enemy"] as Array).size(), (gate0["enemy"] as Array).size()],
+		(gate["enemy"] as Array).size() == (gate0["enemy"] as Array).size() + 1)
+
+
+## 085: the start deals -- the same seed offers the same three, one soft; the bay stays open while
+## they wait, WALK ON shuts it; the save replays the pick.
+func _test_deals() -> void:
+	var pool: Array = (_db.run_rules["deals"] as Dictionary)["deals"]
+	var soft: Array = pool.filter(func(d: Dictionary) -> bool: return bool(d.get("soft", false))).map(func(d: Dictionary) -> String: return String(d["id"]))
+	var seen: Dictionary = {}
+	var shaped: bool = true
+	var same: bool = true
+	for seed_value: int in 300:
+		var offer: Array = RunSetup.roll_deals(_db.run_rules, seed_value)
+		same = same and offer == RunSetup.roll_deals(_db.run_rules, seed_value)
+		var softs: int = offer.filter(func(id: String) -> bool: return soft.has(id)).size()
+		var unique: Dictionary = {}
+		for id: String in offer:
+			unique[id] = true
+			seen[id] = int(seen.get(id, 0)) + 1
+		shaped = shaped and offer.size() == 3 and softs == 1 and unique.size() == 3
+	_check("300 seeds: three distinct deals, exactly one soft, the same three for the same seed", shaped and same)
+	_check("every deal turns up (%s)" % [seen], seen.size() == pool.size())
+	_check("every cost and gift has words", pool.all(func(d: Dictionary) -> bool:
+		return not String(d.get("gift", "")).is_empty() and not String(d.get("cost", "")).is_empty()))
+	var setup: RunSetup = _opts_setup(31, {"deals": true})
+	var state: RunState = RunSim.start(setup)
+	var on_offer: Array = RunSim.deals_on_offer(state, setup)
+	_check("a run with deals starts on them: %s" % [on_offer.map(func(d: Dictionary) -> String: return String(d["id"]))],
+		String(state.pending.get("kind", "")) == "deals" and on_offer.size() == 3
+		and on_offer.map(func(d: Dictionary) -> String: return String(d["id"])) == RunSetup.roll_deals(_db.run_rules, 31)
+		and RunSim.destinations(state).is_empty())
+	_check("a run with no deals in its options has none (the bot tools, old saves)", RunSim.start(_setup(31)).pending.is_empty())
+	var defaults: Array = state.crew.map(func(m: Dictionary) -> Array: return (m["parts"] as Array).duplicate())
+	_check("the bay stays open while the deals wait", RunSim.can_assemble(state) and RunSim.apply(state, setup, [RunSim.ASSEMBLE, defaults])
+		and String(state.pending.get("kind", "")) == "deals")
+	_check("a deal out of range is refused", not RunSim.apply(state, setup, [RunSim.DEAL, 3]) and not RunSim.apply(state, setup, [RunSim.DEAL, -2]))
+	var walk: RunState = RunSim.start(setup)
+	_check("WALK ON: no gift, no cost, the bay shut, the road open", RunSim.apply(walk, setup, [RunSim.DEAL, -1]) and walk.deal == "walk"
+		and walk.pending.is_empty() and not RunSim.can_assemble(walk) and not RunSim.destinations(walk).is_empty()
+		and RunSim.deals_on_offer(walk, setup).is_empty() and RunSim.active_costs(walk, setup).is_empty()
+		and _region_text(walk) == _region_text(RunSim.start(_setup(31))) and not RunSim.apply(walk, setup, [RunSim.DEAL, 0]))
+	# The save replays the pick: a bot run with deals, through the save's JSON and back.
+	for policy: String in ["best", "walk"]:
+		RunBot.deals = policy
+		var live: RunState = RunSim.start(setup)
+		var actions: Array = []
+		for n: int in 60:
+			var action: Array = RunBot.next_action(live, setup)
+			if action.is_empty() or not RunSim.apply(live, setup, action):
+				break
+			actions.append(action)
+		var back: Dictionary = RunStore.decode(RunStore.encode(31, "v", actions, [], setup.options))
+		var again: RunSetup = _opts_setup(31, back["options"])
+		var replayed: RunState = RunSim.replay(again, back["actions"])
+		_check("the save replays a run that took a deal (%s: %s, %d actions)" % [policy, live.deal, actions.size()],
+			replayed.fingerprint() == live.fingerprint() and int(actions[0][0]) == RunSim.DEAL and actions.size() > 20)
+	RunBot.deals = "best"
+
+
+## 085: what each deal gives and takes, and that its cost is on the map or the HUD.
+func _test_deal_effects() -> void:
+	var take: Callable = func(id: String, seed_value: int = 41) -> Array:
+		var setup: RunSetup = _opts_setup(seed_value, {"deals": true, "deal_offer": [id]})
+		var state: RunState = RunSim.start(setup)
+		var ok: bool = RunSim.apply(state, setup, [RunSim.DEAL, 0])
+		return [state, setup, ok, RunSim.start(_setup(seed_value)), _setup(seed_value)]
+	var r: Array = take.call("rare_arm")
+	var st: RunState = r[0]
+	var rares: int = 0
+	for member: Dictionary in st.crew:
+		for socket: int in [2, 3]:
+			rares += 1 if (r[1] as RunSetup).rarity(String(member["parts"][socket])) == 3 else 0
+	_check("rare_arm: a rare arm fitted, the old one in the hold, the Reclaimer a column ahead (%d rare, hold %s, head %d)" % [
+		rares, st.cargo, int((RunSim.rules_of(st, r[1])["front"] as Dictionary).get("head", 0))],
+		r[2] and rares == 1 and st.cargo.size() == 1 and bool(RunSim.move_preview(st, r[1], RunSim.destinations(st)[0])["advances"])
+		and not bool(RunSim.move_preview(r[3], r[4], RunSim.destinations(r[3])[0])["advances"]) and RunSim.active_costs(st, r[1]).size() == 1)
+	r = take.call("plating")
+	st = r[0]
+	var shops: int = st.sites.filter(func(s: Dictionary) -> bool: return String(s["type"]) == "workshop").size()
+	var shops0: int = (r[3] as RunState).sites.filter(func(s: Dictionary) -> bool: return String(s["type"]) == "workshop").size()
+	_check("plating: every machine +3 max HP and HP, no workshop in Act 1 (%d, was %d)" % [shops, shops0],
+		r[2] and shops == 0 and shops0 > 0 and RunSim.max_hp(r[1], st.crew[0]) == RunSim.max_hp(r[4], (r[3] as RunState).crew[0]) + 3
+		and int(st.crew[0]["hp"]) == RunSim.max_hp(r[1], st.crew[0]))
+	RunSim._next_act(st, r[1])
+	_check("and the cost ends with Act 1 (Act 2's weights keep their workshops; the line is off the map)",
+		int((RunSim.rules_of(st, r[1])["site_weights"] as Dictionary)["workshop"]) > 0 and RunSim.active_costs(st, r[1]).is_empty())
+	r = take.call("scrap")
+	st = r[0]
+	_check("scrap: +60, enemies +1 damage in Act 1 only", r[2] and st.scrap == (r[3] as RunState).scrap + 60
+		and int(((RunSim.rules_of(st, r[1])["enemies"] as Dictionary).get("bonus", {}) as Dictionary).get("damage", 0)) == 1
+		and RunSim._make_fight(st, r[1], 1, "skirmish")["enemy"][0]["bonus"]["damage"] == 1)
+	r = take.call("module")
+	st = r[0]
+	var picks: Array = st.pending.get("options", [])
+	_check("module: a pick of three uncommon modules (%s), then salvage thinned for three wins" % [picks],
+		r[2] and String(st.pending.get("kind", "")) == "reward" and picks.size() == 3
+		and picks.all(func(id: String) -> bool: return (r[1] as RunSetup).rarity(id) == 2 and String((_db.parts[id] as Dictionary)["slot"]) == "module")
+		and st.thin_salvage == 3 and RunSim.apply(st, r[1], [RunSim.PICK, 0]) and st.cargo.has(String(picks[0])))
+	r = take.call("scout")
+	st = r[0]
+	var hidden: int = 0
+	var skirmish: int = -1
+	for site: Dictionary in st.sites:
+		hidden += 0 if RunSim.revealed(st, int(site["id"])) else 1
+		if skirmish < 0 and String(site["type"]) == "skirmish":
+			skirmish = int(site["id"])
+	_check("scout: every site of Act 1 shown (%d hidden); the next skirmish is an elite on its card" % hidden,
+		r[2] and hidden == 0 and skirmish >= 0 and bool(RunSim.fight_preview(st, r[1], skirmish).get("elite", false)))
+	var guard: int = 0
+	while not String(st.pending.get("kind", "")) == "fight" and guard < 20:
+		RunSim.apply(st, r[1], RunBot.next_action(st, r[1]))
+		guard += 1
+	_check("and the first fight is one (%s), after which the rule is spent" % String(st.pending.get("site_type", "")),
+		["elite", "arena", "warlord", "boss"].has(String(st.pending.get("site_type", ""))) and not st.elite_next)
+	r = take.call("free_level")
+	st = r[0]
+	var offer: Array = RunSim.perk_offer(st, r[1], 0)
+	var scrap_before: int = st.scrap
+	_check("free_level: the next level costs nothing and offers 2 cards (%s)" % [offer], r[2] and RunSim.level_cost(st, r[1], 0) == 0
+		and offer.size() == 2 and RunSim.apply(st, r[1], [RunSim.LEVEL_UP, 0, 0]) and st.scrap == scrap_before
+		and RunSim.level_cost(st, r[1], 1) > 0 and RunSim.perk_offer(st, r[1], 1).size() == 3 and int(st.crew[0]["level"]) == 1)
+	r = take.call("swap_arm")
+	st = r[0]
+	var changed: Array = []
+	for i: int in st.crew.size():
+		for socket: int in 5:
+			if String(st.crew[i]["parts"][socket]) != String((r[3] as RunState).crew[i]["parts"][socket]):
+				changed.append([i, socket, String(st.crew[i]["parts"][socket])])
+	_check("swap_arm: exactly one arm became an uncommon (%s), nothing into the hold" % [changed], r[2] and changed.size() == 1
+		and [2, 3].has(int(changed[0][1])) and (r[1] as RunSetup).rarity(String(changed[0][2])) == 2 and st.cargo.is_empty())
+	var costs: bool = true
+	for id: String in ["rare_arm", "plating", "scrap", "module", "scout", "free_level"]:
+		var t: Array = take.call(id)
+		costs = costs and RunSim.active_costs(t[0], t[1]).size() == 1
+	_check("every lasting cost is on the map's line as soon as it is taken (RunSim.active_costs)", costs)
+
+
+## 085: the daily yard and the weekly contract -- a fixed day or week gives fixed options and region.
+func _test_challenges() -> void:
+	var day: int = 20750   # 2026-10-24
+	var d1: Dictionary = RunSetup.daily_options(_db.run_rules, day)
+	var d2: Dictionary = RunSetup.daily_options(_db.run_rules, day)
+	var next: Dictionary = RunSetup.daily_options(_db.run_rules, day + 1)
+	print("  daily %d: seed %d, conditions %s, deals %s" % [day, int(d1["seed"]), d1["conditions"], d1["deal_offer"]])
+	_check("a day gives one daily, the same twice; the next day another", d1 == d2 and int(d1["seed"]) != int(next["seed"])
+		and String(d1["mode"]) == "daily" and int(d1["tier"]) == 0)
+	_check("the daily's seed is pinned to the day (a change here changes everyone's daily)", int(d1["seed"]) == DAILY_20750_SEED)
+	var opts: Dictionary = Meta.challenge_options(_db.meta, d1, "wall")
+	var a: RunSetup = _opts_setup(int(d1["seed"]), opts)
+	var b: RunSetup = _opts_setup(int(d2["seed"]), Meta.challenge_options(_db.meta, d2, "wall"))
+	var conds: Array = []
+	for act: int in range(1, 4):
+		conds.append(RunSim.act_condition(null, a, act))
+	_check("its region and conditions are the same for every player (%s)" % [conds], _region_text(RunSim.start(a)) == _region_text(RunSim.start(b))
+		and conds == d1["conditions"] and conds.all(func(c: String) -> bool: return not c.is_empty()))
+	_check("the daily offers its fixed deals, any crew, rung 0, and counts for nothing on the ladder",
+		RunSim.start(a).deal_offer == d1["deal_offer"] and RunSetup.is_seeded(opts) and int(opts["tier"]) == 0
+		and Array(RunSim.start(a).crew[0]["parts"])[0] == "ch_bulwark" and (opts["locked"] as Array).size() == (_db.meta["locked"] as Array).size())
+	var conditions: Dictionary = {}
+	for n: int in 200:
+		for c: Variant in (RunSetup.daily_options(_db.run_rules, day + n)["conditions"] as Array):
+			conditions[c] = int(conditions.get(c, 0)) + 1
+	_check("over 200 days every condition turns up (%s)" % [conditions], conditions.size() == 4)
+	var week: int = 2963
+	var w1: Dictionary = RunSetup.weekly_options(_db.run_rules, week)
+	print("  weekly %d: seed %d, crew %s, rung %d, twists %s" % [week, int(w1["seed"]), w1["crew_id"], int(w1["rung"]),
+		(w1["twists"] as Array).map(func(t: Dictionary) -> String: return String(t["id"]))])
+	_check("a week gives one contract, the same twice: a fixed crew, rung 4, three twists",
+		w1 == RunSetup.weekly_options(_db.run_rules, week) and int(w1["seed"]) == WEEKLY_2963_SEED and int(w1["rung"]) == 4
+		and (w1["twists"] as Array).size() == 3 and String(w1["mode"]) == "weekly")
+	var crews: Dictionary = {}
+	var twists: Dictionary = {}
+	for n: int in 30:
+		var w: Dictionary = RunSetup.weekly_options(_db.run_rules, week + n)
+		crews[w["crew_id"]] = true
+		for t: Dictionary in (w["twists"] as Array):
+			twists[t["id"]] = true
+	_check("weeks rotate the crews (%d) and draw every twist (%d of %d)" % [crews.size(), twists.size(),
+		(_db.run_rules["challenges"]["twists"] as Dictionary).size()], crews.size() == 3
+		and twists.size() == (_db.run_rules["challenges"]["twists"] as Dictionary).size())
+	var wo: Dictionary = Meta.challenge_options(_db.meta, w1, "salvagers")
+	var ws: RunSetup = _opts_setup(int(w1["seed"]), wo)
+	var wstate: RunState = RunSim.start(ws)
+	var rungs: int = Meta.rung_adds(_db.meta, 4).size()
+	_check("the contract plays rung 4's adds, its crew's rule and its twists, and says so (%s)" % [RunSim.active_costs(wstate, ws)],
+		String(wo["crew_id"]) == String(w1["crew_id"]) and (ws.rules["adds"] as Array).size() >= rungs + 3
+		and RunSim.active_costs(wstate, ws).size() == 3 and RunSetup.is_seeded(wo))
+	var no_shop: RunSetup = _opts_setup(5, Meta.challenge_options(_db.meta,
+		{"seed": 5, "mode": "weekly", "tier": 4, "rules": {"adds": (_db.run_rules["challenges"]["twists"]["no_workshops"]["adds"] as Array).duplicate(true)}}))
+	var nst: RunState = RunSim.start(no_shop)
+	var shops: int = 0
+	for act: int in range(1, 4):
+		shops += nst.sites.filter(func(s: Dictionary) -> bool: return String(s["type"]) == "workshop").size()
+		if act < 3:
+			RunSim._next_act(nst, no_shop)
+	_check("a twist is a real rule: no workshops means none in any act (%d)" % shops, shops == 0)
+
+
+## 085 (B9): each crew changes one run rule.
+func _test_crew_rules() -> void:
+	var all: Array = _all_unlocked()
+	var sal: RunSetup = _opts_setup(9, Meta.options(_db.meta, all, "salvagers", 0))
+	var plain: RunSetup = _setup(9)
+	var st: RunState = RunSim.start(sal)
+	st.pending = {}
+	st.current = 1
+	var offered: int = (RunSim.salvage(st, sal, "skirmish")["options"] as Array).size()
+	var st3: RunState = RunSim.start(sal)
+	st3.act = 3
+	_check("the Salvagers see 4 salvage parts, in every act (%d; act 3 %d; plain %d)" % [offered,
+		(RunSim.salvage(st3, sal, "skirmish")["options"] as Array).size(), (RunSim.salvage(RunSim.start(plain), plain, "skirmish")["options"] as Array).size()],
+		offered == 4 and (RunSim.salvage(st3, sal, "skirmish")["options"] as Array).size() == 4
+		and (RunSim.salvage(RunSim.start(plain), plain, "skirmish")["options"] as Array).size() == 3)
+	var wall: RunSetup = _opts_setup(9, Meta.options(_db.meta, all, "wall", 0))
+	var slab: GridUnit = RunSim.preview_machine(wall, RunSim.start(wall).crew[0])
+	var bare_opts: Dictionary = Meta.options(_db.meta, all, "wall", 0)
+	bare_opts.erase("rules")
+	var bare: RunSetup = _opts_setup(9, bare_opts)
+	var cooldowns: Array = []
+	var sooner: bool = true
+	for i: int in 3:
+		var with: GridUnit = RunSim.preview_machine(wall, RunSim.start(wall).crew[i])
+		var without: GridUnit = RunSim.preview_machine(bare, RunSim.start(bare).crew[i])
+		for k: int in with.abilities.size():
+			cooldowns.append("%s %d (was %d)" % [with.abilities[k]["id"], int(with.abilities[k]["cooldown"]), int(without.abilities[k]["cooldown"])])
+			sooner = sooner and int(with.abilities[k]["cooldown"]) == maxi(1, int(without.abilities[k]["cooldown"]) - 1)
+	_check("the Wall's abilities come back a round sooner (%s)" % [cooldowns], not slab.abilities.is_empty() and sooner)
+	var run: RunSetup = _opts_setup(9, Meta.options(_db.meta, all, "runners", 0))
+	var pace: int = int((RunSim.rules_of(RunSim.start(run), run)["front"] as Dictionary)["pace"])
+	_check("the Runners have a slower Reclaimer behind them (pace %d)" % pace, pace == int(_db.run_rules["front"]["pace"]) + 25)
+	_check("every crew names its rule for the crew card", (_db.meta["crews"] as Dictionary).values().all(func(c: Dictionary) -> bool:
+		return not String(c.get("rule", "")).is_empty() and not (c.get("rules", {}) as Dictionary).is_empty()))
+
+
+## 085 (B10): medals, read off staged runs.
+func _test_medals() -> void:
+	var ids: Dictionary = {}
+	var shaped: bool = true
+	for crew: Variant in (_db.meta["crews"] as Dictionary):
+		var medals: Array = Meta.medals(_db.meta, String(crew))
+		shaped = shaped and medals.size() == 3
+		for m: Dictionary in medals:
+			shaped = shaped and not ids.has(m["id"]) and not String(m.get("text", "")).is_empty() and not String(m.get("name", "")).is_empty()
+			ids[m["id"]] = true
+	_check("three medals per crew, every id unique, every one worded (%d)" % ids.size(), shaped and ids.size() == 9)
+	var all: Array = _all_unlocked()
+	var stage: Callable = func(crew: String, tier: int, won: bool, feats: Dictionary, workshops: int, legend: bool) -> Array:
+		var setup: RunSetup = _opts_setup(3, Meta.options(_db.meta, all, crew, tier))
+		var state: RunState = RunSim.start(setup)
+		state.outcome = RunState.WON if won else RunState.LOST
+		state.feats = feats
+		state.visits = {"workshop": workshops} if workshops > 0 else {}
+		if legend:
+			state.crew[0]["parts"][2] = "ar_sunspear" if _db.parts.has("ar_sunspear") else String((setup.pools["arm"] as Array).filter(
+				func(id: String) -> bool: return setup.rarity(id) == 4)[0])
+		return RunSim.medals_earned(state, setup)
+	_check("a clean win with no legendary: NOTHING FANCY and CLEAN SHEET", stage.call("salvagers", 0, true, {}, 1, false) == ["sal_clean", "sal_plain"])
+	_check("with a legendary fitted and a fight lost: neither", stage.call("salvagers", 0, true, {"fights_lost": 1}, 1, true).is_empty())
+	_check("three pit kills in a lost run: GRAVEDIGGER", stage.call("salvagers", 0, false, {"pit_kills": 3}, 0, false) == ["sal_pits"])
+	_check("the Wall on rung 4, no workshop, nothing wrecked: NO PIT STOPS and NOT A DENT",
+		stage.call("wall", 4, true, {}, 0, false) == ["wall_dry", "wall_whole"])
+	_check("the same on rung 3: only NOT A DENT; a workshop on rung 4: only NOT A DENT",
+		stage.call("wall", 3, true, {}, 0, false) == ["wall_whole"] and stage.call("wall", 4, true, {}, 2, false) == ["wall_whole"])
+	_check("the Runners: 5 flawless fights and a win with a machine wrecked on rung 5: GHOSTS, TRAVEL LIGHT",
+		stage.call("runners", 5, true, {"flawless": 5, "wrecked": 1}, 0, false) == ["run_ghost", "run_light"])
+	_check("a run still going has earned nothing", RunSim.medals_earned(RunSim.start(_setup(3)), _setup(3)).is_empty())
+

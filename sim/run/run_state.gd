@@ -57,6 +57,22 @@ var seen_events: Array = []
 var offered: Array = []
 ## Legendaries offered or handed out this run (046): each comes up at most once.
 var legends: Array = []
+## 085: the run-start deals. `deal_offer`: the three deal ids on offer (from the seed, or fixed by
+## the options); `deal`: "" while undecided, "walk" for WALK ON, else the id taken. `deal_adds`: the
+## taken deal's cost as `{path, delta|set[, acts]}` adds, which `RunSim.rules_of` lays on every act.
+var deal_offer: Array = []
+var deal: String = ""
+var deal_adds: Array = []
+## Deal effects that run out: levels bought free (the next one's perk offer is cut to
+## `free_level_cards`), won fights whose salvage is cut to `thin_to` options, and whether the next
+## fight started is an elite.
+var free_levels: int = 0
+var free_level_cards: int = 0
+var thin_salvage: int = 0
+var thin_to: int = 0
+var elite_next: bool = false
+## 085 (B10): sites entered this run, by type (a medal asks for a win without a workshop).
+var visits: Dictionary = {}
 ## Human-readable history, newest last. Deterministic like everything else.
 var log: PackedStringArray = []
 
@@ -92,4 +108,5 @@ func fingerprint() -> String:
 		visited.append("1" if bool(s["visited"]) else "0")
 	return "act=%d cur=%d moves=%d front=%d scrap=%d hold=%d crew=[%s] cargo=[%s] visited=%s pending=%s outcome=%d built=%s scouted=%s events=%s" % [
 		act, current, moves, front_col, scrap, hold_size, ";".join(crew_text),
-		",".join(cargo), "".join(visited), str(pending.get("kind", "")), outcome, assembled, str(scouted), ",".join(PackedStringArray(seen_events))]
+		",".join(cargo), "".join(visited), str(pending.get("kind", "")), outcome, assembled, str(scouted), ",".join(PackedStringArray(seen_events))] \
+		+ ("" if deal.is_empty() else " deal=%s free=%d thin=%d elite=%s" % [deal, free_levels, thin_salvage, elite_next])

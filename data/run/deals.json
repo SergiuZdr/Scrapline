@@ -1,0 +1,57 @@
+{
+  "_comment": "085: the start deals. After the assembly bay, three fixers each offer one deal: a gift now and a cost for the run, both shown in full, or WALK ON (no gift, no cost). `RunSetup.roll_deals` picks the three from the run seed alone: one `soft` deal (small gift, small cost) and `offer - 1` others, so a seed code, the daily and the weekly always offer the same three. `give`: scrap, max_hp (every machine), free_level (the next level bought is free; its perk offer is `take.perk_cards` cards), scout_act (every site of the act), rare_arm (a rare arm of the crew's most common maker on the weakest arm socket, the old arm into the hold), module_pick (a pick of that many uncommon modules), swap_arm (a random fitted arm becomes a random uncommon, the old arm gone). `take`: adds (`{path, delta|set[, acts]}` on top of every act, as a rung's; `acts` limits one), elite_first (the next skirmish is an elite), thin_salvage (that many won fights show `thin_to` salvage parts). Every cost is a run rule the map or the HUD shows (`RunSim.active_costs`). The order of `deals` is the run bot's taste (RunBot.deals = \"best\" takes the first on offer).",
+  "offer": 3,
+  "deals": [
+    {
+      "id": "rare_arm",
+      "gift": "A rare arm of your crew's maker, fitted now",
+      "cost": "The Reclaimer runs one column ahead, every act",
+      "give": {"rare_arm": 1},
+      "take": {"adds": [{"path": "front.head", "set": 1}]}
+    },
+    {
+      "id": "plating",
+      "gift": "Every machine +3 max HP",
+      "cost": "No workshop in Act 1",
+      "give": {"max_hp": 3},
+      "take": {"adds": [{"path": "site_weights.workshop", "set": 0, "acts": [1]}, {"path": "workshop.guarantee", "set": 0, "acts": [1]}]}
+    },
+    {
+      "id": "scrap",
+      "gift": "60 scrap",
+      "cost": "Enemies hit 1 harder in Act 1",
+      "give": {"scrap": 60},
+      "take": {"adds": [{"path": "enemies.bonus.damage", "delta": 1, "acts": [1]}]}
+    },
+    {
+      "id": "module",
+      "gift": "An uncommon module of your choice (1 of 3)",
+      "cost": "Salvage shows 2 parts for the first three fights won",
+      "give": {"module_pick": 3},
+      "take": {"thin_salvage": 3, "thin_to": 2}
+    },
+    {
+      "id": "scout",
+      "gift": "Every site of Act 1 scouted",
+      "cost": "The first fight is an elite",
+      "give": {"scout_act": 1},
+      "take": {"elite_first": 1}
+    },
+    {
+      "id": "free_level",
+      "gift": "A free level on one machine",
+      "cost": "That level's perk offer is 2 cards, not 3",
+      "soft": true,
+      "give": {"free_level": 1},
+      "take": {"perk_cards": 2}
+    },
+    {
+      "id": "swap_arm",
+      "gift": "One starter arm becomes a random uncommon",
+      "cost": "You do not choose which arm",
+      "soft": true,
+      "give": {"swap_arm": 1},
+      "take": {}
+    }
+  ]
+}

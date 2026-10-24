@@ -10,8 +10,13 @@ extends RefCounted
 ## 034: plus every feat the run tallied (kills, flawless, warlords...), added up -- an unlock
 ## mission is an ordinary condition on these.
 ## 043: and a win is counted per tier too (`wins_t<tier>`): the tier ladder climbs on these.
-static func stats_after(stats: Dictionary, state: RunState, tier: int = 0) -> Dictionary:
+## 085 (B4): with `crew_id`, a win also raises that crew's record stamp, `best_<crew>`: the highest
+## rung it has won (display only; absent until its first win).
+static func stats_after(stats: Dictionary, state: RunState, tier: int = 0, crew_id: String = "") -> Dictionary:
 	var out: Dictionary = stats.duplicate()
+	if state.outcome == RunState.WON and not crew_id.is_empty():
+		var best: String = "best_%s" % crew_id
+		out[best] = maxi(int(stats.get(best, -1)), tier)
 	out["runs"] = int(stats.get("runs", 0)) + 1
 	out["fights"] = int(stats.get("fights", 0)) + state.fights_won
 	out["act"] = maxi(int(stats.get("act", 1)), state.act)
@@ -83,6 +88,40 @@ static func opened(unlocked: Array, rules: Dictionary, kind: String) -> Array:
 	return out
 
 
+## 085 (B4): the ladder is cumulative -- rung N carries the adds of rungs 1..N, in rung order.
+static func rung_adds(rules: Dictionary, rung: int) -> Array:
+	var out: Array = []
+	var tiers: Array = rules.get("tiers", [])
+	for t: int in range(1, mini(rung, tiers.size() - 1) + 1):
+		for add: Variant in (((tiers[t] as Dictionary).get("rules", {}) as Dictionary).get("adds", []) as Array):
+			out.append((add as Dictionary).duplicate(true))
+	return out
+
+
+## 085 (B9): a crew's own run rule, `crews.<id>.rules` -- `adds` (on top of every act, like a rung's)
+## and plain keys laid over run.json once (`crew_bonus`: a bonus block on every crew machine).
+static func crew_rules(rules: Dictionary, crew_id: String) -> Dictionary:
+	return (((rules.get("crews", {}) as Dictionary).get(crew_id, {}) as Dictionary).get("rules", {}) as Dictionary).duplicate(true)
+
+
+## 085 (B10): a crew's three medals, `crews.<id>.medals`.
+static func medals(rules: Dictionary, crew_id: String) -> Array:
+	return (((rules.get("crews", {}) as Dictionary).get(crew_id, {}) as Dictionary).get("medals", []) as Array).duplicate(true)
+
+
+## Two run-rule overlays as one: `adds` lists joined (a's first), every other key from b over a.
+static func join_rules(a: Dictionary, b: Dictionary) -> Dictionary:
+	var out: Dictionary = a.duplicate(true)
+	for key: Variant in b:
+		if String(key) == "adds":
+			var adds: Array = (out.get("adds", []) as Array).duplicate(true)
+			adds.append_array((b["adds"] as Array).duplicate(true))
+			out["adds"] = adds
+		else:
+			out[key] = b[key] if not (b[key] is Dictionary) else (b[key] as Dictionary).duplicate(true)
+	return out
+
+
 ## The options a run starts with: the crew's specs (or none for the default), the tier's rules
 ## overlay, and the part ids still locked. Everything resolved, so the save needs no meta file.
 ## 084 (B8): `seeded` marks a run started from a seed code (`RunSetup.is_seeded`): its wins stay off
@@ -95,12 +134,21 @@ static func options(rules: Dictionary, unlocked: Array, crew_id: String, tier: i
 	var crew: Dictionary = crews.get(crew_id, {})
 	if crew.has("crew") and (crew_id == "salvagers" or opened(unlocked, rules, "crew").has(crew_id)):
 		out["crew"] = (crew["crew"] as Array).duplicate(true)
+	else:
+		out["crew_id"] = "salvagers"
 	var tiers: Array = rules.get("tiers", [])
 	var open_tiers: Array = opened(unlocked, rules, "tier").map(func(t: Variant) -> int: return int(t))
+	var run_rules: Dictionary = {}
 	if tier > 0 and tier < tiers.size() and open_tiers.has(tier):
-		out["rules"] = ((tiers[tier] as Dictionary).get("rules", {}) as Dictionary).duplicate(true)
+		run_rules["adds"] = rung_adds(rules, tier)
 	else:
 		out["tier"] = 0
+	# 085: the crew's own rule (B9), its medals (B10), and the three deals at the start.
+	run_rules = join_rules(run_rules, crew_rules(rules, String(out["crew_id"])))
+	if not run_rules.is_empty():
+		out["rules"] = run_rules
+	out["medals"] = medals(rules, String(out["crew_id"]))
+	out["deals"] = true
 	var open: Array = opened(unlocked, rules, "part")
 	var locked: Array = []
 	for id: Variant in (rules.get("locked", []) as Array):
@@ -116,3 +164,31 @@ static func options(rules: Dictionary, unlocked: Array, crew_id: String, tier: i
 	earned.sort()
 	out["unlocked"] = earned
 	return out
+
+
+## 085: a daily yard or weekly contract (`RunSetup.daily_options` / `weekly_options`) as a run's
+## options. The same for every profile: the crew (`base.crew_id`, else `crew_id`, the player's pick
+## for a daily) with its rule, the rung's adds then the base's (twists, fixed conditions), the deals
+## it fixes, and the pools of a fresh profile (`locked` in full, nothing extra on the bench). Its
+## `mode` keeps it off the ladder and the unlocks (`RunSetup.is_seeded`). No medals.
+static func challenge_options(rules: Dictionary, base: Dictionary, crew_id: String = "salvagers") -> Dictionary:
+	var crew: String = String(base.get("crew_id", crew_id))
+	var out: Dictionary = base.duplicate(true)
+	out.erase("seed")
+	out["crew_id"] = crew
+	var spec: Dictionary = (rules.get("crews", {}) as Dictionary).get(crew, {})
+	if spec.has("crew"):
+		out["crew"] = (spec["crew"] as Array).duplicate(true)
+	var tier: int = clampi(int(base.get("tier", 0)), 0, maxi(0, (rules.get("tiers", []) as Array).size() - 1))
+	out["tier"] = tier
+	var run_rules: Dictionary = {"adds": rung_adds(rules, tier)} if tier > 0 else {}
+	run_rules = join_rules(run_rules, crew_rules(rules, crew))
+	run_rules = join_rules(run_rules, base.get("rules", {}))
+	if not run_rules.is_empty():
+		out["rules"] = run_rules
+	var locked: Array = (rules.get("locked", []) as Array).map(func(id: Variant) -> String: return String(id))
+	locked.sort()
+	out["locked"] = locked
+	out["unlocked"] = []
+	return out
+

@@ -31,6 +31,7 @@ extends RefCounted
 ##   [REFINE, cargo_index]               refinery (031): a part becomes one of the next rarity, same slot
 ##   [BID, tier]                         auction (031): a crate of tier 0 or 1, unopened until bought
 ##   [RECOVER, take]                     083: 0 takes the part pulled from a guarded wreck, -1 leaves it
+##   [DEAL, index]                       085: takes deal `index` of the three on offer; -1 walks on
 
 const TRAVEL: int = 0
 const FIGHT: int = 1
@@ -70,13 +71,29 @@ static func start(setup: RunSetup) -> RunState:
 		for id: Variant in spec.get("parts", []):
 			parts.append(String(id))
 		var member: Dictionary = {"name": String(spec.get("name", "")), "parts": parts, "alive": true, "hp": 0, "level": 0, "perks": []}
-		member["hp"] = max_hp(setup, member)
+		member["hp"] = start_hp(setup, member)
 		state.crew.append(member)
 	_generate_region(state, setup)
 	state.current = 0
 	state.sites[0]["visited"] = true
 	state.log.append("The crew rolls into the yard. The Reclaimer is somewhere behind.")
+	# 085: a run started with `options.deals` meets three fixers before the first move (after the
+	# assembly bay, which stays open while the deals wait): [DEAL, i] or [DEAL, -1].
+	if bool(setup.options.get("deals", false)):
+		var offer: Array = setup.options.get("deal_offer", []) if setup.options.has("deal_offer") \
+			else RunSetup.roll_deals(setup.rules, setup.rng_seed)
+		for id: Variant in offer:
+			if not deal_entry(setup, String(id)).is_empty():
+				state.deal_offer.append(String(id))
+		if not state.deal_offer.is_empty():
+			state.pending = {"kind": "deals", "offer": state.deal_offer.duplicate()}
 	return state
+
+
+## 085: what a machine starts the run on: its full HP, or `start.hp_pct` of it (a rung), never below 1.
+static func start_hp(setup: RunSetup, member: Dictionary) -> int:
+	var pct: int = int((rules_for_act(setup, 1).get("start", {}) as Dictionary).get("hp_pct", 100))
+	return maxi(1, max_hp(setup, member) * pct / 100)
 
 
 static func replay(setup: RunSetup, actions: Array) -> RunState:
@@ -132,6 +149,8 @@ static func apply(state: RunState, setup: RunSetup, action: Array) -> bool:
 			return action.size() >= 2 and _bid(state, setup, int(action[1]))
 		RECOVER:
 			return action.size() >= 2 and _recover(state, setup, int(action[1]))
+		DEAL:
+			return action.size() >= 2 and _deal(state, setup, int(action[1]))
 	return false
 
 
@@ -213,6 +232,9 @@ static func bonus_of(setup: RunSetup, member: Dictionary) -> Dictionary:
 	var perks: Dictionary = setup.rules.get("perks", {})
 	for id: Variant in (member.get("perks", []) as Array):
 		_add_grid(total, (perks.get(String(id), {}) as Dictionary).get("grid", {}))
+	# 085: what a deal gave this machine (`bonus`), and the crew's own rule (`crew_bonus`, B9).
+	_add_grid(total, member.get("bonus", {}))
+	_add_grid(total, setup.rules.get("crew_bonus", {}))
 	return total
 
 
@@ -236,10 +258,13 @@ static func next_level_bonus(state: RunState, setup: RunSetup, index: int) -> Di
 
 
 ## Scrap for machine `index`'s next level, or -1 when it is at the top.
+## 085: 0 while a deal's free level is unspent.
 static func level_cost(state: RunState, setup: RunSetup, index: int) -> int:
 	var costs: Array = (setup.rules.get("levels", {}) as Dictionary).get("costs", [])
 	var level: int = int(state.crew[index].get("level", 0))
-	return int(costs[level]) if level < costs.size() else -1
+	if level >= costs.size():
+		return -1
+	return 0 if state.free_levels > 0 else int(costs[level])
 
 
 ## The three perks machine `index`'s next level offers (011): the ones it has not taken that
@@ -263,7 +288,11 @@ static func perk_offer(state: RunState, setup: RunSetup, index: int) -> Array[St
 		eligible.append([IntentAI.mix(setup.rng_seed, index, level, _text_hash(String(id))), String(id)])
 	eligible.sort_custom(func(a: Array, b: Array) -> bool:
 		return int(a[0]) < int(b[0]) or (int(a[0]) == int(b[0]) and String(a[1]) < String(b[1])))
-	for pair: Array in eligible.slice(0, int((setup.rules.get("levels", {}) as Dictionary).get("perk_choices", 3))):
+	var cards: int = int((setup.rules.get("levels", {}) as Dictionary).get("perk_choices", 3))
+	# 085: the free level of a deal offers fewer cards (its cost).
+	if state.free_levels > 0 and state.free_level_cards > 0:
+		cards = mini(cards, state.free_level_cards)
+	for pair: Array in eligible.slice(0, cards):
 		out.append(String(pair[1]))
 	return out
 
@@ -349,7 +378,9 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 	if bool(s["visited"]):
 		return true
 	s["visited"] = true
-	var kind: String = String(s["type"])
+	var kind: String = site_kind(state, to)
+	s["type"] = kind
+	state.visits[kind] = int(state.visits.get(kind, 0)) + 1
 	if FIGHT_TYPES.has(kind):
 		_start_fight(state, setup, to, kind)
 		state.log.append("%s at site %d." % ["The act boss" if kind == "boss" else kind.capitalize(), to])
@@ -391,6 +422,7 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 ## A fight at site `to`; if it is in the column the Reclaimer takes next, its drones reach
 ## in (013: lingering by the line costs inside fights too).
 static func _start_fight(state: RunState, setup: RunSetup, to: int, kind: String) -> void:
+	state.elite_next = false
 	var fight: Dictionary = _make_fight(state, setup, to, kind)
 	if reclaimer_reaches(state, to):
 		var col: int = int(state.site(to)["col"])
@@ -413,7 +445,7 @@ static func move_preview(state: RunState, setup: RunSetup, to: int) -> Dictionar
 		for s: Dictionary in state.sites:
 			if int(s["col"]) == front_after and not bool(s["visited"]) and int(s["id"]) != to:
 				lost.append(int(s["id"]))
-	var kind: String = String(site.get("type", ""))
+	var kind: String = site_kind(state, to) if not site.is_empty() else ""
 	var enemies: int = 0
 	if FIGHT_TYPES.has(kind):
 		var rules: Dictionary = rules_of(state, setup).get("enemies", {})
@@ -438,11 +470,13 @@ static func move_preview(state: RunState, setup: RunSetup, to: int) -> Dictionar
 ## standing at `front_col`. `front.pace` is moves per column x100: it advances when
 ## moves*100 >= (front_col+2)*pace, so pace 150 takes a column every move and a half (200 is the old
 ## `every 2`). Without a pace, `every` (one column every `every` moves) is the fallback.
+## 085: `front.head` (a deal's cost) puts the Reclaimer that many columns ahead of its schedule.
 static func front_due(front: Dictionary, moves: int, front_col: int) -> bool:
 	var pace: int = int(front.get("pace", 0))
+	var head: int = int(front.get("head", 0))
 	if pace > 0:
-		return moves * 100 >= (front_col + 2) * pace
-	return moves % maxi(1, int(front.get("every", 2))) == 0
+		return moves * 100 >= (front_col + 2 - head) * pace
+	return (moves + head) % maxi(1, int(front.get("every", 2))) == 0
 
 
 ## How many moves after the `moves`-th, the front standing at `front_col`, before it takes its
@@ -641,6 +675,7 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 			member["alive"] = false
 			member["hp"] = 0
 			member["parts"] = [String(member["parts"][0]), "", "", "", ""]
+			_feat(state.feats, "wrecked")
 			state.log.append("%s was wrecked. Its parts are gone." % member["name"])
 	var pull: Dictionary = wreck_pull(state, setup, fielded, lost_parts, CombatSim.saved_wrecks(result))
 	# Scrap piles collected during the fight are banked whatever the outcome.
@@ -657,6 +692,7 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 		return true
 	if result.outcome == CombatState.LOST:
 		# The objective failed but the crew lives: no salvage, and the road goes on.
+		_feat(state.feats, "fights_lost")
 		state.pending = {}
 		state.log.append("Driven off. No salvage from this one.")
 		_queue_wreck(state, pull)
@@ -687,6 +723,10 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 	var placed: int = int(status["caches_total"]) if String(status["type"]) == "defend" else 0
 	var saved: int = int(status["caches"])
 	state.pending = salvage(state, setup, kind, saved, placed)
+	# 085: a deal's cost -- the first won fights' salvage shows fewer parts.
+	if state.thin_salvage > 0:
+		state.thin_salvage -= 1
+		state.pending["options"] = (state.pending["options"] as Array).slice(0, maxi(1, state.thin_to))
 	state.log.append("Won. +%d scrap%s, and salvage to pick through." % [gained,
 		" (+%d from piles)" % result.scrap_collected if result.scrap_collected > 0 else ""])
 	if placed > 0 and saved < placed and bool(rewards.get("defend_partial", true)):
@@ -889,7 +929,7 @@ static func _bid(state: RunState, setup: RunSetup, tier: int) -> bool:
 
 ## Patches every living machine by `repair_amount`, for one price.
 static func _repair(state: RunState, setup: RunSetup) -> bool:
-	var shop: Dictionary = setup.rules.get("workshop", {})
+	var shop: Dictionary = rules_of(state, setup).get("workshop", {})
 	var cost: int = int(shop.get("repair_cost", 8))
 	if String(state.pending.get("kind", "")) != "workshop" or state.scrap < cost or not needs_repair(state, setup):
 		return false
@@ -1002,6 +1042,8 @@ static func _level_up(state: RunState, setup: RunSetup, index: int, choice: int)
 		return false
 	var before: int = max_hp(setup, member)
 	state.scrap -= cost
+	if state.free_levels > 0:
+		state.free_levels -= 1
 	member["level"] = int(member.get("level", 0)) + 1
 	var perks: Array = member.get("perks", [])
 	perks.append(offer[choice])
@@ -1048,9 +1090,11 @@ static func _tune(state: RunState, setup: RunSetup, where: int, index: int, opti
 
 
 ## Whether the crew can still be built from the bench: before the first move, once.
+## 085: the deals wait behind the bay (pending "deals" still lets the crew be built); once a deal is
+## taken or walked past, the bay is shut -- a deal's gift is fitted to the crew as built.
 static func can_assemble(state: RunState) -> bool:
 	return state.outcome == RunState.ONGOING and state.moves == 0 and not state.assembled \
-		and state.pending.is_empty()
+		and (state.pending.is_empty() or String(state.pending.get("kind", "")) == "deals") and state.deal.is_empty()
 
 
 ## How many of a part the bench holds: every common part without limit (-1), the listed
@@ -1096,7 +1140,7 @@ static func _assemble(state: RunState, setup: RunSetup, loadouts: Array) -> bool
 			parts.append(String(id))
 		var member: Dictionary = state.crew[i]
 		member["parts"] = parts
-		member["hp"] = max_hp(setup, member)
+		member["hp"] = start_hp(setup, member)
 	state.assembled = true
 	state.log.append("The crew is built from the bench.")
 	return true
@@ -1137,12 +1181,14 @@ static func act_count(setup: RunSetup) -> int:
 
 ## 082 (B1): then the tier's `adds` (`RunSetup.apply_adds`) on top of the act, so a tier stacks
 ## on every act instead of being replaced by the act's own `enemies` block.
+## 085: and the cost of the deal the crew took (`state.deal_adds`) on top of those.
 static func rules_of(state: RunState, setup: RunSetup) -> Dictionary:
-	return rules_for_act(setup, state.act)
+	return rules_for_act(setup, state.act, state.deal_adds)
 
 
 ## The rules of act `act` (084: the act conditions are rolled for every act, not only the crew's).
-static func rules_for_act(setup: RunSetup, act: int) -> Dictionary:
+## `extra`: more adds after the run's own (a deal's cost).
+static func rules_for_act(setup: RunSetup, act: int, extra: Array = []) -> Dictionary:
 	var acts: Array = setup.rules.get("acts", [])
 	var out: Dictionary = setup.rules
 	if act >= 1 and act <= acts.size():
@@ -1150,7 +1196,9 @@ static func rules_for_act(setup: RunSetup, act: int) -> Dictionary:
 		if over.size() > 1:
 			out = RunSetup.overlay(setup.rules, over)
 	var adds: Array = setup.rules.get("adds", [])
-	return out if adds.is_empty() else RunSetup.apply_adds(out, adds)
+	if not extra.is_empty():
+		adds = adds + extra
+	return out if adds.is_empty() else RunSetup.apply_adds(out, adds, act)
 
 
 ## The gate is broken and there is another act: a new region, the same crew. What arriving
@@ -1246,7 +1294,10 @@ static func _generate_region(state: RunState, setup: RunSetup) -> void:
 	var kept: Array = []
 	# A workshop in each listed column (`-1` = the column before the gate, 046: the crew walked
 	# into the Sorter on half HP with no repair on the way); one not linked to another if it can.
-	for col: Variant in (rules.get("workshop_guaranteed_columns", []) as Array):
+	# 085: `workshop.guarantee` 0 (a deal's cost, a weekly twist) places none.
+	var guaranteed: Array = rules.get("workshop_guaranteed_columns", []) \
+		if int((rules.get("workshop", {}) as Dictionary).get("guarantee", 1)) > 0 else []
+	for col: Variant in guaranteed:
 		var at: int = int(col) if int(col) >= 0 else columns - 1 + int(col)
 		var ids: Array = by_col[clampi(at, 1, columns - 2)]
 		var shop: int = -1
@@ -1400,6 +1451,10 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 	laid["rows"] = fight["rows"]
 	fight["objective"] = _roll_objective(setup, rng, laid, kind)
 	_roll_modifier(state, setup, rng, fight, template)
+	# 085: a rung may cut what a scrap pile heals (`fight_rules.pile_heal`, over combat rules.json).
+	var fight_rules: Dictionary = rules_of(state, setup).get("fight_rules", {})
+	if fight_rules.has("pile_heal"):
+		fight["pile_heal"] = maxi(0, int(fight_rules["pile_heal"]))
 
 	var player: Array = []
 	var slots: Array = template.get("player", [])
@@ -1497,6 +1552,10 @@ static func _make_gate_fight(state: RunState, setup: RunSetup, site_id: int, tem
 	for key: String in ["pile_heal", "escort_waves"]:
 		if template.has(key):
 			fight[key] = (template[key] as Array).duplicate(true) if template[key] is Array else template[key]
+	# 085: a rung's pile_heal reaches the gates too, never above the board's own.
+	var fight_rules: Dictionary = rules_of(state, setup).get("fight_rules", {})
+	if fight_rules.has("pile_heal"):
+		fight["pile_heal"] = mini(int(fight.get("pile_heal", fight_rules["pile_heal"])), maxi(0, int(fight_rules["pile_heal"])))
 	# 083 (the user): Acts 2-3 bosses and warlords get a second marked wave late in the fight.
 	var late: Array = enemies_rules.get("boss_late_waves", [])
 	if not late.is_empty():
@@ -1864,11 +1923,12 @@ static func _roll_parts(setup: RunSetup, rng: SimRNG, min_rarity: int, favour: A
 ## "site_type", "count" (every enemy on the board at the start) and "name" (the board's).
 static func fight_preview(state: RunState, setup: RunSetup, site_id: int) -> Dictionary:
 	var s: Dictionary = state.site(site_id)
-	if s.is_empty() or not FIGHT_TYPES.has(String(s["type"])) or not revealed(state, site_id):
+	if s.is_empty() or not FIGHT_TYPES.has(site_kind(state, site_id)) or not revealed(state, site_id):
 		return {}
 	if bool(s["visited"]) and site_id != state.current:
 		return {}
-	return fight_summary(setup, _make_fight(state, setup, site_id, String(s["type"])), String(s["type"]))
+	var kind: String = site_kind(state, site_id)
+	return fight_summary(setup, _make_fight(state, setup, site_id, kind), kind)
 
 
 ## The card line of a made fight (the preview's, and the arrived fight's in verify_run).
@@ -1959,13 +2019,237 @@ static func _warlord_for_act(setup: RunSetup, id: String, act: int) -> Dictionar
 	return out
 
 
+# --- 085: start deals ---------------------------------------------------------
 
-## 085: the run-start deals on offer, as {"id", "gift", "cost"} dictionaries (text for the screen), from
-## `data/run/deals.json` by the run's seed; [] once one is taken or the run is past its start.
+## A deal's entry in `rules.deals.deals` (`data/run/deals.json`) by id, or {}.
+static func deal_entry(setup: RunSetup, id: String) -> Dictionary:
+	for entry: Variant in ((setup.rules.get("deals", {}) as Dictionary).get("deals", []) as Array):
+		if String((entry as Dictionary).get("id", "")) == id:
+			return entry
+	return {}
+
+
+## The run-start deals on offer, as {"id", "gift", "cost", "soft"} (text for the screen), in the
+## order [DEAL, i] takes them; [] once one is taken or walked past, or when the run has no deals.
 static func deals_on_offer(state: RunState, setup: RunSetup) -> Array:
-	return []
+	if String(state.pending.get("kind", "")) != "deals" or not state.deal.is_empty():
+		return []
+	var out: Array = []
+	for id: Variant in state.deal_offer:
+		var entry: Dictionary = deal_entry(setup, String(id))
+		out.append({"id": String(id), "gift": String(entry.get("gift", "")), "cost": String(entry.get("cost", "")),
+			"soft": bool(entry.get("soft", false))})
+	return out
 
 
-## 085 (B10): the medal ids this finished run earned, for its crew (sorted).
+## What a site holds when the crew gets there: its type, except that a deal's "the first fight is an
+## elite" turns the next skirmish into an elite (the map card and the fight agree).
+static func site_kind(state: RunState, id: int) -> String:
+	var kind: String = String(state.site(id).get("type", ""))
+	return "elite" if state.elite_next and kind == "skirmish" else kind
+
+
+## [DEAL, index]: the cost goes on first (it may reshape Act 1's region, which nothing has touched
+## yet: the region is rolled again from the same seed under the new rules), then the gift.
+static func _deal(state: RunState, setup: RunSetup, index: int) -> bool:
+	if String(state.pending.get("kind", "")) != "deals" or not state.deal.is_empty():
+		return false
+	if index < -1 or index >= state.deal_offer.size():
+		return false
+	state.pending = {}
+	if index == -1:
+		state.deal = "walk"
+		state.log.append("The crew walks past the fixers.")
+		return true
+	var entry: Dictionary = deal_entry(setup, String(state.deal_offer[index]))
+	state.deal = String(entry["id"])
+	var take: Dictionary = entry.get("take", {})
+	for add: Variant in (take.get("adds", []) as Array):
+		state.deal_adds.append((add as Dictionary).duplicate(true))
+	if not state.deal_adds.is_empty():
+		state.sites.clear()
+		state.scouted.clear()
+		_generate_region(state, setup)
+		state.current = 0
+		state.sites[0]["visited"] = true
+	state.elite_next = int(take.get("elite_first", 0)) > 0
+	state.thin_salvage = int(take.get("thin_salvage", 0))
+	state.thin_to = int(take.get("thin_to", 2))
+	var give: Dictionary = entry.get("give", {})
+	var rng: SimRNG = _rng(setup, -5, 43)
+	state.scrap += int(give.get("scrap", 0))
+	if int(give.get("max_hp", 0)) > 0:
+		for member: Dictionary in state.crew:
+			var bonus: Dictionary = (member.get("bonus", {}) as Dictionary).duplicate()
+			bonus["hp"] = int(bonus.get("hp", 0)) + int(give["max_hp"])
+			member["bonus"] = bonus
+			if bool(member["alive"]):
+				member["hp"] = int(member["hp"]) + int(give["max_hp"])
+	if int(give.get("free_level", 0)) > 0:
+		state.free_levels += int(give["free_level"])
+		state.free_level_cards = int(take.get("perk_cards", 2))
+	if int(give.get("scout_act", 0)) > 0:
+		_scout(state, setup, 0, 99)
+	if int(give.get("rare_arm", 0)) > 0:
+		_deal_rare_arm(state, setup, rng)
+	if int(give.get("swap_arm", 0)) > 0:
+		_deal_swap_arm(state, setup, rng)
+	if int(give.get("module_pick", 0)) > 0:
+		var modules: Array = (setup.pools["module"] as Array).filter(func(id: String) -> bool: return setup.rarity(id) == 2)
+		var options: Array = []
+		while options.size() < int(give["module_pick"]) and not modules.is_empty():
+			options.append(modules.pop_at(rng.range_int(0, modules.size() - 1)))
+		state.pending = {"kind": "reward", "options": _offer(state, setup, options), "scrap": 0}
+	state.log.append("A deal: %s. The price: %s." % [String(entry.get("gift", "")), String(entry.get("cost", ""))])
+	return true
+
+
+## The maker the crew carries most parts of (ties by name), or "".
+static func _crew_maker(state: RunState, setup: RunSetup) -> String:
+	var counts: Dictionary = {}
+	for member: Dictionary in state.crew:
+		for id: Variant in (member["parts"] as Array):
+			var maker: String = String((setup.parts.get(PartTuning.base_of(String(id)), {}) as Dictionary).get("maker", ""))
+			if not maker.is_empty():
+				counts[maker] = int(counts.get(maker, 0)) + 1
+	var makers: Array = counts.keys()
+	makers.sort()
+	var best: String = ""
+	for maker: Variant in makers:
+		if best.is_empty() or int(counts[maker]) > int(counts[best]):
+			best = String(maker)
+	return best
+
+
+## The machine's weakest arm socket of the crew (lowest rarity, then crew order, then socket), as
+## [crew index, socket], or [] when no living machine has an arm socket.
+static func _weakest_arm(state: RunState, setup: RunSetup) -> Array:
+	var best: Array = []
+	var best_rarity: int = 99
+	for i: int in state.crew.size():
+		if not bool(state.crew[i]["alive"]):
+			continue
+		for socket: int in [2, 3]:
+			var part: String = String((state.crew[i]["parts"] as Array)[socket])
+			var r: int = 0 if part.is_empty() else setup.rarity(PartTuning.base_of(part))
+			if r < best_rarity:
+				best_rarity = r
+				best = [i, socket]
+	return best
+
+
+static func _fit_arm(state: RunState, setup: RunSetup, at: Array, part: String, keep_old: bool) -> void:
+	var member: Dictionary = state.crew[int(at[0])]
+	var full_before: int = max_hp(setup, member)
+	var old: String = String((member["parts"] as Array)[int(at[1])])
+	(member["parts"] as Array)[int(at[1])] = part
+	if keep_old and not old.is_empty():
+		state.cargo.append(old)
+	_keep_missing(setup, member, full_before)
+	state.log.append("%s is fitted with %s." % [member["name"], String((setup.parts[part] as Dictionary).get("name", part))])
+
+
+## A rare arm of the crew's maker (any rare arm when that maker has none), on the weakest arm socket;
+## the arm it replaces goes into the hold.
+static func _deal_rare_arm(state: RunState, setup: RunSetup, rng: SimRNG) -> void:
+	var maker: String = _crew_maker(state, setup)
+	var arms: Array = setup.pools["arm"] as Array
+	var pool: Array = arms.filter(func(id: String) -> bool:
+		return setup.rarity(id) == 3 and String((setup.parts[id] as Dictionary).get("maker", "")) == maker)
+	if pool.is_empty():
+		pool = arms.filter(func(id: String) -> bool: return setup.rarity(id) == 3)
+	var at: Array = _weakest_arm(state, setup)
+	if pool.is_empty() or at.is_empty():
+		return
+	_fit_arm(state, setup, at, _offer_one(state, setup, String(rng.pick(pool))), true)
+
+
+## One fitted arm, picked by the dice, swapped for a random uncommon arm; the old arm is gone.
+static func _deal_swap_arm(state: RunState, setup: RunSetup, rng: SimRNG) -> void:
+	var sockets: Array = []
+	for i: int in state.crew.size():
+		for socket: int in [2, 3]:
+			if bool(state.crew[i]["alive"]) and not String((state.crew[i]["parts"] as Array)[socket]).is_empty():
+				sockets.append([i, socket])
+	if sockets.is_empty():
+		return
+	var at: Array = sockets[rng.range_int(0, sockets.size() - 1)]
+	var old: String = PartTuning.base_of(String((state.crew[int(at[0])]["parts"] as Array)[int(at[1])]))
+	var pool: Array = (setup.pools["arm"] as Array).filter(func(id: String) -> bool: return setup.rarity(id) == 2 and id != old)
+	if pool.is_empty():
+		return
+	_fit_arm(state, setup, at, _offer_one(state, setup, String(rng.pick(pool))), false)
+
+
+## The run rules a deal or a weekly contract has put on this run that still hold, as lines for the
+## map header or the HUD: the deal's cost while it lasts, then each weekly twist.
+static func active_costs(state: RunState, setup: RunSetup) -> Array[String]:
+	var out: Array[String] = []
+	var entry: Dictionary = deal_entry(setup, state.deal)
+	if not entry.is_empty():
+		var take: Dictionary = entry.get("take", {})
+		var holds: bool = false
+		for add: Variant in (take.get("adds", []) as Array):
+			var only: Variant = (add as Dictionary).get("acts")
+			holds = holds or not (only is Array) or (only as Array).any(func(a: Variant) -> bool: return int(a) == state.act)
+		holds = holds or state.elite_next or state.thin_salvage > 0 or state.free_levels > 0
+		if holds:
+			var line: String = String(entry.get("cost", ""))
+			if state.thin_salvage > 0:
+				line += " (%d to go)" % state.thin_salvage
+			out.append(line)
+	for twist: Variant in (setup.options.get("twists", []) as Array):
+		out.append(String((twist as Dictionary).get("text", "")))
+	return out
+
+
+# --- 085 (B10): medals ----------------------------------------------------------
+
+## What a medal reads off a run: every feat it tallied, plus `won` (0/1), `rung`, `fights_won`,
+## `workshops` (entered), `wrecked` (machines wrecked), `fights_lost` (driven off and lived),
+## `legendaries` (fitted at the end), `max_level` (the crew's highest).
+static func run_summary(state: RunState, setup: RunSetup) -> Dictionary:
+	var out: Dictionary = state.feats.duplicate()
+	out["won"] = 1 if state.outcome == RunState.WON else 0
+	out["rung"] = int(setup.options.get("tier", 0))
+	out["fights_won"] = state.fights_won
+	out["workshops"] = int(state.visits.get("workshop", 0))
+	out["wrecked"] = int(state.feats.get("wrecked", 0))
+	out["fights_lost"] = int(state.feats.get("fights_lost", 0))
+	var legends: int = 0
+	var top: int = 0
+	for member: Dictionary in state.crew:
+		top = maxi(top, int(member.get("level", 0)))
+		for id: Variant in (member["parts"] as Array):
+			if not String(id).is_empty() and setup.rarity(PartTuning.base_of(String(id))) >= 4:
+				legends += 1
+	out["legendaries"] = legends
+	out["max_level"] = top
+	return out
+
+
+## Whether a medal (`{id, name, text, need: {key: at least}, max: {key: at most}}`) is met by a summary.
+static func medal_met(medal: Dictionary, summary: Dictionary) -> bool:
+	var need: Dictionary = medal.get("need", {})
+	for key: Variant in need:
+		if int(summary.get(key, 0)) < int(need[key]):
+			return false
+	var most: Dictionary = medal.get("max", {})
+	for key: Variant in most:
+		if int(summary.get(key, 0)) > int(most[key]):
+			return false
+	return true
+
+
+## 085 (B10): the medal ids this finished run earned, for its crew (sorted): the crew's medals come
+## with the run's options (`Meta.options` puts them in `medals`). [] while the run is going.
 static func medals_earned(state: RunState, setup: RunSetup) -> Array:
-	return []
+	if state.outcome == RunState.ONGOING:
+		return []
+	var summary: Dictionary = run_summary(state, setup)
+	var out: Array = []
+	for medal: Variant in (setup.options.get("medals", []) as Array):
+		if medal_met(medal as Dictionary, summary):
+			out.append(String((medal as Dictionary)["id"]))
+	out.sort()
+	return out
