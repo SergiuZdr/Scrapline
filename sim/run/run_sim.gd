@@ -51,6 +51,7 @@ const RENAME: int = 15
 const REFINE: int = 16
 const BID: int = 17
 const RECOVER: int = 18
+const DEAL: int = 19       ## 085: [DEAL, index] takes one of the run-start deals; -1 walks on
 ## How long a machine's name may be (027): it has to fit a card and a tab.
 const NAME_MAX: int = 12
 ## Site panels LEAVE closes (a signal is closed by one of its own options).
@@ -1956,3 +1957,15 @@ static func _warlord_for_act(setup: RunSetup, id: String, act: int) -> Dictionar
 			spec["hp"] = maxi(1, int(spec["hp"]) + (act - home) * step)
 	out["enemy"] = enemy
 	return out
+
+
+
+## 085: the run-start deals on offer, as {"id", "gift", "cost"} dictionaries (text for the screen), from
+## `data/run/deals.json` by the run's seed; [] once one is taken or the run is past its start.
+static func deals_on_offer(state: RunState, setup: RunSetup) -> Array:
+	return []
+
+
+## 085 (B10): the medal ids this finished run earned, for its crew (sorted).
+static func medals_earned(state: RunState, setup: RunSetup) -> Array:
+	return []

@@ -232,3 +232,16 @@ static func parse_seed_code(code: String, version: String = "") -> Dictionary:
 		return {}
 	return {"seed": seed_value, "version": "%02x" % tag,
 		"stale": not version.is_empty() and _version_bits(version) != tag}
+
+
+
+## 085: the daily yard for `day` (days since 1970-01-01, UTC): run options everyone shares that day --
+## {"seed", "mode": "daily", "modifiers_acts": [...], "deals": [...] , ...}; pure, no clock.
+static func daily_options(rules: Dictionary, day: int) -> Dictionary:
+	return {}
+
+
+## 085: the weekly contract for `week` (weeks since 1970-01-05, a Monday, UTC): harder, a fixed crew,
+## 2-3 announced twists; {"seed", "mode": "weekly", "crew_id", "rung", "twists": [{"id", "text"}], ...}.
+static func weekly_options(rules: Dictionary, week: int) -> Dictionary:
+	return {}
