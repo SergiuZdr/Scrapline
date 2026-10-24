@@ -254,7 +254,7 @@ func _twists(yard: Dictionary) -> PackedStringArray:
 func _column(id: String, title: String, sub: String) -> VBoxContainer:
 	var box := VBoxContainer.new()
 	box.name = id
-	box.custom_minimum_size = Vector2(COLUMN, 640)
+	box.custom_minimum_size = Vector2(COLUMN, 560)
 	box.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", UIKit.SPACE_MD)

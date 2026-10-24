@@ -19,6 +19,10 @@ extends SceneTree
 ## `--title [--seed-text TEXT] [--press]` photographs the title instead, TEXT in NEW RUN's seed field
 ## (`--press` presses NEW RUN, to show a refusal); `--ledger` opens UNLOCKS on its RUNS tab after
 ## writing a few made-up runs into the tool profile's history.
+## 085: `--stage-085` first fills a profile of its own (rungs open, medals, records, a plate, a daily
+## streak) for these shots; `--title` shows the rung line; `--yard` opens the yard board, `--goals` the
+## UNLOCKS panel's GOALS tab; `--deal N` takes deal N before the map opens (its cost on the map); a new
+## run with `--until moves:0` stops on the deals screen.
 ## Uses the real `Run` autoload; under `--script` it saves to `user://tool_run.json` and a profile
 ## of its own (032), never the player's.
 
@@ -32,8 +36,12 @@ func _go() -> void:
 	var seed_value: int = _arg(args, "--seed", "7").to_int()
 	var until: String = _arg(args, "--until", "reward")
 	var out: String = _arg(args, "--out", "shots/run.png")
+	if args.has("--stage-085"):
+		_stage_085(run)
 	run.call("new_run", seed_value)
-	if args.has("--title") or args.has("--ledger"):
+	if args.has("--deal"):
+		run.call("apply", [RunSim.DEAL, _arg(args, "--deal", "0").to_int()])
+	if args.has("--title") or args.has("--ledger") or args.has("--yard") or args.has("--goals"):
 		await _title_shot(args, run, out)
 		return
 	if args.has("--force"):
@@ -217,12 +225,14 @@ func _title_shot(args: PackedStringArray, run: Node, out: String) -> void:
 	change_scene_to_file("res://scenes/main.tscn")
 	for i: int in 10:
 		await process_frame
-	if args.has("--ledger"):
+	if args.has("--ledger") or args.has("--goals"):
 		var panel: Node = (load("res://scripts/ui/unlocks_panel.gd") as GDScript).call("open", current_scene, run.get("db"), profile.call("unlocked"), profile.call("stats"), [], profile.call("run_history"),
-			func(_entry: Dictionary) -> String: return "")
+			func(_entry: Dictionary) -> String: return "", profile.call("crew_marks"))
 		for i: int in 3:
 			await process_frame
-		panel.call("_show_tab", "RUNS")
+		panel.call("_show_tab", "RUNS" if args.has("--ledger") else "GOALS")
+	elif args.has("--yard"):
+		(load("res://scripts/ui/yard_board.gd") as GDScript).call("open", current_scene)
 	else:
 		var field: LineEdit = current_scene.find_child("seed_field", true, false)
 		field.text = _arg(args, "--seed-text", "")
@@ -234,6 +244,43 @@ func _title_shot(args: PackedStringArray, run: Node, out: String) -> void:
 	print("shot: %s (%s)" % [out, error_string(image.save_png(out))])
 	RunStore.clear()
 	quit()
+
+
+## 085: a profile of its own with something on every new screen: rungs 0-4 open, wins up to rung 3,
+## the next run on rung 4, medals and records for two crews, a weekly plate for the Salvagers, and a
+## daily streak of three days up to yesterday.
+func _stage_085(run: Node) -> void:
+	var profile: Node = root.get_node("Profile")
+	var path: String = "user://tool_profile_085.json"
+	for file: String in [path, SaveFile.backup_of(path)]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(file))
+	profile.call("use_path", path)
+	profile.call("finish_tutorial")
+	for id: Variant in ((run.get("db") as ContentDB).tutorial.get("hints", {}) as Dictionary):
+		profile.call("mark_seen", String(id))
+	var won := RunState.new()
+	won.outcome = RunState.WON
+	won.fights_won = 14
+	won.act = 3
+	for t: int in 4:
+		profile.call("bank_run", "stage%d" % t, won, (run.get("db") as ContentDB).meta, t)
+	profile.call("choose_run", "salvagers", 4)
+	for crew: Variant in ["salvagers", "wall"]:
+		var medals: Array = UnlocksPanel.crew_medals((run.get("db") as ContentDB).meta, String(crew))
+		if not medals.is_empty():
+			profile.call("award_medals", String(crew), [String((medals[0] as Dictionary)["id"])])
+	profile.call("note_win", "salvagers", 3)
+	profile.call("note_win", "wall", 1)
+	var today: int = int(run.call("today"))
+	for d: int in [3, 2, 1]:
+		profile.call("start_daily", today - d, 100 + d, "salvagers")
+		profile.call("finish_daily", today - d, {"ended": "wrecked", "acts": 1 + d % 2, "fights": 5 + d, "hp": 0})
+	var week: int = int(run.call("this_week"))
+	profile.call("start_weekly", week - 1)
+	profile.call("finish_weekly", week - 1, "stage_w", {"ended": "won", "won": true, "acts": 3, "fights": 17, "hp": 21},
+		{"id": "plate_w%d" % (week - 1), "week": week - 1, "crew": "salvagers", "name": "CONTRACT %s" % Time.get_date_string_from_unix_time(((week - 1) * 7 + 4) * 86400)})
+	profile.call("start_weekly", week)
+	profile.call("finish_weekly", week, "stage_w2", {"ended": "wrecked", "won": false, "acts": 1, "fights": 8, "hp": 0}, {})
 
 
 func _arg(args: PackedStringArray, name: String, fallback: String) -> String:
