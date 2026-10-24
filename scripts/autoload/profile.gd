@@ -314,6 +314,16 @@ func award_medals(crew: String, ids: Array) -> Array:
 	return fresh
 
 
+## Every crew's medals and record at once, for the UNLOCKS screen: `{crew: {medals, record}}`.
+func crew_marks() -> Dictionary:
+	var out: Dictionary = {}
+	var medal_map: Dictionary = _data.get("medals", {})
+	var records: Dictionary = _data.get("crew_records", {})
+	for crew: Variant in medal_map.keys() + records.keys():
+		out[String(crew)] = {"medals": medals(String(crew)), "record": crew_record(String(crew))}
+	return out
+
+
 ## The highest rung a crew has won (-1: none) -- the record stamp on its card (B4).
 func crew_record(crew: String) -> int:
 	return int((_data.get("crew_records", {}) as Dictionary).get(crew, -1))

@@ -505,6 +505,10 @@ func _build_info() -> void:
 			_renaming = true
 			_rebuild())
 		head.add_child(rename)
+		# 085: the plate this crew won on a weekly contract, riveted by the name (cosmetic only).
+		var plate: Dictionary = Profile.plate_for(Run.crew_id())
+		if not plate.is_empty():
+			head.add_child((load("res://scripts/ui/yard_board.gd") as GDScript).call("plate_badge", String(plate.get("name", "")), false, 14))
 	var status := HBoxContainer.new()
 	status.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	_info.add_child(status)
