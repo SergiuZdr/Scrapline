@@ -59,6 +59,15 @@ func _go() -> void:
 	state = _run.get("state")
 	_check("ROLL OUT builds the crew as drafted (one ASSEMBLE action)", state.assembled and str(state.crew[0]["parts"]) == str(draft[0])
 		and RunStore.load_saved()["actions"].size() == 1)
+	# 085: then the three deals, when the run offers them (WALK ON here; `_deals` takes one by a click).
+	var start_actions: int = 1
+	if not RunSim.deals_on_offer(state, _run.get("setup")).is_empty():
+		_check("then the start deals open", map.find_child("deal_0", true, false) != null)
+		_press(map.find_child("walk_on", true, false))
+		await _frames(3)
+		start_actions += 1
+		_check("WALK ON is one DEAL -1 action", RunStore.load_saved()["actions"].size() == start_actions
+			and int((RunStore.load_saved()["actions"].back() as Array)[1]) == -1)
 	_check("and the bay closes onto the map", map.get("_overlay") == null)
 	var targets: Array[int] = RunSim.destinations(state)
 	var fight_site: int = -1
@@ -91,7 +100,7 @@ func _go() -> void:
 		await create_timer(0.1).timeout
 	_check("(the walk ends)", not bool(map.get("_busy")))
 	_check("the fight panel offers ENTER FIGHT", _find_button(map, "ENTER FIGHT") != null)
-	_check("the move was saved", RunStore.load_saved()["actions"].size() == 2)
+	_check("the move was saved", RunStore.load_saved()["actions"].size() == start_actions + 1)
 
 	# --- Fight: enter, act once, "quit", resume.
 	_press(_find_button(map, "ENTER FIGHT"))
@@ -332,6 +341,9 @@ func _go() -> void:
 	await _seed_replay()
 	await _the_road()
 	await _seed_field()
+	await _deals()
+	await _title_ladder()
+	await _yard_board()
 
 	RunStore.clear()
 	print("")
@@ -666,6 +678,117 @@ func _ledger_play(seed_value: int) -> void:
 	_check("with none live, it starts that seed again as a seeded run (%d)" % seed_value,
 		int((_run.get("setup") as RunSetup).rng_seed) == seed_value and bool(_run.call("is_seeded"))
 		and int(RunStore.load_saved().get("seed", -1)) == seed_value)
+
+
+## 085: the start deals by a real click -- one card is one [DEAL, i], the screen closes, and the
+## deal's cost is on the map (RunSim.active_costs, as chips under the top bar).
+func _deals() -> void:
+	RunStore.clear()
+	_run.call("new_run", 5151)
+	_run.set("briefed", true)
+	_run.set("bay_seen", true)
+	var map: Node = await _open("res://scenes/run_map.tscn")
+	var offer: Array = RunSim.deals_on_offer(_run.get("state"), _run.get("setup"))
+	if offer.is_empty():
+		_check("(staged: RunSim.deals_on_offer is still empty: no deals screen, the map opens)", map.find_child("deal_0", true, false) == null)
+		return
+	_check("before the first move, the deals screen offers %d deals and WALK ON" % offer.size(),
+		map.find_child("deal_%d" % (offer.size() - 1), true, false) != null and map.find_child("walk_on", true, false) != null)
+	var card: Button = map.find_child("deal_0", true, false) as Button
+	_check("a deal card shows its gift and its cost in full", _has_label(card, String(offer[0]["gift"])) and _has_label(card, String(offer[0]["cost"])))
+	var before: int = (RunStore.load_saved()["actions"] as Array).size()
+	await _frames(2)
+	_click(card.get_global_rect().get_center())
+	await _frames(4)
+	var saved: Array = RunStore.load_saved()["actions"]
+	_check("one click sends one DEAL 0 (%s)" % [saved.back() if not saved.is_empty() else []], saved.size() == before + 1
+		and int((saved.back() as Array)[0]) == RunSim.DEAL and int((saved.back() as Array)[1]) == 0)
+	_check("and the deals screen closes", map.find_child("deal_0", true, false) == null
+		and RunSim.deals_on_offer(_run.get("state"), _run.get("setup")).is_empty())
+	var costs: Array = map.call("_active_costs")
+	var chips: Array = (map.get("_costs_box") as Node).get_children().filter(func(c: Node) -> bool: return not c.is_queued_for_deletion())
+	_check("the deal's cost shows on the map (%d in force, %d chips)" % [costs.size(), chips.size()], not costs.is_empty()
+		and chips.size() == costs.size() and _has_label(chips[0], String(costs[0])))
+	map = await _open("res://scenes/run_map.tscn")
+	_check("CONTINUE keeps the deal: no deals screen again", map.find_child("deal_0", true, false) == null)
+	_run.call("abandon")
+
+
+## 085 (B4): the title names the next run's rung and its rule.
+func _title_ladder() -> void:
+	var profile: Node = root.get_node("Profile")
+	var meta: Dictionary = (_run.get("db") as ContentDB).meta
+	var title: Node = await _open("res://scenes/main.tscn")
+	var line: Label = title.find_child("next_run", true, false) as Label
+	var rung: int = int((profile.call("run_choice") as Dictionary)["tier"])
+	var name: String = String(((meta["tiers"] as Array)[rung] as Dictionary)["name"])
+	_check("the title's NEXT RUN line names the rung and its rule (%s)" % (line.text if line != null else "none"),
+		line != null and line.text.begins_with("NEXT RUN:  RUNG %d  ·  %s" % [rung, name]))
+	_check("and the ladder shows a pip per rung", title.find_child("ladder", true, false) != null
+		and (title.find_child("ladder", true, false) as Node).get_child_count() == (meta["tiers"] as Array).size() + 2)
+
+
+## 085: the yard board from the title -- refused over a live run; today's daily once; a second the
+## same day refused; abandoning counts as the attempt; the run history marks it DAILY.
+func _yard_board() -> void:
+	var profile: Node = root.get_node("Profile")
+	_run.set("clock_day", 20385)
+	RunStore.clear()
+	_run.call("new_run", 777)
+	var title: Node = await _open("res://scenes/main.tscn")
+	var board: Node = await _open_board(title)
+	_check("DAILY · WEEKLY opens the yard board with today's yard and this week's contract", board != null
+		and board.find_child("daily", true, false) != null and board.find_child("weekly", true, false) != null)
+	if board == null:
+		return
+	var daily_yard: Dictionary = _run.call("daily_options", 20385)
+	var play: Button = board.find_child("play_daily", true, false) as Button
+	if daily_yard.is_empty():
+		_check("(staged: RunSetup.daily_options is still empty: the board says none is posted, no PLAY)", play == null
+			and not bool(_run.call("new_daily")))
+		_run.set("clock_day", -1)
+		return
+	var live: int = int(RunStore.load_saved().get("seed", -1))
+	_click(play.get_global_rect().get_center())
+	await _frames(3)
+	var problem: Label = board.find_child("yard_problem", true, false) as Label
+	_check("over a live run the daily is refused (%s), the run kept and no attempt taken" % problem.text,
+		problem.text.contains("in progress") and int(RunStore.load_saved().get("seed", -1)) == live
+		and (profile.call("daily", 20385) as Dictionary).is_empty() and current_scene == title)
+	_run.call("abandon")
+	title = await _open("res://scenes/main.tscn")
+	board = await _open_board(title)
+	play = board.find_child("play_daily", true, false) as Button
+	_click(play.get_global_rect().get_center())
+	await _frames(6)
+	_check("with none live, PLAY starts today's yard (seed %d, a daily run)" % int(daily_yard["seed"]),
+		int((_run.get("setup") as RunSetup).rng_seed) == int(daily_yard["seed"]) and String(_run.call("mode")) == "daily"
+		and not bool(_run.call("counts")) and not (profile.call("daily", 20385) as Dictionary).is_empty())
+	_run.call("abandon")
+	_check("abandoning it is the day's attempt, scored", String((profile.call("daily", 20385) as Dictionary).get("ended", "")) == "abandoned")
+	var history: Array = profile.call("run_history")
+	_check("and the history marks it DAILY", not history.is_empty() and String((history[0] as Dictionary).get("mode", "")) == "daily")
+	title = await _open("res://scenes/main.tscn")
+	board = await _open_board(title)
+	_check("a second daily the same day is not offered: the board shows the result instead",
+		board.find_child("play_daily", true, false) == null and board.find_child("daily_result", true, false) != null)
+	_check("and the Run refuses it too (%s)" % String(_run.get("problem")), not bool(_run.call("new_daily"))
+		and String(_run.get("problem")).contains("tomorrow") and not RunStore.exists())
+	_run.set("clock_day", 20386)
+	title = await _open("res://scenes/main.tscn")
+	board = await _open_board(title)
+	_check("the next day's yard is open again", board.find_child("play_daily", true, false) != null)
+	_run.set("clock_day", -1)
+
+
+func _open_board(title: Node) -> Node:
+	var button: Button = title.find_child("yard_button", true, false) as Button
+	if button == null:
+		return null
+	await _frames(2)
+	_click(button.get_global_rect().get_center())
+	await _frames(4)
+	return title.find_child("yard_board", true, false)
 
 
 func _open_ledger(title: Node) -> Node:
