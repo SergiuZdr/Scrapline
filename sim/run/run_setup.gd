@@ -46,9 +46,14 @@ static func overlay(base: Dictionary, over: Dictionary) -> Dictionary:
 ## missing number counts as 0 and missing dictionaries are made. Applied sorted by path (then by
 ## list position), never in dictionary order. Copy on write: `base` is never changed. 085's rungs
 ## are each one such list.
-static func apply_adds(base: Dictionary, adds: Array) -> Dictionary:
+## 085: an add may name the acts it holds in (`"acts": [1]`, a deal's "in Act 1" cost); it is skipped
+## in any other act, and everywhere when `act` is 0.
+static func apply_adds(base: Dictionary, adds: Array, act: int = 0) -> Dictionary:
 	var order: Array = []
 	for i: int in adds.size():
+		var only: Variant = (adds[i] as Dictionary).get("acts")
+		if only is Array and not (only as Array).any(func(a: Variant) -> bool: return int(a) == act):
+			continue
 		order.append([String((adds[i] as Dictionary).get("path", "")), i])
 	order.sort_custom(func(a: Array, b: Array) -> bool:
 		return a[0] < b[0] if a[0] != b[0] else int(a[1]) < int(b[1]))
@@ -156,8 +161,9 @@ const SEED_WORDS: PackedStringArray = [
 
 ## Whether a run was started from a typed or replayed seed (B8): `options.seeded`. Such a run is a
 ## replay, not a climb -- 085 keeps its wins off the ladder and the unlocks.
+## 085: so is a daily yard or a weekly contract (`options.mode`): they keep their own score.
 static func is_seeded(options_in: Dictionary) -> bool:
-	return bool(options_in.get("seeded", false))
+	return bool(options_in.get("seeded", false)) or not String(options_in.get("mode", "")).is_empty()
 
 
 ## A content version's 7-bit tag in a seed code, as two hex digits.
@@ -234,14 +240,78 @@ static func parse_seed_code(code: String, version: String = "") -> Dictionary:
 		"stale": not version.is_empty() and _version_bits(version) != tag}
 
 
+## 085: the three deal ids a run with this seed offers, from `rules.deals` (`data/run/deals.json`):
+## one soft deal (`soft: true`) and `offer - 1` others, each pool in file order, picked by a SimRNG of
+## the seed alone -- so a seed code, the daily and the weekly offer the same three -- then dealt into
+## a seeded order. [] when there is no pool.
+static func roll_deals(rules: Dictionary, seed_value: int) -> Array:
+	var pool: Dictionary = rules.get("deals", {})
+	var soft: Array = []
+	var hard: Array = []
+	for entry: Variant in (pool.get("deals", []) as Array):
+		var d: Dictionary = entry
+		(soft if bool(d.get("soft", false)) else hard).append(String(d["id"]))
+	if soft.is_empty() and hard.is_empty():
+		return []
+	var rng := SimRNG.new(IntentAI.mix(seed_value, 0xDEA1, 0x5EED, 29))
+	var out: Array = []
+	if not soft.is_empty():
+		out.append(soft[rng.range_int(0, soft.size() - 1)])
+	var want: int = maxi(1, int(pool.get("offer", 3)))
+	while out.size() < want and not hard.is_empty():
+		out.append(hard.pop_at(rng.range_int(0, hard.size() - 1)))
+	for i: int in range(out.size() - 1, 0, -1):
+		var j: int = rng.range_int(0, i)
+		var t: Variant = out[i]
+		out[i] = out[j]
+		out[j] = t
+	return out
 
-## 085: the daily yard for `day` (days since 1970-01-01, UTC): run options everyone shares that day --
-## {"seed", "mode": "daily", "modifiers_acts": [...], "deals": [...] , ...}; pure, no clock.
+
+## 085: the daily yard for `day` (days since 1970-01-01, UTC): run options everyone shares that day.
+## `rules` is the run rules (`ContentDB.run_rules`, with `challenges` and `deals`). Pure, no clock:
+## the day is the caller's. {"seed", "mode": "daily", "day", "tier": 0, "deals": true, "deal_offer",
+## "conditions": [one id per act], "rules": {"modifiers": {"acts": [...]}}}; any crew, rung 0.
+## `Meta.challenge_options` turns it into a run's options with the crew the player picks.
 static func daily_options(rules: Dictionary, day: int) -> Dictionary:
-	return {}
+	var daily: Dictionary = (rules.get("challenges", {}) as Dictionary).get("daily", {})
+	var seed_value: int = IntentAI.mix(day, 0xDA11, 0x5EED, 23) & SEED_MASK
+	var rng := SimRNG.new(IntentAI.mix(day, 0xDA12, 0x5EED, 31))
+	var mods: Dictionary = rules.get("modifiers", {})
+	var ids: Array = (daily.get("conditions", (mods.get("act_weights", mods.get("weights", {})) as Dictionary).keys()) as Array).duplicate()
+	ids = ids.map(func(c: Variant) -> String: return String(c))
+	ids.sort()
+	var conditions: Array = []
+	for act: int in maxi(1, (rules.get("acts", []) as Array).size()):
+		conditions.append(String(ids[rng.range_int(0, ids.size() - 1)]) if not ids.is_empty() else "")
+	return {"seed": seed_value, "mode": "daily", "day": day, "tier": int(daily.get("rung", 0)), "deals": true,
+		"deal_offer": roll_deals(rules, seed_value), "conditions": conditions,
+		"rules": {"modifiers": {"acts": conditions.duplicate()}}}
 
 
-## 085: the weekly contract for `week` (weeks since 1970-01-05, a Monday, UTC): harder, a fixed crew,
-## 2-3 announced twists; {"seed", "mode": "weekly", "crew_id", "rung", "twists": [{"id", "text"}], ...}.
+## 085: the weekly contract for `week` (weeks since 1970-01-05, a Monday, UTC): a fixed rung, a fixed
+## crew and `challenges.weekly.twists` announced twists from `challenges.twists` (each a list of adds
+## on rules the game already has). {"seed", "mode": "weekly", "week", "crew_id", "tier" (= "rung"),
+## "rung", "twists": [{"id", "text"}], "deals": true, "deal_offer", "rules": {"adds": the twists'}}.
 static func weekly_options(rules: Dictionary, week: int) -> Dictionary:
-	return {}
+	var challenges: Dictionary = rules.get("challenges", {})
+	var weekly: Dictionary = challenges.get("weekly", {})
+	var seed_value: int = IntentAI.mix(week, 0x3EE7, 0x5EED, 23) & SEED_MASK
+	var rng := SimRNG.new(IntentAI.mix(week, 0x3EE8, 0x5EED, 31))
+	var crews: Array = weekly.get("crews", ["salvagers"])
+	var crew_id: String = String(crews[posmod(week, maxi(1, crews.size()))]) if not crews.is_empty() else "salvagers"
+	var pool: Dictionary = challenges.get("twists", {})
+	var ids: Array = pool.keys().map(func(k: Variant) -> String: return String(k)).filter(func(k: String) -> bool: return not k.begins_with("_"))
+	ids.sort()
+	var twists: Array = []
+	var adds: Array = []
+	for n: int in mini(int(weekly.get("twists", 3)), ids.size()):
+		var id: String = ids.pop_at(rng.range_int(0, ids.size() - 1))
+		var twist: Dictionary = pool[id]
+		twists.append({"id": id, "text": String(twist.get("text", id))})
+		for add: Variant in (twist.get("adds", []) as Array):
+			adds.append((add as Dictionary).duplicate(true))
+	twists.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return String(a["id"]) < String(b["id"]))
+	var rung: int = int(weekly.get("rung", 4))
+	return {"seed": seed_value, "mode": "weekly", "week": week, "crew_id": crew_id, "tier": rung, "rung": rung,
+		"twists": twists, "deals": true, "deal_offer": roll_deals(rules, seed_value), "rules": {"adds": adds}}

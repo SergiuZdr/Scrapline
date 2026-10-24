@@ -15,6 +15,10 @@ extends SceneTree
 ## `--set bot.route="explorer"` (084) plays the explorer, who takes every site it can reach before
 ## going on; `--b bot.route="explorer"` compares it with the forward bot on the same seeds.
 ##
+## 085: `--set run.rung=4` plays rung 4 (cumulative), `run.crew="wall"` a crew with its rule and medals,
+## `run.deals=true` the seed's three deals (taken by `bot.deals`: "best", "walk" or an id), `run.deal="scrap"`
+## that one deal. `--dump path` writes one JSON line per run (its medal summary, rung, deal) for career.py.
+##
 ## `--b path=json` (071, repeatable) plays a variant B on the SAME seeds as A (A is the game, or the
 ## game with the `--set`s) and reports B - A with a verdict: real, or no detectable difference and how
 ## big it could still be. Same seeds cancel the luck of the draw, so A/B needs far fewer runs than two
@@ -36,11 +40,13 @@ func _initialize() -> void:
 	var quiet: bool = not slice.is_empty()
 	# Variant A: the game with every `--set`. Variant B (071): A plus every `--b`.
 	var dbs: Array[ContentDB] = [ContentDB.load_all()]
+	Stats.with_deals(dbs[0])
 	for setting: String in Stats.all_after(args, "--set"):
 		Stats.override(dbs[0], setting, quiet)
 	var b_settings: PackedStringArray = Stats.all_after(args, "--b")
 	if not b_settings.is_empty():
 		dbs.append(ContentDB.load_all())
+		Stats.with_deals(dbs[1])
 		for setting: String in Stats.all_after(args, "--set"):
 			Stats.override(dbs[1], setting, true)
 		for setting: String in b_settings:
@@ -75,6 +81,18 @@ func _initialize() -> void:
 			quit(0)
 			return
 	var ms: int = Time.get_ticks_msec() - start_ms
+	var dump: String = _arg(args, "--dump", "")
+	if not dump.is_empty():
+		var file := FileAccess.open(dump, FileAccess.WRITE)
+		for v: String in ["A", "B"]:
+			var recs: Dictionary = stats[v].get("records", {})
+			var keys: Array = recs.keys()
+			keys.sort()
+			for k: Variant in keys:
+				var rec: Dictionary = (recs[k] as Dictionary).duplicate()
+				rec["variant"] = v
+				file.store_line(JSON.stringify(rec))
+		file.close()
 	if dbs.size() == 1:
 		_report(dbs[0], stats["A"], ms)
 	else:
@@ -129,13 +147,14 @@ func _new_stats() -> Dictionary:
 		"levels": 0, "tunes": 0, "scrap_left": 0, "last_gate_scrap": 0, "last_gate_runs": 0,
 		"last_gate_rares": 0, "reasons": {}, "ended_col": {}, "ended_act": {}, "reached_act": {},
 		"gate_lost": {}, "fights_sq": 0, "fought": 0, "fought_sq": 0, "acts": 0, "bitten_acts": 0, "reached_acts": 0,
-		"pressed_acts": 0, "bites": 0, "reaches": 0, "conditions": {}}
+		"pressed_acts": 0, "bites": 0, "reaches": 0, "conditions": {},
+		"fights_n": 0, "free_fights": 0, "rounds": 0, "rounds_sq": 0, "deals": {}, "deal_won": {}, "medals": {}, "records": {}}
 
 
 ## Plays one run to its end and counts it into `stats`. Returns a line about it ("+" if won).
 func _play(db: ContentDB, seed_value: int, stats: Dictionary) -> String:
 	var setup: RunSetup = RunSetup.create(db.parts, db.tiles, db.fights, db.run_rules,
-		db.combat_rules, db.effectiveness, seed_value)
+		db.combat_rules, db.effectiveness, seed_value, Stats.run_options(db))
 	Stats.bot_for(db)
 	var state: RunState = RunSim.start(setup)
 	var guard: int = 0
@@ -144,12 +163,26 @@ func _play(db: ContentDB, seed_value: int, stats: Dictionary) -> String:
 	var bitten: Dictionary = {}
 	var reached: Dictionary = {}
 	var fought: int = 0
+	var rounds: int = 0
 	while state.outcome == RunState.ONGOING and guard < 400:
 		var action: Array = RunBot.next_action(state, setup)
 		var act_now: int = state.act
 		var bites: bool = int(action[0]) == RunSim.TRAVEL and state.consumed(state.current)
 		if int(action[0]) == RunSim.FIGHT:
 			fought += 1
+			# 085: rounds per fight, and fights that cost the crew no HP (B4's behaviour metric).
+			var played: CombatState = CombatSim.replay(RunSim.fight_setup(state, setup), action[1])
+			rounds += played.round_number
+			stats["fights_n"] += 1
+			var hp_in: int = 0
+			var hp_out: int = 0
+			for u: GridUnit in played.units:
+				if u.team == GridUnit.TEAM_PLAYER and not u.objective:
+					hp_out += maxi(0, u.hp) if u.alive else 0
+			for member: Dictionary in state.crew:
+				if bool(member["alive"]):
+					hp_in += int(member["hp"])
+			stats["free_fights"] += 1 if hp_out >= hp_in else 0
 		var was_boss: bool = String(state.pending.get("site_type", "")) == "boss"
 		var hp_before: int = 0
 		for member: Dictionary in state.crew:
@@ -181,6 +214,24 @@ func _play(db: ContentDB, seed_value: int, stats: Dictionary) -> String:
 							stats["last_gate_rares"] += 1
 		guard += 1
 	stats["runs"] += 1
+	stats["rounds"] += rounds
+	stats["rounds_sq"] += rounds * rounds
+	var deal: String = state.deal if not state.deal.is_empty() else "none"
+	_count(stats["deals"], deal)
+	if state.outcome == RunState.WON:
+		_count(stats["deal_won"], deal)
+	# 085 (B10): every crew's medals read off this run (the bot does not aim at any).
+	var summary: Dictionary = RunSim.run_summary(state, setup)
+	for crew_id: Variant in (db.meta.get("crews", {}) as Dictionary):
+		for medal: Variant in Meta.medals(db.meta, String(crew_id)):
+			if RunSim.medal_met(medal as Dictionary, summary):
+				_count(stats["medals"], String((medal as Dictionary)["id"]))
+	var rec: Dictionary = {}
+	for key: Variant in summary:
+		rec[key] = int(summary[key])
+	rec["seed"] = seed_value
+	rec["rounds"] = rounds
+	stats["records"][str(seed_value)] = rec
 	var line: String = ""
 	if state.outcome == RunState.WON:
 		stats["won"] += 1
@@ -234,6 +285,20 @@ func _report(db: ContentDB, s: Dictionary, ms: int) -> void:
 	for c: Variant in names:
 		conds.append("%s %d" % ["none" if String(c).is_empty() else String(c), int(s["conditions"][c])])
 	print("    act conditions: %s" % ", ".join(conds))
+	var fn: float = maxf(1.0, s.get("fights_n", 0))
+	print("  085: rounds per run %s (%.1f per fight); fights that cost the crew no HP %s" % [
+		Stats.mean_text(s.get("rounds", 0), s.get("rounds_sq", 0), runs), s.get("rounds", 0) / fn,
+		Stats.rate(int(s.get("free_fights", 0)), int(s.get("fights_n", 0)))])
+	var deal_names: Array = (s.get("deals", {}) as Dictionary).keys()
+	deal_names.sort()
+	for d: Variant in deal_names:
+		print("    deal %-10s taken %3d, won %s" % [d, int(s["deals"][d]), Stats.rate(int((s.get("deal_won", {}) as Dictionary).get(d, 0)), int(s["deals"][d]))])
+	var medal_names: Array = (s.get("medals", {}) as Dictionary).keys()
+	medal_names.sort()
+	var medal_text: PackedStringArray = []
+	for m: Variant in medal_names:
+		medal_text.append("%s %d" % [m, int(s["medals"][m])])
+	print("    medals met (any crew's, unaimed): %s" % ", ".join(medal_text))
 	print("  economy per run: %.1f levels bought, %.1f parts tuned, %.1f scrap unspent at the end" % [
 		s["levels"] / n, s["tunes"] / n, s["scrap_left"] / n])
 	print("  reached the boss: %d, crew HP going in: %.1f avg (total of the three)" % [s["reached_boss"],

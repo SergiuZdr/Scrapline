@@ -26,7 +26,48 @@
   "crews": {
     "salvagers": {
       "name": "THE SALVAGERS",
-      "text": "A brawler, a hauler and a scout: a bit of everything."
+      "text": "A brawler, a hauler and a scout: a bit of everything.",
+      "rule": "Salvage shows 4 parts, not 3.",
+      "rules": {
+        "adds": [
+          {
+            "path": "rewards.choices",
+            "delta": 1
+          }
+        ]
+      },
+      "medals": [
+        {
+          "id": "sal_plain",
+          "name": "NOTHING FANCY",
+          "text": "Win a run with no legendary fitted",
+          "need": {
+            "won": 1
+          },
+          "max": {
+            "legendaries": 0
+          }
+        },
+        {
+          "id": "sal_clean",
+          "name": "CLEAN SHEET",
+          "text": "Win a run without losing a fight",
+          "need": {
+            "won": 1
+          },
+          "max": {
+            "fights_lost": 0
+          }
+        },
+        {
+          "id": "sal_pits",
+          "name": "GRAVEDIGGER",
+          "text": "Drop 3 enemies into pits in one run",
+          "need": {
+            "pit_kills": 3
+          }
+        }
+      ]
     },
     "wall": {
       "name": "THE WALL",
@@ -61,6 +102,45 @@
             "ar_scanner",
             "mo_scavenger"
           ]
+        }
+      ],
+      "rule": "Every ability comes back a round sooner (Barricade and Grapple every 2 rounds).",
+      "rules": {
+        "crew_bonus": {
+          "cooldown": 1
+        }
+      },
+      "medals": [
+        {
+          "id": "wall_whole",
+          "name": "NOT A DENT",
+          "text": "Win a run with no machine wrecked",
+          "need": {
+            "won": 1
+          },
+          "max": {
+            "wrecked": 0
+          }
+        },
+        {
+          "id": "wall_dry",
+          "name": "NO PIT STOPS",
+          "text": "Win on rung 4 or higher without entering a workshop",
+          "need": {
+            "won": 1,
+            "rung": 4
+          },
+          "max": {
+            "workshops": 0
+          }
+        },
+        {
+          "id": "wall_shove",
+          "name": "IMMOVABLE",
+          "text": "Shove enemies into things 12 times in one run",
+          "need": {
+            "bumps": 12
+          }
         }
       ]
     },
@@ -98,6 +178,48 @@
             "mo_ablative"
           ]
         }
+      ],
+      "rule": "The Reclaimer is slower behind them: a column every 1.75 moves, not 1.5.",
+      "rules": {
+        "adds": [
+          {
+            "path": "front.pace",
+            "delta": 25
+          }
+        ]
+      },
+      "medals": [
+        {
+          "id": "run_light",
+          "name": "TRAVEL LIGHT",
+          "text": "Win a run with no machine above level 2",
+          "need": {
+            "won": 1
+          },
+          "max": {
+            "max_level": 2
+          }
+        },
+        {
+          "id": "run_ghost",
+          "name": "GHOSTS",
+          "text": "Win 5 fights without a scratch in one run",
+          "need": {
+            "flawless": 5
+          }
+        },
+        {
+          "id": "run_far",
+          "name": "THE LONG ROAD",
+          "text": "Win on rung 4 or higher with no machine wrecked",
+          "need": {
+            "won": 1,
+            "rung": 4
+          },
+          "max": {
+            "wrecked": 0
+          }
+        }
       ]
     }
   },
@@ -111,18 +233,139 @@
       "text": "Every enemy carries 2 more HP.",
       "rules": {
         "adds": [
-          {"path": "enemies.hp_all", "delta": 2}
+          {
+            "path": "enemies.hp_all",
+            "delta": 2
+          }
         ]
       }
     },
     {
       "name": "RECLAIMED",
-      "text": "2 more HP and 1 more damage on every enemy; the Reclaimer bites for 3.",
+      "text": "Every enemy hits 1 harder; the Reclaimer bites for 3.",
       "rules": {
         "adds": [
-          {"path": "enemies.hp_all", "delta": 2},
-          {"path": "enemies.bonus.damage", "delta": 1},
-          {"path": "front.damage", "set": 3}
+          {
+            "path": "enemies.bonus.damage",
+            "delta": 1
+          },
+          {
+            "path": "front.damage",
+            "set": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "COLD PILES",
+      "text": "A scrap pile heals 1, not 2.",
+      "rules": {
+        "adds": [
+          {
+            "path": "fight_rules.pile_heal",
+            "set": 1,
+            "harder": "down"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SHORT RATIONS",
+      "text": "A workshop patches 2, not 3; a broken gate patches 4, not 6.",
+      "rules": {
+        "adds": [
+          {
+            "path": "workshop.repair_amount",
+            "delta": -1,
+            "harder": "down"
+          },
+          {
+            "path": "arrive.repair",
+            "delta": -2,
+            "harder": "down"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TRACKERS LOCK ON",
+      "text": "Far more trackers in every squad.",
+      "rules": {
+        "adds": [
+          {
+            "path": "kinds.weights.tracker",
+            "delta": 40
+          }
+        ]
+      }
+    },
+    {
+      "name": "WORN OUT",
+      "text": "The crew starts the run on 80% HP.",
+      "rules": {
+        "adds": [
+          {
+            "path": "start.hp_pct",
+            "set": 80,
+            "harder": "down"
+          }
+        ]
+      }
+    },
+    {
+      "name": "HUNGRY LINE",
+      "text": "The Reclaimer takes a column every 1.25 moves, not 1.5.",
+      "rules": {
+        "adds": [
+          {
+            "path": "front.pace",
+            "delta": -25,
+            "harder": "down"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VETERANS",
+      "text": "Elites bring one more machine, and their Veteran 2 more HP.",
+      "rules": {
+        "adds": [
+          {
+            "path": "enemies.elite_extra",
+            "delta": 1
+          },
+          {
+            "path": "enemies.elite_hp_bonus",
+            "delta": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "GATE GUARD",
+      "text": "Gates and warlords bring one more escort.",
+      "rules": {
+        "adds": [
+          {
+            "path": "enemies.boss_escorts",
+            "delta": 1
+          },
+          {
+            "path": "enemies.warlord_escorts",
+            "delta": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "HEAVY HANDS",
+      "text": "Every enemy hits 1 harder again.",
+      "rules": {
+        "adds": [
+          {
+            "path": "enemies.bonus.damage",
+            "delta": 1
+          }
         ]
       }
     }
@@ -283,6 +526,78 @@
       "text": "Win a run on RECLAIMED: the game's true ending"
     },
     {
+      "id": "u27",
+      "kind": "tier",
+      "what": 3,
+      "when": {
+        "wins_t2": 1
+      },
+      "text": "Win a run on RECLAIMED"
+    },
+    {
+      "id": "u28",
+      "kind": "tier",
+      "what": 4,
+      "when": {
+        "wins_t3": 1
+      },
+      "text": "Win a run on COLD PILES"
+    },
+    {
+      "id": "u29",
+      "kind": "tier",
+      "what": 5,
+      "when": {
+        "wins_t4": 1
+      },
+      "text": "Win a run on SHORT RATIONS"
+    },
+    {
+      "id": "u30",
+      "kind": "tier",
+      "what": 6,
+      "when": {
+        "wins_t5": 1
+      },
+      "text": "Win a run on TRACKERS LOCK ON"
+    },
+    {
+      "id": "u31",
+      "kind": "tier",
+      "what": 7,
+      "when": {
+        "wins_t6": 1
+      },
+      "text": "Win a run on WORN OUT"
+    },
+    {
+      "id": "u32",
+      "kind": "tier",
+      "what": 8,
+      "when": {
+        "wins_t7": 1
+      },
+      "text": "Win a run on HUNGRY LINE"
+    },
+    {
+      "id": "u33",
+      "kind": "tier",
+      "what": 9,
+      "when": {
+        "wins_t8": 1
+      },
+      "text": "Win a run on VETERANS"
+    },
+    {
+      "id": "u34",
+      "kind": "tier",
+      "what": 10,
+      "when": {
+        "wins_t9": 1
+      },
+      "text": "Win a run on GATE GUARD"
+    },
+    {
       "id": "u17",
       "kind": "part",
       "what": "mo_repair",
@@ -375,5 +690,6 @@
   ],
   "_082": "Tiers stack on every act (082, B1): a tier's `rules.adds` is a list of `{path, delta}` or `{path, set}` (dotted path into run.json, integers) applied by RunSim.rules_of AFTER the act's overlay, sorted by path -- so FOREMAN in Act 2 is Act 2's hp_all plus 2. A tier's other `rules` keys still overlay run.json once at the start (only safe for keys no act replaces). 085's rungs are each one `adds` list.",
   "_043": "The tier LADDER (043, play-test 13): a tier opens by winning a run on the one below (`wins_t<N>`, counted by Meta.stats_after), becomes the next run's tier the moment it opens, and the game's ending (`kind: ending`) is won only on the top tier.",
-  "_034": "Missions (034, play-test 10: 'unlocks need diverse missions'): a `when` may name any feat RunSim.tally_feats counts (kills, multi_kill, pit_kills, bumps, tears, flawless, close_calls, <objective>_wins, elites, arenas, warlords, gates). `mission: true` marks them for the UNLOCKS screen."
+  "_034": "Missions (034, play-test 10: 'unlocks need diverse missions'): a `when` may name any feat RunSim.tally_feats counts (kills, multi_kill, pit_kills, bumps, tears, flawless, close_calls, <objective>_wins, elites, arenas, warlords, gates). `mission: true` marks them for the UNLOCKS screen.",
+  "_085": "085: the ladder (B4) is CUMULATIVE: rung N plays the adds of rungs 1..N (Meta.rung_adds), in rung order; rung 0 is YARD HAND, FOREMAN and RECLAIMED keep their numbers and ids (u13, u16), so saved profiles stay valid, and the ending (u26, THE LINE IS CUT) is still a win on RECLAIMED (the ladder does not move it). An add's `harder: down` says a smaller number is harder (verify_run's monotone check). Each crew changes one run rule (`rules`, B9: `adds` and plain overlay keys, `rule` the line the screens show) and has three medals (B10: `need` at least, `max` at most, read by RunSim.medals_earned off RunSim.run_summary). Rung order, names and the medals are data, to reorder after play-tests."
 }

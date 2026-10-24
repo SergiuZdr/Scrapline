@@ -114,12 +114,25 @@ static func runs_needed(p: float, half: float) -> int:
 static func override(db: ContentDB, setting: String, quiet: bool = false) -> void:
 	var pair: PackedStringArray = setting.split("=", true, 1)
 	var keys: PackedStringArray = pair[0].split(".")
+	if keys[0] == "run":
+		# 085: `run.rung=4`, `run.crew="wall"`, `run.deals=true` (the seed's three, taken by RunBot.deals)
+		# and `run.deal="scrap"` (that deal alone on offer): the options a bot run starts with
+		# (`run_options`), so `--b run.rung=4` compares two rungs on the same seeds.
+		if not ["run.rung", "run.crew", "run.deals", "run.deal"].has(pair[0]):
+			push_error("override %s: a run has only run.rung, run.crew, run.deals and run.deal" % pair[0])
+		db.set_meta("run_" + keys[1], JSON.parse_string(pair[1]))
+		if not quiet:
+			print("  override %s = %s" % [pair[0], pair[1]])
+		return
 	if keys[0] == "bot":
 		if pair[0] == "bot.route":
 			# 084 (B3): `bot.route="explorer"` sweeps every site it can reach (RunBot.route).
 			db.set_meta("bot_route", String(JSON.parse_string(pair[1])))
+		elif pair[0] == "bot.deals":
+			# 085: `bot.deals="walk"` (or "best", or a deal id): how RunBot takes a start deal.
+			db.set_meta("bot_deals", String(JSON.parse_string(pair[1])))
 		elif pair[0] != "bot.abilities":
-			push_error("override %s: the bot has only bot.abilities and bot.route" % pair[0])
+			push_error("override %s: the bot has only bot.abilities, bot.route and bot.deals" % pair[0])
 		else:
 			db.set_meta("bot_abilities", bool(JSON.parse_string(pair[1])))
 		if not quiet:
@@ -147,6 +160,47 @@ static func override(db: ContentDB, setting: String, quiet: bool = false) -> voi
 static func bot_for(db: ContentDB) -> void:
 	CombatBot.use_abilities = bool(db.get_meta("bot_abilities", true))
 	RunBot.route = String(db.get_meta("bot_route", "forward"))
+	RunBot.deals = String(db.get_meta("bot_deals", "best"))
+
+
+## 085: the options a bot run starts with, from `--set run.*` (none: `{}`, the plain game every bot
+## tool has always played). The pools stay whole (nothing locked: the bot's yard), the rung's adds come
+## cumulative (`Meta.rung_adds`), a crew brings its machines, its rule and its medals.
+static func run_options(db: ContentDB) -> Dictionary:
+	var out: Dictionary = {}
+	var rung: int = int(db.get_meta("run_rung", 0))
+	var crew: String = String(db.get_meta("run_crew", ""))
+	var rules: Dictionary = {}
+	if rung > 0:
+		out["tier"] = rung
+		rules["adds"] = Meta.rung_adds(db.meta, rung)
+	if not crew.is_empty():
+		out["crew_id"] = crew
+		var spec: Dictionary = (db.meta.get("crews", {}) as Dictionary).get(crew, {})
+		if spec.has("crew"):
+			out["crew"] = (spec["crew"] as Array).duplicate(true)
+		rules = Meta.join_rules(rules, Meta.crew_rules(db.meta, crew))
+		out["medals"] = Meta.medals(db.meta, crew)
+	if not rules.is_empty():
+		out["rules"] = rules
+	if bool(db.get_meta("run_deals", false)):
+		out["deals"] = true
+	var deal: String = String(db.get_meta("run_deal", ""))
+	if not deal.is_empty():
+		out["deals"] = true
+		out["deal_offer"] = [deal]
+	return out
+
+
+## 085: data/run/deals.json into the run rules when ContentDB has not put it there (the tools run
+## before ContentDB learns of the file).
+static func with_deals(db: ContentDB) -> void:
+	if db.run_rules.has("deals"):
+		return
+	var text: String = FileAccess.get_file_as_string("res://data/run/deals.json")
+	var data: Variant = JSON.parse_string(text) if not text.is_empty() else null
+	if data is Dictionary:
+		db.run_rules["deals"] = data
 
 
 ## Every value following `flag` in `args`.

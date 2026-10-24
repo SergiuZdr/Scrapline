@@ -51,8 +51,10 @@ func _run() -> void:
 		locked.all(func(p: String) -> bool: return not pooled.has(p)) and pooled.size() == _pool_size(_setup(db, {})) - locked.size())
 	var every: int = db.parts.keys().filter(func(id: Variant) -> bool: return not PartTuning.is_tuned(String(id))).size()
 	_check("with no options a run has every part (the tests and the bot) (%d)" % every, _pool_size(_setup(db, {})) == every)
-	_check("a crew or tier that is not unlocked is not given", not Meta.options(meta, [], "wall", 2).has("crew")
-		and not Meta.options(meta, [], "wall", 2).has("rules"))
+	var refused: Dictionary = Meta.options(meta, [], "wall", 2)
+	_check("a crew or tier that is not unlocked is not given (the default crew and its own rule, rung 0)", not refused.has("crew")
+		and String(refused["crew_id"]) == "salvagers" and int(refused["tier"]) == 0
+		and var_to_str(refused.get("rules", {})) == var_to_str(Meta.crew_rules(meta, "salvagers")))
 
 	# Milestones, in order.
 	var stats: Dictionary = {}
@@ -199,6 +201,8 @@ func _run() -> void:
 
 	_yard_runs_count_for_nothing(db, profile, run, veteran)
 
+	_test_ladder_085(meta)
+
 	# 023: every sound a script asks for is in the bank, and the switch is kept.
 	var audio: Node = root.get_node("Audio")
 	var bank: Array = audio.call("names")
@@ -292,3 +296,65 @@ func _pool_size(setup: RunSetup) -> int:
 	for slot: String in setup.pools:
 		n += (setup.pools[slot] as Array).size()
 	return n
+
+
+## 085 (B4, B9, B10): the cumulative ladder, old profiles, crew records -- the sim's half (Meta);
+## the profile's own checks live in their own functions.
+func _test_ladder_085(meta: Dictionary) -> void:
+	var tiers: Array = meta["tiers"]
+	var all: Array = (meta["unlocks"] as Array).map(func(e: Dictionary) -> String: return String(e["id"]))
+	_check("about ten rungs above YARD HAND (%d), each named and worded" % (tiers.size() - 1), tiers.size() >= 10
+		and tiers.all(func(t: Dictionary) -> bool: return not String(t.get("name", "")).is_empty() and not String(t.get("text", "")).is_empty()))
+	var cumulative: bool = true
+	for t: int in range(1, tiers.size()):
+		var own: Array = ((tiers[t] as Dictionary)["rules"] as Dictionary)["adds"]
+		cumulative = cumulative and var_to_str(Meta.rung_adds(meta, t)) == var_to_str(Meta.rung_adds(meta, t - 1) + own)
+	_check("rung N carries rungs 1..N (Meta.rung_adds)", cumulative)
+	var opts: Dictionary = Meta.options(meta, all, "salvagers", 5)
+	_check("a run on rung 5 plays rungs 1-5 and the crew's rule (%d adds)" % (opts["rules"]["adds"] as Array).size(),
+		var_to_str(opts["rules"]["adds"]) == var_to_str(Meta.rung_adds(meta, 5) + (Meta.crew_rules(meta, "salvagers")["adds"] as Array))
+		and int(opts["tier"]) == 5 and bool(opts["deals"]) and (opts["medals"] as Array).size() == 3)
+	# The climb: each rung opens by winning the one below; the ending stays a win on RECLAIMED.
+	var won := RunState.new()
+	won.outcome = RunState.WON
+	var stats: Dictionary = {"runs": 40, "fights": 300, "act": 3}
+	var climbed: bool = true
+	for t: int in range(0, tiers.size() - 1):
+		climbed = climbed and Meta.top_tier(Meta.earned(stats, meta), meta) == t
+		stats = Meta.stats_after(stats, won, t)
+		climbed = climbed and Meta.top_tier(Meta.earned(stats, meta), meta) == t + 1
+		if t == 1:
+			climbed = climbed and not Meta.finished(Meta.earned(stats, meta), meta)
+		if t == 2:
+			climbed = climbed and Meta.finished(Meta.earned(stats, meta), meta)
+	_check("ten wins climb ten rungs, one each; THE LINE IS CUT still falls to a win on RECLAIMED", climbed)
+	# An old profile (082-084: FOREMAN and RECLAIMED held, the ending won) keeps everything.
+	var old: Array = ["u01", "u02", "u03", "u04", "u05", "u06", "u07", "u08", "u09", "u10", "u11", "u12", "u13", "u14", "u15", "u16", "u26"]
+	var old_run: Dictionary = Meta.options(meta, old, "wall", 2)
+	_check("an old profile keeps its unlocks, its crews and its rung (RECLAIMED: the old tier's numbers exactly)",
+		Meta.top_tier(old, meta) == 2 and Meta.finished(old, meta) and old_run.has("crew") and int(old_run["tier"]) == 2
+		and var_to_str(RunStore._ints(Meta.rung_adds(meta, 2))) == var_to_str([{"path": "enemies.hp_all", "delta": 2},
+			{"path": "enemies.bonus.damage", "delta": 1}, {"path": "front.damage", "set": 3}])
+		and old.all(func(id: String) -> bool: return all.has(id)))
+	_check("and its next rung is RUNG 3 (%s)" % String(Meta.next_unlock(old, meta).get("text", "")),
+		String(Meta.next_unlock(old, meta).get("kind", "")) == "tier" and int(Meta.next_unlock(old, meta)["what"]) == 3)
+	# The per-crew record stamp: the highest rung each crew has won.
+	var rec: Dictionary = Meta.stats_after({}, won, 3, "wall")
+	rec = Meta.stats_after(rec, won, 1, "wall")
+	var lost := RunState.new()
+	lost.outcome = RunState.LOST
+	rec = Meta.stats_after(rec, lost, 7, "wall")
+	_check("a crew's record stamp is its highest rung won (wall %d; runners none)" % int(rec.get("best_wall", -1)),
+		int(rec["best_wall"]) == 3 and not rec.has("best_runners"))
+	# A challenge's options do not depend on the profile.
+	var daily: Dictionary = RunSetup.daily_options(_rules_with_challenges(), 20750)
+	var c: Dictionary = Meta.challenge_options(meta, daily, "runners")
+	_check("a daily's options are the same for a fresh and a veteran profile (no unlocks read)",
+		var_to_str(c) == var_to_str(Meta.challenge_options(meta, daily, "runners")) and String(c["mode"]) == "daily"
+		and (c["locked"] as Array).size() == (meta["locked"] as Array).size() and RunSetup.is_seeded(c))
+
+
+func _rules_with_challenges() -> Dictionary:
+	var db: ContentDB = ContentDB.load_all()
+	return db.run_rules
+
