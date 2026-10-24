@@ -2006,14 +2006,17 @@ func _test_medals() -> void:
 			state.crew[0]["parts"][2] = "ar_sunspear" if _db.parts.has("ar_sunspear") else String((setup.pools["arm"] as Array).filter(
 				func(id: String) -> bool: return setup.rarity(id) == 4)[0])
 		return RunSim.medals_earned(state, setup)
-	_check("a clean win with no legendary: NOTHING FANCY and CLEAN SHEET", stage.call("salvagers", 0, true, {}, 1, false) == ["sal_clean", "sal_plain"])
-	_check("with a legendary fitted and a fight lost: neither", stage.call("salvagers", 0, true, {"fights_lost": 1}, 1, true).is_empty())
-	_check("three pit kills in a lost run: GRAVEDIGGER", stage.call("salvagers", 0, false, {"pit_kills": 3}, 0, false) == ["sal_pits"])
+	_check("a clean win with no legendary on rung 2: NOTHING FANCY and CLEAN SHEET; on rung 0 only NOTHING FANCY",
+		stage.call("salvagers", 2, true, {}, 1, false) == ["sal_clean", "sal_plain"] and stage.call("salvagers", 0, true, {}, 1, false) == ["sal_plain"])
+	_check("with a legendary fitted and a fight lost: neither", stage.call("salvagers", 2, true, {"fights_lost": 1}, 1, true).is_empty())
+	_check("five pit kills in a lost run: GRAVEDIGGER (four: no)", stage.call("salvagers", 0, false, {"pit_kills": 5}, 0, false) == ["sal_pits"]
+		and stage.call("salvagers", 0, false, {"pit_kills": 4}, 0, false).is_empty())
 	_check("the Wall on rung 4, no workshop, nothing wrecked: NO PIT STOPS and NOT A DENT",
 		stage.call("wall", 4, true, {}, 0, false) == ["wall_dry", "wall_whole"])
-	_check("the same on rung 3: only NOT A DENT; a workshop on rung 4: only NOT A DENT",
-		stage.call("wall", 3, true, {}, 0, false) == ["wall_whole"] and stage.call("wall", 4, true, {}, 2, false) == ["wall_whole"])
-	_check("the Runners: 5 flawless fights and a win with a machine wrecked on rung 5: GHOSTS, TRAVEL LIGHT",
-		stage.call("runners", 5, true, {"flawless": 5, "wrecked": 1}, 0, false) == ["run_ghost", "run_light"])
+	_check("the same on rung 3: only NOT A DENT; a workshop on rung 4: only NOT A DENT; rung 1: neither",
+		stage.call("wall", 3, true, {}, 0, false) == ["wall_whole"] and stage.call("wall", 4, true, {}, 2, false) == ["wall_whole"]
+		and stage.call("wall", 1, true, {}, 0, false).is_empty())
+	_check("the Runners: 8 flawless fights and a win with a machine wrecked on rung 5: GHOSTS, TRAVEL LIGHT",
+		stage.call("runners", 5, true, {"flawless": 8, "wrecked": 1}, 0, false) == ["run_ghost", "run_light"])
 	_check("a run still going has earned nothing", RunSim.medals_earned(RunSim.start(_setup(3)), _setup(3)).is_empty())
 
