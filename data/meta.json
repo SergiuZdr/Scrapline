@@ -273,17 +273,12 @@
     },
     {
       "name": "SHORT RATIONS",
-      "text": "A workshop patches 2, not 3; a broken gate patches 4, not 6.",
+      "text": "A workshop patches 2, not 3.",
       "rules": {
         "adds": [
           {
             "path": "workshop.repair_amount",
             "delta": -1,
-            "harder": "down"
-          },
-          {
-            "path": "arrive.repair",
-            "delta": -2,
             "harder": "down"
           }
         ]
@@ -329,29 +324,21 @@
     },
     {
       "name": "VETERANS",
-      "text": "Elites bring one more machine, and their Veteran 2 more HP.",
+      "text": "Every elite's Veteran carries 3 more HP.",
       "rules": {
         "adds": [
           {
-            "path": "enemies.elite_extra",
-            "delta": 1
-          },
-          {
             "path": "enemies.elite_hp_bonus",
-            "delta": 2
+            "delta": 3
           }
         ]
       }
     },
     {
       "name": "GATE GUARD",
-      "text": "Gates and warlords bring one more escort.",
+      "text": "Warlords bring one more escort.",
       "rules": {
         "adds": [
-          {
-            "path": "enemies.boss_escorts",
-            "delta": 1
-          },
           {
             "path": "enemies.warlord_escorts",
             "delta": 1

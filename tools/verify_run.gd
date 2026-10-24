@@ -1746,10 +1746,15 @@ func _test_rung_rules() -> void:
 	RunSim.apply(b, hard, [RunSim.REPAIR])
 	_check("a workshop patches 3 on rung 0, 2 on the top rung (%d, %d)" % [int(a.crew[0]["hp"]), int(b.crew[0]["hp"])],
 		int(a.crew[0]["hp"]) == 4 and int(b.crew[0]["hp"]) == 3)
-	var gate: Dictionary = RunSim._make_fight(RunSim.start(hard), hard, RunSim.start(hard).sites.size() - 1, "boss")
-	var gate0: Dictionary = RunSim._make_fight(RunSim.start(plain), plain, RunSim.start(plain).sites.size() - 1, "boss")
-	_check("the gate brings one more escort on the top rung (%d vs %d)" % [(gate["enemy"] as Array).size(), (gate0["enemy"] as Array).size()],
-		(gate["enemy"] as Array).size() == (gate0["enemy"] as Array).size() + 1)
+	var hs: RunState = RunSim.start(hard)
+	var ps: RunState = RunSim.start(plain)
+	var lord: Dictionary = RunSim._make_fight(hs, hard, 1, "warlord")
+	var lord0: Dictionary = RunSim._make_fight(ps, plain, 1, "warlord")
+	var gate: Dictionary = RunSim._make_fight(hs, hard, hs.sites.size() - 1, "boss")
+	var gate0: Dictionary = RunSim._make_fight(ps, plain, ps.sites.size() - 1, "boss")
+	_check("a warlord brings one more escort on the top rung (%d vs %d), a gate the same (%d vs %d)" % [(lord["enemy"] as Array).size(),
+		(lord0["enemy"] as Array).size(), (gate["enemy"] as Array).size(), (gate0["enemy"] as Array).size()],
+		(lord["enemy"] as Array).size() == (lord0["enemy"] as Array).size() + 1 and (gate["enemy"] as Array).size() == (gate0["enemy"] as Array).size())
 
 
 ## 085: the start deals -- the same seed offers the same three, one soft; the bay stays open while
