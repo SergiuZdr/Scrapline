@@ -377,7 +377,8 @@ func _choose_run() -> void:
 	_column.add_child(_choice_caption("CREW"))
 	for id: Variant in crews:
 		var crew: Dictionary = (meta["crews"] as Dictionary)[id]
-		var crew_button: Button = _choice_button("%s  ·  %s" % [crew["name"], crew["text"]], String(id) == String(choice["crew"]),
+		# 085 (B9): a crew's own run rule says more than its description, when it has one.
+		var crew_button: Button = _choice_button("%s  ·  %s" % [crew["name"], crew.get("rule", crew["text"])], String(id) == String(choice["crew"]),
 			func() -> void:
 				Profile.choose_run(String(id), int(Profile.run_choice()["tier"]))
 				_choose_run())
