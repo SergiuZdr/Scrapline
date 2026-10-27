@@ -293,7 +293,9 @@ static func daily_options(rules: Dictionary, day: int) -> Dictionary:
 ## crew and `challenges.weekly.twists` announced twists from `challenges.twists` (each a list of adds
 ## on rules the game already has). {"seed", "mode": "weekly", "week", "crew_id", "tier" (= "rung"),
 ## "rung", "twists": [{"id", "text"}], "deals": true, "deal_offer", "rules": {"adds": the twists'}}.
-static func weekly_options(rules: Dictionary, week: int) -> Dictionary:
+## `plates` (meta.json `plates`, the user's five in order): the week's is `plates[week % n]`, carried as
+## "plate": {"id", "name"} -- the cosmetic plate a clear of this contract earns.
+static func weekly_options(rules: Dictionary, week: int, plates: Array = []) -> Dictionary:
 	var challenges: Dictionary = rules.get("challenges", {})
 	var weekly: Dictionary = challenges.get("weekly", {})
 	var seed_value: int = IntentAI.mix(week, 0x3EE7, 0x5EED, 23) & SEED_MASK
@@ -313,5 +315,9 @@ static func weekly_options(rules: Dictionary, week: int) -> Dictionary:
 			adds.append((add as Dictionary).duplicate(true))
 	twists.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return String(a["id"]) < String(b["id"]))
 	var rung: int = int(weekly.get("rung", 4))
-	return {"seed": seed_value, "mode": "weekly", "week": week, "crew_id": crew_id, "tier": rung, "rung": rung,
+	var out: Dictionary = {"seed": seed_value, "mode": "weekly", "week": week, "crew_id": crew_id, "tier": rung, "rung": rung,
 		"twists": twists, "deals": true, "deal_offer": roll_deals(rules, seed_value), "rules": {"adds": adds}}
+	if not plates.is_empty():
+		var plate: Dictionary = plates[posmod(week, plates.size())]
+		out["plate"] = {"id": String(plate.get("id", "")), "name": String(plate.get("name", ""))}
+	return out

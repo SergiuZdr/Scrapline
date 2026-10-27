@@ -128,7 +128,7 @@ func daily_options(day: int) -> Dictionary:
 
 
 func weekly_options(week: int) -> Dictionary:
-	return RunSetup.weekly_options(db.run_rules, week)
+	return RunSetup.weekly_options(db.run_rules, week, db.meta.get("plates", []))
 
 
 ## Plays today's daily: one attempt a day, taken as it starts (abandoning counts). Refused over a
