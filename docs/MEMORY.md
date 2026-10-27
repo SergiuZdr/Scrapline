@@ -182,6 +182,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-24 | **Lingering brings more drones, sooner**: +1 drone per sideways/back step (up to 8), a round earlier per 3 such steps (round 2 earliest); their piles still heal | 084, the user |
 | 2026-10-24 | **The yard board shows daily and weekly side by side; deal costs are chips under the map's top bar; the weekly plate is a 3D plate riveted on the machine**, made the 081 way (concept the user approves -> TRELLIS) | 085, the user |
 | 2026-10-24 | **Plate concepts: the user likes 1 (name plate, to be redrawn), 2 (shield with star) and 4 (skull medallion), and wants more versions of 2 and 4** (too similar in concept); made in ChatGPT Images once Chrome is connected | 085, the user |
+| 2026-10-28 | **Five weekly plates, awarded in turn**: name plate (a2), brass shield (b2), pennant (b3), skull cog with wrenches (d1), skull hubcap (d2); the shield and the hubcap lose their side tabs, edited after the 3D model | 085, the user picked from round 2 |
 
 ## Lessons carried over from the old codebase
 
