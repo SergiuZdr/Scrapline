@@ -681,5 +681,28 @@
   "_082": "Tiers stack on every act (082, B1): a tier's `rules.adds` is a list of `{path, delta}` or `{path, set}` (dotted path into run.json, integers) applied by RunSim.rules_of AFTER the act's overlay, sorted by path -- so FOREMAN in Act 2 is Act 2's hp_all plus 2. A tier's other `rules` keys still overlay run.json once at the start (only safe for keys no act replaces). 085's rungs are each one `adds` list.",
   "_043": "The tier LADDER (043, play-test 13): a tier opens by winning a run on the one below (`wins_t<N>`, counted by Meta.stats_after), becomes the next run's tier the moment it opens, and the game's ending (`kind: ending`) is won only on the top tier.",
   "_034": "Missions (034, play-test 10: 'unlocks need diverse missions'): a `when` may name any feat RunSim.tally_feats counts (kills, multi_kill, pit_kills, bumps, tears, flawless, close_calls, <objective>_wins, elites, arenas, warlords, gates). `mission: true` marks them for the UNLOCKS screen.",
-  "_085": "085: the ladder (B4) is CUMULATIVE: rung N plays the adds of rungs 1..N (Meta.rung_adds), in rung order; rung 0 is YARD HAND, FOREMAN and RECLAIMED keep their numbers and ids (u13, u16), so saved profiles stay valid, and the ending (u26, THE LINE IS CUT) is still a win on RECLAIMED (the ladder does not move it). An add's `harder: down` says a smaller number is harder (verify_run's monotone check). Each crew changes one run rule (`rules`, B9: `adds` and plain overlay keys, `rule` the line the screens show) and has three medals (B10: `need` at least, `max` at most, read by RunSim.medals_earned off RunSim.run_summary). Rung order, names and the medals are data, to reorder after play-tests."
+  "_085": "085: the ladder (B4) is CUMULATIVE: rung N plays the adds of rungs 1..N (Meta.rung_adds), in rung order; rung 0 is YARD HAND, FOREMAN and RECLAIMED keep their numbers and ids (u13, u16), so saved profiles stay valid, and the ending (u26, THE LINE IS CUT) is still a win on RECLAIMED (the ladder does not move it). An add's `harder: down` says a smaller number is harder (verify_run's monotone check). Each crew changes one run rule (`rules`, B9: `adds` and plain overlay keys, `rule` the line the screens show) and has three medals (B10: `need` at least, `max` at most, read by RunSim.medals_earned off RunSim.run_summary). Rung order, names and the medals are data, to reorder after play-tests.",
+  "plates": [
+    {
+      "id": "pl_name",
+      "name": "NAME PLATE"
+    },
+    {
+      "id": "pl_shield",
+      "name": "SHIELD"
+    },
+    {
+      "id": "pl_pennant",
+      "name": "PENNANT"
+    },
+    {
+      "id": "pl_cog",
+      "name": "COG"
+    },
+    {
+      "id": "pl_hubcap",
+      "name": "HUBCAP"
+    }
+  ],
+  "_plates": "085 (the user): the weekly contract's plate, cosmetic only, awarded in turn -- week w gives plates[w % 5] (RunSetup.weekly_options, `plate`)."
 }
