@@ -15,6 +15,8 @@ typeset -A SIZE=(barrel 0.47 coolant 0.43 pylon 0.8 cache 0.95 scrap_pile 1.0 hi
 for t in rubble slag ridge pit heap flue wire floor_1 floor_2 floor_3 floor_4 floor_5; SIZE[tr_$t]=1.5
 # The skyline on the region map (sk_*): unit size, the map scales them.
 SIZE+=(sk_factory_a 1.0 sk_factory_b 1.0)
+# 085: the weekly contract's plates (pl_*), riveted on a machine: about a hand wide.
+SIZE+=(pl_name 0.2 pl_shield 0.18 pl_pennant 0.16 pl_cog 0.18 pl_hubcap 0.18)
 # Yard pieces (yd_*) near the arena kit's sizes (art/arena): widest side, set so the height matches too
 # (the floodlight 4.9 m tall, the gantry ~7; container B is drawn slimmer, so longer); the car stack and service gantry are turned long side on X.
 SIZE+=(yd_container_0 5.2 yd_container_1 7.0 yd_car_stack 3.2 yd_tyre_stack 0.94 yd_barrier 1.72
