@@ -1,0 +1,8 @@
+[
+  {"id": "welded_cup", "trophy": "tr_welded_cup", "livery": "hazard_yellow", "name": "THE WELDED CUP"},
+  {"id": "gear_medal", "trophy": "tr_gear_medal", "livery": "oxide_red", "name": "CRUSHED-GEAR MEDAL"},
+  {"id": "helm_spike", "trophy": "tr_helm_spike", "livery": "gunmetal_camo", "name": "HELM ON A SPIKE"},
+  {"id": "scrap_belt", "trophy": "tr_scrap_belt", "livery": "bone_white", "name": "THE SCRAP BELT"},
+  {"id": "bent_wrench", "trophy": "tr_bent_wrench", "livery": "sodium_orange", "name": "THE BENT WRENCH"},
+  {"id": "cog_crown", "trophy": "tr_cog_crown", "livery": "teal_scrapper", "name": "THE COG CROWN"}
+]
