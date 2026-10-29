@@ -178,6 +178,8 @@ const Coach := preload("res://scripts/combat/coach.gd")
 
 var _db: ContentDB
 var _fight_id: String = "proto_yard"
+## 085: the weekly-contract plate the crew's machines carry (a run's crew; `--plate <id>` for a shot).
+var _plate_id: String = ""
 var _coach: Control
 ## The coach's marker on the board: a ring and a bobbing chevron in the colour of your action.
 var _coach_marker: Node3D
@@ -287,6 +289,11 @@ func _ready() -> void:
 	_hud.continue_pressed.connect(_back_to_run)
 	_run_mode = Run.in_fight() and not OS.get_cmdline_user_args().has("--fight") \
 		and not OS.get_cmdline_user_args().has("--fight-file") and not tutorial
+	if _run_mode:
+		_plate_id = String(Profile.plate_for(Run.crew_id()).get("id", ""))
+	var plate_at: int = OS.get_cmdline_user_args().find("--plate")
+	if plate_at >= 0 and plate_at + 1 < OS.get_cmdline_user_args().size():
+		_plate_id = OS.get_cmdline_user_args()[plate_at + 1]
 	if tutorial:
 		_coach = Coach.new()
 		_coach.setup(self, _db.tutorial)
@@ -1701,6 +1708,10 @@ func _build_view(u: GridUnit) -> Dictionary:
 			# of a dark livery pulled the_pour from 1.77 to 1.60): its livery is lifted.
 			paint = paint.lightened(keeper_paint_lift)
 		Ink.dress_machine(model, u.part_ids, colour, paint)
+		if u.team == GridUnit.TEAM_PLAYER:
+			# 085: the crew's weekly-contract plate on every machine of theirs (cosmetic only), on its
+			# back: the board's camera sees the crew from behind.
+			ConstructView.add_plate(model, _plate_id, true)
 		Ink.frame_shadow_only(model)
 	# The gate's keeper is bigger than anything else on the board (013); 083 (A19): measured against
 	# the crew, so it stands at least `view_scale` times their tallest machine.

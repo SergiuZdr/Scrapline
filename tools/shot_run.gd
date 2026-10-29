@@ -19,6 +19,7 @@ extends SceneTree
 ## `--title [--seed-text TEXT] [--press]` photographs the title instead, TEXT in NEW RUN's seed field
 ## (`--press` presses NEW RUN, to show a refusal); `--ledger` opens UNLOCKS on its RUNS tab after
 ## writing a few made-up runs into the tool profile's history.
+## 085: `--plate ID` stages a profile where the crew won plate ID (with `--refit`, it is on the machine; `--crew N` opens machine N).
 ## 085: `--stage-085` first fills a profile of its own (rungs open, medals, records, a plate, a daily
 ## streak) for these shots; `--title` shows the rung line; `--yard` opens the yard board, `--goals` the
 ## UNLOCKS panel's GOALS tab; `--deal N` takes deal N before the map opens (its cost on the map); a new
@@ -38,6 +39,8 @@ func _go() -> void:
 	var out: String = _arg(args, "--out", "shots/run.png")
 	if args.has("--stage-085"):
 		_stage_085(run)
+	if args.has("--plate"):
+		_stage_plate(run, _arg(args, "--plate", "pl_name"))
 	run.call("new_run", seed_value, run.call("profile_options") if args.has("--stage-085") else {})
 	if args.has("--deal"):
 		run.call("apply", [RunSim.DEAL, _arg(args, "--deal", "0").to_int()])
@@ -142,7 +145,7 @@ func _go() -> void:
 		for i: int in 6:
 			await process_frame
 	if args.has("--refit"):
-		current_scene.call("_open_garage", 0)
+		current_scene.call("_open_garage", _arg(args, "--crew", "0").to_int())
 		for i: int in 10:
 			await process_frame
 		var garage: Node = current_scene.get("_garage")
@@ -281,6 +284,23 @@ func _stage_085(run: Node) -> void:
 		{"id": "plate_w%d" % (week - 1), "week": week - 1, "crew": "salvagers", "name": "CONTRACT %s" % Time.get_date_string_from_unix_time(((week - 1) * 7 + 4) * 86400)})
 	profile.call("start_weekly", week)
 	profile.call("finish_weekly", week, "stage_w2", {"ended": "wrecked", "won": false, "acts": 1, "fights": 8, "hp": 0}, {})
+
+
+## 085: `--plate ID` -- a profile of its own where the Salvagers won plate ID on last week's contract
+## (with `--refit`: the plate riveted on the machine in the garage).
+func _stage_plate(run: Node, id: String) -> void:
+	var profile: Node = root.get_node("Profile")
+	var path: String = "user://tool_profile_plate.json"
+	for file: String in [path, SaveFile.backup_of(path)]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(file))
+	profile.call("use_path", path)
+	profile.call("finish_tutorial")
+	for hint: Variant in ((run.get("db") as ContentDB).tutorial.get("hints", {}) as Dictionary):
+		profile.call("mark_seen", String(hint))
+	var week: int = int(run.call("this_week")) - 1
+	profile.call("start_weekly", week)
+	profile.call("finish_weekly", week, "stage_plate", {"ended": "won", "won": true, "acts": 3, "fights": 17, "hp": 21},
+		{"id": id, "week": week, "crew": "salvagers", "name": id.to_upper()})
 
 
 func _arg(args: PackedStringArray, name: String, fallback: String) -> String:

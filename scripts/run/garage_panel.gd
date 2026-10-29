@@ -313,6 +313,8 @@ func _rebuild_model() -> void:
 		_model.queue_free()
 	_model = ConstructView.build_parts(PackedStringArray(member["parts"]), Run.db, TEAM, int(member.get("level", 0)))
 	Ink.dress_machine(_model, PackedStringArray(member["parts"]), Ink.YOURS)
+	# 085: the plate this crew won on a weekly contract, riveted on the chest (cosmetic only).
+	ConstructView.add_plate(_model, String(Profile.plate_for(Run.crew_id()).get("id", "")))
 	_pivot.add_child(_model)
 	# Framed by the machine's own height, so a squat anchor and a tall marksman both fill
 	# the stage (079: closer -- the machine fills most of its bay).
@@ -505,9 +507,10 @@ func _build_info() -> void:
 			_renaming = true
 			_rebuild())
 		head.add_child(rename)
-		# 085: the plate this crew won on a weekly contract, riveted by the name (cosmetic only).
+		# 085: the plate this crew won on a weekly contract, riveted by the name (cosmetic only) when
+		# it has no model to rivet on the machine itself.
 		var plate: Dictionary = Profile.plate_for(Run.crew_id())
-		if not plate.is_empty():
+		if not plate.is_empty() and Models.prop(String(plate.get("id", ""))) == null:
 			head.add_child((load("res://scripts/ui/yard_board.gd") as GDScript).call("plate_badge", String(plate.get("name", "")), false, 14))
 	var status := HBoxContainer.new()
 	status.add_theme_constant_override("separation", UIKit.SPACE_MD)
