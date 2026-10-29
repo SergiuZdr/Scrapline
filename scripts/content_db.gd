@@ -38,6 +38,9 @@ var makers: Dictionary = {}
 var perks: Dictionary = {}
 ## `data/glossary.json`: every word the game uses and what it means (012). Text only.
 var glossary: Dictionary = {}
+## 085 (the user): the weekly contract's rewards, a trophy and a livery each (`data/weekly_rewards.json`),
+## dealt in turn by week (`RunSetup.weekly_options`). Cosmetic: NOT in the content hash.
+var weekly_rewards: Array = []
 ## `data/tutorial.json`: the shakedown's steps (012). Text and coaching, not rules.
 var tutorial: Dictionary = {}
 ## The damage-type wheel (`rules.json` `effectiveness`): rows are damage types, columns
@@ -87,6 +90,9 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	if story_data is Dictionary:
 		db.story = story_data as Dictionary
 	# Words, not rules: like the story, NOT in the content hash.
+	var reward_data: Variant = db._read_json("%s/weekly_rewards.json" % root)
+	if reward_data is Array:
+		db.weekly_rewards = reward_data as Array
 	var glossary_data: Variant = db._read_json("%s/glossary.json" % root)
 	if glossary_data is Dictionary:
 		db.glossary = glossary_data as Dictionary

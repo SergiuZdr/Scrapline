@@ -293,9 +293,9 @@ static func daily_options(rules: Dictionary, day: int) -> Dictionary:
 ## crew and `challenges.weekly.twists` announced twists from `challenges.twists` (each a list of adds
 ## on rules the game already has). {"seed", "mode": "weekly", "week", "crew_id", "tier" (= "rung"),
 ## "rung", "twists": [{"id", "text"}], "deals": true, "deal_offer", "rules": {"adds": the twists'}}.
-## `plates` (meta.json `plates`, the user's five in order): the week's is `plates[week % n]`, carried as
-## "plate": {"id", "name"} -- the cosmetic plate a clear of this contract earns.
-static func weekly_options(rules: Dictionary, week: int, plates: Array = []) -> Dictionary:
+## `rewards` (`data/weekly_rewards.json`, `ContentDB.weekly_rewards`: {id, trophy, livery, name} each):
+## the week's is `rewards[week % n]`, carried as "reward": its id -- the trophy and livery a clear earns.
+static func weekly_options(rules: Dictionary, week: int, rewards: Array = []) -> Dictionary:
 	var challenges: Dictionary = rules.get("challenges", {})
 	var weekly: Dictionary = challenges.get("weekly", {})
 	var seed_value: int = IntentAI.mix(week, 0x3EE7, 0x5EED, 23) & SEED_MASK
@@ -317,7 +317,6 @@ static func weekly_options(rules: Dictionary, week: int, plates: Array = []) -> 
 	var rung: int = int(weekly.get("rung", 4))
 	var out: Dictionary = {"seed": seed_value, "mode": "weekly", "week": week, "crew_id": crew_id, "tier": rung, "rung": rung,
 		"twists": twists, "deals": true, "deal_offer": roll_deals(rules, seed_value), "rules": {"adds": adds}}
-	if not plates.is_empty():
-		var plate: Dictionary = plates[posmod(week, plates.size())]
-		out["plate"] = {"id": String(plate.get("id", "")), "name": String(plate.get("name", ""))}
+	if not rewards.is_empty():
+		out["reward"] = String((rewards[posmod(week, rewards.size())] as Dictionary).get("id", ""))
 	return out
