@@ -552,6 +552,91 @@ static func _socket_origin(chassis: Node3D, socket: Variant, fallback: Vector3) 
 	return xf.origin
 
 
+## 085: where a weekly contract's plate is riveted, as shares of the body's bounds (no legs, no
+## arms): across from the centre (+x is the machine's left), up from the bottom; and its width
+## as a share of the body's width (clamped in metres).
+const PLATE_ACROSS: float = 0.0
+const PLATE_UP: float = 0.74
+const PLATE_WIDTH: float = 0.3
+const PLATE_WIDTH_RANGE: Vector2 = Vector2(0.12, 0.26)
+## Sunk this far into the surface it sits on, so it reads riveted, not floating.
+const PLATE_SINK: float = 0.012
+
+
+## 085: the plate a crew won on a weekly contract (`art/props/<plate_id>.glb`, `Models.prop`),
+## riveted on the machine's upper body in its own ink: on its chest, or with `back` on its back (a
+## fight looks at the crew from behind). Call after `Ink.dress_machine` (the plate keeps its printed
+## texture; the machine's zones never touch it). Hung under the core's socket, which the rig moves
+## with the torso. False when there is no model for it (draw the badge instead).
+static func add_plate(model: Node3D, plate_id: String, back: bool = false) -> bool:
+	var packed: PackedScene = Models.prop(plate_id) if not plate_id.is_empty() else null
+	var chassis: Node3D = model.get_node_or_null("part_chassis") as Node3D
+	if packed == null or chassis == null:
+		return false
+	var body_points := PackedVector3Array()
+	for mesh: MeshInstance3D in _meshes(chassis):
+		if not _under_leg(mesh, chassis):
+			body_points.append_array(_vertices(mesh, model, false))
+	if body_points.is_empty():
+		return false
+	# The part on that face the plate must not hide: the core in front (its lens is the damage type's
+	# colour, the fastest read of what a machine does), the module behind.
+	var keep_clear: Node3D = _find_named(model, "part_module" if back else "part_core")
+	var clear_points: PackedVector3Array = _vertices(keep_clear, model) if keep_clear != null else PackedVector3Array()
+	var surface := body_points.duplicate()
+	surface.append_array(clear_points)
+	var body := AABB(body_points[0], Vector3.ZERO)
+	for v: Vector3 in body_points:
+		body = body.expand(v)
+	var plate: Node3D = packed.instantiate() as Node3D
+	plate.name = "plate"
+	var own_points: PackedVector3Array = _vertices(plate, plate)
+	var own := AABB(Vector3.ZERO, Vector3.ONE * 0.1)
+	if not own_points.is_empty():
+		own = AABB(own_points[0], Vector3.ZERO)
+		for v: Vector3 in own_points:
+			own = own.expand(v)
+	var width: float = clampf(body.size.x * PLATE_WIDTH, PLATE_WIDTH_RANGE.x, PLATE_WIDTH_RANGE.y)
+	var s: float = width / maxf(0.01, maxf(own.size.x, own.size.y))
+	var face: float = -1.0 if back else 1.0
+	var at := Vector3(body.get_center().x + body.size.x * 0.5 * PLATE_ACROSS * face, body.position.y + body.size.y * PLATE_UP,
+		body.position.z if back else body.end.z)
+	# Above that part: the plate's bottom at most a third into its top, and never over the top of the body.
+	var tall: float = own.size.y * s
+	var clear_top: float = -INF
+	for v: Vector3 in clear_points:
+		if absf(v.x - at.x) < width * 0.5:
+			clear_top = maxf(clear_top, v.y)
+	if clear_top > -INF:
+		at.y = maxf(at.y, clear_top + tall * 0.3)
+	at.y = minf(at.y, body.end.y - tall * 0.5)
+	# The surface under the plate: the outermost body point on that face within the plate's reach.
+	var reach: float = width * 0.45
+	var outer: float = -INF
+	for v: Vector3 in surface:
+		if absf(v.x - at.x) < reach and absf(v.y - at.y) < reach:
+			outer = maxf(outer, v.z * face)
+	if outer > -INF:
+		at.z = outer * face
+	# The plate's centre at `at`, its back face on the surface (turned round on the machine's back).
+	var basis := Basis(Vector3.UP, PI if back else 0.0).scaled(Vector3.ONE * s)
+	var centre := Vector3(own.get_center().x, own.get_center().y, own.position.z)
+	var xf := Transform3D(basis, at - Vector3(0, 0, PLATE_SINK * face) - basis * centre)
+	var socket: Node3D = _find_sockets(chassis).get("socket_core")
+	var parent: Node3D = socket if socket != null else chassis
+	parent.add_child(plate)
+	plate.transform = _in_space(parent, model).affine_inverse() * xf
+	for mesh: MeshInstance3D in _meshes(plate):
+		if mesh.mesh == null:
+			continue
+		for i: int in mesh.mesh.get_surface_count():
+			var source: BaseMaterial3D = mesh.mesh.surface_get_material(i) as BaseMaterial3D
+			if source != null and source.albedo_texture != null:
+				mesh.set_surface_override_material(i, Ink.comic_machine(Ink.textured(source.albedo_texture, Color.WHITE)))
+		Ink.line(mesh, Ink.LINE_MACHINE)
+	return true
+
+
 ## Height of the assembled model, so the health tag and floating text sit above it
 ## rather than at a guessed offset.
 static func height_of(node: Node3D) -> float:

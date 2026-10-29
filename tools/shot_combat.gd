@@ -9,6 +9,7 @@ extends SceneTree
 ##       --select 0 --move 3 4 --weapon 1 --aim 2 3   walks first, then aims
 ##       --steps "select=2 weapon=0 tap=0,3 tap=0,3 select=0 hover=0,3 end"   any sequence, in
 ##           order, before the flags above (tap and end settle the playback; hover draws a route)
+##       --plate pl_cog --close 0 2.5   (085) the crew wears a weekly plate; the camera 2.5 m from unit 0
 ##
 ## Not headless: it has to render. Everything is driven through the scene's own methods,
 ## the same ones a tap reaches.
@@ -85,6 +86,19 @@ func _run() -> void:
 		vfx.call("fireball", scene.call("_to_world", cell.x, cell.y), 1.0)
 		for i: int in args[boom + 3].to_int():
 			await process_frame
+
+	# 085: --close REF DIST: the board's camera brought down to DIST metres from unit REF (a close-up
+	# of a machine as the board sees it -- from the crew's side, so a player's back).
+	var close: int = args.find("--close")
+	if close >= 0 and close + 2 < args.size():
+		var view: Dictionary = (scene.get("_views") as Dictionary).get(args[close + 1].to_int(), {})
+		if not view.is_empty():
+			var camera: Camera3D = scene.get("_camera")
+			var centre: Vector3 = (view["root"] as Node3D).global_position + Vector3(0, 0.45, 0)
+			var back: Vector3 = (camera.global_position - centre).normalized()
+			camera.look_at_from_position(centre + back * args[close + 2].to_float(), centre, Vector3.UP)
+			for i: int in 4:
+				await process_frame
 
 	var out: String = "shots/combat.png"
 	var o: int = args.find("--out")
