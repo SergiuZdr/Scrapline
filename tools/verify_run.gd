@@ -1735,8 +1735,8 @@ func _test_rung_rules() -> void:
 		not RunSim._make_fight(a, plain, 1, "skirmish").has("pile_heal") and int(RunSim._make_fight(b, hard, 1, "skirmish")["pile_heal"]) == 1)
 	_check("and a gate that heals nothing still heals nothing (%s)" % str(RunSim._make_fight(b, hard, a.sites.size() - 1, "boss").get("pile_heal")),
 		int(RunSim._make_fight(b, hard, b.sites.size() - 1, "boss").get("pile_heal", -1)) == mini(1, int(_db.fights["sorting_gate"].get("pile_heal", 2))))
-	_check("the top rung starts the crew on 80%% HP (%d of %d)" % [int(b.crew[0]["hp"]), RunSim.max_hp(hard, b.crew[0])],
-		int(b.crew[0]["hp"]) == RunSim.max_hp(hard, b.crew[0]) * 80 / 100 and int(a.crew[0]["hp"]) == RunSim.max_hp(plain, a.crew[0]))
+	_check("the top rung starts the crew on 90%% HP (%d of %d)" % [int(b.crew[0]["hp"]), RunSim.max_hp(hard, b.crew[0])],
+		int(b.crew[0]["hp"]) == RunSim.max_hp(hard, b.crew[0]) * 90 / 100 and int(a.crew[0]["hp"]) == RunSim.max_hp(plain, a.crew[0]))
 	for st: RunState in [a, b]:
 		for member: Dictionary in st.crew:
 			member["hp"] = 1

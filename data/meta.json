@@ -298,12 +298,12 @@
     },
     {
       "name": "WORN OUT",
-      "text": "The crew starts the run on 80% HP.",
+      "text": "The crew starts the run on 90% HP.",
       "rules": {
         "adds": [
           {
             "path": "start.hp_pct",
-            "set": 80,
+            "set": 90,
             "harder": "down"
           }
         ]
