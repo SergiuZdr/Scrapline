@@ -38,7 +38,7 @@ func has_saved() -> bool:
 ## Banked once, whatever screen asks and however often. 084 (B8): the run goes into the history
 ## too, and a seeded run banks nothing else.
 ## 085: and a run that counts (`counts`) earns its crew's medals and, won, the crew's record rung;
-## a daily or weekly run writes its result to the yard board instead (`medals`, `plate`, `yard`).
+## a daily or weekly run writes its result to the yard board instead (`medals`, `trophy`, `yard`).
 func bank() -> Dictionary:
 	if not active or state.outcome == RunState.ONGOING:
 		return {}
@@ -52,7 +52,7 @@ func bank() -> Dictionary:
 	for entry: Dictionary in (db.meta.get("unlocks", []) as Array):
 		if fresh.has(String(entry["id"])):
 			entries.append(entry)
-	var out: Dictionary = {"new": entries, "next": Meta.next_unlock(Profile.unlocked(), db.meta), "medals": [], "plate": {}}
+	var out: Dictionary = {"new": entries, "next": Meta.next_unlock(Profile.unlocked(), db.meta), "medals": [], "trophy": {}}
 	if counts():
 		out["medals"] = Profile.award_medals(crew_id(), RunSim.medals_earned(state, setup))
 		if state.outcome == RunState.WON:
@@ -60,7 +60,7 @@ func bank() -> Dictionary:
 	elif mode() == DAILY:
 		Profile.finish_daily(int(setup.options.get("day", -1)), result())
 	elif mode() == WEEKLY:
-		out["plate"] = Profile.finish_weekly(int(setup.options.get("week", -1)), key, result(), plate())
+		out["trophy"] = Profile.finish_weekly(int(setup.options.get("week", -1)), key, result(), weekly_reward_of_run())
 	_banked_key = key
 	_banked = out
 	return out
@@ -113,14 +113,19 @@ func result(ended: String = "") -> Dictionary:
 	return {"ended": ended, "won": won, "acts": state.act - (0 if won else 1), "fights": state.fights_won, "hp": hp}
 
 
-## The plate this week's contract gives when cleared (cosmetic only): the contract's own, or one
-## named for its week.
-func plate() -> Dictionary:
+## What this weekly run gives when cleared (cosmetic only): the week's trophy and livery, with the crew.
+func weekly_reward_of_run() -> Dictionary:
 	var week: int = int(setup.options.get("week", this_week()))
-	var given: Dictionary = setup.options.get("plate", {}) if setup.options.get("plate") is Dictionary else {}
-	var monday: String = Time.get_date_string_from_unix_time((week * 7 + 4) * 86400)
-	return {"id": String(given.get("id", "plate_w%d" % week)), "week": week, "crew": crew_id(),
-		"name": String(given.get("name", "CONTRACT %s" % monday))}
+	var reward: Dictionary = WeeklyRewards.for_week(week, setup.options)
+	if not reward.is_empty():
+		reward["crew"] = crew_id()
+	return reward
+
+
+## Week `week`'s reward, `{id, trophy, livery, name}`: what the contract's options name (`reward`),
+## else week mod the rotation (`data/weekly_rewards.json`).
+func weekly_reward(week: int) -> Dictionary:
+	return WeeklyRewards.for_week(week, weekly_options(week))
 
 
 func daily_options(day: int) -> Dictionary:
@@ -128,7 +133,7 @@ func daily_options(day: int) -> Dictionary:
 
 
 func weekly_options(week: int) -> Dictionary:
-	return RunSetup.weekly_options(db.run_rules, week, db.meta.get("plates", []))
+	return RunSetup.weekly_options(db.run_rules, week, db.weekly_rewards)
 
 
 ## Plays today's daily: one attempt a day, taken as it starts (abandoning counts). Refused over a
@@ -371,7 +376,7 @@ func abandon() -> void:
 		if mode() == DAILY:
 			Profile.finish_daily(int(setup.options.get("day", -1)), result("abandoned"))
 		elif mode() == WEEKLY:
-			Profile.finish_weekly(int(setup.options.get("week", -1)), key, result("abandoned"), plate())
+			Profile.finish_weekly(int(setup.options.get("week", -1)), key, result("abandoned"), weekly_reward_of_run())
 	end_run()
 
 

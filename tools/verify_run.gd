@@ -1925,13 +1925,14 @@ func _test_challenges() -> void:
 	_check("a week gives one contract, the same twice: a fixed crew, rung 4, three twists",
 		w1 == RunSetup.weekly_options(_db.run_rules, week) and int(w1["seed"]) == WEEKLY_2963_SEED and int(w1["rung"]) == 4
 		and (w1["twists"] as Array).size() == 3 and String(w1["mode"]) == "weekly")
-	var plates: Array = _db.meta.get("plates", [])
+	var rewards: Array = _db.weekly_rewards
 	var turn: Array = []
-	for n: int in 6:
-		turn.append(String((RunSetup.weekly_options(_db.run_rules, week + n, plates).get("plate", {}) as Dictionary).get("id", "")))
-	_check("the weekly plates come in turn, week %% 5 (%s)" % [turn], plates.size() == 5 and turn[5] == turn[0]
-		and turn.slice(0, 5).all(func(id: String) -> bool: return not id.is_empty()) and turn[0] == String(plates[posmod(week, 5)]["id"])
-		and RunSetup.weekly_options(_db.run_rules, 0, plates)["plate"]["id"] == "pl_name" and RunSetup.weekly_options(_db.run_rules, 4, plates)["plate"]["id"] == "pl_hubcap")
+	for n: int in rewards.size() + 1:
+		turn.append(String(RunSetup.weekly_options(_db.run_rules, week + n, rewards).get("reward", "")))
+	_check("the weekly rewards come in turn, week %% %d (%s)" % [rewards.size(), turn], rewards.size() >= 2 and turn[-1] == turn[0]
+		and turn.slice(0, rewards.size()).all(func(id: String) -> bool: return not id.is_empty())
+		and turn[0] == String(rewards[posmod(week, rewards.size())]["id"])
+		and RunSetup.weekly_options(_db.run_rules, 0, rewards)["reward"] == String(rewards[0]["id"]) and not w1.has("reward"))
 	var crews: Dictionary = {}
 	var twists: Dictionary = {}
 	for n: int in 30:
