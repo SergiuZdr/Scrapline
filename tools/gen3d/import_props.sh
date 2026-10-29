@@ -15,15 +15,12 @@ typeset -A SIZE=(barrel 0.47 coolant 0.43 pylon 0.8 cache 0.95 scrap_pile 1.0 hi
 for t in rubble slag ridge pit heap flue wire floor_1 floor_2 floor_3 floor_4 floor_5; SIZE[tr_$t]=1.5
 # The skyline on the region map (sk_*): unit size, the map scales them.
 SIZE+=(sk_factory_a 1.0 sk_factory_b 1.0)
-# 085: the weekly contract's plates (pl_*), riveted on a machine: about a hand wide.
-SIZE+=(pl_name 0.2 pl_shield 0.18 pl_pennant 0.16 pl_cog 0.18 pl_hubcap 0.18)
 # Yard pieces (yd_*) near the arena kit's sizes (art/arena): widest side, set so the height matches too
 # (the floodlight 4.9 m tall, the gantry ~7; container B is drawn slimmer, so longer); the car stack and service gantry are turned long side on X.
 SIZE+=(yd_container_0 5.2 yd_container_1 7.0 yd_car_stack 3.2 yd_tyre_stack 0.94 yd_barrier 1.72
   yd_floodlight 3.9 yd_gantry 9.0 yd_service_gantry 4.61)
 # Floor tiles 1 and 5 came out a twelfth of a turn off the pointy-top grid.
-# 085: TRELLIS turned four of the plates face away from Blender's front (-Y, the game's +Z): turned back.
-typeset -A TURN=(yd_car_stack 90 yd_service_gantry 90 tr_floor_1 30 tr_floor_5 30 pl_name 180 pl_shield 180 pl_pennant 180 pl_hubcap 180)
+typeset -A TURN=(yd_car_stack 90 yd_service_gantry 90 tr_floor_1 30 tr_floor_5 30)
 # Flat colours in the texture; the pile keeps more, or its green paint merges into the rust.
 typeset -A COLOURS=(scrap_pile 48 tr_flue 48)
 # The plain floor tiles keep their grain (tread, cracks, gravel): 16 colours turn it to blotches.
@@ -35,15 +32,10 @@ mkdir -p tools/gen3d/raw/props art/props
 clean() {
   local name=$1 raw=tools/gen3d/raw/props/$1.glb extra=()
   # The hexes are drawn square to the grid: the cleaner's own squaring would turn the wall a corner off.
-  # 085: a plate keeps TRELLIS's facing (its face toward the camera the concept was drawn from).
-  case $name in wall|hive_pad|tr_*|pl_*) extra=(--no-square) ;; esac
+  case $name in wall|hive_pad|tr_*) extra=(--no-square) ;; esac
   blender --background --python tools/blender/clean_generated.py -- --keep-texture --in $raw \
     --out art/props/$name.glb --size ${SIZE[$name]:-0.8} --budget 6000 --posterize ${COLOURS[$name]:-16} --brighten ${BRIGHT[$name]:-1} --sharp 45 \
     ${extra[@]} --yaw ${YAW:-${TURN[$name]:-0}} 2>&1 | grep -E "^kept|Error" | sed "s/^/$name: /"
-  # 085 (the user): the shield and the hubcap without their bracket ears.
-  case $name in pl_shield|pl_hubcap)
-    blender --background --python tools/gen3d/cut_ears.py -- art/props/$name.glb 2>&1 | grep -E "^cut|Error" | sed "s/^/$name: /" ;;
-  esac
 }
 if [ "$1" = "--again" ]; then
   clean $2
