@@ -1,0 +1,144 @@
+{
+ "id": "slag_pit",
+ "name": "The Slag Pit",
+ "acts": [
+  1,
+  2
+ ],
+ "_comment": "A molten channel across the middle: shove enemies into it, and do not stand in it.",
+ "rows": [
+  "..r.....",
+  "....s...",
+  ".s...b..",
+  "..lll^..",
+  "..lll.c.",
+  ".c....s.",
+  ".r......",
+  "........"
+ ],
+ "player": [
+  {
+   "name": "Knuckles",
+   "parts": [
+    "ch_brute",
+    "co_slug",
+    "ar_saw",
+    "ar_hammer",
+    "mo_scavenger"
+   ],
+   "x": 3,
+   "y": 6
+  },
+  {
+   "name": "Needle",
+   "parts": [
+    "ch_hauler",
+    "co_furnace",
+    "ar_pulse",
+    "ar_lance",
+    "mo_ablative"
+   ],
+   "x": 5,
+   "y": 7
+  },
+  {
+   "name": "Relay",
+   "parts": [
+    "ch_strider",
+    "co_arc",
+    "ar_scanner",
+    "ar_pulse",
+    "mo_governor"
+   ],
+   "x": 6,
+   "y": 6
+  }
+ ],
+ "enemy": [
+  {
+   "name": "Hauler",
+   "parts": [
+    "ch_hauler",
+    "co_mag",
+    "ar_lance",
+    "ar_mortar",
+    "mo_capacitor"
+   ],
+   "x": 1,
+   "y": 0,
+   "kind": "hive"
+  },
+  {
+   "name": "Skirmisher",
+   "parts": [
+    "ch_skirmisher",
+    "co_arc",
+    "ar_pulse",
+    "ar_scatter",
+    "mo_servo"
+   ],
+   "x": 4,
+   "y": 0
+  },
+  {
+   "name": "Citadel",
+   "parts": [
+    "ch_citadel",
+    "co_slug",
+    "ar_maul",
+    "ar_hammer",
+    "mo_ablative"
+   ],
+   "x": 6,
+   "y": 1,
+   "kind": "warden"
+  },
+  {
+   "name": "Courier",
+   "parts": [
+    "ch_courier",
+    "co_tesla",
+    "ar_railgun",
+    "ar_scanner",
+    "mo_targeting"
+   ],
+   "x": 7,
+   "y": 0
+  },
+  {
+   "name": "Dredge",
+   "parts": [
+    "ch_dredge",
+    "co_furnace",
+    "ar_mortar",
+    "ar_maul",
+    "mo_ablative"
+   ],
+   "x": 2,
+   "y": 0
+  }
+ ],
+ "objective": {
+  "type": "salvage",
+  "need": 3,
+  "piles": [
+   {
+    "x": 1,
+    "y": 3
+   },
+   {
+    "x": 6,
+    "y": 3
+   },
+   {
+    "x": 3,
+    "y": 2
+   },
+   {
+    "x": 5,
+    "y": 5
+   }
+  ]
+ },
+ "_085": "085: slag_pit with the starting crew, for liveries in a fight (shot_combat --fight-file res://tools/frames/crew085.json --livery <id>)."
+}

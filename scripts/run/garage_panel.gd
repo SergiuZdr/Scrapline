@@ -520,7 +520,6 @@ func _build_info() -> void:
 		paint.tooltip_text = "Paint it: %s" % Ink.livery_name(Profile.livery_for(Run.crew_id(), selected))
 		paint.pressed.connect(_open_liveries)
 		head.add_child(paint)
-		head.add_child(TrophyWallScript.swatch(Profile.livery_for(Run.crew_id(), selected), Vector2(44, 22)))
 	var status := HBoxContainer.new()
 	status.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	_info.add_child(status)
