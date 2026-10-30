@@ -1227,6 +1227,9 @@ static func _next_act(state: RunState, setup: RunSetup) -> void:
 	_generate_region(state, setup)
 	state.current = 0
 	state.sites[0]["visited"] = true
+	# 085: a deal's "the first fights of every act are elites" comes round again.
+	var each: int = int((deal_entry(setup, state.deal).get("take", {}) as Dictionary).get("elite_each_act", 0))
+	state.elite_fights = maxi(state.elite_fights, each)
 	var arrive: Dictionary = rules_of(state, setup).get("arrive", {})
 	state.scrap += int(arrive.get("scrap", 0))
 	var patch: int = int(arrive.get("repair", 0))
@@ -2205,7 +2208,8 @@ static func active_costs(state: RunState, setup: RunSetup) -> Array[String]:
 		for add: Variant in (take.get("adds", []) as Array):
 			var only: Variant = (add as Dictionary).get("acts")
 			holds = holds or not (only is Array) or (only as Array).any(func(a: Variant) -> bool: return int(a) == state.act)
-		holds = holds or state.elite_fights > 0 or state.thin_salvage > 0 or state.free_levels > 0
+		holds = holds or state.elite_fights > 0 or state.thin_salvage > 0 or state.free_levels > 0 \
+			or int(take.get("elite_each_act", 0)) > 0
 		if holds:
 			var line: String = String(entry.get("cost", ""))
 			if state.thin_salvage > 0:
