@@ -1714,7 +1714,7 @@ func _build_view(u: GridUnit) -> Dictionary:
 			paint = paint.lightened(keeper_paint_lift)
 		# 085: a crew machine wears the paint scheme its player picked (cosmetic only).
 		var livery: String = String(_liveries.get(u.ref % 10, "")) if u.team == GridUnit.TEAM_PLAYER else ""
-		Ink.dress_machine(model, u.part_ids, colour, paint, livery)
+		Ink.dress_machine(model, u.part_ids, colour, paint, livery, true)
 		Ink.frame_shadow_only(model)
 	# The gate's keeper is bigger than anything else on the board (013); 083 (A19): measured against
 	# the crew, so it stands at least `view_scale` times their tallest machine.
