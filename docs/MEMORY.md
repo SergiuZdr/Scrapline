@@ -184,6 +184,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-24 | **Plate concepts: the user likes 1 (name plate, to be redrawn), 2 (shield with star) and 4 (skull medallion), and wants more versions of 2 and 4** (too similar in concept); made in ChatGPT Images once Chrome is connected | 085, the user |
 | 2026-10-28 | **Five weekly plates, awarded in turn**: name plate (a2), brass shield (b2), pennant (b3), skull cog with wrenches (d1), skull hubcap (d2); the shield and the hubcap lose their side tabs, edited after the 3D model | 085, the user picked from round 2 |
 | 2026-10-29 | **The 3D weekly plates are dropped** (the user did not like the TRELLIS models and they did not read on the machines). **A weekly clear gives a newly drawn trophy on a TROPHY WALL in the garage and a named livery** (paint scheme per surface zone), worn by any crew, picked per machine in the garage | 085, the user |
+| 2026-10-30 | **Six weekly rewards in turn** (`data/weekly_rewards.json`): welded cup / HAZARD YELLOW, crushed-gear medal / OXIDE RED, helm on a spike / GUNMETAL CAMO, scrap belt / BONE WHITE, bent wrench / SODIUM ORANGE, cog crown / TEAL SCRAPPER; a livery is stored per crew machine (`crew:slot`), plates held before migrate to their weeks' trophies | 085, carrying out the user's call; names and order are data, for the user to judge |
 | 2026-10-30 | **Ladder: 10 cumulative rungs; FOREMAN is the gentler first step (+1 enemy HP)**; deal costs must bite a forward player too; crew rules stay strong (the ladder supplies difficulty); weekly twists mix play-changing rules with punishing ones | 085, the user |
 
 ## Lessons carried over from the old codebase
@@ -344,6 +345,8 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-23 | A boss file's keys only reach a run if `RunSim._make_gate_fight` copies them; measure bosses on run-built fights (`dump_boss_fights`), never the plain files |
 | 2026-10-23 | A bigger telegraphed hit changes nothing when the crew can step out of it: threat comes from what a boss does every round |
 | 2026-10-24 | A cost the crew can heal back is not a cost: more Reclaimer drones changed nothing (their piles heal) until they also came sooner. Measure a new cost with the explorer bot against the forward bot on paired seeds |
+| 2026-10-30 | The machines' print multiplies chroma (`MACHINE_SAT` 2.0) and posterises: a livery put into the texture as written came out neon (teal as the player's cyan, oxide as danger red). Feed it duller (`Ink.LIVERY_CHROMA`) and judge on a rendered sheet, never the swatch |
+| 2026-10-30 | measure_contrast drifts between sessions (the same build gave 2.19, then 2.12 an hour later): compare a look INTERLEAVED with its baseline (A B A B ...), never against a number from earlier. About one run in six measures a blank board (400k "machine" pixels): retry those |
 
 ## Open questions
 

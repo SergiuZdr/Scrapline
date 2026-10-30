@@ -149,6 +149,33 @@ the one under your hand.
 an OmniLight3D, and a transparent material is additive rather than emissive -- each of these
 compiled a shader mid-fight (up to 850 ms a frame here). New effects join the fight's warm-up.
 
+## Weekly liveries and trophies (085)
+
+The user dropped the 3D weekly plates (TRELLIS models riveted on the machines did not read and did not
+please). **A weekly contract cleared gives a TROPHY on the garage's wall and a LIVERY** -- cosmetic only.
+
+- **Trophies** are drawings, not models: six ChatGPT Images in the machines' comic scrap ink (welded cup,
+  crushed-gear medal, helm on a spike, scrap belt, bent wrench, cog crown), each a different silhouette,
+  cut from white (`cut_background.py`, enclosed white pockets cleared after) into `art/trophies/<id>.png`
+  (512 px). The wall (`scripts/ui/trophy_wall.gd`, TROPHIES in the garage header) is a paper card per
+  trophy of the rotation: an earned one hangs from its nail with its week and livery chip; one not earned
+  is an iron hook over the trophy's faint shape, with the week it was last offered.
+- **Liveries** are named paint schemes, `Ink.LIVERIES` (`[paint, trim, camo]`; the rotation in
+  `data/weekly_rewards.json` says which week gives which): HAZARD YELLOW, OXIDE RED, GUNMETAL CAMO, BONE
+  WHITE, SODIUM ORANGE, TEAL SCRAPPER. Any crew's machine can wear any earned one (LIVERY under the
+  machine in the garage; `Profile.set_livery(crew, slot, id)`); the default is the makers' paint.
+- **Per surface zone, never an override.** A generated part has one textured surface, so its zones are
+  read from the texture in `ink_toon` (`repaint`): yellow panels are the paint zone, bright red/orange
+  panels the trim zone; grey steel, black mechanism and dark rust keep the texture. Each repainted texel
+  keeps its value relative to a typical panel (capped at 1.3x), so chips and wear stay, and the ink edges
+  are read from the ORIGINAL texture, so the line work is identical in every livery. A zoned (non
+  generated) part takes the scheme's paint and trim through `Ink.zone_material`.
+- **The print doubles chroma** (`MACHINE_SAT` 2.0, plus posterising): a livery goes into the texture with
+  0.6 / `MACHINE_SAT` of its chroma (`Ink.LIVERY_CHROMA`), or teal printed as the player's cyan and oxide
+  as danger red. `LIVERIES` holds the colour as it should READ; the UI chips draw it as written.
+- None is a signal colour (no "yours" cyan, no danger red, no amber); each must keep slag_pit's machine
+  contrast (measured interleaved with the makers' paint, `iterations/085`).
+
 ## The print pass (036, a frame)
 
 `Ink.print_pass(parent, layer)` puts `ink_print.gdshader` on a CanvasLayer UNDER the screen's

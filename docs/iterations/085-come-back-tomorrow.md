@@ -21,7 +21,8 @@ crew's medal, and every run opens with a choice that shapes it.
     deals, any crew; one attempt a day; a local best (acts cleared, fights won, HP left) and a streak.
   - **The weekly contract:** a seed from the ISO week, harder (a fixed rung), a fixed crew and 2-3 announced
     twists drawn from existing rules (e.g. "no workshops", "trackers lock on", "every elite volatile");
-    any number of attempts, the best kept; a cosmetic plate for clearing it.
+    any number of attempts, the best kept; clearing it gives a TROPHY for the garage's wall and a LIVERY
+    (the user, 2026-10-29: the 3D plates are dropped).
   - **Start deals** (below).
   - **B9** each crew changes one run rule; **B10** three medals per crew replacing the grind counters
     (earned unlocks are migrated, never revoked); **T4** career replay clock.
@@ -64,6 +65,39 @@ Higher rungs could add a fourth fixer with a bigger deal (a later choice for the
 - [ ] Screens: the ladder line, the daily/weekly panel, the three deals, a crew card with medals.
 
 ## Result
+
+### The weekly reward: trophies and liveries (2026-10-29/30, the user's call)
+- **Plates out:** `art/props/pl_*`, `ConstructView.add_plate`, the 2D plate badge (yard board, garage, roll
+  call), `probe_plate`, `shot_plates`, `plate_views.py`, `cut_ears.py` and the plates in `import_props.sh`.
+- **Rotation:** `data/weekly_rewards.json`, `[{id, trophy, livery, name}]` in order; `RunSetup.weekly_options`
+  carries `reward` (the id for week % n); `WeeklyRewards.for_week(week, options)` reads it, else week % n.
+- **Trophies:** six new drawings (ChatGPT Images in the user's Chrome, one chat; saved with
+  `chatgpt_show.js` + a full-window capture + `grab_crop.py`, cut with `cut_background.py`, enclosed white
+  pockets cleared, 512 px) in `art/trophies/`. The TROPHY WALL (`scripts/ui/trophy_wall.gd`, TROPHIES in the
+  garage header): hung trophies with their week and livery, empty hooks with the week last offered.
+- **Liveries:** `Ink.LIVERIES` (six schemes, see art-and-audio.md), repainted per zone in `ink_toon`
+  (`repaint`); LIVERY under the machine opens the picker; `Profile.set_livery/livery_for(crew, slot)`;
+  drawn in the garage and in fights (`combat_scene` by fielded slot; `--livery` for shots/measures).
+- **Profile:** `finish_weekly(week, key, result, reward)` keeps `trophies`; `trophies()`, `liveries()`;
+  stored `plates` migrate to the trophies of their weeks (`verify_save`).
+- **Checks:** verify_save 43/43 (+ plate migration), verify_meta 109/109, verify_run_ui 111/111 (the wall
+  and the picker by real clicks), verify_assembly 168/168.
+- **Contrast** (slag_pit, three runs each, interleaved with the makers' paint): the ratio may only grow, and none falls.
+
+  | Livery | Makers' paint (A) | With the livery (B) | Mean A -> B |
+  |---|---|---|---|
+  | HAZARD YELLOW | 2.09 2.16 2.22 | 2.24 2.17 2.25 | 2.16 -> 2.22 |
+  | OXIDE RED | 2.21 2.21 2.21 | 2.24 2.18 2.24 | 2.21 -> 2.22 |
+  | GUNMETAL CAMO | 2.21 2.21 2.17 | 2.24 2.24 2.19 | 2.20 -> 2.22 |
+  | BONE WHITE | 2.20 2.16 2.19 | 2.24 2.15 2.25 | 2.18 -> 2.21 |
+  | SODIUM ORANGE | 2.12 2.21 2.22 | 2.24 2.25 2.15 | 2.18 -> 2.21 |
+  | TEAL SCRAPPER | 2.18 2.16 2.17 | 2.19 2.25 2.22 | 2.17 -> 2.22 |
+
+  A first pass, not interleaved, read SODIUM ORANGE (2.14) and TEAL (2.15) below the makers' 2.19: both were
+  lifted (e2742a -> f0903a, 4e8f72 -> 5a9c7e). The same build then read 2.12 an hour later, so the table
+  above is A/B interleaved on one quiet run (`shots/085/contrast_ab.txt`).
+- Sheets: `shots/085/liveries_sheet.png` (before/after on the three starting machines, with a grey copy),
+  `shots/085/rewards_sheet.png` (wall, picker, garage, a fight, the six trophies).
 
 ## Decisions, lessons, open questions
 
