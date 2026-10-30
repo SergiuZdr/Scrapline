@@ -96,6 +96,25 @@ Higher rungs could add a fourth fixer with a bigger deal (a later choice for the
   A first pass, not interleaved, read SODIUM ORANGE (2.14) and TEAL (2.15) below the makers' 2.19: both were
   lifted (e2742a -> f0903a, 4e8f72 -> 5a9c7e). The same build then read 2.12 an hour later, so the table
   above is A/B interleaved on one quiet run (`shots/085/contrast_ab.txt`).
+- **Bolder on the board (the user: "too faint in fights").** A fight dresses the crew with `bold`: the
+  livery goes in at 0.85 / `MACHINE_SAT` chroma (`Ink.LIVERY_CHROMA_FIGHT`; the garage keeps 0.6), olive
+  panels and the plain mid-grey plating are painted too (not the dark mechanism or the rust), and painted
+  value is pulled halfway to flat cel colour (ink_toon `livery_bold`). Ink edges are still read from the
+  original texture. OXIDE RED went browner, then lighter (c4513a -> b5583f -> cc6e50 -> d27858) and GUNMETAL
+  CAMO lighter (858c90 / 5f6656 -> a4acb0 / 7b856d): in bold both first measured BELOW the makers' paint.
+  Final contrast on slag_pit, alternating makers (A) and livery (B), three pairs or more:
+
+  | Livery | A | B | Mean A -> B |
+  |---|---|---|---|
+  | HAZARD YELLOW | 2.04 2.12 2.13 | 2.26 2.27 2.25 | 2.10 -> 2.26 |
+  | OXIDE RED (d27858) | 2.04 2.07 2.11 2.15 | 2.05 2.14 2.26 2.25 | 2.09 -> 2.18 |
+  | GUNMETAL CAMO (a4acb0) | 2.21 2.07 2.07 | 2.31 2.10 2.24 | 2.12 -> 2.22 |
+  | BONE WHITE | 2.01 2.04 2.19 | 2.62 2.40 2.49 | 2.08 -> 2.50 |
+  | SODIUM ORANGE | 2.21 2.15 2.17 | 2.25 2.26 2.29 | 2.18 -> 2.27 |
+  | TEAL SCRAPPER | 2.02 2.02 2.03 | 2.11 2.13 2.08 | 2.02 -> 2.11 |
+
+  Raw: `shots/085/contrast_ab_bold*.txt`. Sheet: `shots/085/fight_liveries_sheet.png` (the whole frame, the
+  crew at 1:1, a grey copy, makers first).
 - Sheets: `shots/085/liveries_sheet.png` (before/after on the three starting machines, with a grey copy),
   `shots/085/rewards_sheet.png` (wall, picker, garage, a fight, the six trophies).
 

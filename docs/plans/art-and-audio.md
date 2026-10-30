@@ -173,6 +173,9 @@ please). **A weekly contract cleared gives a TROPHY on the garage's wall and a L
 - **The print doubles chroma** (`MACHINE_SAT` 2.0, plus posterising): a livery goes into the texture with
   0.6 / `MACHINE_SAT` of its chroma (`Ink.LIVERY_CHROMA`), or teal printed as the player's cyan and oxide
   as danger red. `LIVERIES` holds the colour as it should READ; the UI chips draw it as written.
+- **Bolder in a fight** (the user: too faint at board distance): the board dresses the crew `bold`
+  (`LIVERY_CHROMA_FIGHT` 0.85, olive panels and mid-grey plating painted too, value pulled toward flat
+  cel colour); the garage keeps the subtler look.
 - None is a signal colour (no "yours" cyan, no danger red, no amber); each must keep slag_pit's machine
   contrast (measured interleaved with the makers' paint, `iterations/085`).
 
