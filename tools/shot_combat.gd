@@ -9,7 +9,7 @@ extends SceneTree
 ##       --select 0 --move 3 4 --weapon 1 --aim 2 3   walks first, then aims
 ##       --steps "select=2 weapon=0 tap=0,3 tap=0,3 select=0 hover=0,3 end"   any sequence, in
 ##           order, before the flags above (tap and end settle the playback; hover draws a route)
-##       --plate pl_cog --close 0 2.5   (085) the crew wears a weekly plate; the camera 2.5 m from unit 0
+##       --livery oxide_red --close 0 2.5   (085) the crew in a weekly livery; the camera 2.5 m from unit 0
 ##
 ## Not headless: it has to render. Everything is driven through the scene's own methods,
 ## the same ones a tap reaches.
