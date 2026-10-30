@@ -1,11 +1,11 @@
 {
-  "_comment": "085: the start deals. After the assembly bay, three fixers each offer one deal: a gift now and a cost for the run, both shown in full, or WALK ON (no gift, no cost). `RunSetup.roll_deals` picks the three from the run seed alone: one `soft` deal (small gift, small cost) and `offer - 1` others, so a seed code, the daily and the weekly always offer the same three. `give`: scrap, max_hp (every machine), free_level (the next level bought is free; its perk offer is `take.perk_cards` cards), scout_act (every site of the act), rare_arm (a rare arm of the crew's most common maker on the weakest arm socket, the old arm into the hold), module_pick (a pick of that many uncommon modules), swap_arm (a random fitted arm becomes a random uncommon, the old arm gone). `take`: adds (`{path, delta|set[, acts]}` on top of every act, as a rung's; `acts` limits one), elite_first (that many next fights: a skirmish among them is an elite), thin_salvage (that many won fights show `thin_to` salvage parts; unused since the user's 2026-10-29 answer). Every cost is a run rule the map or the HUD shows (`RunSim.active_costs`). The order of `deals` is the run bot's taste (RunBot.deals = \"best\" takes the first on offer). The user (2026-10-29): costs must bite a forward player too; each deal aims near even for the bot (paired vs WALK ON within about -5..+5), the soft one small both ways.",
+  "_comment": "085: the start deals. After the assembly bay, three fixers each offer one deal: a gift now and a cost for the run, both shown in full, or WALK ON (no gift, no cost). `RunSetup.roll_deals` picks the three from the run seed alone: one `soft` deal (small gift, small cost) and `offer - 1` others, so a seed code, the daily and the weekly always offer the same three. `give`: scrap, max_hp (every machine), free_level (the next level bought is free; its perk offer is `take.perk_cards` cards), scout_act (every site of the act), rare_arm (a rare arm of the crew's most common maker on the weakest arm socket, the old arm into the hold), module_pick (a pick of that many uncommon modules), swap_arm (a random fitted arm becomes a random uncommon, the old arm gone). `take`: adds (`{path, delta|set[, acts]}` on top of every act, as a rung's; `acts` limits one), elite_first (that many next fights: a skirmish among them is an elite), elite_each_act (as many again at the start of every later act), thin_salvage (that many won fights show `thin_to` salvage parts; unused since the user's 2026-10-29 answer). Every cost is a run rule the map or the HUD shows (`RunSim.active_costs`). The order of `deals` is the run bot's taste (RunBot.deals = \"best\" takes the first on offer). The user (2026-10-29): costs must bite a forward player too; each deal aims near even for the bot (paired vs WALK ON within about -5..+5), the soft one small both ways. The user (2026-10-30): every cost lasts the whole run, all three acts.",
   "offer": 3,
   "deals": [
     {
       "id": "rare_arm",
       "gift": "A rare arm of your crew's maker, fitted now",
-      "cost": "The Reclaimer runs one column ahead all run, and 2 of its drones join every fight of Act 1",
+      "cost": "The Reclaimer runs one column ahead, and one of its drones joins every fight",
       "give": {
         "rare_arm": 1
       },
@@ -17,10 +17,7 @@
           },
           {
             "path": "reclaimer_reach.every_fight",
-            "set": 2,
-            "acts": [
-              1
-            ]
+            "set": 1
           }
         ]
       }
@@ -28,7 +25,7 @@
     {
       "id": "plating",
       "gift": "Every machine +3 max HP",
-      "cost": "No workshop in Act 1, enemies hit 1 harder there, and its gate brings one more escort",
+      "cost": "No workshops",
       "give": {
         "max_hp": 3
       },
@@ -36,31 +33,11 @@
         "adds": [
           {
             "path": "site_weights.workshop",
-            "set": 0,
-            "acts": [
-              1
-            ]
+            "set": 0
           },
           {
             "path": "workshop.guarantee",
-            "set": 0,
-            "acts": [
-              1
-            ]
-          },
-          {
-            "path": "enemies.boss_escorts",
-            "delta": 1,
-            "acts": [
-              1
-            ]
-          },
-          {
-            "path": "enemies.bonus.damage",
-            "delta": 1,
-            "acts": [
-              1
-            ]
+            "set": 0
           }
         ]
       }
@@ -68,7 +45,7 @@
     {
       "id": "scrap",
       "gift": "60 scrap",
-      "cost": "Enemies hit 1 harder and carry 2 more HP in Act 1, and its gate brings one more escort",
+      "cost": "Enemies hit 1 harder",
       "give": {
         "scrap": 60
       },
@@ -76,24 +53,7 @@
         "adds": [
           {
             "path": "enemies.bonus.damage",
-            "delta": 1,
-            "acts": [
-              1
-            ]
-          },
-          {
-            "path": "enemies.hp_all",
-            "delta": 2,
-            "acts": [
-              1
-            ]
-          },
-          {
-            "path": "enemies.boss_escorts",
-            "delta": 1,
-            "acts": [
-              1
-            ]
+            "delta": 1
           }
         ]
       }
@@ -101,7 +61,7 @@
     {
       "id": "module",
       "gift": "An uncommon module of your choice (1 of 3)",
-      "cost": "Salvage shows 2 parts, not 3, all through Act 1",
+      "cost": "Salvage shows 2 parts, not 3",
       "give": {
         "module_pick": 3
       },
@@ -109,10 +69,7 @@
         "adds": [
           {
             "path": "rewards.choices",
-            "set": 2,
-            "acts": [
-              1
-            ]
+            "delta": -1
           }
         ]
       }
@@ -120,18 +77,19 @@
     {
       "id": "scout",
       "gift": "Every site of Act 1 scouted",
-      "cost": "The first two fights are elites",
+      "cost": "The first two fights of every act are elites",
       "give": {
         "scout_act": 1
       },
       "take": {
-        "elite_first": 2
+        "elite_first": 2,
+        "elite_each_act": 2
       }
     },
     {
       "id": "free_level",
       "gift": "A free level on one machine",
-      "cost": "That level's perk offer is 2 cards, and Act 1's skirmishes pay 5 scrap less",
+      "cost": "That level's perk offer is 2 cards, and skirmishes pay 3 scrap less",
       "soft": true,
       "give": {
         "free_level": 1
@@ -141,10 +99,7 @@
         "adds": [
           {
             "path": "rewards.skirmish_scrap",
-            "delta": -5,
-            "acts": [
-              1
-            ]
+            "delta": -3
           }
         ]
       }
@@ -152,7 +107,7 @@
     {
       "id": "swap_arm",
       "gift": "One starter arm becomes a random uncommon",
-      "cost": "You do not choose which arm, and enemies carry 1 more HP in Act 1",
+      "cost": "You do not choose which arm, and enemies carry 1 more HP",
       "soft": true,
       "give": {
         "swap_arm": 1
@@ -161,10 +116,7 @@
         "adds": [
           {
             "path": "enemies.hp_all",
-            "delta": 1,
-            "acts": [
-              1
-            ]
+            "delta": 1
           }
         ]
       }

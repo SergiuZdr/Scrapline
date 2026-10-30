@@ -1831,8 +1831,8 @@ func _test_deal_effects() -> void:
 	for site: Dictionary in st.sites:
 		if drone_fight.is_empty() and String(site["type"]) == "skirmish" and int(site["col"]) >= 3:
 			drone_fight = RunSim.move_preview(st, r[1], int(site["id"]))
-	_check("rare_arm: and 2 drones in every Act 1 fight, wherever it stands (preview %s)" % str(drone_fight.get("drones")),
-		int(drone_fight.get("drones", 0)) >= 2 and RunSim.every_fight_drones(st, r[1], "skirmish") == 2
+	_check("rare_arm: and a drone in every fight, wherever it stands (preview %s)" % str(drone_fight.get("drones")),
+		int(drone_fight.get("drones", 0)) >= 1 and RunSim.every_fight_drones(st, r[1], "skirmish") == 1
 		and RunSim.every_fight_drones(st, r[1], "boss") == 0 and RunSim.every_fight_drones(r[3], r[4], "skirmish") == 0)
 	_check("rare_arm: a rare arm fitted, the old one in the hold, the Reclaimer a column ahead (%d rare, hold %s, head %d)" % [
 		rares, st.cargo, int((RunSim.rules_of(st, r[1])["front"] as Dictionary).get("head", 0))],
@@ -1845,21 +1845,22 @@ func _test_deal_effects() -> void:
 	_check("plating: every machine +3 max HP and HP, no workshop in Act 1 (%d, was %d)" % [shops, shops0],
 		r[2] and shops == 0 and shops0 > 0 and RunSim.max_hp(r[1], st.crew[0]) == RunSim.max_hp(r[4], (r[3] as RunState).crew[0]) + 3
 		and int(st.crew[0]["hp"]) == RunSim.max_hp(r[1], st.crew[0]))
-	_check("plating: and Act 1's gate brings one more escort", int((RunSim.rules_of(st, r[1])["enemies"] as Dictionary)["boss_escorts"])
-		== int(RunSim.rules_of(r[3], r[4])["enemies"]["boss_escorts"]) + 1)
 	RunSim._next_act(st, r[1])
-	_check("and the cost ends with Act 1 (Act 2's weights keep their workshops; the line is off the map)",
-		int((RunSim.rules_of(st, r[1])["site_weights"] as Dictionary)["workshop"]) > 0 and RunSim.active_costs(st, r[1]).is_empty())
+	_check("and the cost lasts the run (the user: no workshop in Act 2 either; the line still on the map)",
+		st.sites.filter(func(s: Dictionary) -> bool: return String(s["type"]) == "workshop").is_empty() and RunSim.active_costs(st, r[1]).size() == 1)
 	r = take.call("scrap")
 	st = r[0]
-	_check("scrap: +60, enemies +1 damage and +2 HP in Act 1 only", r[2] and st.scrap == (r[3] as RunState).scrap + 60
-		and int((RunSim.rules_of(st, r[1])["enemies"] as Dictionary).get("hp_all", 0)) == 2
+	var st2: RunState = RunSim.start(r[1])
+	RunSim.apply(st2, r[1], [RunSim.DEAL, 0])
+	RunSim._next_act(st2, r[1])
+	_check("scrap: +60, enemies +1 damage in every act", r[2] and st.scrap == (r[3] as RunState).scrap + 60
+		and int(RunSim.rules_of(st2, r[1])["enemies"]["bonus"]["damage"]) == int(RunSim.rules_for_act(r[4], 2)["enemies"]["bonus"]["damage"]) + 1
 		and int(((RunSim.rules_of(st, r[1])["enemies"] as Dictionary).get("bonus", {}) as Dictionary).get("damage", 0)) == 1
 		and RunSim._make_fight(st, r[1], 1, "skirmish")["enemy"][0]["bonus"]["damage"] == 1)
 	r = take.call("module")
 	st = r[0]
 	var picks: Array = st.pending.get("options", [])
-	_check("module: a pick of three uncommon modules (%s), then 2-part salvage all Act 1" % [picks],
+	_check("module: a pick of three uncommon modules (%s), then 2-part salvage all run" % [picks],
 		r[2] and String(st.pending.get("kind", "")) == "reward" and picks.size() == 3
 		and picks.all(func(id: String) -> bool: return (r[1] as RunSetup).rarity(id) == 2 and String((_db.parts[id] as Dictionary)["slot"]) == "module")
 		and int(RunSim.rules_of(st, r[1])["rewards"]["choices"]) == 2 and RunSim.apply(st, r[1], [RunSim.PICK, 0]) and st.cargo.has(String(picks[0])))
@@ -1879,6 +1880,9 @@ func _test_deal_effects() -> void:
 		guard += 1
 	_check("and the first fight is one (%s); one more to go" % String(st.pending.get("site_type", "")),
 		["elite", "arena", "warlord", "boss"].has(String(st.pending.get("site_type", ""))) and st.elite_fights == 1)
+	st.elite_fights = 0
+	RunSim._next_act(st, r[1])
+	_check("and every act's first two fights again", st.elite_fights == 2 and RunSim.active_costs(st, r[1]).size() == 1)
 	r = take.call("free_level")
 	st = r[0]
 	var offer: Array = RunSim.perk_offer(st, r[1], 0)
