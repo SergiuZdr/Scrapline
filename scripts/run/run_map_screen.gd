@@ -1413,14 +1413,15 @@ func _run_over() -> void:
 	var gains: String = ""
 	for entry: Dictionary in (banked.get("new", []) as Array):
 		gains += "\nUNLOCKED  ·  %s" % _unlock_name(entry)
-	# 085: medals this run earned for its crew, the weekly's plate, the yard's score.
+	# 085: medals this run earned for its crew, the weekly's trophy and livery, the yard's score.
 	var medals: Array = UnlocksPanel.crew_medals(Run.db.meta, Run.crew_id())
 	for id: Variant in (banked.get("medals", []) as Array):
 		var medal: Array = medals.filter(func(m: Dictionary) -> bool: return String(m.get("id", "")) == String(id))
 		gains += "\nMEDAL  ·  %s" % (String((medal[0] as Dictionary).get("name", id)) if not medal.is_empty() else String(id))
-	var plate: Dictionary = banked.get("plate", {})
-	if not plate.is_empty():
-		gains += "\nPLATE  ·  %s: this crew carries it from now on" % String(plate.get("name", "")).to_upper()
+	var trophy: Dictionary = banked.get("trophy", {})
+	if not trophy.is_empty():
+		gains += "\nTROPHY  ·  %s on the garage's wall, and the %s livery for any machine" % [String(trophy.get("name", "")).to_upper(),
+			Ink.livery_name(String(trophy.get("livery", "")))]
 	if Run.mode() == Run.DAILY:
 		gains += "\nTODAY'S YARD  ·  %s%s" % [_result_text(Run.result()), "  ·  STREAK %d" % Profile.daily_streak(Run.today())]
 	elif Run.mode() == Run.WEEKLY:
@@ -1653,10 +1654,6 @@ func _roll_column(i: int, entry: Dictionary) -> Control:
 	card.add_child(box)
 	var width: float = 340.0
 	box.add_child(UIKit.fit(_label(String(member["name"]).to_upper(), 30, UIKit.TEXT if alive else UIKit.RED, UIKit.font_comic()), width, 1, 18))
-	# 085: the crew's weekly plate by the name (cosmetic only).
-	var plate: Dictionary = Profile.plate_for(Run.crew_id())
-	if not plate.is_empty():
-		box.add_child((load("res://scripts/ui/yard_board.gd") as GDScript).call("plate_badge", String(plate.get("name", "")), false, 14))
 	box.add_child(_level_marks(int(member.get("level", 0))))
 	var perks: PackedStringArray = []
 	for id: Variant in (member.get("perks", []) as Array):

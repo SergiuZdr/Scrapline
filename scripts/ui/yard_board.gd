@@ -133,7 +133,7 @@ func _weekly() -> Control:
 	var record: Dictionary = Profile.weekly(week)
 	var monday: String = Time.get_date_string_from_unix_time((week * 7 + 4) * 86400)
 	var box: VBoxContainer = _column("weekly", "THIS WEEK'S CONTRACT", "week of " + monday)
-	box.add_child(_wrap("Harder: a fixed crew, a fixed rung and its twists. Any number of attempts; the best is kept. Clear it for the week's PLATE.",
+	box.add_child(_wrap("Harder: a fixed crew, a fixed rung and its twists. Any number of attempts; the best is kept. Clear it for the week's TROPHY and its LIVERY.",
 		UIKit.SIZE_BODY, UIKit.INK))
 	if yard.is_empty():
 		box.add_child(_wrap("No contract is posted this week.", UIKit.SIZE_HEADING, UIKit.INK_DIM))
@@ -150,18 +150,34 @@ func _weekly() -> Control:
 	box.add_child(_fact("ATTEMPTS", str(attempts)))
 	var best: Dictionary = record["best"]
 	box.add_child(_fact("BEST", _result_text(best) if not best.is_empty() else "none yet"))
-	var plate_row := HBoxContainer.new()
-	plate_row.name = "weekly_plate"
-	plate_row.add_theme_constant_override("separation", UIKit.SPACE_MD)
-	box.add_child(plate_row)
-	plate_row.add_child(_label("PLATE", 22, UIKit.INK, UIKit.font_comic()))
-	var plate: Dictionary = {"name": "CONTRACT %s" % monday}
-	if yard.get("plate") is Dictionary:
-		plate.merge(yard["plate"], true)
+	# 085: the week's reward -- a trophy for the garage's wall and a livery any machine can wear.
+	var reward: Dictionary = Run.weekly_reward(week)
 	var earned: bool = bool(record["cleared"])
-	var badge: Control = plate_badge(String(plate["name"]), not earned)
-	plate_row.add_child(badge)
-	plate_row.add_child(_label("EARNED: its crew carries it" if earned else "clear the contract to earn it",
+	var reward_row := HBoxContainer.new()
+	reward_row.name = "weekly_reward"
+	reward_row.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	box.add_child(reward_row)
+	var picture: Texture2D = WeeklyRewards.picture(String(reward.get("trophy", "")))
+	if picture != null:
+		var art := TextureRect.new()
+		art.name = "weekly_trophy"
+		art.texture = picture
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		art.custom_minimum_size = Vector2(96, 96)
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		reward_row.add_child(art)
+	var words := VBoxContainer.new()
+	words.add_theme_constant_override("separation", 2)
+	words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	reward_row.add_child(words)
+	words.add_child(_label("TROPHY  ·  " + String(reward.get("name", "")).to_upper(), 22, UIKit.INK, UIKit.font_comic()))
+	var paint := HBoxContainer.new()
+	paint.add_theme_constant_override("separation", UIKit.SPACE_SM)
+	words.add_child(paint)
+	paint.add_child((load("res://scripts/ui/trophy_wall.gd") as GDScript).call("swatch", String(reward.get("livery", "")), Vector2(44, 20)))
+	paint.add_child(_label("LIVERY  ·  " + Ink.livery_name(String(reward.get("livery", ""))), 18, UIKit.INK, UIKit.font_comic()))
+	words.add_child(_label("EARNED: on the trophy wall, the livery in the garage" if earned else "clear the contract to earn both (paint only, no power)",
 		UIKit.SIZE_BODY, UIKit.INK_GREEN if earned else UIKit.INK_DIM, UIKit.font_strong()))
 	if not yard.is_empty():
 		var play := _button("TAKE THE CONTRACT" if attempts == 0 else "TRY AGAIN", UIKit.choice(), Vector2(420, 64))
@@ -169,30 +185,6 @@ func _weekly() -> Control:
 		play.pressed.connect(func() -> void: _start(Run.new_weekly()))
 		box.add_child(play)
 	return _framed(box)
-
-
-## A plate as a small riveted badge: the name stamped on steel (dim until earned). Cosmetic only;
-## the garage and the roll call draw the same one by a machine's name.
-static func plate_badge(text: String, dim: bool = false, size: int = 16) -> Control:
-	var badge := PanelContainer.new()
-	badge.name = "plate_badge"
-	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var style: InkBox = UIKit.ink_button(UIKit.PAPER_DIM if dim else Color("8f9aa3"))
-	style.jag = 2.0
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 2
-	style.content_margin_bottom = 2
-	badge.add_theme_stylebox_override("panel", style)
-	var mark := Label.new()
-	mark.text = text.to_upper()
-	mark.add_theme_font_override("font", UIKit.font_comic())
-	mark.add_theme_font_size_override("font_size", size)
-	mark.add_theme_color_override("font_color", UIKit.INK_FAINT if dim else UIKit.INK)
-	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	badge.add_child(mark)
-	return badge
 
 
 func _start(started: bool) -> void:

@@ -159,7 +159,7 @@ func record_run(entry: Dictionary) -> void:
 	_save()
 
 
-# --- 085: the daily yard, the weekly contract, medals, plates, crew records -----------
+# --- 085: the daily yard, the weekly contract, medals, trophies and liveries, crew records
 
 ## How many days of daily results the profile keeps (the streak is counted on its own).
 const DAILY_CAP: int = 120
@@ -245,7 +245,7 @@ func start_weekly(week: int) -> void:
 	var entry: Dictionary = all.get(str(week), {})
 	entry["attempts"] = int(entry.get("attempts", 0)) + 1
 	all[str(week)] = entry
-	# Only the last weeks are worth keeping; the plates outlive them.
+	# Only the last weeks are worth keeping; the trophies outlive them.
 	var weeks: Array = all.keys().map(func(k: Variant) -> int: return int(k))
 	weeks.sort()
 	while weeks.size() > 12:
@@ -254,9 +254,11 @@ func start_weekly(week: int) -> void:
 	_save()
 
 
-## An attempt ends (once per `key`): the best is kept, and clearing it (`result.won`) gives the
-## week's PLATE, cosmetic only. Returns the plate when this attempt earned it, else {}.
-func finish_weekly(week: int, key: String, result: Dictionary, plate: Dictionary) -> Dictionary:
+## An attempt ends (once per `key`): the best is kept, and clearing it (`result.won`) the first time
+## gives the week's REWARD (`WeeklyRewards.for_week`: `{id, trophy, livery, name}`), cosmetic only: a
+## trophy for the wall and its livery for any machine. Returns the trophy when this attempt earned it
+## (`{id, trophy, livery, name, week, crew}`), else {}.
+func finish_weekly(week: int, key: String, result: Dictionary, reward: Dictionary) -> Dictionary:
 	if String(_data.get("weekly_banked", "")) == key:
 		return {}
 	_data["weekly_banked"] = key
@@ -267,29 +269,56 @@ func finish_weekly(week: int, key: String, result: Dictionary, plate: Dictionary
 	var fresh: Dictionary = {}
 	if bool(result.get("won", false)) and not bool(entry.get("cleared", false)):
 		entry["cleared"] = true
-		var held: Array = _data.get("plates", [])
-		if not held.any(func(p: Variant) -> bool: return String((p as Dictionary).get("id", "")) == String(plate.get("id", ""))):
-			held.append(plate.duplicate())
-			_data["plates"] = held
-			fresh = plate.duplicate()
+		var held: Array = _data.get("trophies", [])
+		if not reward.is_empty() and not held.any(func(t: Variant) -> bool: return int((t as Dictionary).get("week", -1)) == week):
+			fresh = _trophy(reward, week, String(reward.get("crew", "")))
+			held.append(fresh)
+			_data["trophies"] = held
 	all[str(week)] = entry
 	_data["weekly"] = all
 	_save()
-	return fresh
+	return fresh.duplicate()
 
 
-## Every plate earned, oldest first: `{id, week, crew, name}`.
-func plates() -> Array:
-	return (_data.get("plates", []) as Array).duplicate(true)
+## A trophy as the profile keeps it.
+static func _trophy(reward: Dictionary, week: int, crew: String) -> Dictionary:
+	return {"id": String(reward.get("id", "")), "trophy": String(reward.get("trophy", "")), "livery": String(reward.get("livery", "")),
+		"name": String(reward.get("name", "")), "week": week, "crew": crew}
 
 
-## The plate a crew's machines carry: the newest earned with that crew, or {} (cosmetic only).
-func plate_for(crew: String) -> Dictionary:
-	var all: Array = plates()
-	for i: int in range(all.size() - 1, -1, -1):
-		if String((all[i] as Dictionary).get("crew", "")) == crew:
-			return all[i]
-	return {}
+## Every trophy earned, oldest first: `{id, trophy, livery, name, week, crew}` (one per cleared week).
+func trophies() -> Array:
+	return (_data.get("trophies", []) as Array).duplicate(true)
+
+
+## Every livery a trophy has given, in the order they were earned (each once).
+func liveries() -> Array:
+	var out: Array = []
+	for t: Variant in (_data.get("trophies", []) as Array):
+		var id: String = String((t as Dictionary).get("livery", ""))
+		if not id.is_empty() and not out.has(id):
+			out.append(id)
+	return out
+
+
+## The livery a crew's machine (`slot`: its place in the crew) wears: an earned one, or "" (the makers' paint).
+func livery_for(crew: String, slot: int) -> String:
+	var id: String = String((_data.get("machine_liveries", {}) as Dictionary).get("%s:%d" % [crew, slot], ""))
+	return id if liveries().has(id) else ""
+
+
+## Paints a crew's machine in an earned livery ("" = back to the makers' paint). False if not earned.
+func set_livery(crew: String, slot: int, id: String) -> bool:
+	if not id.is_empty() and not liveries().has(id):
+		return false
+	var all: Dictionary = (_data.get("machine_liveries", {}) as Dictionary).duplicate()
+	if id.is_empty():
+		all.erase("%s:%d" % [crew, slot])
+	else:
+		all["%s:%d" % [crew, slot]] = id
+	_data["machine_liveries"] = all
+	_save()
+	return true
 
 
 ## The medal ids a crew holds (B10).
@@ -365,6 +394,20 @@ func _migrate() -> void:
 			if after != before:
 				_data["unlocked"] = after
 				changed = true
+	# 085: the 3D weekly plates were dropped (the user, 2026-10-29): a plate held becomes the trophy and
+	# livery its week gives now, so a profile from before keeps what it won.
+	if _data.get("plates") is Array:
+		var held: Array = _data.get("trophies", []) if _data.get("trophies") is Array else []
+		for plate: Variant in (_data["plates"] as Array):
+			if not (plate is Dictionary):
+				continue
+			var week: int = int((plate as Dictionary).get("week", -1))
+			var reward: Dictionary = WeeklyRewards.for_week(week)
+			if week >= 0 and not reward.is_empty() and not held.any(func(t: Variant) -> bool: return int((t as Dictionary).get("week", -1)) == week):
+				held.append(_trophy(reward, week, String((plate as Dictionary).get("crew", ""))))
+		_data["trophies"] = held
+		_data.erase("plates")
+		changed = true
 	if changed:
 		_save()
 
