@@ -248,6 +248,35 @@ func _go() -> void:
 			_check("picking a perk buys the level and keeps that perk", int(state.crew[shown].get("level", 0)) == level_before + 1
 				and (state.crew[shown]["perks"] as Array).back() == offer[1] and panel.get("_picker") == null)
 			await create_timer(2.0).timeout
+			# 085: a weekly clear hangs a trophy on the wall and gives a livery any machine can wear.
+			var reward: Dictionary = WeeklyRewards.for_week(3001)
+			reward["crew"] = "wall"
+			root.get_node("Profile").call("start_weekly", 3001)
+			root.get_node("Profile").call("finish_weekly", 3001, "ui_t3001", {"ended": "won", "won": true, "acts": 3, "fights": 17, "hp": 9}, reward)
+			_click(_find_button(panel, "TROPHIES").get_global_rect().get_center())
+			await _frames(3)
+			var wall: Node = panel.find_child("trophy_wall", true, false)
+			_check("TROPHIES opens the trophy wall: a hook per weekly trophy, the earned one hung", wall != null
+				and wall.find_children("hook_*", "", true, false).size() == WeeklyRewards.list().size()
+				and wall.find_child("hook_" + String(reward["id"]), true, false).find_child("trophy", true, false) != null
+				and wall.find_children("trophy", "", true, false).size() == 1)
+			if wall != null:
+				_click((wall.find_child("close_wall", true, false) as Control).get_global_rect().get_center())
+			await _frames(3)
+			_check("and closes again", panel.find_child("trophy_wall", true, false) == null)
+			_click(_find_button(panel, "LIVERY").get_global_rect().get_center())
+			await _frames(3)
+			var paints: Node = panel.get("_picker")
+			var choice: Node = paints.find_child("livery_" + String(reward["livery"]), true, false) if paints != null else null
+			_check("LIVERY opens the paint schemes: the earned one a button, the others labels", choice is Button
+				and paints.find_child("livery_makers", true, false) is Button
+				and paints.find_children("livery_*", "Button", true, false).size() == 2)
+			var crew_id: String = String(_run.call("crew_id"))
+			if choice is Button:
+				_click((choice as Control).get_global_rect().get_center())
+			await _frames(3)
+			_check("picking it paints this machine (a Profile command) and redraws it", String(root.get_node("Profile").call("livery_for", crew_id, shown)) == String(reward["livery"])
+				and panel.get("_picker") == null and String(panel.get("_model_key")).ends_with(String(reward["livery"])))
 			_press(_find_button(panel, "BACK TO MAP"))
 			await _frames(3)
 			_check("BACK TO MAP closes the garage", map.get("_garage") == null)

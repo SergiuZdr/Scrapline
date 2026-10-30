@@ -27,6 +27,7 @@ func _initialize() -> void:
 	_test_settings_survive_reload()
 	_test_run_history()
 	_test_yard_and_medals()
+	_test_plates_migrate()
 	_test_old_profile_migrates()
 
 	print("")
@@ -191,7 +192,7 @@ func _test_run_history() -> void:
 	profile.call("use_path", "user://tool_profile.json")
 
 
-## 085: the daily attempt, its best and streak, the weekly best and its plate, medals and crew
+## 085: the daily attempt, its best and streak, the weekly best and its trophy and livery, medals and crew
 ## records are Profile commands and survive a restart (a reload of the file).
 func _test_yard_and_medals() -> void:
 	_cleanup()
@@ -200,9 +201,9 @@ func _test_yard_and_medals() -> void:
 		_check("(precondition) the Profile autoload exists", false)
 		return
 	profile.call("use_path", TEST_PATH)
-	_check("a fresh profile has played no daily, no streak, no plate, no medal",
+	_check("a fresh profile has played no daily, no streak, no trophy, no livery, no medal",
 		(profile.call("daily", 20385) as Dictionary).is_empty() and int(profile.call("daily_streak", 20385)) == 0
-		and (profile.call("plates") as Array).is_empty() and (profile.call("medals", "wall") as Array).is_empty()
+		and (profile.call("trophies") as Array).is_empty() and (profile.call("liveries") as Array).is_empty() and (profile.call("medals", "wall") as Array).is_empty()
 		and int(profile.call("crew_record", "wall")) == -1)
 	_check("the day's attempt is taken once", bool(profile.call("start_daily", 20384, 77, "wall"))
 		and not bool(profile.call("start_daily", 20384, 77, "wall")))
@@ -212,11 +213,18 @@ func _test_yard_and_medals() -> void:
 	profile.call("finish_daily", 20385, {"ended": "abandoned", "acts": 0, "fights": 2, "hp": 40})
 	profile.call("start_weekly", 2911)
 	profile.call("start_weekly", 2911)
-	var plate: Dictionary = {"id": "plate_w2911", "week": 2911, "crew": "runners", "name": "CONTRACT 2025-10-20"}
-	var lost: Dictionary = profile.call("finish_weekly", 2911, "a:1", {"ended": "wrecked", "won": false, "acts": 1, "fights": 5, "hp": 0}, plate)
-	var won: Dictionary = profile.call("finish_weekly", 2911, "a:2", {"ended": "won", "won": true, "acts": 3, "fights": 18, "hp": 12}, plate)
-	var again: Dictionary = profile.call("finish_weekly", 2911, "a:2", {"ended": "won", "won": true, "acts": 3, "fights": 18, "hp": 12}, plate)
-	_check("a lost attempt earns no plate; the first clear does, once", lost.is_empty() and String(won.get("id", "")) == "plate_w2911" and again.is_empty())
+	var reward: Dictionary = WeeklyRewards.for_week(2911)
+	reward["crew"] = "runners"
+	var lost: Dictionary = profile.call("finish_weekly", 2911, "a:1", {"ended": "wrecked", "won": false, "acts": 1, "fights": 5, "hp": 0}, reward)
+	_check("a livery not earned cannot be worn", not bool(profile.call("set_livery", "wall", 0, String(reward["livery"])))
+		and String(profile.call("livery_for", "wall", 0)).is_empty())
+	var won: Dictionary = profile.call("finish_weekly", 2911, "a:2", {"ended": "won", "won": true, "acts": 3, "fights": 18, "hp": 12}, reward)
+	var again: Dictionary = profile.call("finish_weekly", 2911, "a:2", {"ended": "won", "won": true, "acts": 3, "fights": 18, "hp": 12}, reward)
+	_check("a lost attempt earns no trophy; the first clear does, once (%s)" % [won], lost.is_empty() and String(won.get("id", "")) == String(reward["id"])
+		and String(won.get("trophy", "")) == String(reward["trophy"]) and int(won.get("week", -1)) == 2911 and again.is_empty())
+	_check("an earned livery can go on any crew's machine, and back to the makers' paint",
+		bool(profile.call("set_livery", "wall", 2, String(reward["livery"]))) and bool(profile.call("set_livery", "runners", 0, String(reward["livery"])))
+		and bool(profile.call("set_livery", "runners", 0, "")) and String(profile.call("livery_for", "runners", 0)).is_empty())
 	_check("medals are added once each", (profile.call("award_medals", "wall", ["m_wall_1"]) as Array) == ["m_wall_1"]
 		and (profile.call("award_medals", "wall", ["m_wall_1", "m_wall_2"]) as Array) == ["m_wall_2"])
 	profile.call("note_win", "wall", 3)
@@ -233,11 +241,33 @@ func _test_yard_and_medals() -> void:
 	var week: Dictionary = profile.call("weekly", 2911)
 	_check("the week's attempts, best and clear survive a restart (%s)" % [week], int(week["attempts"]) == 2 and bool(week["cleared"])
 		and int((week["best"] as Dictionary).get("acts", 0)) == 3)
-	_check("the plate survives, and the crew that cleared it carries it", (profile.call("plates") as Array).size() == 1
-		and String((profile.call("plate_for", "runners") as Dictionary).get("id", "")) == "plate_w2911"
-		and (profile.call("plate_for", "wall") as Dictionary).is_empty())
+	_check("the trophy, its livery and a machine's paint survive a restart", (profile.call("trophies") as Array).size() == 1
+		and (profile.call("liveries") as Array) == [String(reward["livery"])]
+		and String(profile.call("livery_for", "wall", 2)) == String(reward["livery"]) and String(profile.call("livery_for", "wall", 1)).is_empty())
 	_check("medals and the crew record survive (the record only rises)", (profile.call("medals", "wall") as Array) == ["m_wall_1", "m_wall_2"]
 		and int(profile.call("crew_record", "wall")) == 3)
+	profile.call("use_path", "user://tool_profile.json")
+
+
+## 085: a profile holding the dropped 3D plates loads without an error: each plate becomes the trophy and
+## livery its week gives now, and the plates are gone.
+func _test_plates_migrate() -> void:
+	_cleanup()
+	var profile: Node = root.get_node_or_null("Profile")
+	if profile == null:
+		return
+	var old: Dictionary = {"tutorial_done": true, "plates": [{"id": "pl_shield", "week": 2912, "crew": "salvagers", "name": "SHIELD"},
+		{"id": "pl_cog", "week": 2913, "crew": "wall", "name": "COG"}, "junk"]}
+	SaveFile.save_to(old, TEST_PATH)
+	profile.call("use_path", TEST_PATH)
+	var held: Array = profile.call("trophies")
+	_check("old plates load as the trophies of their weeks (%s)" % [held], held.size() == 2
+		and String((held[0] as Dictionary)["id"]) == String(WeeklyRewards.for_week(2912)["id"])
+		and String((held[1] as Dictionary)["livery"]) == String(WeeklyRewards.for_week(2913)["livery"])
+		and (profile.call("liveries") as Array).size() == 2)
+	profile.call("use_path", TEST_PATH)
+	_check("and the plates are gone from the file", not SaveFile.load_from(TEST_PATH).data.has("plates")
+		and (profile.call("trophies") as Array).size() == 2)
 	profile.call("use_path", "user://tool_profile.json")
 
 

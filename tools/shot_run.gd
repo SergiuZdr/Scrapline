@@ -19,8 +19,10 @@ extends SceneTree
 ## `--title [--seed-text TEXT] [--press]` photographs the title instead, TEXT in NEW RUN's seed field
 ## (`--press` presses NEW RUN, to show a refusal); `--ledger` opens UNLOCKS on its RUNS tab after
 ## writing a few made-up runs into the tool profile's history.
-## 085: `--plate ID` stages a profile where the crew won plate ID (with `--refit`, it is on the machine; `--crew N` opens machine N).
-## 085: `--stage-085` first fills a profile of its own (rungs open, medals, records, a plate, a daily
+## 085: `--trophies N` stages a profile where the Salvagers cleared the last N weekly contracts (their
+## trophies and liveries; `--paint a,b,c` puts those liveries on machines 0-2). With `--refit` (`--crew N`
+## opens machine N), `--wall` opens the trophy wall and `--liveries` the livery picker.
+## 085: `--stage-085` first fills a profile of its own (rungs open, medals, records, a trophy, a daily
 ## streak) for these shots; `--title` shows the rung line; `--yard` opens the yard board, `--goals` the
 ## UNLOCKS panel's GOALS tab; `--deal N` takes deal N before the map opens (its cost on the map); a new
 ## run with `--until moves:0` stops on the deals screen.
@@ -39,8 +41,8 @@ func _go() -> void:
 	var out: String = _arg(args, "--out", "shots/run.png")
 	if args.has("--stage-085"):
 		_stage_085(run)
-	if args.has("--plate"):
-		_stage_plate(run, _arg(args, "--plate", "pl_name"))
+	if args.has("--trophies"):
+		_stage_trophies(run, _arg(args, "--trophies", "3").to_int(), _arg(args, "--paint", ""))
 	run.call("new_run", seed_value, run.call("profile_options") if args.has("--stage-085") else {})
 	if args.has("--deal"):
 		run.call("apply", [RunSim.DEAL, _arg(args, "--deal", "0").to_int()])
@@ -149,6 +151,12 @@ func _go() -> void:
 		for i: int in 10:
 			await process_frame
 		var garage: Node = current_scene.get("_garage")
+		if args.has("--wall") or args.has("--liveries"):
+			for i: int in 20:
+				await process_frame
+			garage.call("_open_wall" if args.has("--wall") else "_open_liveries")
+			for i: int in 6:
+				await process_frame
 		if args.has("--stats"):
 			garage.set("_tab", "STATS")
 			garage.call("_rebuild")
@@ -250,7 +258,7 @@ func _title_shot(args: PackedStringArray, run: Node, out: String) -> void:
 
 
 ## 085: a profile of its own with something on every new screen: rungs 0-4 open, wins up to rung 3,
-## the next run on rung 4, medals and records for two crews, a weekly plate for the Salvagers, and a
+## the next run on rung 4, medals and records for two crews, a weekly trophy for the Salvagers, and a
 ## daily streak of three days up to yesterday.
 func _stage_085(run: Node) -> void:
 	var profile: Node = root.get_node("Profile")
@@ -280,27 +288,34 @@ func _stage_085(run: Node) -> void:
 		profile.call("finish_daily", today - d, {"ended": "wrecked", "acts": 1 + d % 2, "fights": 5 + d, "hp": 0})
 	var week: int = int(run.call("this_week"))
 	profile.call("start_weekly", week - 1)
-	profile.call("finish_weekly", week - 1, "stage_w", {"ended": "won", "won": true, "acts": 3, "fights": 17, "hp": 21},
-		{"id": "plate_w%d" % (week - 1), "week": week - 1, "crew": "salvagers", "name": "CONTRACT %s" % Time.get_date_string_from_unix_time(((week - 1) * 7 + 4) * 86400)})
+	var reward: Dictionary = run.call("weekly_reward", week - 1)
+	reward["crew"] = "salvagers"
+	profile.call("finish_weekly", week - 1, "stage_w", {"ended": "won", "won": true, "acts": 3, "fights": 17, "hp": 21}, reward)
 	profile.call("start_weekly", week)
 	profile.call("finish_weekly", week, "stage_w2", {"ended": "wrecked", "won": false, "acts": 1, "fights": 8, "hp": 0}, {})
 
 
-## 085: `--plate ID` -- a profile of its own where the Salvagers won plate ID on last week's contract
-## (with `--refit`: the plate riveted on the machine in the garage).
-func _stage_plate(run: Node, id: String) -> void:
+## 085: `--trophies N` -- a profile of its own where the Salvagers cleared the last N weekly contracts;
+## `paint` ("a,b,c", "" for none) is the livery each of their machines wears.
+func _stage_trophies(run: Node, count: int, paint: String) -> void:
 	var profile: Node = root.get_node("Profile")
-	var path: String = "user://tool_profile_plate.json"
+	var path: String = "user://tool_profile_trophies.json"
 	for file: String in [path, SaveFile.backup_of(path)]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(file))
 	profile.call("use_path", path)
 	profile.call("finish_tutorial")
 	for hint: Variant in ((run.get("db") as ContentDB).tutorial.get("hints", {}) as Dictionary):
 		profile.call("mark_seen", String(hint))
-	var week: int = int(run.call("this_week")) - 1
-	profile.call("start_weekly", week)
-	profile.call("finish_weekly", week, "stage_plate", {"ended": "won", "won": true, "acts": 3, "fights": 17, "hp": 21},
-		{"id": id, "week": week, "crew": "salvagers", "name": id.to_upper()})
+	var this_week: int = int(run.call("this_week"))
+	for k: int in range(count, 0, -1):
+		var week: int = this_week - k
+		var reward: Dictionary = run.call("weekly_reward", week)
+		reward["crew"] = "salvagers"
+		profile.call("start_weekly", week)
+		profile.call("finish_weekly", week, "stage_t%d" % week, {"ended": "won", "won": true, "acts": 3, "fights": 17, "hp": 21}, reward)
+	var ids: PackedStringArray = paint.split(",", false)
+	for slot: int in ids.size():
+		profile.call("set_livery", "salvagers", slot, ids[slot])
 
 
 func _arg(args: PackedStringArray, name: String, fallback: String) -> String:
