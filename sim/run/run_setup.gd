@@ -70,7 +70,13 @@ static func apply_adds(base: Dictionary, adds: Array, act: int = 0) -> Dictionar
 			node[keys[k]] = copy
 			node = copy
 		var last: String = keys[keys.size() - 1]
-		if add.has("set"):
+		if add.has("each"):
+			# 085: `each` adds to every number of a list (a terrain span: more drums on every board).
+			var list: Array = (node.get(last, []) as Array).duplicate() if node.get(last) is Array else []
+			for k: int in list.size():
+				list[k] = int(list[k]) + int(add["each"])
+			node[last] = list
+		elif add.has("set"):
 			node[last] = int(add["set"])
 		else:
 			node[last] = int(node.get(last, 0)) + int(add.get("delta", 0))
@@ -290,9 +296,11 @@ static func daily_options(rules: Dictionary, day: int) -> Dictionary:
 
 
 ## 085: the weekly contract for `week` (weeks since 1970-01-05, a Monday, UTC): a fixed rung, a fixed
-## crew and `challenges.weekly.twists` announced twists from `challenges.twists` (each a list of adds
-## on rules the game already has). {"seed", "mode": "weekly", "week", "crew_id", "tier" (= "rung"),
-## "rung", "twists": [{"id", "text"}], "deals": true, "deal_offer", "rules": {"adds": the twists'}}.
+## crew and `challenges.weekly.twists` announced twists from `challenges.twists` -- each a list of adds
+## and/or a `rules` overlay on rules the game already has. At least one twist changes how the yard plays
+## (`kind: "play"`), the rest are drawn from all; two twists of one `group` never meet.
+## {"seed", "mode": "weekly", "week", "crew_id", "tier" (= "rung"), "rung", "twists": [{"id", "text", "kind"}],
+## "deals": true, "deal_offer", "rules": {"adds": the twists', plus their overlays}, "reward"}.
 ## `rewards` (`data/weekly_rewards.json`, `ContentDB.weekly_rewards`: {id, trophy, livery, name} each):
 ## the week's is `rewards[week % n]`, carried as "reward": its id -- the trophy and livery a clear earns.
 static func weekly_options(rules: Dictionary, week: int, rewards: Array = []) -> Dictionary:
@@ -305,18 +313,35 @@ static func weekly_options(rules: Dictionary, week: int, rewards: Array = []) ->
 	var pool: Dictionary = challenges.get("twists", {})
 	var ids: Array = pool.keys().map(func(k: Variant) -> String: return String(k)).filter(func(k: String) -> bool: return not k.begins_with("_"))
 	ids.sort()
+	var chosen: Array = []
+	var groups: Dictionary = {}
+	var want: int = mini(int(weekly.get("twists", 3)), ids.size())
+	for n: int in want:
+		var open: Array = ids.filter(func(id: String) -> bool:
+			var g: String = String((pool[id] as Dictionary).get("group", ""))
+			return not chosen.has(id) and (g.is_empty() or not groups.has(g)) \
+				and (n > 0 or String((pool[id] as Dictionary).get("kind", "")) == "play"))
+		if open.is_empty():
+			break
+		var id: String = open[rng.range_int(0, open.size() - 1)]
+		chosen.append(id)
+		var group: String = String((pool[id] as Dictionary).get("group", ""))
+		if not group.is_empty():
+			groups[group] = true
+	chosen.sort()
 	var twists: Array = []
-	var adds: Array = []
-	for n: int in mini(int(weekly.get("twists", 3)), ids.size()):
-		var id: String = ids.pop_at(rng.range_int(0, ids.size() - 1))
+	var run_rules: Dictionary = {"adds": []}
+	for id: String in chosen:
 		var twist: Dictionary = pool[id]
-		twists.append({"id": id, "text": String(twist.get("text", id))})
+		twists.append({"id": id, "text": String(twist.get("text", id)), "kind": String(twist.get("kind", "punish"))})
 		for add: Variant in (twist.get("adds", []) as Array):
-			adds.append((add as Dictionary).duplicate(true))
-	twists.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return String(a["id"]) < String(b["id"]))
+			(run_rules["adds"] as Array).append((add as Dictionary).duplicate(true))
+		var over: Dictionary = twist.get("rules", {})
+		for key: Variant in over:
+			run_rules[key] = (over[key] as Dictionary).duplicate(true) if over[key] is Dictionary else over[key]
 	var rung: int = int(weekly.get("rung", 4))
 	var out: Dictionary = {"seed": seed_value, "mode": "weekly", "week": week, "crew_id": crew_id, "tier": rung, "rung": rung,
-		"twists": twists, "deals": true, "deal_offer": roll_deals(rules, seed_value), "rules": {"adds": adds}}
+		"twists": twists, "deals": true, "deal_offer": roll_deals(rules, seed_value), "rules": run_rules}
 	if not rewards.is_empty():
 		out["reward"] = String((rewards[posmod(week, rewards.size())] as Dictionary).get("id", ""))
 	return out

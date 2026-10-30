@@ -232,12 +232,12 @@
     },
     {
       "name": "FOREMAN",
-      "text": "Every enemy carries 2 more HP.",
+      "text": "Every enemy carries 1 more HP.",
       "rules": {
         "adds": [
           {
             "path": "enemies.hp_all",
-            "delta": 2
+            "delta": 1
           }
         ]
       }

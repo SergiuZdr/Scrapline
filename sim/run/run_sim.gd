@@ -422,11 +422,15 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 ## A fight at site `to`; if it is in the column the Reclaimer takes next, its drones reach
 ## in (013: lingering by the line costs inside fights too).
 static func _start_fight(state: RunState, setup: RunSetup, to: int, kind: String) -> void:
-	state.elite_next = false
+	state.elite_fights = maxi(0, state.elite_fights - 1)
 	var fight: Dictionary = _make_fight(state, setup, to, kind)
 	if reclaimer_reaches(state, to):
 		var col: int = int(state.site(to)["col"])
 		fight["reclaimer"] = {"round": reach_round(setup, state.moves, col), "count": reach_drones(setup, state.moves, col)}
+	elif every_fight_drones(state, setup, kind) > 0:
+		# 085: a deal's cost -- the Reclaimer's drones come into every fight of the act.
+		fight["reclaimer"] = {"round": int((setup.rules.get("reclaimer_reach", {}) as Dictionary).get("round", 3)),
+			"count": every_fight_drones(state, setup, kind)}
 	state.pending = {"kind": "fight", "site_type": kind, "fight": fight}
 
 
@@ -462,7 +466,8 @@ static func move_preview(state: RunState, setup: RunSetup, to: int) -> Dictionar
 		"leaving_costs": state.consumed(state.current),
 		"front_in": front_in(front, state.moves + 1, front_after),
 		"drones": reach_drones(setup, state.moves + 1, int(site.get("col", 0)))
-			if FIGHT_TYPES.has(kind) and int(site.get("col", -9)) == front_after + 1 else 0,
+			if FIGHT_TYPES.has(kind) and int(site.get("col", -9)) == front_after + 1
+			else (every_fight_drones(state, setup, kind) if FIGHT_TYPES.has(kind) else 0),
 		"drones_round": reach_round(setup, state.moves + 1, int(site.get("col", 0)))}
 
 
@@ -470,6 +475,14 @@ static func move_preview(state: RunState, setup: RunSetup, to: int) -> Dictionar
 ## standing at `front_col`. `front.pace` is moves per column x100: it advances when
 ## moves*100 >= (front_col+2)*pace, so pace 150 takes a column every move and a half (200 is the old
 ## `every 2`). Without a pace, `every` (one column every `every` moves) is the fallback.
+## 085: how many of the Reclaimer's drones come into a fight of `kind` wherever it stands
+## (`reclaimer_reach.every_fight`, a deal's cost); never into a gate or a warlord's board.
+static func every_fight_drones(state: RunState, setup: RunSetup, kind: String) -> int:
+	if kind == "boss" or kind == "warlord":
+		return 0
+	return maxi(0, int((rules_of(state, setup).get("reclaimer_reach", {}) as Dictionary).get("every_fight", 0)))
+
+
 ## 085: `front.head` (a deal's cost) puts the Reclaimer that many columns ahead of its schedule.
 static func front_due(front: Dictionary, moves: int, front_col: int) -> bool:
 	var pace: int = int(front.get("pace", 0))
@@ -2046,7 +2059,7 @@ static func deals_on_offer(state: RunState, setup: RunSetup) -> Array:
 ## elite" turns the next skirmish into an elite (the map card and the fight agree).
 static func site_kind(state: RunState, id: int) -> String:
 	var kind: String = String(state.site(id).get("type", ""))
-	return "elite" if state.elite_next and kind == "skirmish" else kind
+	return "elite" if state.elite_fights > 0 and kind == "skirmish" else kind
 
 
 ## [DEAL, index]: the cost goes on first (it may reshape Act 1's region, which nothing has touched
@@ -2072,7 +2085,7 @@ static func _deal(state: RunState, setup: RunSetup, index: int) -> bool:
 		_generate_region(state, setup)
 		state.current = 0
 		state.sites[0]["visited"] = true
-	state.elite_next = int(take.get("elite_first", 0)) > 0
+	state.elite_fights = int(take.get("elite_first", 0))
 	state.thin_salvage = int(take.get("thin_salvage", 0))
 	state.thin_to = int(take.get("thin_to", 2))
 	var give: Dictionary = entry.get("give", {})
@@ -2192,7 +2205,7 @@ static func active_costs(state: RunState, setup: RunSetup) -> Array[String]:
 		for add: Variant in (take.get("adds", []) as Array):
 			var only: Variant = (add as Dictionary).get("acts")
 			holds = holds or not (only is Array) or (only as Array).any(func(a: Variant) -> bool: return int(a) == state.act)
-		holds = holds or state.elite_next or state.thin_salvage > 0 or state.free_levels > 0
+		holds = holds or state.elite_fights > 0 or state.thin_salvage > 0 or state.free_levels > 0
 		if holds:
 			var line: String = String(entry.get("cost", ""))
 			if state.thin_salvage > 0:

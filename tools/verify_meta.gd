@@ -81,7 +81,7 @@ func _run() -> void:
 	var act1 := RunState.new()
 	act1.act = 1
 	_check("an unlocked tier's adds are in the rules (Act 1 hp_all %d)" % int(RunSim.rules_of(act1, tough)["enemies"].get("hp_all", 0)),
-		(tough.rules.get("adds", []) as Array).size() > 0 and int(RunSim.rules_of(act1, tough)["enemies"]["hp_all"]) == 2
+		(tough.rules.get("adds", []) as Array).size() > 0 and int(RunSim.rules_of(act1, tough)["enemies"]["hp_all"]) == 1
 		and int(db.run_rules["enemies"].get("hp_all", 0)) == 0 and not db.run_rules.has("adds"))
 	# 082 (B1): the tier format -- every tier past the first is a list of integer adds on a dotted path.
 	var tiers: Array = meta["tiers"]
@@ -334,9 +334,9 @@ func _test_ladder_085(meta: Dictionary) -> void:
 	# An old profile (082-084: FOREMAN and RECLAIMED held, the ending won) keeps everything.
 	var old: Array = ["u01", "u02", "u03", "u04", "u05", "u06", "u07", "u08", "u09", "u10", "u11", "u12", "u13", "u14", "u15", "u16", "u26"]
 	var old_run: Dictionary = Meta.options(meta, old, "wall", 2)
-	_check("an old profile keeps its unlocks, its crews and its rung (RECLAIMED: the old tier's numbers exactly)",
+	_check("an old profile keeps its unlocks, its crews and its rung (RECLAIMED: FOREMAN +1 HP since 2026-10-29)",
 		Meta.top_tier(old, meta) == 2 and Meta.finished(old, meta) and old_run.has("crew") and int(old_run["tier"]) == 2
-		and var_to_str(RunStore._ints(Meta.rung_adds(meta, 2))) == var_to_str([{"path": "enemies.hp_all", "delta": 2},
+		and var_to_str(RunStore._ints(Meta.rung_adds(meta, 2))) == var_to_str([{"path": "enemies.hp_all", "delta": 1},
 			{"path": "enemies.bonus.damage", "delta": 1}, {"path": "front.damage", "set": 3}])
 		and old.all(func(id: String) -> bool: return all.has(id)))
 	_check("and its next rung is RUNG 3 (%s)" % String(Meta.next_unlock(old, meta).get("text", "")),

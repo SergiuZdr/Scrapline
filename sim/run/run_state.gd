@@ -64,13 +64,13 @@ var deal_offer: Array = []
 var deal: String = ""
 var deal_adds: Array = []
 ## Deal effects that run out: levels bought free (the next one's perk offer is cut to
-## `free_level_cards`), won fights whose salvage is cut to `thin_to` options, and whether the next
-## fight started is an elite.
+## `free_level_cards`), won fights whose salvage is cut to `thin_to` options, and how many of the next
+## fights started are elites.
 var free_levels: int = 0
 var free_level_cards: int = 0
 var thin_salvage: int = 0
 var thin_to: int = 0
-var elite_next: bool = false
+var elite_fights: int = 0
 ## 085 (B10): sites entered this run, by type (a medal asks for a win without a workshop).
 var visits: Dictionary = {}
 ## Human-readable history, newest last. Deterministic like everything else.
@@ -109,4 +109,4 @@ func fingerprint() -> String:
 	return "act=%d cur=%d moves=%d front=%d scrap=%d hold=%d crew=[%s] cargo=[%s] visited=%s pending=%s outcome=%d built=%s scouted=%s events=%s" % [
 		act, current, moves, front_col, scrap, hold_size, ";".join(crew_text),
 		",".join(cargo), "".join(visited), str(pending.get("kind", "")), outcome, assembled, str(scouted), ",".join(PackedStringArray(seen_events))] \
-		+ ("" if deal.is_empty() else " deal=%s free=%d thin=%d elite=%s" % [deal, free_levels, thin_salvage, elite_next])
+		+ ("" if deal.is_empty() else " deal=%s free=%d thin=%d elite=%d" % [deal, free_levels, thin_salvage, elite_fights])

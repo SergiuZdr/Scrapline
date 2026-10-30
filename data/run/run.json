@@ -49,18 +49,27 @@
     "_comment": "084 (B7 a'): the three warlord boards are dealt to the acts in an order shuffled from the seed (`RunSim.act_warlord`). A keeper's HP moves by `keeper_hp_step` for each act away from its file's own act; escorts, their arming and late waves follow the act's `enemies` rules."
   },
   "challenges": {
-    "_comment": "085: the daily yard and the weekly contract (RunSetup.daily_options / weekly_options; Meta.challenge_options makes them a run's options). The seed comes from the day or the week alone, so everyone plays the same yard that day. Daily: one condition per act from `conditions`, rung `rung`, any crew, the seed's deals. Weekly: rung `rung`, the crew `crews[week % n]`, `twists` twists drawn from `twists` -- each a list of adds on rules the game already has, with the line the screens show.",
+    "_comment": "085: the daily yard and the weekly contract (RunSetup.daily_options / weekly_options; Meta.challenge_options makes them a run's options). The seed comes from the day or the week alone, so everyone plays the same yard that day. Daily: one condition per act from `conditions`, rung `rung`, any crew, the seed's deals. Weekly: rung `rung`, the crew `crews[week % n]`, `twists` twists drawn from `twists` -- each a list of adds on rules the game already has, with the line the screens show. A twist is `adds` and/or a `rules` overlay; `kind` play (changes how the yard plays) or punish; a week draws at least one play twist and never two of one `group` (the user, 2026-10-29: more variety).",
     "daily": {"rung": 0, "conditions": ["dust", "heat_wave", "scrap_rain", "wires"]},
     "weekly": {"rung": 4, "twists": 3, "crews": ["salvagers", "wall", "runners"]},
     "twists": {
-      "no_workshops": {"text": "No workshops anywhere", "adds": [{"path": "site_weights.workshop", "set": 0}, {"path": "workshop.guarantee", "set": 0}]},
-      "trackers": {"text": "Trackers lock on: far more trackers in every squad", "adds": [{"path": "kinds.weights.tracker", "delta": 40}]},
-      "thin_salvage": {"text": "Salvage shows 2 parts, not 3", "adds": [{"path": "rewards.choices", "set": 2}]},
-      "cold_piles": {"text": "Scrap piles heal nothing", "adds": [{"path": "fight_rules.pile_heal", "set": 0}]},
-      "hungry_line": {"text": "The Reclaimer takes a column every 1.2 moves", "adds": [{"path": "front.pace", "set": 120}]},
-      "crowded": {"text": "One more enemy in every fight", "adds": [{"path": "board.enemies", "delta": 1}]},
-      "lean_pay": {"text": "Skirmishes pay 5 scrap, not 10", "adds": [{"path": "rewards.skirmish_scrap", "delta": -5}]},
-      "veterans": {"text": "Every elite carries 4 more HP", "adds": [{"path": "enemies.elite_hp_bonus", "delta": 4}]}
+      "no_workshops": {"kind": "punish", "text": "No workshops anywhere", "adds": [{"path": "site_weights.workshop", "set": 0}, {"path": "workshop.guarantee", "set": 0}]},
+      "trackers": {"kind": "punish", "text": "Trackers lock on: far more trackers in every squad", "adds": [{"path": "kinds.weights.tracker", "delta": 40}]},
+      "thin_salvage": {"kind": "punish", "text": "Salvage shows 2 parts, not 3", "adds": [{"path": "rewards.choices", "set": 2}]},
+      "cold_piles": {"kind": "punish", "text": "Scrap piles heal nothing", "adds": [{"path": "fight_rules.pile_heal", "set": 0}]},
+      "hungry_line": {"kind": "punish", "group": "front", "text": "The Reclaimer takes a column every 1.2 moves", "adds": [{"path": "front.pace", "set": 120}]},
+      "crowded": {"kind": "punish", "text": "One more enemy in every fight", "adds": [{"path": "board.enemies", "delta": 1}]},
+      "lean_pay": {"kind": "punish", "text": "Skirmishes pay 5 scrap, not 10", "adds": [{"path": "rewards.skirmish_scrap", "delta": -5}]},
+      "veterans": {"kind": "punish", "text": "Every elite carries 4 more HP", "adds": [{"path": "enemies.elite_hp_bonus", "delta": 4}]},
+      "hack_hold": {"kind": "play", "group": "objective", "text": "Every fight is HACK or HOLD", "rules": {"objective_weights": {"rout": 0, "defend": 0, "salvage": 0, "survive": 0}}},
+      "salvage_runs": {"kind": "play", "group": "objective", "text": "Every fight is a SALVAGE run", "rules": {"objective_weights": {"rout": 0, "defend": 0, "hold": 0, "hack": 0, "survive": 0}}},
+      "fuel_drums": {"kind": "play", "text": "Twice the fuel drums on every board", "adds": [{"path": "terrain.barrels", "each": 3}]},
+      "pit_fields": {"kind": "play", "text": "Pits on every board", "adds": [{"path": "terrain.pits", "each": 2}]},
+      "scrap_rain": {"kind": "play", "group": "weather", "text": "Scrap rain in every act", "rules": {"modifiers": {"acts": ["scrap_rain", "scrap_rain", "scrap_rain"]}}},
+      "live_wires": {"kind": "play", "group": "weather", "text": "Live wires in every act", "rules": {"modifiers": {"acts": ["wires", "wires", "wires"]}}},
+      "quick_hands": {"kind": "play", "text": "Every ability comes back a round sooner", "rules": {"crew_bonus": {"cooldown": 1}}},
+      "traders": {"kind": "play", "text": "Traders on every road", "adds": [{"path": "site_weights.trader", "delta": 20}]},
+      "wide_yard": {"kind": "play", "text": "Bigger boards: two more rows between the sides", "adds": [{"path": "board.rows", "delta": 2}]}
     }
   },
   "starting_scrap": 10,

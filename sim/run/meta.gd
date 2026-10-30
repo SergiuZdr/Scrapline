@@ -109,7 +109,8 @@ static func medals(rules: Dictionary, crew_id: String) -> Array:
 	return (((rules.get("crews", {}) as Dictionary).get(crew_id, {}) as Dictionary).get("medals", []) as Array).duplicate(true)
 
 
-## Two run-rule overlays as one: `adds` lists joined (a's first), every other key from b over a.
+## Two run-rule overlays as one: `adds` lists joined (a's first), every other key from b over a --
+## except two bonus blocks (a crew's `crew_bonus` and a twist's), whose numbers add up.
 static func join_rules(a: Dictionary, b: Dictionary) -> Dictionary:
 	var out: Dictionary = a.duplicate(true)
 	for key: Variant in b:
@@ -117,6 +118,13 @@ static func join_rules(a: Dictionary, b: Dictionary) -> Dictionary:
 			var adds: Array = (out.get("adds", []) as Array).duplicate(true)
 			adds.append_array((b["adds"] as Array).duplicate(true))
 			out["adds"] = adds
+		elif b[key] is Dictionary and out.get(key) is Dictionary:
+			var merged: Dictionary = (out[key] as Dictionary).duplicate(true)
+			for k: Variant in (b[key] as Dictionary):
+				var v: Variant = (b[key] as Dictionary)[k]
+				var both_numbers: bool = (v is int or v is float) and (merged.get(k) is int or merged.get(k) is float)
+				merged[k] = int(merged[k]) + int(v) if both_numbers else v
+			out[key] = merged
 		else:
 			out[key] = b[key] if not (b[key] is Dictionary) else (b[key] as Dictionary).duplicate(true)
 	return out
