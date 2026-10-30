@@ -5,7 +5,7 @@ extends SceneTree
 ##
 ##   godot --path . --resolution 900x1100 --script res://tools/shot_machine.gd -- \
 ##       --models gen --gen-dir res://art/parts_gen_scrap --yaw 45,25,0 --out shots/brute
-##       [--parts ch_brute,co_slug,ar_saw,ar_hammer,mo_scavenger] [--level 0..5] [--walk seconds] [--plate pl_shield [--plate-back]]
+##       [--parts ch_brute,co_slug,ar_saw,ar_hammer,mo_scavenger] [--level 0..5] [--walk seconds] [--livery oxide_red]
 ##
 ## Writes `<out>_<yaw>.png` per angle: 0 is the machine's front to the camera, 45 is three-quarter.
 ## Not headless: it has to render.
@@ -41,10 +41,8 @@ func _run() -> void:
 
 	var level: int = args[args.find("--level") + 1].to_int() if args.has("--level") else 0
 	var model: Node3D = ConstructView.build_parts(parts, db, Ink.YOURS, level)
-	Ink.dress_machine(model, parts, Ink.YOURS)
-	# 085: `--plate ID` rivets a weekly-contract plate on it, as the garage and fights do.
-	if args.has("--plate"):
-		ConstructView.add_plate(model, args[args.find("--plate") + 1], args.has("--plate-back"))
+	# 085: `--livery ID` paints it in a weekly contract's livery, as the garage and fights do.
+	Ink.dress_machine(model, parts, Ink.YOURS, Color(0, 0, 0, 0), args[args.find("--livery") + 1] if args.has("--livery") else "")
 	world.add_child(model)
 	# 056: the rest pose of a skeleton machine comes from its rig (stances by weapon class).
 	var rig := ConstructRig.new()

@@ -58,6 +58,21 @@ uniform float comic_edge_lod = 1.2;
 uniform float comic_floor = 0.0;
 uniform float shadow_level = 0.0;
 
+// 085: a weekly contract's livery repaints a generated part's PAINTED texels and nothing else: the
+// saturated, lit-enough panels. Yellow panels (the frame's paint) take `livery_paint`, red and orange
+// panels that are bright enough to be paint, not rust, take `livery_trim`; grey steel, black mechanism
+// and dark rust keep the texture. Each texel keeps its own value (scaled from a typical panel's), so
+// chips, stains and wear stay. Colours are sRGB (no source_color hint); the work is done in sRGB.
+// Ink edges are read from the original texture, so the line work is the same in every livery.
+uniform bool livery_on = false;
+uniform vec3 livery_paint = vec3(0.85, 0.64, 0.25);
+uniform vec3 livery_trim = vec3(0.61, 0.23, 0.18);
+// > 0: blotches of the trim colour over the paint (camouflage), in the texture's own space.
+uniform float livery_camo = 0.0;
+// The value (max channel, sRGB) of a typical painted panel in the generated textures.
+uniform float livery_ref_paint = 0.48;
+uniform float livery_ref_trim = 0.45;
+
 // 0 none, 1 stipple dots, 2 diagonal hatching.
 uniform int pattern = 0;
 uniform vec3 pattern_colour : source_color = vec3(0.078, 0.067, 0.059);
@@ -77,6 +92,42 @@ float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
+vec3 rgb2hsv(vec3 c) {
+	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+	vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+	vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+	float d = q.x - min(q.w, q.y);
+	return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + 1e-10)), d / (q.x + 1e-10), q.x);
+}
+
+float value_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+
+// 085: a texel of a generated part in its livery (see the uniforms).
+vec3 repaint(vec3 c, vec2 uv) {
+	vec3 s = pow(max(c, vec3(0.0)), vec3(1.0 / 2.2));
+	vec3 hsv = rgb2hsv(s);
+	float h = hsv.x;
+	float yellow = smoothstep(0.075, 0.1, h) * (1.0 - smoothstep(0.2, 0.26, h));
+	float red = 1.0 - smoothstep(0.075, 0.1, h) + smoothstep(0.9, 0.95, h);
+	float paint_w = yellow * smoothstep(0.28, 0.42, hsv.y) * smoothstep(0.18, 0.3, hsv.z);
+	// Red and orange are paint only when bright: dark orange is rust and stays rust.
+	float trim_w = red * smoothstep(0.35, 0.5, hsv.y) * smoothstep(0.3, 0.42, hsv.z);
+	vec3 paint = livery_paint;
+	if (livery_camo > 0.0) {
+		float n = value_noise(uv * 9.0) * 0.65 + value_noise(uv * 23.0) * 0.35;
+		paint = mix(paint, livery_trim, step(0.52, n) * livery_camo);
+	}
+	vec3 out_s = s;
+	out_s = mix(out_s, clamp(paint * min(hsv.z / livery_ref_paint, 1.3), 0.0, 1.0), paint_w);
+	out_s = mix(out_s, clamp(livery_trim * min(hsv.z / livery_ref_trim, 1.3), 0.0, 1.0), trim_w);
+	return pow(out_s, vec3(2.2));
+}
+
 void fragment() {
 	vec3 c = use_tex ? texture(albedo_tex, UV, comic > 0.0 ? 1.2 : 0.0).rgb : albedo;
 	if (use_tex && use_clean) {
@@ -84,6 +135,9 @@ void fragment() {
 		if (k.a < 0.999 && k.a <= clean) {
 			c = texture(clean_tex, UV, comic > 0.0 ? 1.2 : 0.0).rgb;
 		}
+	}
+	if (use_tex && livery_on) {
+		c = repaint(c, UV);
 	}
 	if (use_tex && comic > 0.0) {
 		float l = dot(c, vec3(0.299, 0.587, 0.114));
