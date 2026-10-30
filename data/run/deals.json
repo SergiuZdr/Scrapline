@@ -25,7 +25,7 @@
     {
       "id": "plating",
       "gift": "Every machine +3 max HP",
-      "cost": "Workshops only where the road guarantees one (two an act)",
+      "cost": "Workshops only where the road guarantees one, and enemies carry 1 more HP",
       "give": {
         "max_hp": 3
       },
@@ -34,6 +34,10 @@
           {
             "path": "site_weights.workshop",
             "set": 0
+          },
+          {
+            "path": "enemies.hp_all",
+            "delta": 1
           }
         ]
       }
