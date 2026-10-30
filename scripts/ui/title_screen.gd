@@ -280,8 +280,18 @@ func _ladder_line(meta: Dictionary, held: Array) -> Control:
 		pip.add_theme_stylebox_override("panel", box)
 		row.add_child(pip)
 	var count := Label.new()
-	count.text = "%d OF %d OPEN  ·  %s" % [top + 1, rungs.size(), "THE LINE IS CUT" if Meta.finished(held, meta)
-		else ("best won: RUNG %d" % won_top if won_top >= 0 else "win a run to open the next rung")]
+	# 085: the ending is a win on RECLAIMED (rung 2, `kind: ending`); the ladder goes on past it.
+	var ending_rung: int = 2
+	for entry: Dictionary in (meta.get("unlocks", []) as Array):
+		if String(entry.get("kind", "")) == "ending":
+			for key: Variant in (entry.get("when", {}) as Dictionary):
+				if String(key).begins_with("wins_t"):
+					ending_rung = String(key).trim_prefix("wins_t").to_int()
+	var ending_name: String = String((rungs[ending_rung] as Dictionary).get("name", "")) if ending_rung < rungs.size() else ""
+	count.text = "%d OF %d OPEN  ·  %s" % [top + 1, rungs.size(),
+		("THE LINE IS CUT  ·  the ladder goes on to RUNG %d" % (rungs.size() - 1)) if Meta.finished(held, meta)
+		else ("%s  ·  the line is cut by a win on %s (RUNG %d)" % ["best won: RUNG %d" % won_top if won_top >= 0
+			else "win a run to open the next rung", ending_name, ending_rung])]
 	count.add_theme_font_override("font", UIKit.font_strong())
 	count.add_theme_font_size_override("font_size", UIKit.SIZE_BODY)
 	count.size_flags_vertical = Control.SIZE_SHRINK_CENTER
