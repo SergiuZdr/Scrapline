@@ -186,6 +186,7 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-29 | **The 3D weekly plates are dropped** (the user did not like the TRELLIS models and they did not read on the machines). **A weekly clear gives a newly drawn trophy on a TROPHY WALL in the garage and a named livery** (paint scheme per surface zone), worn by any crew, picked per machine in the garage | 085, the user |
 | 2026-10-30 | **Six weekly rewards in turn** (`data/weekly_rewards.json`): welded cup / HAZARD YELLOW, crushed-gear medal / OXIDE RED, helm on a spike / GUNMETAL CAMO, scrap belt / BONE WHITE, bent wrench / SODIUM ORANGE, cog crown / TEAL SCRAPPER; a livery is stored per crew machine (`crew:slot`), plates held before migrate to their weeks' trophies | 085, carrying out the user's call; names and order are data, for the user to judge |
 | 2026-10-30 | **Ladder: 10 cumulative rungs; FOREMAN is the gentler first step (+1 enemy HP)**; deal costs must bite a forward player too; crew rules stay strong (the ladder supplies difficulty); weekly twists mix play-changing rules with punishing ones | 085, the user |
+| 2026-10-30 | **Deal costs last the whole run** (all three acts); **rung 10 stays at ~12% for the plain bot**; liveries must read in a fight, not only in the garage | 085, the user |
 
 ## Lessons carried over from the old codebase
 
