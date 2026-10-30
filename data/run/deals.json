@@ -28,7 +28,7 @@
     {
       "id": "plating",
       "gift": "Every machine +3 max HP",
-      "cost": "No workshop in Act 1, and its gate brings one more escort",
+      "cost": "No workshop in Act 1, enemies hit 1 harder there, and its gate brings one more escort",
       "give": {
         "max_hp": 3
       },
@@ -54,6 +54,13 @@
             "acts": [
               1
             ]
+          },
+          {
+            "path": "enemies.bonus.damage",
+            "delta": 1,
+            "acts": [
+              1
+            ]
           }
         ]
       }
@@ -61,7 +68,7 @@
     {
       "id": "scrap",
       "gift": "60 scrap",
-      "cost": "Enemies hit 1 harder and carry 2 more HP in Act 1",
+      "cost": "Enemies hit 1 harder and carry 2 more HP in Act 1, and its gate brings one more escort",
       "give": {
         "scrap": 60
       },
@@ -77,6 +84,13 @@
           {
             "path": "enemies.hp_all",
             "delta": 2,
+            "acts": [
+              1
+            ]
+          },
+          {
+            "path": "enemies.boss_escorts",
+            "delta": 1,
             "acts": [
               1
             ]
