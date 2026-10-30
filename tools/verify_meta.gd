@@ -229,7 +229,7 @@ func _run() -> void:
 
 
 ## 085: a daily or weekly win banks nothing on the ladder -- no stats, unlocks, tier, medals or crew
-## record -- but writes its result to the yard board (and the weekly's plate) and the run history.
+## record -- but writes its result to the yard board (and the weekly's trophy and livery) and the run history.
 func _yard_runs_count_for_nothing(db: ContentDB, profile: Node, run: Node, veteran: RunState) -> void:
 	var path: String = "user://verify_meta_yard.json"
 	for file: String in [path, SaveFile.backup_of(path)]:
@@ -274,8 +274,11 @@ func _yard_runs_count_for_nothing(db: ContentDB, profile: Node, run: Node, veter
 			_check("and its result is the day's score", String((profile.call("daily", 20385) as Dictionary).get("ended", "")) == "won"
 				and int((profile.call("daily_best") as Dictionary).get("acts", 0)) == 3)
 		else:
-			_check("and clearing the weekly gives its plate, carried by its crew", not (banked.get("plate", {}) as Dictionary).is_empty()
-				and String((profile.call("plate_for", "wall") as Dictionary).get("id", "")) == "plate_w2911" and bool((profile.call("weekly", 2911) as Dictionary)["cleared"]))
+			var trophy: Dictionary = banked.get("trophy", {})
+			var due: Dictionary = WeeklyRewards.for_week(2911)
+			_check("and clearing the weekly hangs the week's trophy and gives its livery (%s)" % [trophy], String(trophy.get("id", "")) == String(due["id"])
+				and String(trophy.get("crew", "")) == "wall" and (profile.call("trophies") as Array).size() == 1
+				and (profile.call("liveries") as Array) == [String(due["livery"])] and bool((profile.call("weekly", 2911) as Dictionary)["cleared"]))
 		run.call("end_run")
 	# And an ordinary win does earn its crew's record.
 	RunStore.clear()
