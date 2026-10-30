@@ -25,7 +25,7 @@
     {
       "id": "plating",
       "gift": "Every machine +3 max HP",
-      "cost": "No workshops",
+      "cost": "Workshops only where the road guarantees one (two an act)",
       "give": {
         "max_hp": 3
       },
@@ -33,10 +33,6 @@
         "adds": [
           {
             "path": "site_weights.workshop",
-            "set": 0
-          },
-          {
-            "path": "workshop.guarantee",
             "set": 0
           }
         ]
@@ -61,7 +57,7 @@
     {
       "id": "module",
       "gift": "An uncommon module of your choice (1 of 3)",
-      "cost": "Salvage shows 2 parts, not 3",
+      "cost": "Salvage shows 2 parts, not 3, and enemies carry 1 more HP",
       "give": {
         "module_pick": 3
       },
@@ -70,6 +66,10 @@
           {
             "path": "rewards.choices",
             "delta": -1
+          },
+          {
+            "path": "enemies.hp_all",
+            "delta": 1
           }
         ]
       }

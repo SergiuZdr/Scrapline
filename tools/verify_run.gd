@@ -1842,12 +1842,14 @@ func _test_deal_effects() -> void:
 	st = r[0]
 	var shops: int = st.sites.filter(func(s: Dictionary) -> bool: return String(s["type"]) == "workshop").size()
 	var shops0: int = (r[3] as RunState).sites.filter(func(s: Dictionary) -> bool: return String(s["type"]) == "workshop").size()
-	_check("plating: every machine +3 max HP and HP, no workshop in Act 1 (%d, was %d)" % [shops, shops0],
-		r[2] and shops == 0 and shops0 > 0 and RunSim.max_hp(r[1], st.crew[0]) == RunSim.max_hp(r[4], (r[3] as RunState).crew[0]) + 3
+	var guaranteed: int = (_db.run_rules["workshop_guaranteed_columns"] as Array).size()
+	_check("plating: every machine +3 max HP and HP, workshops only where the road guarantees one (%d, was %d)" % [shops, shops0],
+		r[2] and shops <= guaranteed and shops > 0 and RunSim.max_hp(r[1], st.crew[0]) == RunSim.max_hp(r[4], (r[3] as RunState).crew[0]) + 3
 		and int(st.crew[0]["hp"]) == RunSim.max_hp(r[1], st.crew[0]))
 	RunSim._next_act(st, r[1])
-	_check("and the cost lasts the run (the user: no workshop in Act 2 either; the line still on the map)",
-		st.sites.filter(func(s: Dictionary) -> bool: return String(s["type"]) == "workshop").is_empty() and RunSim.active_costs(st, r[1]).size() == 1)
+	_check("and the cost lasts the run (the user: Act 2 too; the line still on the map)",
+		int(RunSim.rules_of(st, r[1])["site_weights"]["workshop"]) == 0
+		and st.sites.filter(func(s: Dictionary) -> bool: return String(s["type"]) == "workshop").size() <= guaranteed and RunSim.active_costs(st, r[1]).size() == 1)
 	r = take.call("scrap")
 	st = r[0]
 	var st2: RunState = RunSim.start(r[1])
