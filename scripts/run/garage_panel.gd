@@ -305,16 +305,16 @@ func _build_stage(viewport: SubViewport) -> void:
 
 func _rebuild_model() -> void:
 	var member: Dictionary = Run.state.crew[selected]
-	var key: String = "%d:%s:%d:%s" % [selected, ",".join(member["parts"]), int(member.get("level", 0)), member["alive"]]
+	var key: String = "%d:%s:%d:%s:%s" % [selected, ",".join(member["parts"]), int(member.get("level", 0)), member["alive"],
+		Profile.livery_for(Run.crew_id(), selected)]
 	if key == _model_key and _model != null:
 		return
 	_model_key = key
 	if _model != null:
 		_model.queue_free()
 	_model = ConstructView.build_parts(PackedStringArray(member["parts"]), Run.db, TEAM, int(member.get("level", 0)))
-	Ink.dress_machine(_model, PackedStringArray(member["parts"]), Ink.YOURS)
-	# 085: the plate this crew won on a weekly contract, riveted on the chest (cosmetic only).
-	ConstructView.add_plate(_model, String(Profile.plate_for(Run.crew_id()).get("id", "")))
+	# 085: in the paint scheme picked for it (a weekly contract's livery; "" the makers' paint).
+	Ink.dress_machine(_model, PackedStringArray(member["parts"]), Ink.YOURS, Color(0, 0, 0, 0), Profile.livery_for(Run.crew_id(), selected))
 	_pivot.add_child(_model)
 	# Framed by the machine's own height, so a squat anchor and a tall marksman both fill
 	# the stage (079: closer -- the machine fills most of its bay).
@@ -461,6 +461,12 @@ func _build_header() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_header.add_child(spacer)
+	# 085: what the weekly contracts gave: the trophy wall.
+	var wall := _button("TROPHIES", UIKit.secondary(), UIKit.TEXT, Vector2(170, 48))
+	wall.name = "trophies_button"
+	wall.tooltip_text = "The trophy wall: what the weekly contracts gave"
+	wall.pressed.connect(_open_wall)
+	_header.add_child(wall)
 	var words := _button("?", UIKit.secondary(), UIKit.TEXT, Vector2(48, 48))
 	words.name = "glossary_button"
 	words.tooltip_text = "Glossary"
@@ -507,11 +513,14 @@ func _build_info() -> void:
 			_renaming = true
 			_rebuild())
 		head.add_child(rename)
-		# 085: the plate this crew won on a weekly contract, riveted by the name (cosmetic only) when
-		# it has no model to rivet on the machine itself.
-		var plate: Dictionary = Profile.plate_for(Run.crew_id())
-		if not plate.is_empty() and Models.prop(String(plate.get("id", ""))) == null:
-			head.add_child((load("res://scripts/ui/yard_board.gd") as GDScript).call("plate_badge", String(plate.get("name", "")), false, 14))
+		# 085: the paint scheme it wears (a weekly contract's livery, or the makers' paint).
+		var paint := _button("LIVERY", UIKit.secondary(), UIKit.TEXT, Vector2(120, 44))
+		paint.name = "livery_button"
+		paint.add_theme_font_size_override("font_size", 18)
+		paint.tooltip_text = "Paint it: %s" % Ink.livery_name(Profile.livery_for(Run.crew_id(), selected))
+		paint.pressed.connect(_open_liveries)
+		head.add_child(paint)
+		head.add_child(TrophyWallScript.swatch(Profile.livery_for(Run.crew_id(), selected), Vector2(44, 22)))
 	var status := HBoxContainer.new()
 	status.add_theme_constant_override("separation", UIKit.SPACE_MD)
 	_info.add_child(status)
@@ -1044,6 +1053,95 @@ func _perk_card(k: int, id: String) -> Button:
 	inner.add_child(_label(PartText.bonus_text(perk.get("grid", {})).to_upper(), 22, UIKit.GREEN, UIKit.font_comic()))
 	card.pressed.connect(_level_up.bind(k))
 	return card
+
+
+# --- 085: liveries and the trophy wall ---------------------------------------------
+
+const TrophyWallScript := preload("res://scripts/ui/trophy_wall.gd")
+
+
+func _open_wall() -> void:
+	TrophyWallScript.build(self, Run.this_week(), Run.weekly_reward, Profile.trophies())
+
+
+## The paint schemes this machine can wear: the makers' paint and every earned livery as choices, the
+## ones not earned yet as labels (a state that cannot be pressed is a label).
+func _open_liveries() -> void:
+	_close_picker()
+	var member: Dictionary = Run.state.crew[selected]
+	var current: String = Profile.livery_for(Run.crew_id(), selected)
+	var earned: Array = Profile.liveries()
+	_picker = Control.new()
+	_picker.name = "livery_pick"
+	add_child(_picker)
+	_picker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.74)
+	_picker.add_child(shade)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var center := CenterContainer.new()
+	_picker.add_child(center)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", UIKit.SPACE_LG)
+	center.add_child(box)
+	box.add_child(_page("%s  ·  LIVERY" % String(member["name"]).to_upper(), UIKit.SIZE_DISPLAY, UIKit.PAGE_TEXT, UIKit.font_display(), 10))
+	box.add_child(_page("Paint only: it changes nothing in a fight. Each weekly contract cleared gives one more scheme, for any machine of any crew.",
+		UIKit.SIZE_BODY, UIKit.PAGE_TEXT, UIKit.font_strong()))
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", UIKit.SPACE_MD)
+	grid.add_theme_constant_override("v_separation", UIKit.SPACE_MD)
+	box.add_child(grid)
+	var ids: Array = [""]
+	for reward: Dictionary in WeeklyRewards.list():
+		if not ids.has(String(reward["livery"])):
+			ids.append(String(reward["livery"]))
+	for id: String in ids:
+		grid.add_child(_livery_choice(id, id.is_empty() or earned.has(id), id == current))
+	var later := _button("KEEP IT AS IT IS", UIKit.secondary(), UIKit.TEXT, Vector2(280, 56))
+	later.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	later.pressed.connect(_close_picker)
+	box.add_child(later)
+
+
+func _livery_choice(id: String, open: bool, worn: bool) -> Control:
+	var tile_size := Vector2(300, 92)
+	var inner := HBoxContainer.new()
+	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.add_theme_constant_override("separation", UIKit.SPACE_MD)
+	inner.add_child(TrophyWallScript.swatch(id, Vector2(64, 40)))
+	var words := VBoxContainer.new()
+	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	words.add_theme_constant_override("separation", 0)
+	words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	inner.add_child(words)
+	words.add_child(UIKit.fit(_label(Ink.livery_name(id), 22, UIKit.TEXT if open else UIKit.INK_FAINT, UIKit.font_comic()), 190, 1, 12))
+	var note: String = "WORN NOW" if worn else ("the makers' own colours" if id.is_empty() else ("earned" if open else "clear a weekly contract"))
+	words.add_child(UIKit.fit(_label(note, UIKit.SIZE_LABEL, UIKit.INK_GREEN if worn else UIKit.INK_DIM, UIKit.font_strong()), 190, 1, 10))
+	if not open:
+		var card := PanelContainer.new()
+		card.name = "livery_" + id
+		card.custom_minimum_size = tile_size
+		card.add_theme_stylebox_override("panel", UIKit.ink_card(UIKit.PAPER_DIM, UIKit.SPACE_MD, UIKit.SPACE_SM, 3))
+		inner.modulate = Color(1, 1, 1, 0.55)
+		card.add_child(inner)
+		return card
+	var button := Button.new()
+	button.name = "livery_" + (id if not id.is_empty() else "makers")
+	button.custom_minimum_size = tile_size
+	button.focus_mode = Control.FOCUS_NONE
+	var style: InkBox = UIKit.choice() if worn else UIKit.secondary()
+	for key: String in ["normal", "hover", "focus"]:
+		button.add_theme_stylebox_override(key, style)
+	button.add_theme_stylebox_override("pressed", UIKit.pressed(style))
+	button.add_child(inner)
+	inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_MD)
+	button.pressed.connect(func() -> void:
+		Profile.set_livery(Run.crew_id(), selected, id)
+		_close_picker()
+		_rebuild())
+	return button
 
 
 func _close_picker() -> void:
