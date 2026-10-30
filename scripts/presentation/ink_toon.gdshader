@@ -72,6 +72,10 @@ uniform float livery_camo = 0.0;
 // The value (max channel, sRGB) of a typical painted panel in the generated textures.
 uniform float livery_ref_paint = 0.48;
 uniform float livery_ref_trim = 0.45;
+// 085 (the user: "too faint in fights"): 0 in the garage, 1 on the board. Bold paints more of the part
+// (olive panels too, and the mid-grey plating, not the dark mechanism or the rust) and flattens the
+// painted value toward the livery's own, so a scheme reads at board distance as a colour, not a tint.
+uniform float livery_bold = 0.0;
 
 // 0 none, 1 stipple dots, 2 diagonal hatching.
 uniform int pattern = 0;
@@ -112,9 +116,13 @@ vec3 repaint(vec3 c, vec2 uv) {
 	vec3 s = pow(max(c, vec3(0.0)), vec3(1.0 / 2.2));
 	vec3 hsv = rgb2hsv(s);
 	float h = hsv.x;
-	float yellow = smoothstep(0.075, 0.1, h) * (1.0 - smoothstep(0.2, 0.26, h));
+	float b = livery_bold;
+	float yellow = smoothstep(0.075, 0.1, h) * (1.0 - smoothstep(mix(0.2, 0.3, b), mix(0.26, 0.36, b), h));
 	float red = 1.0 - smoothstep(0.075, 0.1, h) + smoothstep(0.9, 0.95, h);
-	float paint_w = yellow * smoothstep(0.28, 0.42, hsv.y) * smoothstep(0.18, 0.3, hsv.z);
+	float paint_w = yellow * smoothstep(mix(0.28, 0.2, b), mix(0.42, 0.32, b), hsv.y) * smoothstep(0.18, 0.3, hsv.z);
+	// Bold: the plain mid-grey plating takes the paint too (the dark mechanism and the rust do not).
+	float plate_w = b * (1.0 - smoothstep(0.12, 0.22, hsv.y)) * smoothstep(0.34, 0.46, hsv.z) * 0.9;
+	paint_w = max(paint_w, plate_w);
 	// Red and orange are paint only when bright: dark orange is rust and stays rust.
 	float trim_w = red * smoothstep(0.35, 0.5, hsv.y) * smoothstep(0.3, 0.42, hsv.z);
 	vec3 paint = livery_paint;
@@ -122,9 +130,12 @@ vec3 repaint(vec3 c, vec2 uv) {
 		float n = value_noise(uv * 9.0) * 0.65 + value_noise(uv * 23.0) * 0.35;
 		paint = mix(paint, livery_trim, step(0.52, n) * livery_camo);
 	}
+	// The texel's value relative to a typical panel; bold pulls it halfway to flat cel colour.
+	float kp = mix(min(hsv.z / livery_ref_paint, 1.3), 1.0, 0.55 * b);
+	float kt = mix(min(hsv.z / livery_ref_trim, 1.3), 1.0, 0.55 * b);
 	vec3 out_s = s;
-	out_s = mix(out_s, clamp(paint * min(hsv.z / livery_ref_paint, 1.3), 0.0, 1.0), paint_w);
-	out_s = mix(out_s, clamp(livery_trim * min(hsv.z / livery_ref_trim, 1.3), 0.0, 1.0), trim_w);
+	out_s = mix(out_s, clamp(paint * kp, 0.0, 1.0), paint_w);
+	out_s = mix(out_s, clamp(livery_trim * kt, 0.0, 1.0), trim_w);
 	return pow(out_s, vec3(2.2));
 }
 

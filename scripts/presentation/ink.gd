@@ -115,10 +115,10 @@ static func patterned(colour: Color, pattern: int, ink_colour: Color, scale: flo
 ## A toon material over a texture (a drum's painted band), tinted by `colour`. `kind` as `toon`:
 ## a machine part is "clean" (hatched, rimmed, like every machine), scenery "matte" (halftone).
 static func textured(texture: Texture2D, colour: Color = Color.WHITE, kind: String = "matte",
-		clean_tex: Texture2D = null, clean: float = 0.0, livery: String = "") -> ShaderMaterial:
+		clean_tex: Texture2D = null, clean: float = 0.0, livery: String = "", bold: bool = false) -> ShaderMaterial:
 	# str(), not to_html(): to_html clamps, and a lifted tint (081) would share the plain one's material.
-	var key: String = "tex:%d:%s:%s:%d:%.2f:%s" % [texture.get_instance_id(), str(colour), kind,
-		clean_tex.get_instance_id() if clean_tex != null else 0, clean, livery]
+	var key: String = "tex:%d:%s:%s:%d:%.2f:%s:%s" % [texture.get_instance_id(), str(colour), kind,
+		clean_tex.get_instance_id() if clean_tex != null else 0, clean, livery, bold]
 	if _materials.has(key):
 		return _materials[key]
 	var m: ShaderMaterial = toon(colour, kind).duplicate()
@@ -133,8 +133,10 @@ static func textured(texture: Texture2D, colour: Color = Color.WHITE, kind: Stri
 		# 085: a weekly contract's paint scheme over the part's painted panels (ink_toon `repaint`).
 		var scheme: Array = LIVERIES[livery]
 		m.set_shader_parameter("livery_on", true)
-		m.set_shader_parameter("livery_paint", _before_print(scheme[0]))
-		m.set_shader_parameter("livery_trim", _before_print(scheme[1]))
+		var chroma: float = LIVERY_CHROMA_FIGHT if bold else LIVERY_CHROMA
+		m.set_shader_parameter("livery_paint", _before_print(scheme[0], chroma))
+		m.set_shader_parameter("livery_trim", _before_print(scheme[1], chroma))
+		m.set_shader_parameter("livery_bold", 1.0 if bold else 0.0)
 		m.set_shader_parameter("livery_camo", float(scheme[2]))
 	_materials[key] = m
 	return m
@@ -392,8 +394,8 @@ const MAKER_LIVERY: Dictionary = {
 ## None of them is a signal colour: no "yours" cyan, no danger red, no amber.
 const LIVERIES: Dictionary = {
 	"hazard_yellow": [Color("d9a826"), Color("2f2c28"), 0.0],
-	"oxide_red": [Color("c4513a"), Color("e3c69a"), 0.0],
-	"gunmetal_camo": [Color("858c90"), Color("5f6656"), 1.0],
+	"oxide_red": [Color("d27858"), Color("e3c69a"), 0.0],
+	"gunmetal_camo": [Color("a4acb0"), Color("7b856d"), 1.0],
 	"bone_white": [Color("ddd2b8"), Color("8c3a2c"), 0.0],
 	"sodium_orange": [Color("f0903a"), Color("3d4448"), 0.0],
 	"teal_scrapper": [Color("5a9c7e"), Color("e0b21e"), 0.0],
@@ -403,13 +405,16 @@ const LIVERIES: Dictionary = {
 ## How much of a livery's chroma survives into the texture: the print and the posterising push a
 ## repainted panel past its colour (teal came out the player's cyan at 0.5), so it goes in duller.
 const LIVERY_CHROMA: float = 0.6
+## 085 (the user: liveries "too faint in fights"): on the board a livery goes in stronger, and bold
+## (ink_toon `livery_bold`: more of the part painted, flatter value) -- the garage keeps the subtle one.
+const LIVERY_CHROMA_FIGHT: float = 0.85
 
 
 ## A livery colour as it must go into the texture so the machines' print (`comic_machine`, which
 ## multiplies saturation by `MACHINE_SAT`) shows it as written: its chroma divided by that much first.
-static func _before_print(c: Color) -> Color:
+static func _before_print(c: Color, chroma: float = LIVERY_CHROMA) -> Color:
 	var grey: float = c.r * 0.299 + c.g * 0.587 + c.b * 0.114
-	return Color(grey, grey, grey).lerp(c, LIVERY_CHROMA / MACHINE_SAT)
+	return Color(grey, grey, grey).lerp(c, chroma / MACHINE_SAT)
 
 
 ## A livery's name as the screens print it: "hazard_yellow" -> "HAZARD YELLOW".
@@ -497,8 +502,9 @@ static func frame_shadow_only(model: Node3D) -> void:
 ## crimson, a warlord in gunmetal. Transparent = each part's livery.
 ## `livery` (085): a weekly contract's paint scheme (`LIVERIES`), per surface zone: a generated part's
 ## painted panels in the shader, a zoned part's `paint` and `trim`; ink lines and hatching unchanged.
+## `bold` (085): the board's stronger livery (`LIVERY_CHROMA_FIGHT`, ink_toon `livery_bold`).
 static func dress_machine(model: Node3D, part_ids: PackedStringArray, team: Color, paint: Color = Color(0, 0, 0, 0),
-		livery: String = "") -> void:
+		livery: String = "", bold: bool = false) -> void:
 	var slots: Dictionary = {"part_chassis": 0, "part_core": 1, "part_arm_l": 2, "part_arm_r": 3, "part_module": 4}
 	var chassis_id: String = PartTuning.base_of(part_ids[0]) if part_ids.size() > 0 else ""
 	# The level kit is built from PartMaterials' cached zone materials: map them back.
@@ -506,7 +512,7 @@ static func dress_machine(model: Node3D, part_ids: PackedStringArray, team: Colo
 	for zone: String in ["metal", "dark"]:
 		kit[PartMaterials.for_zone(zone, team)] = zone
 	kit[PartMaterials.for_zone("paint", team, PartMaterials.livery_of(chassis_id))] = "paint"
-	_dress_node(model, "", slots, part_ids, team, kit, paint, livery if LIVERIES.has(livery) else "")
+	_dress_node(model, "", slots, part_ids, team, kit, paint, livery if LIVERIES.has(livery) else "", bold)
 
 
 ## 053: the share of a generated part's rust cleaned off at a machine's level (0 at level 0, all at the
@@ -535,7 +541,7 @@ static func clean_texture(part_id: String) -> Texture2D:
 
 
 static func _dress_node(node: Node, part_id: String, slots: Dictionary, part_ids: PackedStringArray,
-		team: Color, kit: Dictionary, paint: Color = Color(0, 0, 0, 0), scheme: String = "") -> void:
+		team: Color, kit: Dictionary, paint: Color = Color(0, 0, 0, 0), scheme: String = "", bold: bool = false) -> void:
 	var here: String = part_id
 	if slots.has(String(node.name)):
 		var index: int = int(slots[String(node.name)])
@@ -553,13 +559,13 @@ static func _dress_node(node: Node, part_id: String, slots: Dictionary, part_ids
 				if source is BaseMaterial3D and (source as BaseMaterial3D).albedo_texture != null:
 					var tint: Color = paint.lerp(Color.WHITE, 0.45) if paint.a > 0.0 else Color.WHITE
 					mesh.set_surface_override_material(s, comic_machine(textured((source as BaseMaterial3D).albedo_texture, tint,
-						"clean", clean_texture(here), clean_of(mesh), scheme)))
+						"clean", clean_texture(here), clean_of(mesh), scheme, bold)))
 					continue
 				var zone: String = PartMaterials.zone_of(source)
 				mesh.set_surface_override_material(s, comic_machine(zone_material(zone, livery, team, scheme)))
 		line(mesh, LINE_MACHINE)
 	for child: Node in node.get_children():
-		_dress_node(child, here, slots, part_ids, team, kit, paint, scheme)
+		_dress_node(child, here, slots, part_ids, team, kit, paint, scheme, bold)
 
 
 ## 067: a machine's surface printed as a comic -- a posterised texture with inked darks (`comic`),
