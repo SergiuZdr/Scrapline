@@ -2,6 +2,27 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [086] Builds that change rules — done ([detail](iterations/086-builds-that-change-rules.md))
+
+### Added
+- Spoils: a part you tore off or out of an enemy comes up as a fourth salvage card, TORN FROM THE BRUTE; the recap
+  lists the arms torn off.
+- Rule perks (Rending Grip, Spotter, AP Rounds, Scavenger, Barbed Hull); every level offer holds one, drawn toward
+  the machine's build.
+- Legendaries with a rule and a drawback (Godhammer, Sunspear, Colossus, Crucible Heart, Aegis Rig, Phoenix Cell),
+  from both gate keepers' hoards only; the drawback in a red strip on the card and in the aim preview.
+- Maker-set verbs at 3 pieces (thorns + anchored, arc, pierce, tears on every weapon); set progress in the garage.
+- Elite affixes VOLATILE, RIGGED, BULWARK: tag and icon on the machine, word on the map, BULWARK's plated front on
+  the board. New events ROOTED, FRONT_TURNED, MELTDOWN, BURNED.
+- RunBot `choose dry` (dry-runs the next fight for perks and salvage); balance_fights `all.elite_affix`.
+
+### Changed
+- Focus costs 1 heat; the Saw tears at 4; Pulse 3 damage; sets no longer touch heat; warlords, the refinery, the
+  auction and Act 3 salvage give no legendary; elite HP bonus 2, elite scrap 14.
+
+### Removed
+- Heat Sinks and Coolant Jacket perks.
+
 ## [085] Come back tomorrow — done ([detail](iterations/085-come-back-tomorrow.md))
 
 ### Added

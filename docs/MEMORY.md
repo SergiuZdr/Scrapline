@@ -188,6 +188,10 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-10-30 | **Ladder: 10 cumulative rungs; FOREMAN is the gentler first step (+1 enemy HP)**; deal costs must bite a forward player too; crew rules stay strong (the ladder supplies difficulty); weekly twists mix play-changing rules with punishing ones | 085, the user |
 | 2026-10-30 | **Deal costs last the whole run** (all three acts); **rung 10 stays at ~12% for the plain bot**; liveries must read in a fight, not only in the garage | 085, the user |
 | 2026-11-02 | **086 screens**: an elite's affix tag is paper text with a red icon (RIGGED a chain/bolt); a legendary's drawback sits in its own red-edged strip; a rule perk's band says its verb (+ MARKS); set progress keeps its glossary links | 086, the user |
+| 2026-11-02 | **086 numbers, the user's picks**: Sunspear stays at +15.5 (inside the noise; friendly fire is its price); Focus costs 1 heat; a Godhammer root is the rest of the turn only (into the next turn measured -47); the legendary card stays its height (picture small) | 086, the user |
+| 2026-11-02 | **Rule traits are not tied to a slot**: CINDER's 3-piece tears and Rending Grip tear on every weapon that hits; AP Rounds pierces on shots and gives other weapons +1; rule perks have no `needs` and are drawn **build-weighted** (a perk adding to a trait the machine carries, or to a set its makers build, has its roll halved) | 086, the user ("more versatile, not tied to a slot, focused on the current build") |
+| 2026-11-02 | **The torn part is a FOURTH salvage card** (`spoils_slot` -2), not in place of the last; **both gate keepers' hoards always hold a legendary** (two offered a run); BULWARK's plate 3, RIGGED also anchored; Act 1 elites roll volatile or rigged only | 086, the user |
+| 2026-11-02 | Legendary supply: warlord hoards 0, refinery stops at rare, auction 0, no Act 3 salvage legendary | 086 (A9) |
 
 ## Lessons carried over from the old codebase
 
@@ -349,6 +353,8 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-24 | A cost the crew can heal back is not a cost: more Reclaimer drones changed nothing (their piles heal) until they also came sooner. Measure a new cost with the explorer bot against the forward bot on paired seeds |
 | 2026-10-30 | The machines' print multiplies chroma (`MACHINE_SAT` 2.0) and posterises: a livery put into the texture as written came out neon (teal as the player's cyan, oxide as danger red). Feed it duller (`Ink.LIVERY_CHROMA`) and judge on a rendered sheet, never the swatch |
 | 2026-10-30 | measure_contrast drifts between sessions (the same build gave 2.19, then 2.12 an hour later): compare a look INTERLEAVED with its baseline (A B A B ...), never against a number from earlier. About one run in six measures a blank board (400k "machine" pixels): retry those |
+| 2026-11-02 | A pacing gauge on one bot fight moves with content: 086's data changed slag_pit's first enemy turn (a crate breaks a hit earlier, a longer walk) 1594 -> 1836 ms at 2x while 086's code on 085's data played 1586. Swap data and code separately before calling it a beat regression |
+| 2026-11-02 | A dry-run bot that plays whole fights per choice made runs ~3x slower; 3 rounds is the budget, and it undervalues rule perks (39% taken) -- read its perk numbers with that in mind |
 
 ## Open questions
 
