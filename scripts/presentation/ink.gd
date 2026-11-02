@@ -137,6 +137,7 @@ static func textured(texture: Texture2D, colour: Color = Color.WHITE, kind: Stri
 		m.set_shader_parameter("livery_paint", _before_print(scheme[0], chroma))
 		m.set_shader_parameter("livery_trim", _before_print(scheme[1], chroma))
 		m.set_shader_parameter("livery_bold", 1.0 if bold else 0.0)
+		m.set_shader_parameter("livery_plate_trim", float(scheme[3]) if scheme.size() > 3 else 0.0)
 		m.set_shader_parameter("livery_camo", float(scheme[2]))
 	_materials[key] = m
 	return m
@@ -386,7 +387,7 @@ const MAKER_LIVERY: Dictionary = {
 
 
 ## 085: the paint schemes a weekly contract gives (`data/weekly_rewards.json` names which week gives
-## which): [paint, trim, camo]. Paint goes on the frame's painted panels (the yellow of a generated
+## which): [paint, trim, camo, plate_trim]. Paint goes on the frame's painted panels (the yellow of a generated
 ## texture, the `paint` zone), trim on its red and orange panels (the `trim` zone); camo > 0 blotches
 ## the trim over the paint. Each colour is what a TYPICAL panel becomes; every texel keeps its own
 ## value relative to that, so chips and wear stay. Contrast may only grow (art-and-audio.md): each
@@ -394,10 +395,10 @@ const MAKER_LIVERY: Dictionary = {
 ## None of them is a signal colour: no "yours" cyan, no danger red, no amber.
 const LIVERIES: Dictionary = {
 	"hazard_yellow": [Color("d9a826"), Color("2f2c28"), 0.0],
-	"oxide_red": [Color("d27858"), Color("e3c69a"), 0.0],
+	"oxide_red": [Color("a95c48"), Color("ead6ae"), 0.0, 1.0],
 	"gunmetal_camo": [Color("a4acb0"), Color("7b856d"), 1.0],
 	"bone_white": [Color("ddd2b8"), Color("8c3a2c"), 0.0],
-	"sodium_orange": [Color("f0903a"), Color("3d4448"), 0.0],
+	"sodium_orange": [Color("f2942e"), Color("3d4448"), 0.0],
 	"teal_scrapper": [Color("5a9c7e"), Color("e0b21e"), 0.0],
 }
 
