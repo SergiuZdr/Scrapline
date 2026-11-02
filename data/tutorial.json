@@ -135,7 +135,15 @@
     },
     "perks": {
       "title": "PERKS",
-      "text": "A level adds its HP and ONE of these, kept for the rest of the run. Each card says exactly what it adds."
+      "text": "A level adds its HP and ONE of these, kept for the rest of the run. Each card says exactly what it adds. A card marked NEW RULE changes what the machine does, not just its numbers."
+    },
+    "affix": {
+      "title": "ELITE AFFIX",
+      "text": "This elite's veteran carries a rule of its own, named under its site and over it in the fight. Plan for it before you walk in: tap the machine in the fight to read it again."
+    },
+    "spoils": {
+      "title": "TORN FROM",
+      "text": "The marked card is a part your crew tore off an enemy in this fight. Rip an arm off the machine you want it from, and it can turn up here."
     },
     "workshop": {
       "title": "WORKSHOP",

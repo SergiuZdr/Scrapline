@@ -373,6 +373,7 @@ func _go() -> void:
 	await _deals()
 	await _title_ladder()
 	await _yard_board()
+	await _builds()
 
 	RunStore.clear()
 	print("")
@@ -625,6 +626,136 @@ func _the_road() -> void:
 	var move: Dictionary = RunSim.move_preview(state, setup, site)
 	var says: bool = _find_label_prefix(map.get("_preview"), "The Reclaimer moves as you go") != null
 	_check("the card says the Reclaimer moves exactly when the sim says it will (%s)" % bool(move["advances"]), says == bool(move["advances"]))
+
+
+## 086: builds that change rules, on their screens -- an elite's affix under its map site and on its
+## card, the spoils card's TORN FROM, a rule perk standing out in the level-up offer, and the garage's
+## set progress (2/3, then the rule at 3/3).
+func _builds() -> void:
+	_run.call("abandon")
+	_run.call("new_run", 4244)
+	_run.set("briefed", true)
+	_run.set("bay_seen", true)
+	var setup: RunSetup = _run.get("setup")
+	var db: ContentDB = _run.get("db")
+	var state: RunState = _run.get("state")
+	var text_script: Script = load("res://scripts/ui/part_text.gd")
+	# An elite among the roads, scouted: its veteran's affix comes from the sim's own roll.
+	var site: int = RunSim.destinations(state)[0]
+	state.sites[site]["type"] = "elite"
+	if not state.scouted.has(site):
+		state.scouted.append(site)
+	var affixes: Array = RunSim.fight_preview(state, setup, site).get("affixes", [])
+	var map: Node = await _open("res://scenes/run_map.tscn")
+	if affixes.is_empty():
+		print("  (the sim rolled no affix for this elite: enemies.elite_affixes is empty)")
+		_check("no affix, no affix line under the site", map.find_child("affix_%d" % site, true, false) == null)
+	else:
+		var name: String = String((text_script.call("affix", db.enemy_kinds, db.glossary, String(affixes[0])) as Dictionary)["name"])
+		var tag: Label = map.find_child("affix_%d" % site, true, false) as Label
+		_check("the elite site says its affix under its name (%s)" % (tag.text if tag != null else "none"),
+			tag != null and tag.text == "ELITE: " + name)
+		var yard: YardView = map.get("_yard")
+		var motion := InputEventMouseMotion.new()
+		motion.position = yard.screen_pos(site)
+		root.push_input(motion, true)
+		await _frames(3)
+		var head: Label = (map.get("_preview") as Node).find_child("affix_head", true, false) as Label
+		var said: Label = (map.get("_preview") as Node).find_child("affix_text_" + String(affixes[0]), true, false) as Label
+		_check("and its card heads with it and says what it does", head != null and head.text == "ELITE: " + name
+			and said != null and said.text.begins_with(name + ": ") and said.text.length() > name.length() + 8)
+		_check("the affix has a glossary card", (db.glossary["terms"] as Dictionary).has(String(affixes[0])))
+	# The spoils: a salvage whose card 1 was torn off the Tracker.
+	state.pending = RunSim.salvage(state, setup, "skirmish")
+	state.pending["torn_from"] = "THE TRACKER"
+	state.pending["torn_index"] = 1
+	map.call("_refresh")
+	await _frames(3)
+	var bands: Array = map.find_children("spoils_band", "", true, false)
+	var words: Label = map.find_child("spoils_text", true, false) as Label
+	var column: Node = map.find_child("spoils_band", true, false).get_parent() if not bands.is_empty() else null
+	_check("the spoils card reads TORN FROM THE TRACKER (%s)" % (words.text if words != null else "none"), bands.size() == 1
+		and words != null and words.text == "TORN FROM THE TRACKER" and column != null and column.get_index() == 1)
+	_check("and never calls it a trophy", words != null and not words.text.to_lower().contains("trophy"))
+	state.pending = {}
+	map.call("_refresh")
+	await _frames(2)
+	# The garage: a machine two KESSLER parts in, then three.
+	var maker: String = ""
+	var by_slot: Dictionary = {}
+	for m: String in ["kessler", "vektor", "cinder", "arclight"]:
+		by_slot = {}
+		for id: Variant in db.parts:
+			var part: Dictionary = db.parts[id]
+			if String(part.get("maker", "")) == m and not PartTuning.is_tuned(String(id)) and int(part.get("rarity", 1)) < 4 \
+					and ["chassis", "core", "module"].has(String(part.get("slot", ""))) and not by_slot.has(String(part["slot"])):
+				by_slot[String(part["slot"])] = String(id)
+		if by_slot.size() == 3:
+			maker = m
+			break
+	_check("(a maker with a frame, a core and a module: %s)" % maker, not maker.is_empty())
+	if maker.is_empty():
+		return
+	var parts: Array = state.crew[0]["parts"]
+	parts[0] = by_slot["chassis"]
+	parts[1] = by_slot["core"]
+	for s: int in [2, 3, 4]:
+		if String((db.parts.get(String(parts[s]), {}) as Dictionary).get("maker", "")) == maker:
+			parts[s] = ""
+	state.scrap = 100
+	_press(_find_button_prefix(map, "GARAGE"))
+	await _frames(3)
+	var panel: Node = map.get("_garage")
+	panel.set("selected", 0)
+	panel.call("_rebuild")
+	await _frames(3)
+	var short: String = String((db.makers[maker] as Dictionary).get("short", maker.to_upper()))
+	var line: RichTextLabel = panel.find_child("set_progress_" + maker, true, false) as RichTextLabel
+	var rule: Array = text_script.call("set_rule", db.makers, maker)
+	var full: int = int(rule[0]) if not rule.is_empty() else 3
+	_check("the garage counts the set: %s" % (line.get_parsed_text() if line != null else "none"), line != null
+		and line.get_parsed_text().begins_with("%s 2/%d" % [short, full]))
+	_check("each of its parts' maker tag reads %s 2/%d" % [short, full], _find_label_prefix(panel, "%s 2/%d" % [short, full]) != null)
+	parts[4] = by_slot["module"]
+	panel.call("_rebuild")
+	await _frames(3)
+	line = panel.find_child("set_progress_" + maker, true, false) as RichTextLabel
+	var verbs: PackedStringArray = rule[1] if not rule.is_empty() else PackedStringArray()
+	_check("three: %s, with the set's rule %s" % [line.get_parsed_text() if line != null else "none", verbs], line != null
+		and line.get_parsed_text().begins_with("%s 3/%d" % [short, full]) and (verbs.is_empty() or line.get_parsed_text().contains(" + ".join(verbs))))
+	if verbs.is_empty():
+		print("  (staged: %s's sets give no rule yet, so no verb to name)" % maker)
+	# A part card names its maker's set rule.
+	var card_script: Script = load("res://scripts/ui/part_card.gd")
+	var card: Button = card_script.call("build", db, by_slot["module"], Vector2(380, 236), [])
+	var named: Label = card.find_child("set_rule", true, false) as Label
+	_check("a %s part's card names the set rule (%s)" % [short, named.text if named != null else "none"],
+		verbs.is_empty() == (named == null) and (named == null or named.text.contains(" + ".join(verbs))))
+	card.free()
+	# The level-up offer: at least one RULE perk, standing out.
+	var offer: Array[String] = RunSim.perk_offer(state, setup, 0)
+	_press(_find_button_prefix(panel, "LEVEL UP"))
+	await _frames(3)
+	var pick: Node = panel.get("_picker")
+	var rules: int = 0
+	var marked: int = 0
+	var verbs_ok: bool = true
+	for k: int in offer.size():
+		var perk: Dictionary = db.perks.get(offer[k], {})
+		var perk_card: Node = pick.find_child("perk_%d" % k, true, false) if pick != null else null
+		if bool(text_script.call("is_rule_perk", perk)):
+			rules += 1
+			if perk_card != null and perk_card.has_meta("rule") and perk_card.find_child("rule_tag", true, false) != null:
+				marked += 1
+			var gain: Label = perk_card.find_child("gain", true, false) as Label if perk_card != null else null
+			verbs_ok = verbs_ok and gain != null and gain.text.begins_with("+ ")
+		elif perk_card != null and perk_card.has_meta("rule"):
+			verbs_ok = false
+	_check("the level-up offer holds a rule perk, and every rule card says NEW RULE (%d of %d)" % [marked, rules], rules >= 1 and marked == rules)
+	_check("each rule card's gain is the verb it adds (\"+ TEARS: ...\")", verbs_ok)
+	if pick != null:
+		_press(_find_button(pick, "NOT NOW"))
+	await _frames(2)
 
 
 ## 084 (B8): NEW RUN's seed field: junk is refused with a reason, a code from another version too,
