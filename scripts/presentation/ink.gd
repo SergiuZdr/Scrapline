@@ -37,6 +37,30 @@ const ACTION := Color("ffc43d")
 const GAIN := Color("8edb4a")
 const BUILT := Color("a070e0")
 
+# --- 087 (A20): red means danger again. Red is the enemy and what will hit the crew, nothing else.
+## Machine condition (art-and-audio.md, the registry): OVERHEATED and SEIZED float in it, not red.
+const COPPER := Color("d68b52")
+## Damage the CREW deals floats in ink on a paper line (`DEALT_LINE` as the label's outline); damage
+## the crew TAKES stays red. A Label3D: `modulate = DEALT`, `outline_modulate = DEALT_LINE`.
+const DEALT := Color("14110f")
+const DEALT_LINE := Color("f7efdc")
+## A danger zone hex that hits NO crew machine (the Core's pulse ring): paper hatching, not red.
+const ZONE := Color("efe3c8b0")
+## Slag (6b2c14 in tiles.json is hashed and drawn nowhere): cooled umber, hatched. The scripted
+## fallback field, its hatching, and a flooded hex's pool (The Pour) where it was a glow.
+const SLAG_FIELD := Color("2e2418")
+const SLAG_HATCH := Color("7a5636")
+const SLAG_POOL := Color("5e4630")
+## The slag looks on the review sheet, chosen with `-- --slag <name>` (old = the pre-087 glow, for an
+## interleaved A/B on one build): [umber the hot texels become, their value x, hatch colour, hatch
+## amount]. "umber" is the review's; "dark" sinks it further; "pale" hatches it in light lines.
+const SLAG_LOOKS: Dictionary = {
+	"umber": [Color("8f6338"), 1.0, Color("1e150d"), 0.3],
+	"dark": [Color("6b5034"), 0.78, Color("14110f"), 0.3],
+	"pale": [Color("7a5e3c"), 0.9, Color("d2bb8c"), 0.08],
+}
+const SLAG_DEFAULT: String = "umber"
+
 # --- Line weights, in pixels at 1080 lines. Three, and only three: a line that varies
 # from object to object is the fastest way for ink to look cheap (the plan's one risk).
 ## 036, comic style: heavier ink (was 1.6 / 2.2 / 3.0) -- a comic draws its figures in a bold line.
@@ -721,12 +745,47 @@ static func dress_set_piece(node: Node, livery: Color, width: float = LINE_WORLD
 		for s: int in mesh.mesh.get_surface_count():
 			var source: BaseMaterial3D = mesh.mesh.surface_get_material(s) as BaseMaterial3D
 			if source != null and source.albedo_texture != null:
-				mesh.set_surface_override_material(s, textured(source.albedo_texture, Color(lift, lift, lift)))
+				var m: ShaderMaterial = textured(source.albedo_texture, Color(lift, lift, lift))
+				if source.albedo_texture.resource_path.get_file().begins_with("tr_slag"):
+					m = slag_material(m)
+				mesh.set_surface_override_material(s, m)
 				textured_any = true
 		if textured_any:
 			line(mesh, width)
 	if not textured_any:
 		dress_prop(node, livery, width)
+
+
+## 087 (A20): the generated slag tile's material -- its molten texels cooled to umber (ink_toon
+## `hot_remap`) and diagonal hatching drawn over it in world space (it still burns: the hatch says so,
+## in grey too). `-- --slag old` keeps the pre-087 glow; other names pick a look from `SLAG_LOOKS`.
+static func slag_material(base: ShaderMaterial) -> ShaderMaterial:
+	var look: String = slag_look()
+	if look == "old":
+		return base
+	var key: String = "slag:%d:%s" % [base.get_instance_id(), look]
+	if _materials.has(key):
+		return _materials[key]
+	var spec: Array = SLAG_LOOKS[look]
+	var m: ShaderMaterial = base.duplicate()
+	m.set_shader_parameter("hot_remap", 1.0)
+	m.set_shader_parameter("hot_colour", spec[0])
+	m.set_shader_parameter("hot_value", spec[1])
+	m.set_shader_parameter("pattern", 2)
+	m.set_shader_parameter("pattern_colour", spec[2])
+	m.set_shader_parameter("pattern_scale", 6.0)
+	m.set_shader_parameter("pattern_amount", spec[3])
+	_materials[key] = m
+	return m
+
+
+## Which slag look this session draws (`-- --slag <name>`; `SLAG_DEFAULT` otherwise).
+static func slag_look() -> String:
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	var at: int = args.find("--slag")
+	if at >= 0 and at + 1 < args.size() and (args[at + 1] == "old" or SLAG_LOOKS.has(args[at + 1])):
+		return args[at + 1]
+	return SLAG_DEFAULT
 
 
 ## A texture drawn in code, cached by name. `draw` fills a blank Image of `size`.
