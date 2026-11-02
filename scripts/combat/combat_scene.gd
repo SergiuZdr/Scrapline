@@ -663,6 +663,11 @@ func _recap_text() -> String:
 		if bool(m["wrecked"]):
 			bits.append("WRECKED")
 		lines.append("%s  ·  %s" % [String(m["name"]).to_upper(), "  ·  ".join(bits)])
+	# 086 (A7): the parts the crew ripped off the enemy -- one of them may be in the salvage.
+	var tore: PackedStringArray = _tore_off_names(recap)
+	if not tore.is_empty():
+		lines.append("")
+		lines.append("TORE OFF: %s" % ", ".join(tore))
 	var builds: Array = recap["builds"]
 	if not builds.is_empty():
 		lines.append("")
@@ -670,6 +675,22 @@ func _recap_text() -> String:
 		for b: Dictionary in builds:
 			lines.append("%s  ·  %s: %s" % [String(b["who"]).to_upper(), String(b["what"]), String(b["text"])])
 	return "\n".join(lines)
+
+
+## 086 (A7): the names of what the recap says was torn off (`torn_off`: part ids, names, or
+## `{part|id|name}` entries), in its order.
+func _tore_off_names(recap: Dictionary) -> PackedStringArray:
+	var out: PackedStringArray = []
+	for entry: Variant in (recap.get("torn_off", recap.get("tore_off", [])) as Array):
+		var id: String = ""
+		if entry is Dictionary:
+			id = String((entry as Dictionary).get("part", (entry as Dictionary).get("id", (entry as Dictionary).get("name", ""))))
+		else:
+			id = String(entry)
+		var name: String = PartText.name_of(_db.parts, id) if _db.parts.has(id) else id
+		if not name.is_empty():
+			out.append(name)
+	return out
 
 
 ## Hands the finished fight's action log to the run, which replays it for itself.
@@ -1474,6 +1495,8 @@ func _resync_units() -> void:
 		model.scale = view["scale"]
 		(view["rig"] as ConstructRig).reset_transients()
 		(view["tag"] as Label3D).visible = true
+		if view.has("affix"):
+			(view["affix"] as Label3D).visible = true
 		(view["ring"] as MeshInstance3D).visible = true
 		_set_tag(view, u)
 	for ref: int in _views.keys():
@@ -1758,6 +1781,11 @@ func _build_view(u: GridUnit) -> Dictionary:
 	if _is_keeper(u) and not legacy_boss_look:
 		# 083: the keeper's ring is as wide as the keeper.
 		ring.scale = Vector3(1.0, 1.0, 1.0) * clampf(model.scale.x / MODEL_SCALE * 0.6, 1.0, 1.3)
+	# 086 (A5): an elite's rule rides over its tag -- one word and its icon.
+	var affix: Label3D = _affix_tag(u, tag)
+	if affix != null:
+		root.add_child(affix)
+		view["affix"] = affix
 	view["extras"] = root.get_children().filter(func(n: Node) -> bool: return n.has_meta("label_of"))
 	_set_tag(view, u)
 	for w: int in u.weapons.size():
@@ -2038,8 +2066,15 @@ func _disc(at: Vector3, radius: float, fill: Color, rim: Color, priority: int = 
 	return root
 
 
-## HP, then the state a player must read before moving: heat, a mark, a seize.
+## HP, then the state a player must read before moving: heat, a mark, a seize. 086: an elite's
+## affix word sits just over it, however many lines the tag has.
 func _set_tag(view: Dictionary, u: GridUnit) -> void:
+	_set_tag_text(view, u)
+	if view.has("affix"):
+		_place_affix(view["affix"], view["tag"])
+
+
+func _set_tag_text(view: Dictionary, u: GridUnit) -> void:
 	var lines: PackedStringArray = ["%d/%d" % [u.hp, u.max_hp]]
 	if not legacy_boss_look and _state != null and _is_keeper(u):
 		# 083 (A19): a keeper's tag is its HP and its name; the boss bar carries its two icons, and
@@ -2083,6 +2118,106 @@ func _set_tag(view: Dictionary, u: GridUnit) -> void:
 	(view["tag"] as Label3D).text = "\n".join(lines)
 
 
+## 086 (A5): the affix tag of an elite (`u.affix`): its name in the danger red on the tag's ink edge,
+## an icon to its left, or null for a unit without one. Placed by `_place_affix`.
+func _affix_tag(u: GridUnit, tag: Label3D) -> Label3D:
+	var ids: PackedStringArray = PartText.affixes_of(u)
+	if ids.is_empty() or u.team != GridUnit.TEAM_ENEMY:
+		return null
+	var names: PackedStringArray = []
+	for id: String in ids:
+		names.append(String(PartText.affix(_db.enemy_kinds, _db.glossary, id)["name"]))
+	var label := Label3D.new()
+	label.name = "affix_tag"
+	label.text = " + ".join(names)
+	label.font = tag.font
+	label.font_size = 40
+	label.pixel_size = tag.pixel_size
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.outline_size = 18
+	label.outline_modulate = Ink.INK
+	label.modulate = Ink.DANGER
+	label.render_priority = 10
+	label.outline_render_priority = 9
+	label.position = tag.position
+	label.set_meta("base_pos", tag.position)
+	label.set_meta("label_of", u.ref)
+	label.set_meta("affixes", ids)
+	var icon := Sprite3D.new()
+	icon.name = "affix_icon"
+	icon.texture = _affix_icon(ids[0])
+	icon.pixel_size = tag.pixel_size
+	icon.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	icon.no_depth_test = true
+	icon.render_priority = 11
+	icon.shaded = false
+	icon.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	label.add_child(icon)
+	return label
+
+
+## The affix word over the tag's top line (offsets in the label's own pixels), its icon to its left.
+func _place_affix(affix: Label3D, tag: Label3D) -> void:
+	if affix == null or tag == null or tag.font == null:
+		return
+	var tag_h: float = tag.font.get_multiline_string_size(tag.text, HORIZONTAL_ALIGNMENT_CENTER, -1, tag.font_size).y
+	var own: Vector2 = affix.font.get_string_size(affix.text, HORIZONTAL_ALIGNMENT_LEFT, -1, affix.font_size)
+	var icon_w: float = float(AFFIX_ICON_PX)
+	affix.offset = Vector2(icon_w * 0.5 + 4.0, tag_h * 0.5 + own.y * 0.5 + 2.0)
+	var icon := affix.get_node_or_null("affix_icon") as Sprite3D
+	if icon != null:
+		icon.offset = Vector2(affix.offset.x - own.x * 0.5 - icon_w * 0.5 - 6.0, affix.offset.y)
+
+
+const AFFIX_ICON_PX: int = 48
+static var _affix_icons: Dictionary = {}
+
+
+## 086 (A5): an affix's icon, drawn once into a texture: VOLATILE a burst, RIGGED a bolt through a
+## bar (the arms are bolted on), BULWARK a shield; anything else a diamond. Ink edge, red fill.
+func _affix_icon(id: String) -> Texture2D:
+	if _affix_icons.has(id):
+		return _affix_icons[id]
+	var n: int = AFFIX_ICON_PX
+	var c := Vector2(n, n) * 0.5
+	var shape := PackedVector2Array()
+	match id:
+		"volatile":
+			for i: int in 16:
+				var r: float = (0.48 if i % 2 == 0 else 0.24) * n
+				var a: float = TAU * float(i) / 16.0 - PI / 2.0
+				shape.append(c + Vector2(cos(a), sin(a)) * r)
+		"bulwark":
+			for p: Vector2 in [Vector2(0.1, 0.14), Vector2(0.5, 0.04), Vector2(0.9, 0.14), Vector2(0.84, 0.58), Vector2(0.5, 0.96), Vector2(0.16, 0.58)]:
+				shape.append(p * n)
+		"rigged":
+			# A hex nut: what holds the arms on.
+			for i: int in 6:
+				var a: float = TAU * float(i) / 6.0
+				shape.append(c + Vector2(cos(a), sin(a)) * 0.47 * n)
+		_:
+			for p: Vector2 in [Vector2(0.5, 0.04), Vector2(0.96, 0.5), Vector2(0.5, 0.96), Vector2(0.04, 0.5)]:
+				shape.append(p * n)
+	var inner := PackedVector2Array()
+	for p: Vector2 in shape:
+		inner.append(c + (p - c) * 0.68)
+	var image := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0, 0, 0, 0))
+	for y: int in n:
+		for x: int in n:
+			var at := Vector2(x + 0.5, y + 0.5)
+			if Geometry2D.is_point_in_polygon(at, inner):
+				# RIGGED's nut has a hole: the bolt's shaft, in ink.
+				var hole: bool = id == "rigged" and at.distance_to(c) < 0.15 * n
+				image.set_pixel(x, y, Ink.INK if hole else Ink.DANGER)
+			elif Geometry2D.is_point_in_polygon(at, shape):
+				image.set_pixel(x, y, Ink.INK)
+	var tex := ImageTexture.create_from_image(image)
+	_affix_icons[id] = tex
+	return tex
+
+
 func _refresh_tag(ref: int) -> void:
 	var u: GridUnit = _state.unit(ref)
 	if u != null and _views.has(ref):
@@ -2118,6 +2253,8 @@ func _burst(view: Dictionary, push: Vector3) -> void:
 	view["dead"] = true
 	var root: Node3D = view["root"]
 	(view["tag"] as Label3D).visible = false
+	if view.has("affix"):
+		(view["affix"] as Label3D).visible = false
 	(view["ring"] as MeshInstance3D).visible = false
 	var model: Node3D = view["model"]
 	# 059: the death plays (snap, sputter, knees, over), the wreck lies a beat, then it is crushed
@@ -3821,7 +3958,33 @@ func _preview_text(preview: Dictionary) -> String:
 				reach + _state.setup.pierce_overshoot, reach]
 	if bool(preview.get("overheats", false)):
 		text += "\nOVERHEATS: no attack next round"
+	var drawback: String = _drawback_text(preview, sel)
+	if not drawback.is_empty():
+		text = drawback + "\n\n" + text
 	return text
+
+
+## 086 (A9): a legendary's drawback, when this attack sets it off -- read off `preview_attack`'s
+## `friendly` (crew in the line of fire), `roots` (moves the strike costs) and `meltdown` (the
+## overheat blast). First in the balloon, so it is read before the damage. "" when none bites.
+func _drawback_text(preview: Dictionary, sel: GridUnit) -> String:
+	if sel == null:
+		return ""
+	var lines: PackedStringArray = []
+	var friendly: PackedStringArray = []
+	for ref: Variant in (preview.get("friendly", []) as Array):
+		var t: GridUnit = _state.unit(int(ref))
+		if t != null and t.ref != sel.ref:
+			friendly.append(t.name.to_upper())
+	if not friendly.is_empty():
+		lines.append("DRAWBACK: it hits your own too (%s)" % ", ".join(friendly))
+	var roots: int = int(preview.get("roots", 0))
+	if roots > 0:
+		lines.append("DRAWBACK: %s cannot move for the rest of this turn and %s" % [sel.name.to_upper(), "the next" if roots == 1 else "the next %d" % roots])
+	var meltdown: int = int(preview.get("meltdown", 0))
+	if meltdown > 0:
+		lines.append("DRAWBACK: it overheats and MELTS DOWN: %d to everything next to it, your own included" % meltdown)
+	return "\n".join(lines)
 
 
 ## What a dry run changed, as lines a player reads: every machine hurt, destroyed, dropped
@@ -4831,6 +4994,10 @@ func _tap(cell: Vector2i) -> void:
 		if not there.kind.is_empty():
 			var kind: Dictionary = _db.enemy_kinds.get(there.kind, {})
 			about += "\n\n%s: %s" % [String(kind.get("name", there.kind)).to_upper(), String(kind.get("text", ""))]
+		# 086 (A5): an elite's rule, named as on its tag (the name links to its glossary card).
+		for affix: String in PartText.affixes_of(there):
+			var info: Dictionary = PartText.affix(_db.enemy_kinds, _db.glossary, affix)
+			about += "\n\nELITE, %s: %s" % [String(info["name"]), String(info["text"])]
 		_hud.set_info(there.name.to_upper(), "%d / %d HP\n%s" % [there.hp, there.max_hp, about])
 	else:
 		_terrain_info(cell)
