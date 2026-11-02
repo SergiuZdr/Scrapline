@@ -61,3 +61,11 @@ makes you climb. So:
 - **The game's ending** is the unlock `u26` (`kind: ending`), earned only by a win on RECLAIMED;
   the title's ladder line says what is won, open and shut, and what cuts the line.
 - Open: more rungs (the plan's ~10 stacking tiers) once the user has played this one.
+
+## Come back tomorrow (085)
+
+Ten cumulative rungs (`meta.json` rungs, `Meta.rung_adds`); the ending stays on RECLAIMED. Start deals
+(`data/run/deals.json`): a gift now, a cost all run. The daily yard (one attempt, UTC day) and the weekly
+contract (fixed crew, rung 4, three twists) run from `RunSetup.daily_options/weekly_options`, bank nothing on
+the ladder, and pay a trophy + livery for a weekly clear (`data/weekly_rewards.json`). Crew rules and three
+medals per crew live in `meta.json` crews.
