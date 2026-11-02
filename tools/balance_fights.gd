@@ -657,9 +657,13 @@ func _lay_all(db: ContentDB, fight: Dictionary, seed_value: int) -> Dictionary:
 	keys.sort()
 	for key: Variant in keys:
 		if String(key) == "enemy_affix":
-			# 086 (A5): `all.enemy_affix="volatile"` gives every enemy that elite affix.
+			# 086 (A5): `all.enemy_affix="volatile"` gives every enemy that elite affix;
+			# `all.elite_affix="volatile"` only the first (one elite among its escorts).
 			for spec: Dictionary in out.get("enemy", []):
 				spec["affix"] = String(lay[key])
+		elif String(key) == "elite_affix":
+			if not (out.get("enemy", []) as Array).is_empty():
+				(out["enemy"][0] as Dictionary)["affix"] = String(lay[key])
 		elif String(key) == "enemy_bonus":
 			for spec: Dictionary in out.get("enemy", []):
 				var bonus: Dictionary = spec.get("bonus", {})

@@ -1106,11 +1106,15 @@ static func _execute_attack(state: CombatState, u: GridUnit, w: int, target: Vec
 			if struck != null and struck.thorns > 0 and u.alive and struck.team != u.team:
 				hurt(state, struck.ref, u, struck.thorns)
 	u.boost_damage = 0
-	# 086 (A9): a weapon that roots (the Godhammer) leaves its wielder rooted: no move for the rest of
-	# this turn (the crew's) and `roots` of its side's moves after.
+	# 086 (A9): a weapon that roots (the Godhammer) leaves its wielder rooted for `roots` of its side's
+	# moves, the rest of this turn counted first: 1 = no move after striking (not even a Dash), 2 = and
+	# none next turn. (A root into the next turn made a Godhammer crew a row of turrets: -47 points in
+	# the arm trial.) An enemy strikes at the end of the crew's turn, so its first is already spent.
 	if int(weapon.get("roots", 0)) > 0 and u.alive:
-		u.rooted = maxi(u.rooted, int(weapon["roots"]) + (1 if u.team == GridUnit.TEAM_PLAYER else 0))
-		state.emit(GridEv.ROOTED, u.ref, -1, u.x, u.y, int(weapon["roots"]))
+		var lost: int = int(weapon["roots"]) - (0 if u.team == GridUnit.TEAM_PLAYER else 1)
+		if lost > 0:
+			u.rooted = maxi(u.rooted, lost)
+			state.emit(GridEv.ROOTED, u.ref, -1, u.x, u.y, lost)
 	# Heat is the PLAYER's resource. Enemies ignore it: an enemy that sometimes cannot
 	# fire would be one more hidden state to read off the board every turn.
 	if u.team == GridUnit.TEAM_PLAYER:

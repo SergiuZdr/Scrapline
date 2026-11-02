@@ -182,9 +182,14 @@ func _test_keepers_083() -> void:
 	knuckles.x = spot.x
 	knuckles.y = spot.y
 	knuckles.acted = false
+	# 086: Focus costs heat now, so the bot's rounds may have left Knuckles seized.
+	knuckles.seized = false
+	knuckles.overheated = false
 	core.hp = 1
 	var since: int = s.events.size()
 	var blow: Array = [CombatSim.ACT_ATTACK, 0, _shape_index(knuckles, "melee"), core.x, core.y]
+	# 086: the Saw tears at 4, so an escort's Saw may have taken this arm in the rounds above.
+	knuckles.weapons[int(blow[2])]["torn"] = false
 	_check("the blow is legal", CombatSim.apply(s, blow))
 	_check("the Core's death ends the fight, won, with others still standing a moment before", s.outcome == CombatState.WON)
 	_check("KEEPERS_FALL fires once, from the Core", _count(s, 0, GridEv.KEEPERS_FALL) == 1 and _count(s, since, GridEv.KEEPERS_FALL) == 1)
@@ -841,14 +846,17 @@ func _test_rules_086() -> void:
 	_attack(g, 0, 0, n)
 	_check("Godhammer: shoved 2 hexes (%s), an arm off" % [_at(g, 10)],
 		_at(g, 10) == two and bool(g.unit(10).weapons[GridUnit.ARM_R]["torn"]))
-	_check("rooted: no move this turn", CombatSim.reachable(g, 0).is_empty() and g.unit(0).rooted > 0)
+	_check("rooted: no move after striking", CombatSim.reachable(g, 0).is_empty() and g.unit(0).rooted > 0)
 	_check("and the clone carries the root", g.clone().unit(0).rooted == g.unit(0).rooted)
+	var dash_kit: Array = ["ch_skirmisher", "co_dynamo", "ar_godhammer", "ar_hammer", "mo_plating"]
+	var gd: CombatState = _fight(_rows(), [_unit(dash_kit, C, 40)], [_unit(HAMMER, n, 40)])
+	_place(gd, 0, C)
+	_place(gd, 10, n)
+	_attack(gd, 0, 0, n)
+	_check("not even a Dash (a line frame that could otherwise move on)", not CombatAbilities.usable(gd, gd.unit(0), 0) and CombatSim.reachable(gd, 0).is_empty())
 	g.intents.clear()
 	CombatSim.apply(g, [CombatSim.ACT_END, 0, 0, 0])
-	var next_turn: bool = CombatSim.reachable(g, 0).is_empty()
-	g.intents.clear()
-	CombatSim.apply(g, [CombatSim.ACT_END, 0, 0, 0])
-	_check("nor the next; free the turn after", next_turn and not CombatSim.reachable(g, 0).is_empty())
+	_check("free again next turn", not CombatSim.reachable(g, 0).is_empty() and g.unit(0).rooted == 0)
 
 	# Sunspear: through everything on its line -- a heap, the crew -- and the preview names the crew.
 	var line: Array[Vector2i] = []
