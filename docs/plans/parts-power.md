@@ -59,8 +59,8 @@ what happens when two sources meet on one machine. **Decided before building any
    2026-11-02).
 6. **No slot `needs` on rule perks (the user, 2026-11-02):** a rule perk works with any weapon, and the
    offer leans toward the build -- a perk that adds to a trait the machine carries, or to a set its makers
-   build, has its seeded roll halved (`RunSim._perk_favoured`). Flag traits can therefore be offered twice
-   over (rule 3 is relaxed for the build-weighting); a flag already owned stays a dead pick.
+   build, has its seeded roll halved (`RunSim._perk_favoured`; counted traits and set keys only). A flag perk
+   (tears, mark) is never offered when every weapon that hits already has the flag (`RunSim._perk_owned`).
 
 ## Measured (086)
 
