@@ -156,7 +156,7 @@
     "grid": {
       "shape": "shot",
       "range": 3,
-      "damage": 2,
+      "damage": 3,
       "heat": 1,
       "chain": 2
     },
@@ -175,7 +175,8 @@
       }
     ],
     "damage_type": "emp",
-    "_037": "play-test 11: this arm deals its OWN damage type, whatever core drives it"
+    "_037": "play-test 11: this arm deals its OWN damage type, whatever core drives it",
+    "_086": "B6: -13.0 in the 085 arm trial (outside the noise): 3 damage, so its arcs jump for 2, not 1"
   },
   {
     "id": "ar_maul",
@@ -536,7 +537,7 @@
     "grid": {
       "shape": "melee",
       "range": 1,
-      "damage": 6,
+      "damage": 5,
       "heat": 2,
       "shove": 2,
       "tears": true,
@@ -559,7 +560,7 @@
     "look": "sledge",
     "_042": "its own model (042, play-test 12: 'the game lacks models for each part')",
     "rule": "Shoves 2 hexes and tears an arm off with every hit.",
-    "drawback": "Striking roots you: no move for the rest of the turn or the next."
+    "drawback": "Striking roots you: no move after it, not even a Dash."
   },
   {
     "id": "ar_sunspear",
@@ -572,8 +573,8 @@
     "weapon_class": "railgun",
     "grid": {
       "shape": "shot",
-      "range": 6,
-      "damage": 4,
+      "range": 5,
+      "damage": 3,
       "heat": 2,
       "pierce": 99,
       "breach": true

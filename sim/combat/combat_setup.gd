@@ -520,8 +520,8 @@ static func weapon_from(arm: Dictionary) -> Dictionary:
 		# 086 (B6): this arm tears an arm off at this much damage instead of the rules' threshold
 		# (0 = the rules'): the Saw's own trait.
 		"tear_at": int(g.get("tear_at", 0)),
-		# 086 (A9): striking roots the wielder -- no move for the rest of the turn and `roots` turns
-		# after (the Godhammer); `breach` -- a piercing beam runs on through heaps and walls (the Sunspear).
+		# 086 (A9): striking roots the wielder for `roots` moves, the rest of this turn first (the
+		# Godhammer); `breach` -- a piercing beam runs on through heaps and walls (the Sunspear).
 		"roots": int(g.get("roots", 0)),
 		"breach": bool(g.get("breach", false)),
 		# 029: a harpoon drags its target this many hexes toward the shooter.

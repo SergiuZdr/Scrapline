@@ -31,15 +31,15 @@
   },
   "focus": {
     "name": "Focus",
-    "short": "+2 on the next hit",
+    "short": "+2 on the next hit, +1 heat",
     "kind": "boost",
     "cooldown": 2,
     "free": true,
     "damage": 2,
-    "heat": 0,
+    "heat": 1,
     "takes_move": false,
-    "_086": "B6: Focus gets a price -- `heat` (it costs heat) or `takes_move` (it is the machine's move: not after moving, no move after it). Both dials A/B'd with balance_fights --b.",
-    "text": "Your next attack or Charge this turn deals +2."
+    "_086": "B6: Focus gets a price -- `heat` (it costs heat) or `takes_move` (it is the machine's move: not after moving, no move after it). Both dials A/B'd with balance_fights --b (600 fights): free 1.06 uses per machine carrying it a fight, heat 1 0.95 (overheats 0.78 -> 0.81), heat 2 0.99 (0.91), takes_move 0.18. Shipped: heat 1.",
+    "text": "Your next attack or Charge this turn deals +2, and costs 1 more heat."
   },
   "dash": {
     "name": "Dash",
