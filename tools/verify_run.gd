@@ -58,6 +58,10 @@ func _initialize() -> void:
 	_timed(_test_challenges)
 	_timed(_test_crew_rules)
 	_timed(_test_medals)
+	_timed(_test_spoils)
+	_timed(_test_affixes)
+	_timed(_test_hoard_sources)
+	_timed(_test_rule_perks)
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
 	print("")
@@ -405,7 +409,8 @@ func _test_warlords() -> void:
 		state.offered.clear()
 		if setup.rarity(String((RunSim.hoard(state, setup, false)["options"] as Array)[0])) == 4:
 			legends += 1
-	_check("a warlord's hoard holds a legendary some of the time, not always (%d of 60)" % legends, legends > 5 and legends < 45)
+	# 086 (A9, the user): legendaries only from gate keepers; a warlord gives a rare and scrap.
+	_check("a warlord's hoard never holds a legendary (%d of 60)" % legends, legends == 0)
 
 
 ## 031: the refinery, the auction and the arena; signals never hand out a legendary by accident.
@@ -801,7 +806,9 @@ func _test_sets() -> void:
 	_check("one part from each maker is no set", CombatSetup.sets_of(PackedStringArray(one_each["parts"]), setup.parts,
 		setup.combat_rules["makers"]).is_empty() and none_unit.max_hp == 11)
 	_check("two Kessler parts: +2 HP", two_unit.max_hp == 13 and two_unit.armor == 0)
-	_check("three (a tuned part counts): +2 HP and +1 armour", three_unit.max_hp == 13 and three_unit.armor == 1)
+	# 086 (A10, the user): 3 pieces of one maker give a verb -- Kessler thorns and unshovable.
+	_check("three (a tuned part counts): +2 HP, thorns and unshovable", three_unit.max_hp == 13 and three_unit.armor == 0
+		and three_unit.thorns == two_unit.thorns + 1 and three_unit.unshovable and not two_unit.unshovable)
 	var sets: Array = CombatSetup.sets_of(PackedStringArray(three["parts"]), setup.parts, setup.combat_rules["makers"])
 	_check("the set is reported for the screens %s" % [sets], sets.size() == 1 and String(sets[0]["maker"]) == "kessler"
 		and int(sets[0]["count"]) == 3 and (sets[0]["active"] as Array) == [2, 3])
@@ -810,13 +817,22 @@ func _test_sets() -> void:
 	var enemy: GridUnit = CombatSetup._build_unit({"name": "E", "parts": three["parts"]}, GridUnit.TEAM_ENEMY, 0,
 		setup.parts, rules.get("roles", {}), rules.get("damage_types", []), rules.get("armor_types", []), errors,
 		rules.get("abilities", {}), rules.get("makers", {}))
-	_check("an enemy wears no set (its parts are rolled, not chosen)", enemy.max_hp == 11 and enemy.armor == 0)
+	_check("an enemy wears no set (its parts are rolled, not chosen)", enemy.max_hp == 11 and enemy.armor == 0 and enemy.thorns == 0)
 	var vektor: Dictionary = one_each.duplicate(true)
 	vektor["parts"] = ["ch_strider", "co_dynamo", "ar_scanner", "ar_lance", ""]
 	var v: GridUnit = RunSim.preview_machine(setup, vektor)
 	var base_v: GridUnit = RunSim.preview_machine(setup, {"name": "T", "parts": ["ch_strider", "co_arc", "ar_ripper", "ar_hammer", ""],
 		"alive": true, "hp": 99, "level": 0, "perks": []})
-	_check("Vektor 3 (4 parts): +1 move, +1 range", v.move == base_v.move + 1 and v.range_bonus == base_v.range_bonus + 1)
+	var pierce: Callable = func(u: GridUnit) -> int:
+		var most: int = 0
+		for w: Dictionary in u.weapons:
+			if String(w["shape"]) == "shot":
+				most = maxi(most, int(w["pierce"]))
+		return most
+	var lance_only: GridUnit = RunSim.preview_machine(setup, {"name": "T", "parts": ["ch_hauler", "co_arc", "ar_ripper", "ar_lance", ""],
+		"alive": true, "hp": 99, "level": 0, "perks": []})
+	_check("Vektor 3 (4 parts): +1 move and its shots pierce one more", v.move == base_v.move + 1
+		and int(pierce.call(v)) == int(pierce.call(lance_only)) + 1)
 
 
 ## 011: salvage is a real choice -- three slots, a lean toward the crew's makers, scrap instead.
@@ -2085,3 +2101,209 @@ func _test_medals() -> void:
 		stage.call("runners", 5, true, {"flawless": 8, "wrecked": 1}, 0, false) == ["run_ghost", "run_light"])
 	_check("a run still going has earned nothing", RunSim.medals_earned(RunSim.start(_setup(3)), _setup(3)).is_empty())
 
+
+
+## 086 (A7): a fight's spoils -- arms torn off the enemy, the module (else core) of a wreck -- on the
+## staged board tools/frames/spoils086.json, and one of them in the salvage, TORN FROM its enemy.
+func _test_spoils() -> void:
+	var setup: RunSetup = _setup(31)
+	var frame: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://tools/frames/spoils086.json"))
+	var combat: CombatSetup = CombatSetup.build(frame, setup.combat_rules, setup.parts, setup.tiles, setup.wheel, 7)
+	_check("the spoils frame builds %s" % [combat.errors], combat.errors.is_empty())
+	var result: CombatState = CombatSim.replay(combat, RunBot.play_fight(combat))
+	var torn: int = 0
+	for e: Array in result.events:
+		if int(e[GridEv.F_KIND]) == GridEv.PART_TORN and int(e[GridEv.F_TARGET]) >= 10:
+			torn += 1
+	_check("the staged fight is won and tears enemy arms (%d torn)" % torn, result.outcome == CombatState.WON and torn > 0)
+	var low: Array = RunSim.spoils_of(result, setup, 2)
+	var high: Array = RunSim.spoils_of(result, setup, 3)
+	var ids: Array = low.map(func(f: Array) -> String: return String(f[0]))
+	var sorted_ids: Array = ids.duplicate()
+	sorted_ids.sort()
+	_check("spoils are sorted by id, one entry each %s" % [ids], not ids.is_empty() and ids == sorted_ids
+		and ids.size() == high.filter(func(f: Array) -> bool: return setup.rarity(String(f[0])) <= 2).size())
+	var clean: bool = true
+	for f: Array in high:
+		var id: String = String(f[0])
+		var slot: String = String((setup.parts[id] as Dictionary).get("slot", ""))
+		clean = clean and (setup.pools[slot] as Array).has(id) and setup.rarity(id) < 4 and not PartTuning.is_tuned(id) \
+			and String(f[2]).begins_with("THE ") and int(f[1]) >= 10
+	_check("every spoil is a pool part, untuned, not legendary, from an enemy, named THE ... %s" % [high], clean)
+	_check("the rarity cap holds: rare parts only under a cap of 3 (%d at 2, %d at 3)" % [low.size(), high.size()],
+		low.all(func(f: Array) -> bool: return setup.rarity(String(f[0])) <= 2) and high.size() >= low.size())
+	_check("the same fight gives the same spoils", RunSim.spoils_of(CombatSim.replay(combat, RunBot.play_fight(combat)), setup, 2) == low)
+	var recap: Dictionary = FightRecap.build(result, setup, frame["player"])
+	_check("the recap names the arms torn off (%s)" % FightRecap.torn_line(recap),
+		(recap["torn_off"] as Array).size() == torn and FightRecap.torn_line(recap).begins_with("Tore off: "))
+	# Into the salvage: the last card is the spoil, the reward says who it was torn from.
+	var state: RunState = RunSim.start(setup)
+	var reward: Dictionary = RunSim.salvage(state, setup, "skirmish", 0, 0, low)
+	var at: int = int(reward.get("torn_index", -1))
+	var opts: Array = reward["options"]
+	_check("the salvage shows one spoil, torn from its enemy (%s at %d: %s)" % [reward.get("torn_from", ""), at, opts],
+		at >= 0 and at < opts.size() and ids.has(String(opts[at])) and String(reward.get("torn_from", "")).begins_with("THE ")
+		and low.any(func(f: Array) -> bool: return String(f[0]) == String(opts[at]) and String(f[2]) == String(reward["torn_from"])))
+	_check("in the last card unless the roll already offered it", at == opts.size() - 1 or opts.count(opts[at]) == 1)
+	_check("and the same on a replay", RunSim.salvage(RunSim.start(setup), setup, "skirmish", 0, 0, low) == reward)
+	_check("no spoils: no torn_from", not RunSim.salvage(RunSim.start(setup), setup, "skirmish").has("torn_from"))
+	# Through the run: the staged fight as the pending fight, reported with FIGHT.
+	var run: RunState = RunSim.start(setup)
+	var crew_frame: Dictionary = frame.duplicate(true)
+	run.pending = {"kind": "fight", "site_type": "skirmish", "fight": crew_frame}
+	var actions: Array = RunBot.play_fight(RunSim.fight_setup(run, setup))
+	_check("a won fight's salvage carries the spoil", RunSim.apply(run, setup, [RunSim.FIGHT, actions])
+		and String(run.pending.get("kind", "")) == "reward" and run.pending.has("torn_from")
+		and RunSim.apply(run, setup, [RunSim.PICK, int(run.pending["torn_index"])]))
+
+
+## 086 (A5): an elite's veteran carries one affix from `enemies.elite_affixes`, the map's preview says
+## which, a skirmish carries none, and an empty list turns them off.
+func _test_affixes() -> void:
+	var all_elites: bool = true
+	var none_elsewhere: bool = true
+	var previewed: bool = true
+	var seen: Dictionary = {}
+	var act1: Dictionary = {}
+	for seed_value: int in range(1, 41):
+		var setup: RunSetup = _setup(seed_value)
+		var state: RunState = RunSim.start(setup)
+		for act: int in 2:
+			for site: Dictionary in state.sites:
+				var id: int = int(site["id"])
+				var elite: Dictionary = RunSim._make_fight(state, setup, id, "elite")
+				var affix: String = String((elite["enemy"] as Array)[0].get("affix", ""))
+				all_elites = all_elites and not affix.is_empty() \
+					and (elite["enemy"] as Array).filter(func(e: Dictionary) -> bool: return e.has("affix")).size() == 1
+				seen[affix] = true
+				if act == 0:
+					act1[affix] = true
+				previewed = previewed and RunSim.fight_summary(setup, elite, "elite")["affixes"] == [affix]
+				for e: Dictionary in (RunSim._make_fight(state, setup, id, "skirmish")["enemy"] as Array):
+					none_elsewhere = none_elsewhere and not e.has("affix")
+			RunSim._next_act(state, setup)
+	_check("every elite carries exactly one affix, on its veteran", all_elites)
+	_check("all three affixes come up %s; Act 1 rolls two %s" % [seen.keys(), act1.keys()],
+		seen.has("volatile") and seen.has("rigged") and seen.has("bulwark") and act1.size() == 2 and not act1.has("bulwark"))
+	_check("the fight preview lists the affix", previewed)
+	_check("a skirmish carries no affix", none_elsewhere)
+	var setup: RunSetup = _setup(5)
+	var state: RunState = RunSim.start(setup)
+	var site_id: int = -1
+	for id: int in RunSim.destinations(state):
+		site_id = id
+	state.sites[site_id]["type"] = "elite"
+	state.scouted.append(site_id)
+	var preview: Dictionary = RunSim.fight_preview(state, setup, site_id)
+	RunSim.apply(state, setup, [RunSim.TRAVEL, site_id])
+	_check("the preview's affix is the fight's (%s)" % [preview.get("affixes", [])], preview.get("affixes", []) ==
+		RunSim.fight_summary(setup, state.pending["fight"], "elite")["affixes"] and not (preview["affixes"] as Array).is_empty())
+	var combat: CombatSetup = RunSim.fight_setup(state, setup)
+	_check("an affixed fight builds with no errors %s" % [combat.errors], combat.errors.is_empty())
+	var rules: Dictionary = _db.run_rules.duplicate(true)
+	rules["enemies"]["elite_affixes"] = []
+	(rules["acts"] as Array)[0] = {"name": "THE CRANE YARDS"}
+	var off: RunSetup = RunSetup.create(_db.parts, _db.tiles, _db.fights, rules, _db.combat_rules, _db.effectiveness, 5)
+	var plain: RunState = RunSim.start(off)
+	_check("an empty `elite_affixes` gives none", not ((RunSim._make_fight(plain, off, 3, "elite")["enemy"] as Array)[0] as Dictionary).has("affix"))
+
+
+## 086 (A9, the user): legendaries come only from gate keepers' hoards. Warlord hoards, salvage in
+## every act, refineries, auctions and signals never hand one out; every hoard has SCRAP instead.
+func _test_hoard_sources() -> void:
+	var setup: RunSetup = _setup(44)
+	var state: RunState = RunSim.start(setup)
+	var leaks: Array = []
+	for act: int in 3:
+		for n: int in 40:
+			state.current = n % state.sites.size()
+			state.legends.clear()
+			state.offered.clear()
+			for kind: String in ["skirmish", "elite", "arena"]:
+				for part: Variant in (RunSim.salvage(state, setup, kind)["options"] as Array):
+					if setup.rarity(PartTuning.base_of(String(part))) >= 4:
+						leaks.append([act + 1, kind, part])
+			var lord: Dictionary = RunSim.hoard(state, setup, false)
+			for part: Variant in (lord["options"] as Array):
+				if setup.rarity(String(part)) >= 4:
+					leaks.append([act + 1, "warlord", part])
+		if act < 2:
+			RunSim._next_act(state, setup)
+	_check("no salvage and no warlord hoard holds a legendary, in any act %s" % [leaks.slice(0, 3)], leaks.is_empty())
+	var gate: Dictionary = RunSim.hoard(RunSim.start(setup), setup)
+	_check("a gate keeper's hoard holds one legendary, and SCRAP instead (%d)" % int(gate.get("scrap", 0)),
+		(gate["options"] as Array).filter(func(p: Variant) -> bool: return setup.rarity(String(p)) == 4).size() == 1 and int(gate.get("scrap", 0)) > 0)
+	var lord_hoard: Dictionary = RunSim.hoard(RunSim.start(setup), setup, false)
+	_check("a warlord's hoard: a rare first, and SCRAP instead", setup.rarity(String((lord_hoard["options"] as Array)[0])) == 3
+		and int(lord_hoard.get("scrap", 0)) > 0)
+	var took: RunState = RunSim.start(setup)
+	took.pending = lord_hoard.duplicate(true)
+	var before: int = took.scrap
+	_check("SCRAP instead at a hoard pays its scrap", RunSim.apply(took, setup, [RunSim.PICK, -1]) and took.scrap == before + int(lord_hoard["scrap"]))
+	# The refinery stops at rare: a rare in the hold is refused.
+	var shop: RunState = RunSim.start(setup)
+	shop.scrap = 500
+	shop.cargo.append("ar_railgun")
+	shop.pending = {"kind": "refinery", "used": false}
+	_check("a refinery will not refine a rare into a legendary", RunSim.refine_cost(setup, "ar_railgun") < 0
+		and not RunSim.apply(shop, setup, [RunSim.REFINE, shop.cargo.size() - 1]))
+	var crate_legend: int = 0
+	for n: int in 60:
+		var bid: RunState = RunSim.start(_setup(900 + n))
+		bid.scrap = 500
+		bid.pending = {"kind": "auction", "used": false}
+		RunSim.apply(bid, _setup(900 + n), [RunSim.BID, 1])
+		if not bid.cargo.is_empty() and setup.rarity(bid.cargo[bid.cargo.size() - 1]) >= 4:
+			crate_legend += 1
+	_check("an auction crate never holds a legendary (%d of 60)" % crate_legend, crate_legend == 0)
+
+
+## 086 (A8): the rule perks -- what each does to the machine, what each needs, and that every level
+## offer holds at least one.
+func _test_rule_perks() -> void:
+	var setup: RunSetup = _setup(3)
+	var perks: Dictionary = setup.rules["perks"]
+	_check("Heat Sinks and Coolant Jacket are gone; five rule perks are in", not perks.has("heat_sinks") and not perks.has("coolant")
+		and ["rending_grip", "spotter", "ap_rounds", "scavenger", "barbed_hull"].all(func(id: String) -> bool: return RunSim.is_rule_perk(setup, id)))
+	var brute: Dictionary = {"name": "B", "parts": ["ch_brute", "co_slug", "ar_saw", "ar_hammer", "mo_scavenger"],
+		"alive": true, "hp": 99, "level": 0, "perks": []}
+	var built: Dictionary = brute.duplicate(true)
+	built["perks"] = ["rending_grip", "spotter", "scavenger", "barbed_hull"]
+	var u: GridUnit = RunSim.preview_machine(setup, built)
+	var plain: GridUnit = RunSim.preview_machine(setup, brute)
+	_check("Rending Grip: its melee tears", u.weapons.any(func(w: Dictionary) -> bool: return String(w["shape"]) == "melee" and bool(w.get("tears", false))))
+	_check("Spotter: its hits mark", u.weapons.all(func(w: Dictionary) -> bool: return bool(w["empty"]) or String(w["shape"]) == "shield" or bool(w.get("mark", false))))
+	_check("Scavenger: kill_heal +2, Barbed Hull: thorns +1", u.kill_heal == plain.kill_heal + 2 and u.thorns == plain.thorns + 1)
+	var lancer: Dictionary = {"name": "L", "parts": ["ch_hauler", "co_furnace", "ar_lance", "ar_pulse", "mo_ablative"],
+		"alive": true, "hp": 99, "level": 0, "perks": ["ap_rounds"]}
+	var shot: GridUnit = RunSim.preview_machine(setup, lancer)
+	lancer["perks"] = []
+	var shot_plain: GridUnit = RunSim.preview_machine(setup, lancer)
+	var more: bool = false
+	for w: int in shot.weapons.size():
+		if String(shot.weapons[w]["shape"]) == "shot":
+			more = int(shot.weapons[w]["pierce"]) == int(shot_plain.weapons[w]["pierce"]) + 1
+	_check("AP Rounds: its shots pierce one more", more)
+	var every_offer: bool = true
+	var grip_on_shooter: bool = false
+	var ap_on_brawler: bool = false
+	var offers: int = 0
+	for seed_value: int in range(1, 80):
+		var s: RunSetup = _setup(seed_value)
+		var state: RunState = RunSim.start(s)
+		state.scrap = 999
+		for i: int in state.crew.size():
+			for level: int in 5:
+				var offer: Array[String] = RunSim.perk_offer(state, s, i)
+				if offer.is_empty():
+					break
+				offers += 1
+				every_offer = every_offer and offer.any(func(id: String) -> bool: return RunSim.is_rule_perk(s, id))
+				var unit: GridUnit = RunSim.preview_machine(s, state.crew[i])
+				var has_melee: bool = unit.weapons.any(func(w: Dictionary) -> bool: return not bool(w["empty"]) and String(w["shape"]) == "melee")
+				var has_shot: bool = unit.weapons.any(func(w: Dictionary) -> bool: return not bool(w["empty"]) and String(w["shape"]) == "shot")
+				grip_on_shooter = grip_on_shooter or (offer.has("rending_grip") and not has_melee)
+				ap_on_brawler = ap_on_brawler or (offer.has("ap_rounds") and not has_shot)
+				RunSim.apply(state, s, [RunSim.LEVEL_UP, i, level % offer.size()])
+	_check("every level offer holds a rule perk (%d offers)" % offers, every_offer and offers > 300)
+	_check("Rending Grip only for a machine with melee, AP Rounds only for one with a shot", not grip_on_shooter and not ap_on_brawler)
