@@ -946,7 +946,7 @@ func _test_rules_086() -> void:
 	_check("ARCLIGHT x3: the Lance arcs once, the Pulse once more (%d, %d)" % [int(ac.unit(0).weapons[1]["chain"]), int(ac.unit(0).weapons[0]["chain"])],
 		int(ac.unit(0).weapons[1]["chain"]) == 1 and int(ac.unit(0).weapons[0]["chain"]) == 3)
 	_check("VEKTOR x3: the Lance pierces 2 (%d)" % int(vk.unit(0).weapons[0]["pierce"]), int(vk.unit(0).weapons[0]["pierce"]) == 2)
-	_check("CINDER x3: the Cleaver tears, +1 melee", bool(cn.unit(0).weapons[0]["tears"]) and not bool(cn.unit(0).weapons[1]["tears"]))
+	_check("CINDER x3: every weapon tears, the Lance too (086, the user)", bool(cn.unit(0).weapons[0]["tears"]) and bool(cn.unit(0).weapons[1]["tears"]))
 	var heat_in_sets: Array = []
 	for maker: Variant in _db.makers:
 		if String(maker).begins_with("_"):
@@ -991,8 +991,8 @@ func _test_rules_086() -> void:
 	var front_hit: int = CombatSim.damage_to(bu, bu.unit(0), bu.unit(10), 8, false)
 	_place(bu, 0, Hex.neighbor(n, 0))
 	var back_hit: int = CombatSim.damage_to(bu, bu.unit(0), bu.unit(10), 8, false)
-	_check("bulwark: faces the nearest crew machine (dir %d); its front takes 2 less (%d vs %d from behind)" % [face, front_hit, back_hit],
-		face == 3 and front_hit == back_hit - 2)
+	_check("bulwark: faces the nearest crew machine (dir %d); its front takes 3 less (%d vs %d from behind)" % [face, front_hit, back_hit],
+		face == 3 and front_hit == back_hit - 3)
 	_check("bulwark: the facing and the affix survive a clone", bu.clone().facing.get(10, -1) == face and bu.clone().unit(10).affix == "bulwark")
 	var opening: Dictionary = (_db.fights["slag_pit"] as Dictionary).duplicate(true)
 	for spec: Dictionary in opening["enemy"]:

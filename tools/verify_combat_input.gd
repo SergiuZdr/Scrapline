@@ -271,7 +271,10 @@ func _playback_speeds(packed: PackedScene) -> void:
 	# and over 1.8 s fails.
 	_check("2x plays the enemy's turn in at most 0.6 of the 1x time, 3x faster still",
 		enemy_ms[2] >= 0 and enemy_ms[2] * 10 <= enemy_ms[1] * 6 and enemy_ms[3] < enemy_ms[2])
-	_check("the enemy's turn on slag_pit is over in 1.8 s at 2x (%d ms; aim ~1500)" % enemy_ms[2], enemy_ms[2] >= 0 and enemy_ms[2] <= 1800)
+	# 086: the new content (Pulse 3 damage, the sets) changes what this bot fight's first enemy turn
+	# holds -- a crate breaks a hit earlier, a machine walks a longer way: 1594 -> 1836 ms. The same
+	# 086 code on 085's data plays it in 1586 ms, so no beat grew; the limit is 1.9 s for this fight.
+	_check("the enemy's turn on slag_pit is over in 1.9 s at 2x (%d ms; aim ~1500)" % enemy_ms[2], enemy_ms[2] >= 0 and enemy_ms[2] <= 1900)
 	profile.call("set_playback", 1)
 	_scene.queue_free()
 	await process_frame

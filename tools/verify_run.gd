@@ -926,7 +926,9 @@ func _test_defend_partial() -> void:
 		while String(pending.get("kind", "")) == "wreck":
 			pending = pending.get("next", {})
 		right = right and String(pending.get("kind", "")) == "reward" \
-			and (pending["options"] as Array).size() == maxi(1, (3 * saved + placed - 1) / placed) \
+			and ((pending["options"] as Array).size() == maxi(1, (3 * saved + placed - 1) / placed) \
+				or ((pending["options"] as Array).size() == maxi(1, (3 * saved + placed - 1) / placed) + 1 \
+				and int(pending.get("torn_index", -1)) == (pending["options"] as Array).size() - 1)) \
 			and int(pending["scrap"]) == (8 * saved + placed - 1) / placed
 		seen += 1
 	_check("DEFEND fights won with caches broken pay scaled salvage (%d fights)" % seen, seen > 0 and right)
@@ -997,7 +999,7 @@ func _test_wreck_recovery() -> void:
 	for seed_value: int in range(1, 120):
 		var hard: RunSetup = _setup(seed_value)
 		hard.rules = hard.rules.duplicate(true)
-		hard.rules["enemies"]["bonus"] = {"damage": 3}
+		hard.rules["enemies"]["bonus"] = {"damage": 4}
 		var run: RunState = RunSim.start(hard)
 		var site: int = RunSim.destinations(run)[0]
 		# 084: a site as generated, never retyped -- the replay below regenerates the region.
@@ -2148,7 +2150,7 @@ func _test_spoils() -> void:
 	_check("the salvage shows one spoil, torn from its enemy (%s at %d: %s)" % [reward.get("torn_from", ""), at, opts],
 		at >= 0 and at < opts.size() and ids.has(String(opts[at])) and String(reward.get("torn_from", "")).begins_with("THE ")
 		and low.any(func(f: Array) -> bool: return String(f[0]) == String(opts[at]) and String(f[2]) == String(reward["torn_from"])))
-	_check("in the last card unless the roll already offered it", at == opts.size() - 1 or opts.count(opts[at]) == 1)
+	_check("a fourth card unless the roll already offered it (%d cards)" % opts.size(), (at == 3 and opts.size() == 4) or (at < 3 and opts.size() == 3))
 	_check("and the same on a replay", RunSim.salvage(RunSim.start(setup), setup, "skirmish", 0, 0, low) == reward)
 	_check("no spoils: no torn_from", not RunSim.salvage(RunSim.start(setup), setup, "skirmish").has("torn_from"))
 	# Through the run: the staged fight as the pending fight, reported with FIGHT.
@@ -2275,7 +2277,7 @@ func _test_rule_perks() -> void:
 	built["perks"] = ["rending_grip", "spotter", "scavenger", "barbed_hull"]
 	var u: GridUnit = RunSim.preview_machine(setup, built)
 	var plain: GridUnit = RunSim.preview_machine(setup, brute)
-	_check("Rending Grip: its melee tears", u.weapons.any(func(w: Dictionary) -> bool: return String(w["shape"]) == "melee" and bool(w.get("tears", false))))
+	_check("Rending Grip: every weapon that hits tears", u.weapons.all(func(w: Dictionary) -> bool: return bool(w["empty"]) or String(w["shape"]) == "shield" or bool(w.get("tears", false))))
 	_check("Spotter: its hits mark", u.weapons.all(func(w: Dictionary) -> bool: return bool(w["empty"]) or String(w["shape"]) == "shield" or bool(w.get("mark", false))))
 	_check("Scavenger: kill_heal +2, Barbed Hull: thorns +1", u.kill_heal == plain.kill_heal + 2 and u.thorns == plain.thorns + 1)
 	var lancer: Dictionary = {"name": "L", "parts": ["ch_hauler", "co_furnace", "ar_lance", "ar_pulse", "mo_ablative"],
@@ -2288,6 +2290,14 @@ func _test_rule_perks() -> void:
 		if String(shot.weapons[w]["shape"]) == "shot":
 			more = int(shot.weapons[w]["pierce"]) == int(shot_plain.weapons[w]["pierce"]) + 1
 	_check("AP Rounds: its shots pierce one more", more)
+	var brawl_ap: Dictionary = brute.duplicate(true)
+	brawl_ap["perks"] = ["ap_rounds"]
+	var ap_u: GridUnit = RunSim.preview_machine(setup, brawl_ap)
+	var harder: bool = false
+	for w: int in ap_u.weapons.size():
+		if String(ap_u.weapons[w]["shape"]) == "melee":
+			harder = int(ap_u.weapons[w]["damage"]) == int(plain.weapons[w]["damage"]) + 1
+	_check("AP Rounds: a melee arm deals +1 instead", harder)
 	var every_offer: bool = true
 	var grip_on_shooter: bool = false
 	var ap_on_brawler: bool = false
@@ -2310,4 +2320,4 @@ func _test_rule_perks() -> void:
 				ap_on_brawler = ap_on_brawler or (offer.has("ap_rounds") and not has_shot)
 				RunSim.apply(state, s, [RunSim.LEVEL_UP, i, level % offer.size()])
 	_check("every level offer holds a rule perk (%d offers)" % offers, every_offer and offers > 300)
-	_check("Rending Grip only for a machine with melee, AP Rounds only for one with a shot", not grip_on_shooter and not ap_on_brawler)
+	_check("Rending Grip and AP Rounds are offered to any machine (086, the user)", grip_on_shooter and ap_on_brawler)

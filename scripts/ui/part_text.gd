@@ -151,7 +151,7 @@ static func tune_line(parts: Dictionary, id: String) -> String:
 
 
 ## The order a bonus block is read out in: what it survives, how it moves, what it hits.
-const BONUS_ORDER: PackedStringArray = ["hp", "armor", "move", "damage", "melee", "range", "range_min", "pierce",
+const BONUS_ORDER: PackedStringArray = ["hp", "armor", "move", "damage", "melee", "range", "range_min", "pierce", "ap",
 	"chain", "arc", "mark", "shove", "tears", "heat", "heat_cap", "vent", "cooldown", "unshovable", "move_after_attack",
 	"thorns", "regen", "kill_heal", "last_stand", "rise_pct", "anchors", "ward", "meltdown"]
 
@@ -194,7 +194,9 @@ static func bonus_text(grid: Dictionary) -> String:
 				bits.append("melee shoves")
 			"tears":
 				# 086: `tears N` (N > 1) tears at N damage instead of the rule's own threshold.
-				bits.append("melee tears arms off" if n <= 1 else "melee hits of %d+ tear an arm off" % n)
+				bits.append("every hit tears an arm off" if n <= 1 else "hits of %d+ tear an arm off" % n)
+			"ap":
+				bits.append("shots pierce %d, other weapons %s damage" % [n, _signed(n)])
 			"heat":
 				bits.append("%s heat per attack" % _signed(n))
 			"heat_cap":
@@ -247,11 +249,11 @@ static func set_lines(parts: Dictionary, makers: Dictionary, part_ids: Array) ->
 # --- 086: rules, not numbers ---------------------------------------------------
 
 ## The verb each rule key gives a machine, said in one word on cards, perks and sets.
-const RULE_VERBS: Dictionary = {"tears": "TEARS", "pierce": "PIERCES", "arc": "ARCS", "mark": "MARKS",
+const RULE_VERBS: Dictionary = {"tears": "TEARS", "pierce": "PIERCES", "ap": "PIERCES", "arc": "ARCS", "mark": "MARKS",
 	"kill_heal": "SCAVENGES", "thorns": "THORNS", "unshovable": "ANCHORED", "shove": "SHOVES",
 	"chain": "CHAINS", "move_after_attack": "FIRES ON THE MOVE", "regen": "REPAIRS", "last_stand": "LAST STAND"}
 ## The keys that make a perk a RULE perk (A8): what it does changes, not how much.
-const RULE_PERK_KEYS: PackedStringArray = ["tears", "pierce", "arc", "mark", "kill_heal", "thorns"]
+const RULE_PERK_KEYS: PackedStringArray = ["tears", "pierce", "ap", "arc", "mark", "kill_heal", "thorns"]
 
 
 ## The verbs a bonus block adds, in the describer's order: ["THORNS", "ANCHORED"].
@@ -263,7 +265,7 @@ static func rule_verbs(grid: Dictionary) -> PackedStringArray:
 	return out
 
 
-## Each verb with what it does: ["+ TEARS: melee hits of 4+ tear an arm off"].
+## Each verb with what it does: ["+ TEARS: hits of 4+ tear an arm off"].
 static func verb_lines(grid: Dictionary) -> PackedStringArray:
 	var out: PackedStringArray = []
 	for key: String in BONUS_ORDER:

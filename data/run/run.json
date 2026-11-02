@@ -139,9 +139,9 @@
     "gate_legend_pct": 100,
     "_warlord_086": "086 (A9, the user: legendaries only from gate keepers, 1-2 a run; warlords give a rare and scrap): warlord_legend_pct 35 -> 0; warlord_scrap stays. `gate_legend_pct` (by act): the chance a keeper's hoard holds its legendary.",
     "hoard_scrap": 25,
-    "spoils_slot": -1,
+    "spoils_slot": -2,
     "spoils_max_rarity": 2,
-    "_spoils": "086 (A7): a won skirmish, elite or arena shows one part torn off or out of an enemy (an arm it lost to PART_TORN, the module -- else the core -- of an enemy it wrecked) in place of option `spoils_slot` (-1: the last), picked by SimRNG from the ones in the pools, untuned, not legendary and at most `spoils_max_rarity` (by act). The reward then carries `torn_from` (the enemy, \"THE TRACKER\") and `torn_index`. Hoards keep their own rolls. `hoard_scrap` is the SCRAP instead at every hoard.",
+    "_spoils": "086 (A7): a won skirmish, elite or arena shows one part torn off or out of an enemy (an arm it lost to PART_TORN, the module -- else the core -- of an enemy it wrecked) in place of option `spoils_slot` (-1: the last; -2, the user's pick: as a FOURTH card beside the rolled three), picked by SimRNG from the ones in the pools, untuned, not legendary and at most `spoils_max_rarity` (by act). The reward then carries `torn_from` (the enemy, \"THE TRACKER\") and `torn_index`. Hoards keep their own rolls. `hoard_scrap` is the SCRAP instead at every hoard.",
     "salvage_scrap": 8,
     "defend_partial": true,
     "_defend_partial": "083 (A7-defend): a won DEFEND keeps ceil(choices x saved / placed) of its salvage options and ceil(salvage_scrap x saved / placed) scrap; false pays it all whenever it is won. All caches broken is still a lost fight.",
@@ -252,7 +252,7 @@
       "enemies": {"count_by_column": [4, 4, 4, 4, 4, 5, 5, 5, 5], "rarity_cap_by_column": [2, 2, 2, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 2, "hp_all": 5, "boss_escorts": 4, "warlord_escorts": 3, "boss_late_waves": [{"round": 6, "count": 2}], "bonus": {"damage": 1}},
       "kinds": {"chance_by_column": [40, 50, 50, 60, 60, 70, 70, 80, 80], "weights": {"tracker": 20, "bomber": 20, "warden": 15, "hive": 15, "sentinel": 30}},
       "terrain": {"slag": [1, 3]},
-      "rewards": {"rarity_weights": [55, 38, 7], "elite_min_rarity": 2, "choices": 3, "spoils_max_rarity": 3, "gate_legend_pct": 50, "_086": "086 (A9): the Act 2 keeper's hoard holds a legendary half the time (a rare otherwise), so a run sees one or two and they stay under ~8-12% of the sockets"},
+      "rewards": {"rarity_weights": [55, 38, 7], "elite_min_rarity": 2, "choices": 3, "spoils_max_rarity": 3, "_086": "086 (A9, the user): both keepers' hoards always hold a legendary (two offered a run)"},
       "board": {"enemies": 1}
     },
     {
