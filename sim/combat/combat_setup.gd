@@ -407,7 +407,7 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 ## `move_after_attack`. One function, so a number means the same thing wherever it comes from.
 ## The keys a core or module may carry beyond its plain numbers (033), read through apply_bonus.
 const EXTRA_KEYS: PackedStringArray = ["melee", "unshovable", "move_after_attack", "chain", "pierce", "arc", "mark",
-	"shove", "tears", "thorns", "regen", "kill_heal", "last_stand", "rise_pct", "anchors", "ward", "meltdown"]
+	"shove", "tears", "ap", "thorns", "regen", "kill_heal", "last_stand", "rise_pct", "anchors", "ward", "meltdown"]
 
 
 static func apply_bonus(u: GridUnit, grid: Dictionary) -> void:
@@ -442,8 +442,15 @@ static func apply_bonus(u: GridUnit, grid: Dictionary) -> void:
 		if shape == "melee":
 			if int(grid.get("shove", 0)) > 0:
 				weapon["shove"] = maxi(1, int(weapon["shove"]))
-			if int(grid.get("tears", 0)) > 0:
-				weapon["tears"] = true
+		# 086 (the user: rule traits not tied to one weapon): `tears` on every weapon that hits.
+		if shape != "shield" and int(grid.get("tears", 0)) > 0:
+			weapon["tears"] = true
+		# 086: AP Rounds (`ap`) -- a shot pierces, any other weapon that hits deals +1.
+		var ap: int = int(grid.get("ap", 0))
+		if ap > 0 and shape == "shot":
+			weapon["pierce"] = int(weapon["pierce"]) + ap
+		elif ap > 0 and shape != "shield":
+			weapon["damage"] = int(weapon["damage"]) + ap
 		if int(grid.get("mark", 0)) > 0 and shape != "shield":
 			weapon["mark"] = true
 	u.thorns += int(grid.get("thorns", 0))

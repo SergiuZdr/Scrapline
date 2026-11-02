@@ -285,7 +285,13 @@ static func perk_offer(state: RunState, setup: RunSetup, index: int) -> Array[St
 	for id: Variant in ids:
 		if taken.has(String(id)) or not _perk_fits(unit, String((perks[id] as Dictionary).get("needs", ""))):
 			continue
-		eligible.append([IntentAI.mix(setup.rng_seed, index, level, _text_hash(String(id))), String(id)])
+		var key: int = IntentAI.mix(setup.rng_seed, index, level, _text_hash(String(id)))
+		# 086 (the user: "more focused on the current build"): a perk that adds to a trait the
+		# machine already has, or to a set its makers are building, is drawn as if its roll were
+		# halved -- likelier, never certain.
+		if _perk_favoured(setup, member, unit, (perks[id] as Dictionary).get("grid", {})):
+			key = key >> 1
+		eligible.append([key, String(id)])
 	eligible.sort_custom(func(a: Array, b: Array) -> bool:
 		return int(a[0]) < int(b[0]) or (int(a[0]) == int(b[0]) and String(a[1]) < String(b[1])))
 	var cards: int = int((setup.rules.get("levels", {}) as Dictionary).get("perk_choices", 3))
@@ -307,6 +313,45 @@ static func perk_offer(state: RunState, setup: RunSetup, index: int) -> Array[St
 ## 086 (A8): whether a perk changes what a machine does (`"rule": true` in perks.json), not a number.
 static func is_rule_perk(setup: RunSetup, id: String) -> bool:
 	return bool(((setup.rules.get("perks", {}) as Dictionary).get(id, {}) as Dictionary).get("rule", false))
+
+
+## 086: whether a perk builds on what this machine already is -- a trait it carries (pierce, tears,
+## mark, arc, thorns, kill heal, unshovable), or a key of a set (2 or 3 pieces) from a maker it
+## already has a part of.
+static func _perk_favoured(setup: RunSetup, member: Dictionary, u: GridUnit, grid: Dictionary) -> bool:
+	if grid.is_empty():
+		return false
+	var has: Dictionary = {"thorns": u.thorns > 0, "kill_heal": u.kill_heal > 0, "unshovable": u.unshovable,
+		"move_after_attack": u.move_after_attack}
+	for w: Dictionary in u.weapons:
+		if bool(w["empty"]):
+			continue
+		if int(w["pierce"]) > 0:
+			has["pierce"] = true
+			has["ap"] = true
+		if bool(w.get("tears", false)):
+			has["tears"] = true
+		if bool(w.get("mark", false)):
+			has["mark"] = true
+		if int(w["chain"]) > 0:
+			has["chain"] = true
+			has["arc"] = true
+	var makers: Dictionary = setup.combat_rules.get("makers", {})
+	var keys: Array = grid.keys()
+	keys.sort()
+	for key: Variant in keys:
+		if bool(has.get(String(key), false)):
+			return true
+	for id: Variant in member.get("parts", []):
+		var maker: String = String((setup.parts.get(String(id), {}) as Dictionary).get("maker", ""))
+		var sets: Dictionary = (makers.get(maker, {}) as Dictionary).get("sets", {})
+		for count: String in ["2", "3"]:
+			var block: Dictionary = sets.get(count, {})
+			for key: Variant in keys:
+				var k: String = "pierce" if String(key) == "ap" else String(key)
+				if block.has(k) and k != "hp" and k != "move":
+					return true
+	return false
 
 
 ## Whether a perk would do anything for this machine (`needs` in perks.json).
@@ -830,7 +875,7 @@ static func _recover(state: RunState, setup: RunSetup, index: int) -> bool:
 ##
 ## 086 (A7): `spoils` (`spoils_of`): the parts torn off or out of the enemy this fight. One of them
 ## not in the hold nor among the recent offers (046),
-## picked by its own SimRNG stream, takes the card `rewards.spoils_slot` (-1: the last) -- or is
+## picked by its own SimRNG stream, takes the card `rewards.spoils_slot` (-1: the last; -2: a fourth card added) -- or is
 ## marked where the roll already put it -- and the reward carries `torn_from` (the enemy's name,
 ## "THE TRACKER") and `torn_index` (the card).
 static func salvage(state: RunState, setup: RunSetup, kind: String, saved: int = 0, placed: int = 0,
@@ -860,7 +905,11 @@ static func salvage(state: RunState, setup: RunSetup, kind: String, saved: int =
 		torn = fresh[srng.range_int(0, fresh.size() - 1)]
 		var slot: int = int(rewards.get("spoils_slot", -1))
 		torn_at = options.find(String(torn[0]))
-		if torn_at < 0:
+		if torn_at < 0 and slot == -2:
+			# 086 (the user): a fourth card beside the rolled three.
+			options.append(String(torn[0]))
+			torn_at = options.size() - 1
+		elif torn_at < 0:
 			torn_at = options.size() - 1 if slot < 0 or slot >= options.size() else slot
 			options[torn_at] = String(torn[0])
 	var out: Dictionary = {"kind": "reward", "options": _offer(state, setup, options), "scrap": scrap}

@@ -671,6 +671,9 @@ static func _face_fronts(state: CombatState) -> void:
 static func held(state: CombatState, u: GridUnit) -> bool:
 	if u.unshovable:
 		return true
+	# 086 (the user): an affix may anchor its machine (RIGGED), read through its kind's rules.
+	if not u.affix.is_empty() and bool(kind_rules(state, u).get("anchored", false)):
+		return true
 	if not u.alive:
 		return false
 	for other: GridUnit in state.units:

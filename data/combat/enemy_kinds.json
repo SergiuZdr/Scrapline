@@ -11,16 +11,16 @@
     "rigged": {
       "name": "Rigged",
       "tag": "RIGGED",
-      "short": "its arms cannot be torn off",
-      "text": "Its arms are welded on: no hit tears one off. It fights with every gun it came with to the end -- kill it, shove it, or keep out of its reach.",
-      "rules": {"keeps_arms": true}
+      "short": "its arms cannot be torn off, it cannot be shoved",
+      "text": "Its arms are welded on and its feet bolted down: no hit tears an arm off and nothing shoves or grapples it. It fights with every gun it came with to the end -- kill it or keep out of its reach.",
+      "rules": {"keeps_arms": true, "anchored": true}
     },
     "bulwark": {
       "name": "Bulwark",
       "tag": "BULWARK",
-      "short": "plated front: 2 less from the 3 sides it faces",
-      "text": "Plated front: hits from the three sides it faces take 2 less. After it moves it turns to face your nearest machine, and the board shows its front -- go round it. Blasts and bumps ignore the plate.",
-      "rules": {"front_plate": 2}
+      "short": "plated front: 3 less from the 3 sides it faces",
+      "text": "Plated front: hits from the three sides it faces take 3 less. After it moves it turns to face your nearest machine, and the board shows its front -- go round it. Blasts and bumps ignore the plate.",
+      "rules": {"front_plate": 3}
     }
   },
   "tracker": {
