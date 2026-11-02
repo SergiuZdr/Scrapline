@@ -25,6 +25,16 @@ static var route: String = "forward"
 ## tools (`--set bot.deals="walk"`), never by the game.
 static var deals: String = "best"
 
+## 086 (T1): how the bot picks a perk and a salvage part. "dry" (the default): each candidate is
+## played out by the combat bot on the fight the crew is heading for (`_probe_fight`), the crew
+## changed by that candidate alone, and the best result wins -- so a perk that changes a rule can
+## beat one that adds a number. "old": the first perk of the offer and the rarest part, as before
+## 086. Set by the bot tools (`--set bot.choose="old"`), never by the game.
+static var choose: String = "dry"
+
+## 086 (T1): how many rounds of the next fight a dry run plays (`--set bot.dry_rounds=3`).
+static var dry_rounds: int = 3
+
 
 ## The next action for the run as it stands, or [] if the run is over.
 static func next_action(state: RunState, setup: RunSetup) -> Array:
@@ -97,8 +107,117 @@ static func _level_up(state: RunState, setup: RunSetup) -> Array:
 			continue
 		if best < 0 or int(state.crew[i].get("level", 0)) < int(state.crew[best].get("level", 0)):
 			best = i
-	# The perk: the first of the offer, which is seeded -- a stand-in for a player's taste.
-	return [RunSim.LEVEL_UP, best, 0] if best >= 0 else []
+	if best < 0:
+		return []
+	# "old": the first of the offer, which is seeded -- a stand-in for a player's taste.
+	# 086 (T1) "dry": the perk whose machine does best in a dry run of the next fight.
+	return [RunSim.LEVEL_UP, best, _choose_perk(state, setup, best) if choose == "dry" else 0]
+
+
+## 086 (T1): the perk of machine `index`'s offer that plays best on the next fight; ties keep
+## the earlier card (the seeded order, the old choice).
+static func _choose_perk(state: RunState, setup: RunSetup, index: int) -> int:
+	var offer: Array[String] = RunSim.perk_offer(state, setup, index)
+	if offer.size() < 2:
+		return 0
+	var probe: Dictionary = _probe_fight(state, setup)
+	if probe.is_empty():
+		return 0
+	var best: int = 0
+	var best_score: int = -(1 << 40)
+	for i: int in offer.size():
+		var crew: Array = _crew_copy(state)
+		var member: Dictionary = crew[index]
+		var before: int = RunSim.max_hp(setup, member)
+		member["level"] = int(member.get("level", 0)) + 1
+		var perks: Array = (member.get("perks", []) as Array).duplicate()
+		perks.append(offer[i])
+		member["perks"] = perks
+		member["hp"] = int(member["hp"]) + maxi(0, RunSim.max_hp(setup, member) - before)
+		var score: int = _dry_score(state, setup, probe, crew)
+		if score > best_score:
+			best_score = score
+			best = i
+	return best
+
+
+## 086 (T1): the fight the crew is heading for, made as a travel there would make it:
+## `{ "site", "kind" }`, the fight-type site linked to the current one that the route would take
+## (the highest column, then the lowest id), else the first fight site of the next column, else {}.
+static func _probe_fight(state: RunState, setup: RunSetup) -> Dictionary:
+	var here: Dictionary = state.site(state.current)
+	if here.is_empty():
+		return {}
+	var best: int = -1
+	var links: Array = (here["links"] as Array).duplicate()
+	links.sort()
+	for id: Variant in links:
+		var s: Dictionary = state.site(int(id))
+		if state.consumed(int(id)) or bool(s["visited"]) or not RunSim.FIGHT_TYPES.has(RunSim.site_kind(state, int(id))):
+			continue
+		if best < 0 or int(s["col"]) > int(state.site(best)["col"]):
+			best = int(id)
+	if best < 0:
+		for s: Dictionary in state.sites:
+			if int(s["col"]) == int(here["col"]) + 1 and RunSim.FIGHT_TYPES.has(RunSim.site_kind(state, int(s["id"]))):
+				best = int(s["id"])
+				break
+	if best < 0:
+		return {}
+	var kind: String = RunSim.site_kind(state, best)
+	return {"site": best, "kind": kind, "fight": RunSim._make_fight(state, setup, best, kind)}
+
+
+## The crew as plain copies, to change one candidate on without touching the run.
+static func _crew_copy(state: RunState) -> Array:
+	var out: Array = []
+	for member: Dictionary in state.crew:
+		out.append(member.duplicate(true))
+	return out
+
+
+## 086 (T1): plays the first `dry_rounds` rounds of `probe`'s fight with `crew` fielded instead of the
+## run's crew, and scores it: a win first, then HP the crew lost (a wreck heavily), then HP and
+## machines the enemy lost, then the rounds it took.
+static func _dry_score(state: RunState, setup: RunSetup, probe: Dictionary, crew: Array) -> int:
+	var fight: Dictionary = (probe["fight"] as Dictionary).duplicate(true)
+	var player: Array = []
+	var k: int = 0
+	for i: int in crew.size():
+		if not bool(crew[i]["alive"]):
+			continue
+		if k >= (fight["player"] as Array).size():
+			break
+		var spec: Dictionary = RunSim.machine_spec(setup, crew[i])
+		spec["x"] = int((fight["player"] as Array)[k]["x"])
+		spec["y"] = int((fight["player"] as Array)[k]["y"])
+		player.append(spec)
+		k += 1
+	fight["player"] = player
+	var combat_setup: CombatSetup = CombatSetup.build(fight, setup.combat_rules, setup.parts, setup.tiles,
+		setup.wheel, IntentAI.mix(setup.rng_seed, int(probe["site"]), 17, 0))
+	var combat: CombatState = CombatSim.start(combat_setup)
+	# What the fight costs and deals, not the HP left: a perk that adds HP now would win every dry run
+	# by its own number, before it did anything.
+	var start_hp: Dictionary = {}
+	for u: GridUnit in combat.units:
+		start_hp[u.ref] = u.hp
+	var guard: int = 0
+	# Only the first `dry_rounds` rounds: a whole fight per candidate made a run 3x slower, and the
+	# opening rounds are where a build's difference shows (the rest is mostly cleanup).
+	while combat.outcome == CombatState.ONGOING and guard < 60 and combat.round_number <= dry_rounds:
+		CombatBot.take_turn(combat)
+		guard += 1
+	var score: int = 1000000 if combat.outcome == CombatState.WON else 0
+	for u: GridUnit in combat.units:
+		if u.objective:
+			continue
+		var lost: int = int(start_hp.get(u.ref, 0)) - (maxi(0, u.hp) if u.alive else 0)
+		if u.team == GridUnit.TEAM_PLAYER:
+			score -= 1000 * lost + (20000 if not u.alive else 0)
+		elif u.team == GridUnit.TEAM_ENEMY:
+			score += 600 * lost + (5000 if not u.alive else 0)
+	return score - 10 * combat.round_number
 
 
 ## Buys the stock part that would improve the crew most, if it can keep a rebuild in
@@ -186,13 +305,56 @@ static func play_fight(combat_setup: CombatSetup) -> Array:
 static func _choose_part(state: RunState, setup: RunSetup, options: Array, _kind: String) -> int:
 	var best: int = -1
 	var best_gain: int = 0
+	var fitting: Array = []
 	for i: int in options.size():
 		var gain: int = _best_gain(state, setup, String(options[i]))
+		if gain > 0:
+			fitting.append(i)
 		if gain > best_gain:
 			best_gain = gain
 			best = i
+	# 086 (T1) "dry": among the parts it would fit, the one whose refit plays best on the next fight
+	# (fitted where `_best_refit` would put it); ties keep the rarest, as before.
+	if choose == "dry" and fitting.size() > 1:
+		var probe: Dictionary = _probe_fight(state, setup)
+		if not probe.is_empty():
+			var best_score: int = -(1 << 40)
+			for i: int in fitting:
+				var crew: Array = _crew_copy(state)
+				var at: Array = _refit_socket(state, setup, String(options[i]))
+				if not at.is_empty():
+					var member: Dictionary = crew[int(at[0])]
+					var full_before: int = RunSim.max_hp(setup, member)
+					(member["parts"] as Array)[int(at[1])] = String(options[i])
+					RunSim._keep_missing(setup, member, full_before)
+				var score: int = _dry_score(state, setup, probe, crew)
+				var gain: int = _best_gain(state, setup, String(options[i]))
+				if score > best_score or (score == best_score and gain > _best_gain(state, setup, String(options[best]))):
+					best_score = score
+					best = i
 	# Nothing it would fit: the scrap is worth more than a spare part (011: every salvage
 	# screen offers it).
+	return best
+
+
+## 086 (T1): `[crew, socket]` where `_best_refit` would fit `part` (the largest rarity gain, the
+## first found), or [] when it would fit nowhere.
+static func _refit_socket(state: RunState, setup: RunSetup, part: String) -> Array:
+	var slot: String = String((setup.parts[part] as Dictionary).get("slot", ""))
+	var best: Array = []
+	var best_gain: int = 0
+	for i: int in state.crew.size():
+		var member: Dictionary = state.crew[i]
+		if not bool(member["alive"]):
+			continue
+		for socket: int in 5:
+			if RunSetup.socket_slot(socket) != slot:
+				continue
+			var current: String = String(member["parts"][socket])
+			var gain: int = 10 if current.is_empty() else setup.rarity(part) - setup.rarity(current)
+			if gain > best_gain:
+				best_gain = gain
+				best = [i, socket]
 	return best
 
 
