@@ -486,7 +486,7 @@
     "maker": {
       "group": "YOUR MACHINES",
       "name": "Makers and sets",
-      "text": "Every part has a maker. Two parts from one maker on a machine add a bonus; three add a second. KESSLER: +2 HP, then +1 armour. ARCLIGHT: vents 1 more, then abilities a round sooner. VEKTOR: +1 move, then +1 range. CINDER: +2 heat cap, then +1 damage.",
+      "text": "Every part has a maker. Two parts from one maker on a machine add a small bonus; three give the maker's rule, its set rule. KESSLER: +2 HP, then thorns and cannot be shoved. ARCLIGHT: abilities a round sooner, then every shot arcs. VEKTOR: +1 move, then every shot pierces. CINDER: +1 melee damage, then every melee hit tears.",
       "forms": [
         "maker",
         "makers",
