@@ -74,6 +74,8 @@ func _initialize() -> void:
 	_timed(_test_bot_abilities_073)
 	_timed(_test_keepers_083)
 	_timed(_test_rules_086)
+	_timed(_test_damage_steps_087)
+	_timed(_test_intent_lost_087)
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
 			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core",
 		"warlord_grinder", "warlord_magnet", "warlord_twins"]:
@@ -2297,6 +2299,195 @@ func _test_bot_abilities_073() -> void:
 	var planned: Array = CombatBot.plan_unit(still, 0, false)
 	_check("planning without applying leaves the fight as it was", not planned.is_empty() and still.events.size() == events
 		and still.unit(1).shield == 0 and still.unit(0).ability_ready(1))
+
+
+## 087 (A12): every hit's damage is the sum of its steps, and damage_steps agrees with damage_to,
+## over the hits of whole bot fights (every attack the bot and the AI weighed, on every board).
+func _test_damage_steps_087() -> void:
+	var hits: int = 0
+	var bad: int = 0
+	var keys: Dictionary = {}
+	var allowed: Array = ["base", "type", "cover", "armor", "mark", "ward", "front", "min"]
+	for id: String in ["proto_yard", "slag_pit", "the_core", "sorting_gate", "warlord_twins", "casting_floor", "the_pour"]:
+		var setup: CombatSetup = CombatSetup.build(_db.fights[id], _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 2087)
+		var state: CombatState = CombatSim.start(setup)
+		var guard: int = 0
+		while state.outcome == CombatState.ONGOING and guard < 40:
+			for u: GridUnit in state.units:
+				if not u.alive:
+					continue
+				for t: GridUnit in state.units:
+					if not t.alive or t == u:
+						continue
+					for amount: int in [0, 1, 3, 7]:
+						for shot: bool in [false, true]:
+							var steps: Array = CombatSim.damage_steps(state, u, t, amount, shot)
+							var sum: int = 0
+							for step: Array in steps:
+								sum += int(step[1])
+								keys[String(step[0])] = true
+							hits += 1
+							if sum != CombatSim.damage_to(state, u, t, amount, shot) or String(steps[0][0]) != "base" \
+									or int(steps[0][1]) != amount:
+								bad += 1
+				for w: int in u.weapons.size():
+					for cell: Vector2i in CombatSim.aim_options(state, u, w):
+						for hit: Dictionary in (CombatSim.strike_plan(state, u, w, cell)["hits"] as Array):
+							var sum: int = 0
+							for step: Array in (hit.get("steps", []) as Array):
+								sum += int(step[1])
+							hits += 1
+							if sum != int(hit["damage"]):
+								bad += 1
+			CombatBot.take_turn(state)
+			guard += 1
+	var unknown: Array = keys.keys().filter(func(k: Variant) -> bool: return not allowed.has(k))
+	_check("sum(damage_steps) == damage_to and every planned hit's steps sum to its damage (%d hits, %d wrong, keys %s)" % [
+		hits, bad, str(keys.keys())], hits > 5000 and bad == 0 and unknown.is_empty())
+	# A worked case: a kinetic hammer (3 +1 brawler) into reactive armour (70%) behind a warden, marked.
+	var n: Vector2i = Hex.neighbor(C, 0)
+	var s: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(MORTAR, n, 30)])
+	_place(s, 0, C)
+	_place(s, 10, n)
+	s.unit(10).marked = true
+	var steps: Array = CombatSim.damage_steps(s, s.unit(0), s.unit(10), 4, false)
+	var want: int = CombatSim.damage_to(s, s.unit(0), s.unit(10), 4, false)
+	var by: Dictionary = {}
+	for step: Array in steps:
+		by[String(step[0])] = int(step[1])
+	_check("a worked case: 4 into reactive (-1 type) marked (+%d) = %d, steps %s" % [s.setup.mark_bonus, want, str(steps)],
+		int(by.get("base", 0)) == 4 and int(by.get("type", 0)) == -1 and int(by.get("mark", 0)) == s.setup.mark_bonus
+		and want == 3 + s.setup.mark_bonus - s.unit(10).armor)
+
+
+## 087 (A17): a standing intent cancelled by a kill, a fall or a tear gives exactly one INTENT_LOST,
+## at that moment, with the hex it aimed at, the damage it would have dealt and its weapon.
+func _test_intent_lost_087() -> void:
+	var n: Vector2i = Hex.neighbor(C, 0)
+	# A kill: the enemy beside Knuckles aims its saw at him; the hammer wrecks it first.
+	var kill: CombatState = _fight(_rows(), [_unit(HAMMER, C, 30)], [_unit(HAMMER, n, 2), _unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(kill, 0, C)
+	_place(kill, 10, n)
+	_place(kill, 11, Vector2i(0, 0))
+	kill.intents = [{"ref": 10, "w": 0, "x": C.x, "y": C.y, "order": 1}]
+	var would: int = 0
+	for hit: Dictionary in (CombatSim.threats(kill)[10]["hits"] as Array):
+		would += int(hit["damage"])
+	var since: int = kill.events.size()
+	_attack(kill, 0, 1, n)
+	var lost: Array = _events_of(kill, since, GridEv.INTENT_LOST)
+	_check("a kill cancels the intent: one INTENT_LOST", not kill.unit(10).alive and lost.size() == 1)
+	if lost.size() == 1:
+		var e: Array = lost[0]
+		_check("it names the enemy, the hex, what cancelled it, the damage (%d) and the weapon" % would,
+			int(e[GridEv.F_ACTOR]) == 10 and int(e[GridEv.F_TARGET]) == 0 and Vector2i(int(e[GridEv.F_X]), int(e[GridEv.F_Y])) == C
+			and int(e[GridEv.F_V1]) == would and would > 0 and int(e[GridEv.F_V2]) == 0)
+		var at: int = kill.events.find(e)
+		_check("it comes right after the DESTROYED", at > 0 and int(kill.events[at - 1][GridEv.F_KIND]) == GridEv.DESTROYED)
+	CombatSim.apply(kill, [CombatSim.ACT_END, 0, 0, 0])
+	_check("and never again (ending the turn adds none)", _events_of(kill, since, GridEv.INTENT_LOST).size() == 1)
+	# A kill with no intent standing: none.
+	var quiet: CombatState = _fight(_rows(), [_unit(HAMMER, C, 30)], [_unit(HAMMER, n, 2), _unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(quiet, 0, C)
+	_place(quiet, 10, n)
+	_place(quiet, 11, Vector2i(0, 0))
+	quiet.intents = [{"ref": 11, "w": 0, "x": C.x, "y": C.y, "order": 1}]
+	since = quiet.events.size()
+	_attack(quiet, 0, 1, n)
+	_check("a kill of a machine with no intent gives none", not quiet.unit(10).alive and _events_of(quiet, since, GridEv.INTENT_LOST).is_empty())
+	# A tear: the right arm goes first. Its intent is cancelled; one on the left arm is not.
+	for w: int in [GridUnit.ARM_R, GridUnit.ARM_L]:
+		var tear: CombatState = _fight(_rows(), [_unit(HAMMER, C, 30)], [_unit(LANCE, n, 40)])
+		_place(tear, 0, C)
+		_place(tear, 10, n)
+		var aim: Vector2i = C if w == GridUnit.ARM_R else Hex.neighbor(C, 3)
+		tear.intents = [{"ref": 10, "w": w, "x": aim.x, "y": aim.y, "order": 1}]
+		since = tear.events.size()
+		_attack(tear, 0, 0, n)
+		var torn: bool = bool(tear.unit(10).weapons[GridUnit.ARM_R]["torn"])
+		var got: Array = _events_of(tear, since, GridEv.INTENT_LOST)
+		if w == GridUnit.ARM_R:
+			_check("tearing the arm an intent uses cancels it (weapon %d)" % w, torn and got.size() == 1
+				and int(got[0][GridEv.F_V2]) == w and int(got[0][GridEv.F_TARGET]) == 0
+				and int(tear.events[tear.events.find(got[0]) - 1][GridEv.F_KIND]) == GridEv.PART_TORN)
+		else:
+			_check("tearing the other arm cancels nothing", torn and got.is_empty())
+	# A fall: shoved into a pit.
+	var pit: Vector2i = Hex.neighbor(n, 0)
+	var fall: CombatState = _fight(_rows({pit: "o"}), [_unit(HAMMER, C, 30)], [_unit(HAMMER, n, 20), _unit(HAMMER, Vector2i(0, 0), 20)])
+	_place(fall, 0, C)
+	_place(fall, 10, n)
+	_place(fall, 11, Vector2i(0, 0))
+	fall.intents = [{"ref": 10, "w": 0, "x": C.x, "y": C.y, "order": 1}]
+	since = fall.events.size()
+	_attack(fall, 0, 1, n)
+	_check("a fall into a pit cancels the intent once", not fall.unit(10).alive and _events_of(fall, since, GridEv.FELL).size() == 1
+		and _events_of(fall, since, GridEv.INTENT_LOST).size() == 1)
+	# An intent that fires, then its machine dies later in the volley: not lost.
+	var fired: CombatState = _fight(_rows(), [_unit(HAMMER, C, 30)], [_unit(HAMMER, n, 20)])
+	_place(fired, 0, C)
+	_place(fired, 10, n)
+	fired.intents = [{"ref": 10, "w": 0, "x": C.x, "y": C.y, "order": 1}]
+	fired.intents[0]["fired"] = true
+	fired.unit(10).hp = 1
+	since = fired.events.size()
+	_attack(fired, 0, 1, n)
+	_check("an intent that already fired is not lost when its machine dies", _events_of(fired, since, GridEv.INTENT_LOST).is_empty())
+	# In whole bot fights: every INTENT_LOST follows its machine's DESTROYED or PART_TORN, that machine
+	# had set an intent that round and fires nothing after; every enemy wrecked in the crew's turn with
+	# its intent standing gives one.
+	var lost_n: int = 0
+	var wrong: int = 0
+	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "casting_floor", "the_pour", "warlord_grinder"]:
+		for seed: int in [1, 2, 3]:
+			var setup: CombatSetup = CombatSetup.build(_db.fights[id], _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, seed)
+			var st: CombatState = CombatSim.start(setup)
+			var guard: int = 0
+			while st.outcome == CombatState.ONGOING and guard < 60:
+				CombatBot.take_turn(st)
+				guard += 1
+			var set: Dictionary = {}
+			var gone: Dictionary = {}
+			var crew_turn: bool = true
+			for i: int in st.events.size():
+				var e: Array = st.events[i]
+				var kind: int = int(e[GridEv.F_KIND])
+				var actor: int = int(e[GridEv.F_ACTOR])
+				if kind == GridEv.KEEPERS_FALL:
+					break   # the collapse ends the fight: nothing is left to cancel (no INTENT_LOST)
+				if kind == GridEv.ROUND_START:
+					set.clear()
+					gone.clear()
+					crew_turn = false
+				elif kind == GridEv.INTENT_SET:
+					set[actor] = true
+					crew_turn = true
+				elif kind == GridEv.TURN_END:
+					crew_turn = false
+				elif kind == GridEv.INTENT_LOST:
+					lost_n += 1
+					var prev: Array = st.events[i - 1]
+					if not set.has(actor) or gone.has(actor) or int(prev[GridEv.F_TARGET]) != actor \
+							or not [GridEv.DESTROYED, GridEv.PART_TORN].has(int(prev[GridEv.F_KIND])):
+						wrong += 1
+						print("    wrong lost %s/%d: %s after %s" % [id, seed, GridEv.describe(e), GridEv.describe(prev)])
+					gone[actor] = true
+				elif kind == GridEv.ATTACK and gone.has(actor):
+					wrong += 1
+					print("    wrong attack %s/%d: %s" % [id, seed, GridEv.describe(e)])
+				elif kind == GridEv.DESTROYED and crew_turn and set.has(int(e[GridEv.F_TARGET])) and not gone.has(int(e[GridEv.F_TARGET])):
+					if i + 1 >= st.events.size() or int(st.events[i + 1][GridEv.F_KIND]) != GridEv.INTENT_LOST:
+						wrong += 1
+						print("    wrong missing %s/%d: %s then %s" % [id, seed, GridEv.describe(e), GridEv.describe(st.events[mini(i + 1, st.events.size() - 1)])])
+	_check("bot fights: INTENT_LOST exactly when an intent is cancelled (%d lost, %d wrong)" % [lost_n, wrong], lost_n > 5 and wrong == 0)
+
+
+func _events_of(state: CombatState, since: int, kind: int) -> Array:
+	var out: Array = []
+	for i: int in range(since, state.events.size()):
+		if int(state.events[i][GridEv.F_KIND]) == kind:
+			out.append(state.events[i])
+	return out
 
 
 ## A fight for the bot tests: the listed crew refs have already moved (so the test controls where

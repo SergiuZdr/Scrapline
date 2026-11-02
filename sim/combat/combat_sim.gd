@@ -574,8 +574,13 @@ static func _add_hit(state: CombatState, u: GridUnit, hits: Array[Dictionary], c
 	var target: GridUnit = state.unit_at(cell.x, cell.y)
 	if target == null or target == u:
 		return
-	hits.append({"ref": target.ref, "damage": damage_to(state, u, target, amount, shot), "primary": primary,
-		"pct": type_pct(state, u, target)})
+	# 087 (A12): the hit carries its own explanation; its damage IS the steps' sum.
+	var steps: Array = damage_steps(state, u, target, amount, shot)
+	var dmg: int = 0
+	for step: Array in steps:
+		dmg += int(step[1])
+	hits.append({"ref": target.ref, "damage": dmg, "primary": primary,
+		"pct": type_pct(state, u, target), "steps": steps})
 
 
 ## The damage wheel for `u` hitting `target` (100 = even, 130 strong, 70 weak): what the
@@ -587,19 +592,35 @@ static func type_pct(state: CombatState, u: GridUnit, target: GridUnit) -> int:
 	return 100
 
 
-## 087 (A12) CONTRACT: the steps that turn `amount` into `damage_to`'s result, in the order they
-## apply: `[[key, delta], ...]` with key one of "base", "type", "cover", "armor", "mark", "ward",
-## "front", "min" (the floor). The deltas sum to `damage_to(...)` exactly; the first step is
-## ["base", amount]. STUB until the sim agent lands it: one step, the whole result.
+## 087 (A12): the steps that turn `amount` into `damage_to`'s result, in the order they apply:
+## `[[key, delta], ...]`. The first is always ["base", amount]; after it only the steps that change
+## the number, from: "type" (the wheel), "cover" (a shot into cover), "armor" (armour + shield),
+## "front" (a BULWARK's plate, negative; the Core's open side, positive), "ward" (cover lent by a
+## warden, a pylon, a twin or a conduit -- and, on an EXPOSED keeper, its exposed multiplier, which
+## is applied here), "mark" (+mark_bonus), "min" (the floor). The deltas sum to `damage_to` exactly:
+## both are `_damage`, one logic.
 static func damage_steps(state: CombatState, u: GridUnit, target: GridUnit, amount: int, shot: bool) -> Array:
-	return [["base", damage_to(state, u, target, amount, shot)]]
+	var steps: Array = []
+	_damage(state, u, target, amount, shot, steps)
+	return steps
 
 
 ## Final damage of `amount` from `u` to `target`: the type wheel, cover against shots,
 ## armour, and a mark. Integer only; `(x * pct + 50) / 100` rounds half up.
-## A zero-damage weapon stays at zero.
+## A zero-damage weapon stays at zero. The same `_damage` as `damage_steps`.
 static func damage_to(state: CombatState, u: GridUnit, target: GridUnit, amount: int, shot: bool) -> int:
+	return _damage(state, u, target, amount, shot, null)
+
+
+## The one damage calculation (087): `steps` (an Array, or null for none) collects
+## `damage_steps`' list as it goes.
+static func _damage(state: CombatState, u: GridUnit, target: GridUnit, amount: int, shot: bool, steps: Variant) -> int:
+	var keep: bool = steps != null
+	if keep:
+		(steps as Array).append(["base", amount])
 	if amount <= 0:
+		if keep and amount < 0:
+			(steps as Array).append(["min", -amount])
 		return 0
 	var pct: int = 100
 	var wheel: Array = state.setup.wheel
@@ -608,22 +629,43 @@ static func damage_to(state: CombatState, u: GridUnit, target: GridUnit, amount:
 		if target.armor_type < row.size():
 			pct = int(row[target.armor_type])
 	var dmg: int = (amount * pct + 50) / 100
+	if keep and dmg != amount:
+		(steps as Array).append(["type", dmg - amount])
 	if shot:
-		dmg -= state.cover(target.x, target.y)
-	dmg -= target.armor + target.shield + _warden_cover(state, target) + front_plate(state, target, Vector2i(u.x, u.y))
+		var cover: int = state.cover(target.x, target.y)
+		dmg -= cover
+		if keep and cover != 0:
+			(steps as Array).append(["cover", -cover])
+	var armor: int = target.armor + target.shield
+	dmg -= armor
+	if keep and armor != 0:
+		(steps as Array).append(["armor", -armor])
 	# 050: an exposed keeper has none of its pylon / conduit / twin cover and takes `exposed_pct`;
 	# the Core's open side (toward `u`) takes `open_bonus` more and ignores its conduits.
 	var exposed: bool = state.exposed.has(target.ref)
 	var open: bool = open_toward(state, target, Vector2i(u.x, u.y))
+	var front: int = -front_plate(state, target, Vector2i(u.x, u.y))
+	if open:
+		front += int(kind_rules(state, target).get("open_bonus", 0))
+	dmg += front
+	if keep and front != 0:
+		(steps as Array).append(["front", front])
+	var before: int = dmg
+	dmg -= _warden_cover(state, target)
 	if not exposed:
 		dmg -= _pylon_cover(state, target) + _twin_cover(state, target) + (0 if open else _kind_cover(state, target))
-	if open:
-		dmg += int(kind_rules(state, target).get("open_bonus", 0))
-	if exposed:
+	else:
 		dmg = (maxi(0, dmg) * int(kind_rules(state, target).get("exposed_pct", 200)) + 50) / 100
+	if keep and dmg != before:
+		(steps as Array).append(["ward", dmg - before])
 	if target.marked:
 		dmg += state.setup.mark_bonus
-	return maxi(state.setup.min_damage, dmg)
+		if keep and state.setup.mark_bonus != 0:
+			(steps as Array).append(["mark", state.setup.mark_bonus])
+	var final: int = maxi(state.setup.min_damage, dmg)
+	if keep and final != dmg:
+		(steps as Array).append(["min", final - dmg])
+	return final
 
 
 ## The Core (050): whether a blow from `from` lands on its open side -- the side it faces this
@@ -1169,6 +1211,7 @@ static func hurt(state: CombatState, actor: int, target: GridUnit, dmg: int) -> 
 		return
 	target.alive = false
 	state.emit(GridEv.DESTROYED, actor, target.ref, target.x, target.y)
+	_lose_intents(state, actor, target)
 	# 033: a machine with `kill_heal` patches itself on every kill it makes.
 	var killer: GridUnit = state.unit(actor) if actor >= 0 else null
 	if killer != null and killer.alive and killer.kill_heal > 0 and killer.team != target.team and not target.objective:
@@ -1300,6 +1343,7 @@ static func fall(state: CombatState, actor: int, target: GridUnit, cell: Vector2
 	target.alive = false
 	state.emit(GridEv.FELL, actor, target.ref, cell.x, cell.y)
 	state.emit(GridEv.DESTROYED, actor, target.ref, cell.x, cell.y)
+	_lose_intents(state, actor, target)
 
 
 ## Whoever ends a move on a scrap pile takes it: the player banks the scrap, and the
@@ -1335,9 +1379,45 @@ static func collect_at(state: CombatState, u: GridUnit, cell: Vector2i) -> void:
 static func _tear(state: CombatState, actor: int, target: GridUnit) -> void:
 	for w: int in [GridUnit.ARM_R, GridUnit.ARM_L]:
 		if target.can_fire(w):
+			var cost: Dictionary = _intent_costs(state, target, w)
 			target.weapons[w]["torn"] = true
 			state.emit(GridEv.PART_TORN, actor, target.ref, target.x, target.y, w)
+			_lose_intents(state, actor, target, cost)
 			return
+
+
+## 087 (A17): `target`'s standing intents that can no longer fire -- it is dead, or the arm is torn
+## -- each give one INTENT_LOST (at the hex aimed at, with the damage it would have dealt the crew
+## and its weapon), once: the intent is marked `lost`. One that has already fired (`fired`) is not
+## lost. `costs` (weapon -> damage) is what a tear measured before the arm went.
+static func _lose_intents(state: CombatState, actor: int, target: GridUnit, costs: Dictionary = {}) -> void:
+	for intent: Dictionary in state.intents:
+		if int(intent["ref"]) != target.ref or intent.has("lost") or intent.has("fired"):
+			continue
+		var w: int = int(intent["w"])
+		if target.alive and target.can_fire(w):
+			continue
+		var aim: Vector2i = intent_target(state, intent)
+		var dmg: int = int(costs[w]) if costs.has(w) else int(_intent_costs(state, target, w).get(w, 0))
+		intent["lost"] = true
+		state.emit(GridEv.INTENT_LOST, target.ref, actor, aim.x, aim.y, dmg, w)
+
+
+## What `u`'s standing intents with weapon `w` would deal the crew from where things stand now:
+## `{w: damage}`, the strike plan's hits on the crew side summed (as the intent's cloud shows them).
+static func _intent_costs(state: CombatState, u: GridUnit, w: int) -> Dictionary:
+	var out: Dictionary = {}
+	for intent: Dictionary in state.intents:
+		if int(intent["ref"]) != u.ref or int(intent["w"]) != w or intent.has("lost") or intent.has("fired"):
+			continue
+		var total: int = 0
+		if u.can_fire(w):
+			for hit: Dictionary in (strike_plan(state, u, w, intent_target(state, intent))["hits"] as Array):
+				var t: GridUnit = state.unit(int(hit["ref"]))
+				if t != null and t.team == GridUnit.TEAM_PLAYER:
+					total += int(hit["damage"])
+		out[w] = total
+	return out
 
 
 ## Which way a hit from `origin` shoves `victim`: straight away from the attacker. Off the six
@@ -1486,6 +1566,7 @@ static func _fire_intents(state: CombatState) -> bool:
 		var u: GridUnit = state.unit(int(intent["ref"]))
 		if u == null or not u.alive or not u.can_fire(int(intent["w"])):
 			continue
+		intent["fired"] = true
 		var target: Vector2i = intent_target(state, intent)
 		if not bool(strike_plan(state, u, int(intent["w"]), target)["legal"]):
 			state.emit(GridEv.MISSED, u.ref, -1, target.x, target.y)
