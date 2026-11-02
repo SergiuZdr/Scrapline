@@ -2131,11 +2131,11 @@ func _affix_tag(u: GridUnit, tag: Label3D) -> Label3D:
 	label.name = "affix_tag"
 	label.text = " + ".join(names)
 	label.font = tag.font
-	label.font_size = 40
+	label.font_size = 52
 	label.pixel_size = tag.pixel_size
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
-	label.outline_size = 18
+	label.outline_size = 24
 	label.outline_modulate = Ink.INK
 	label.modulate = Ink.DANGER
 	label.render_priority = 10
@@ -2170,7 +2170,7 @@ func _place_affix(affix: Label3D, tag: Label3D) -> void:
 		icon.offset = Vector2(affix.offset.x - own.x * 0.5 - icon_w * 0.5 - 6.0, affix.offset.y)
 
 
-const AFFIX_ICON_PX: int = 48
+const AFFIX_ICON_PX: int = 64
 static var _affix_icons: Dictionary = {}
 
 

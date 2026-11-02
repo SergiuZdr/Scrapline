@@ -381,9 +381,6 @@ func _fight_line(id: int) -> String:
 	# (An elite or arena site's card already says so in its head.)
 	if bool(p.get("elite", false)) and not ["elite", "arena"].has(String(Run.state.site(id)["type"])):
 		bits.append("ELITE")
-	# 086 (A5): the elite's announced rule, in the same line.
-	for affix: String in PartText.affixes_of(p):
-		bits.append(String(_affix(affix)["name"]))
 	if not String(p.get("objective", "")).is_empty():
 		bits.append(String(p["objective"]).to_upper())
 	var condition: String = String(p.get("condition", ""))
@@ -630,11 +627,12 @@ func _build_site_labels() -> void:
 		if bool(site["visited"]) and id != state.current and String(site["type"]) != "start":
 			name += " · DONE"
 		var reachable: bool = targets.has(id)
-		box.add_child(_centred(name, 20, UIKit.PAGE_TEXT if reachable or id == state.current else Color("9a9384")))
-		# 086 (A5): an elite's rule under its name, before you choose the road: "ELITE: VOLATILE".
+		# 086 (A5): an elite's rule is its name, before you choose the road: "ELITE: VOLATILE", in red.
 		var affix_head: String = _affix_head(id)
-		if not affix_head.is_empty():
-			var tag := _centred(affix_head, UIKit.SIZE_LABEL + 2, Ink.DANGER if reachable else Color("b07a6a"))
+		if affix_head.is_empty():
+			box.add_child(_centred(name, 20, UIKit.PAGE_TEXT if reachable or id == state.current else Color("9a9384")))
+		else:
+			var tag := _centred(affix_head, 20, Ink.DANGER if reachable else Color("b07a6a"))
 			tag.name = "affix_%d" % id
 			box.add_child(tag)
 		if not bool(site["visited"]) and SITE_DOES.has(String(site["type"])):
@@ -754,19 +752,21 @@ func _show_preview() -> void:
 	var lord: String = _warlord_name(_hover) if known and String(site["type"]) == "warlord" else ""
 	if not lord.is_empty():
 		head += "  ·  " + lord.to_upper()
-	if reachable:
-		head = "%s  ·  %s" % [_direction(_hover), head]
-	box.add_child(_label(head, 24, UIKit.TEXT, UIKit.font_comic()))
-	# 086 (A5): what makes this elite a different problem, said before the road is taken.
+	# 086 (A5): what makes this elite a different problem heads its card: "ELITE: VOLATILE".
 	var affix_head: String = _affix_head(_hover)
 	if not affix_head.is_empty():
-		var tag := _label(affix_head, UIKit.SIZE_HEADING, UIKit.RED, UIKit.font_comic())
-		tag.name = "affix_head"
-		box.add_child(tag)
+		head = affix_head
+	if reachable:
+		head = "%s  ·  %s" % [_direction(_hover), head]
+	var head_label := _label(head, 24, UIKit.TEXT, UIKit.font_comic())
+	head_label.name = "site_head"
+	box.add_child(head_label)
+	if not affix_head.is_empty():
 		for affix: String in PartText.affixes_of(RunSim.fight_preview(state, Run.setup, _hover)):
 			var info: Dictionary = _affix(affix)
-			var line := _wrap("%s: %s" % [String(info["name"]), String(info["short"])], UIKit.SIZE_LABEL, UIKit.TEXT, 340)
+			var line := _wrap("%s: %s" % [String(info["name"]), String(info["short"])], UIKit.SIZE_LABEL, UIKit.RED, 340)
 			line.name = "affix_text_%s" % affix
+			line.add_theme_font_override("font", UIKit.font_strong())
 			box.add_child(line)
 	var text: String = _site_text(String(site["type"])) if known \
 		else "Nobody has looked yet. You find out when you get there."
