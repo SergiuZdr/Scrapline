@@ -68,6 +68,10 @@ const SIDE_TURNED: int = 57  ## actor (the Core, 050) at (x, y) is open on side 
 const REBUILD_MARKED: int = 58 ## actor (a twin, 050) will rebuild target at (x, y) in v1 rounds
 const REBUILT: int = 59      ## actor rebuilt target at (x, y) with v1 HP
 const KEEPERS_FALL: int = 60  ## the last keeper fell (083): the fight is won; actor = the keeper that fell last
+const ROOTED: int = 61       ## actor (086: a weapon that roots, the Godhammer) at (x, y) cannot move for v1 more of its side's moves
+const FRONT_TURNED: int = 62 ## actor (086: a BULWARK elite) at (x, y) faces direction v1: hits from its front three sides take v2 less
+const MELTDOWN: int = 63     ## actor (086: the Crucible Heart) overheated at (x, y) and blasts every neighbour for v1 (an EXPLOSION follows)
+const BURNED: int = 64       ## actor (086: the Phoenix Cell) burns v1 HP at the start of the round (a DAMAGE follows)
 
 ## What a PROP_PLACED / PROP_BROKEN `v1` names. An int, because events are flat ints.
 const PROP_KINDS: PackedStringArray = ["crate", "barrel", "pylon", "coolant"]
@@ -90,6 +94,7 @@ const NAMES: PackedStringArray = [
 	"REPAIRED", "LAST_STAND", "MINE_LAID", "MINE_BLEW", "SNARED",
 	"EXPOSED", "CHARGE_MARKED", "CHARGED", "GRAB_MARKED", "GRABBED", "PROP_MOVED", "QUENCHED",
 	"SIDE_TURNED", "REBUILD_MARKED", "REBUILT", "KEEPERS_FALL",
+	"ROOTED", "FRONT_TURNED", "MELTDOWN", "BURNED",
 ]
 
 

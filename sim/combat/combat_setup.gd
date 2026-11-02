@@ -361,8 +361,9 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 	# (pierce, arc, mark, shove, tears), the role traits (melee, unshovable, move_after_attack),
 	# and the mechanics (thorns, regen, kill_heal, last_stand) -- through apply_bonus, the one
 	# place a block of these means the same thing wherever it comes from.
+	# 086: the chassis too (the Colossus anchors its neighbours).
 	var extra: Dictionary = {}
-	for g: Dictionary in [og, mg]:
+	for g: Dictionary in [cg, og, mg]:
 		for key: String in EXTRA_KEYS:
 			if g.has(key):
 				var v: Variant = g[key]
@@ -370,6 +371,7 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 	apply_bonus(u, extra)
 
 	u.kind = String(spec.get("kind", ""))
+	u.affix = String(spec.get("affix", ""))
 	u.level = int(spec.get("level", 0))
 	# Abilities: the chassis's, then the module's. Only the player's machines use them --
 	# an enemy's threat is its intent, and hidden enemy abilities would break that promise.
@@ -405,7 +407,7 @@ static func _build_unit(spec: Dictionary, team: int, slot: int, parts: Dictionar
 ## `move_after_attack`. One function, so a number means the same thing wherever it comes from.
 ## The keys a core or module may carry beyond its plain numbers (033), read through apply_bonus.
 const EXTRA_KEYS: PackedStringArray = ["melee", "unshovable", "move_after_attack", "chain", "pierce", "arc", "mark",
-	"shove", "tears", "thorns", "regen", "kill_heal", "last_stand"]
+	"shove", "tears", "thorns", "regen", "kill_heal", "last_stand", "rise_pct", "anchors", "ward", "meltdown"]
 
 
 static func apply_bonus(u: GridUnit, grid: Dictionary) -> void:
@@ -449,6 +451,12 @@ static func apply_bonus(u: GridUnit, grid: Dictionary) -> void:
 	u.kill_heal += int(grid.get("kill_heal", 0))
 	if int(grid.get("last_stand", 0)) > 0:
 		u.last_stand = true
+	# 086 (A9): the legendaries' rules -- see GridUnit.
+	u.rise_pct = maxi(u.rise_pct, int(grid.get("rise_pct", 0)))
+	if int(grid.get("anchors", 0)) > 0:
+		u.anchors = true
+	u.ward += int(grid.get("ward", 0))
+	u.meltdown += int(grid.get("meltdown", 0))
 	var cut: int = int(grid.get("cooldown", 0))
 	for ability: Dictionary in u.abilities:
 		if cut != 0:
@@ -509,6 +517,13 @@ static func weapon_from(arm: Dictionary) -> Dictionary:
 		"chain": int(g.get("chain", 0)),
 		"mark": bool(g.get("mark", false)),
 		"tears": bool(g.get("tears", false)),
+		# 086 (B6): this arm tears an arm off at this much damage instead of the rules' threshold
+		# (0 = the rules'): the Saw's own trait.
+		"tear_at": int(g.get("tear_at", 0)),
+		# 086 (A9): striking roots the wielder -- no move for the rest of the turn and `roots` turns
+		# after (the Godhammer); `breach` -- a piercing beam runs on through heaps and walls (the Sunspear).
+		"roots": int(g.get("roots", 0)),
+		"breach": bool(g.get("breach", false)),
 		# 029: a harpoon drags its target this many hexes toward the shooter.
 		"pull": int(g.get("pull", 0)),
 		# 047: a snare -- what it hits cannot move on its side's next move.

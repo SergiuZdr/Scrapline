@@ -100,7 +100,7 @@ static func apply(state: CombatState, action: Array) -> bool:
 ## (excluding the start hex). Empty if the unit cannot move.
 static func reachable(state: CombatState, ref: int) -> Dictionary:
 	var u: GridUnit = state.unit(ref)
-	if u == null or not u.alive or u.objective or u.moved or u.team != GridUnit.TEAM_PLAYER or u.snared:
+	if u == null or not u.alive or u.objective or u.moved or u.team != GridUnit.TEAM_PLAYER or u.snared or u.rooted > 0:
 		return {}
 	if u.acted and not u.move_after_attack:
 		return {}
@@ -377,6 +377,9 @@ static func _shot_along(state: CombatState, u: GridUnit, weapon: Dictionary, pat
 		end = c
 		if state.tile_blocks(c.x, c.y):
 			obstacles += 1
+			# 086 (A9): a breaching beam (the Sunspear) runs on through heaps and walls.
+			if piercing and bool(weapon.get("breach", false)):
+				continue
 			break
 		if state.props.has(c):
 			# Play-test 5: a piercing shot goes through a drum or a crate too (a drum goes
@@ -599,7 +602,7 @@ static func damage_to(state: CombatState, u: GridUnit, target: GridUnit, amount:
 	var dmg: int = (amount * pct + 50) / 100
 	if shot:
 		dmg -= state.cover(target.x, target.y)
-	dmg -= target.armor + target.shield + _warden_cover(state, target)
+	dmg -= target.armor + target.shield + _warden_cover(state, target) + front_plate(state, target, Vector2i(u.x, u.y))
 	# 050: an exposed keeper has none of its pylon / conduit / twin cover and takes `exposed_pct`;
 	# the Core's open side (toward `u`) takes `open_bonus` more and ignores its conduits.
 	var exposed: bool = state.exposed.has(target.ref)
@@ -620,7 +623,61 @@ static func damage_to(state: CombatState, u: GridUnit, target: GridUnit, amount:
 static func open_toward(state: CombatState, target: GridUnit, from: Vector2i) -> bool:
 	if not state.facing.has(target.ref) or from == Vector2i(target.x, target.y):
 		return false
+	# 086: a BULWARK's facing is its armoured front, not an open side.
+	if int(kind_rules(state, target).get("open_bonus", 0)) <= 0:
+		return false
 	return Hex.directions(Vector2i(target.x, target.y), from).has(int(state.facing[target.ref]))
+
+
+## 086 (A5, BULWARK): what a blow from `from` loses to the plate on `target`'s front -- the side it
+## faces (`state.facing`, as the Core's open side) and the two beside it. Off the six axes a hex lies
+## between two sides; either counts. Blasts and bumps go round it (they never come through here).
+static func front_plate(state: CombatState, target: GridUnit, from: Vector2i) -> int:
+	if not state.facing.has(target.ref) or from == Vector2i(target.x, target.y):
+		return 0
+	var plate: int = int(kind_rules(state, target).get("front_plate", 0))
+	if plate <= 0:
+		return 0
+	var face: int = int(state.facing[target.ref])
+	for d: int in Hex.directions(Vector2i(target.x, target.y), from):
+		if [0, 1, 5].has((d - face + 6) % 6):
+			return plate
+	return 0
+
+
+## 086 (A5): every BULWARK turns its front toward the nearest crew machine (the lowest ref on a tie),
+## once the enemies have moved -- so the crew sees, for its whole turn, which sides are plated.
+static func _face_fronts(state: CombatState) -> void:
+	for u: GridUnit in state.units:
+		if not u.alive or u.team != GridUnit.TEAM_ENEMY or u.affix.is_empty():
+			continue
+		var plate: int = int(kind_rules(state, u).get("front_plate", 0))
+		if plate <= 0:
+			continue
+		var here := Vector2i(u.x, u.y)
+		var near: GridUnit = null
+		for t: GridUnit in state.crew(GridUnit.TEAM_PLAYER):
+			if near == null or Hex.distance(here, Vector2i(t.x, t.y)) < Hex.distance(here, Vector2i(near.x, near.y)):
+				near = t
+		if near == null:
+			continue
+		var dir: int = Hex.directions(here, Vector2i(near.x, near.y))[0]
+		state.facing[u.ref] = dir
+		state.emit(GridEv.FRONT_TURNED, u.ref, -1, u.x, u.y, dir, plate)
+
+
+## 086 (A9): whether `u` holds its ground against a shove -- its own frame (`unshovable`), or a living
+## machine of its side next to it that `anchors` (the Colossus). A wreck has only its own frame.
+static func held(state: CombatState, u: GridUnit) -> bool:
+	if u.unshovable:
+		return true
+	if not u.alive:
+		return false
+	for other: GridUnit in state.units:
+		if other.anchors and other.alive and other != u and other.team == u.team \
+				and Hex.distance(Vector2i(u.x, u.y), Vector2i(other.x, other.y)) == 1:
+			return true
+	return false
 
 
 ## A conduit (025, the Foundry Mind's) lends every ally next to it `boost` damage on each
@@ -678,11 +735,15 @@ static func has_pylon(state: CombatState) -> bool:
 
 ## A warden takes damage off every hit on its neighbours (not on itself).
 static func _warden_cover(state: CombatState, target: GridUnit) -> int:
+	# 086 (A9): a machine with `ward` (the Aegis Rig) covers its neighbours the same way.
+	var best: int = 0
 	for other: GridUnit in state.units:
-		if other.kind == "warden" and other.alive and other.team == target.team \
+		if (other.kind == "warden" or other.ward > 0) and other.alive and other != target and other.team == target.team \
 				and Hex.distance(Vector2i(target.x, target.y), Vector2i(other.x, other.y)) == 1:
-			return int((state.setup.kinds.get("warden", {}) as Dictionary).get("armor", 2))
-	return 0
+			var cover: int = other.ward if other.kind != "warden" else maxi(other.ward,
+				int((state.setup.kinds.get("warden", {}) as Dictionary).get("armor", 2)))
+			best = maxi(best, cover)
+	return best
 
 
 ## `strike_plan` plus what the player needs to decide: legality for the player, whether
@@ -705,6 +766,17 @@ static func preview_attack(state: CombatState, ref: int, w: int, target: Vector2
 			tears.append(t.ref)
 	plan["kills"] = kills
 	plan["tears"] = tears
+	# 086 (A9): the drawbacks a legendary's attack carries, for the preview to say -- the crew it
+	# hits (`friendly`: the Sunspear's beam), the moves it costs (`roots`: the Godhammer) and the blast
+	# an overheat sets off (`meltdown`: the Crucible Heart).
+	var friendly: Array = []
+	for hit: Dictionary in (plan["hits"] as Array):
+		var t: GridUnit = state.unit(int(hit["ref"]))
+		if t.team == u.team:
+			friendly.append(t.ref)
+	plan["friendly"] = friendly
+	plan["roots"] = int(weapon.get("roots", 0)) if not weapon.is_empty() else 0
+	plan["meltdown"] = u.meltdown if bool(plan["overheats"]) and not u.overheated else 0
 	plan["effects"] = dry_run(state, [ACT_ATTACK, ref, w, target.x, target.y]) if bool(plan["legal"]) else []
 	return plan
 
@@ -1016,7 +1088,13 @@ static func _execute_attack(state: CombatState, u: GridUnit, w: int, target: Vec
 		if primary and int(weapon["shove"]) > 0:
 			var dir: int = shove_dir(state, u, origin, victim)
 			if victim.alive:
-				shove(state, u.ref, victim, dir)
+				# 086 (A9): a shove of 2 (the Godhammer) pushes again along the same line while the
+				# first push moved it and it still stands.
+				for k: int in int(weapon["shove"]):
+					var was := Vector2i(victim.x, victim.y)
+					shove(state, u.ref, victim, dir)
+					if not victim.alive or Vector2i(victim.x, victim.y) == was:
+						break
 			else:
 				throw_wreck(state, u.ref, victim, dir)
 	for prop: Dictionary in (plan.get("props", []) as Array):
@@ -1028,6 +1106,11 @@ static func _execute_attack(state: CombatState, u: GridUnit, w: int, target: Vec
 			if struck != null and struck.thorns > 0 and u.alive and struck.team != u.team:
 				hurt(state, struck.ref, u, struck.thorns)
 	u.boost_damage = 0
+	# 086 (A9): a weapon that roots (the Godhammer) leaves its wielder rooted: no move for the rest of
+	# this turn (the crew's) and `roots` of its side's moves after.
+	if int(weapon.get("roots", 0)) > 0 and u.alive:
+		u.rooted = maxi(u.rooted, int(weapon["roots"]) + (1 if u.team == GridUnit.TEAM_PLAYER else 0))
+		state.emit(GridEv.ROOTED, u.ref, -1, u.x, u.y, int(weapon["roots"]))
 	# Heat is the PLAYER's resource. Enemies ignore it: an enemy that sometimes cannot
 	# fire would be one more hidden state to read off the board every turn.
 	if u.team == GridUnit.TEAM_PLAYER:
@@ -1037,6 +1120,10 @@ static func _execute_attack(state: CombatState, u: GridUnit, w: int, target: Vec
 		if u.heat >= u.heat_cap and not u.overheated:
 			u.overheated = true
 			state.emit(GridEv.OVERHEAT, u.ref, -1, u.x, u.y)
+			# 086 (A9): the Crucible Heart blows its heat out over every neighbour, its own side too.
+			if u.meltdown > 0 and u.alive:
+				state.emit(GridEv.MELTDOWN, u.ref, -1, u.x, u.y, u.meltdown)
+				explode(state, u.ref, Vector2i(u.x, u.y), u.meltdown)
 
 
 static func _would_tear(state: CombatState, target: GridUnit, weapon: Dictionary, dmg: int) -> bool:
@@ -1046,7 +1133,10 @@ static func _would_tear(state: CombatState, target: GridUnit, weapon: Dictionary
 	# boss or warlord fights with what it came with.
 	if bool(kind_rules(state, target).get("keeps_arms", false)):
 		return false
-	return dmg >= state.setup.tear_threshold or bool(weapon.get("tears", false))
+	var threshold: int = int(weapon.get("tear_at", 0))
+	if threshold <= 0:
+		threshold = state.setup.tear_threshold
+	return dmg >= threshold or bool(weapon.get("tears", false))
 
 
 ## Damage, and on death a scrap pile where the machine stood. A cache just breaks.
@@ -1056,8 +1146,9 @@ static func hurt(state: CombatState, actor: int, target: GridUnit, dmg: int) -> 
 	# 033, the Phoenix Cell: the first blow that would wreck it leaves it at 1 HP.
 	if target.hp <= 0 and target.last_stand and not target.stood:
 		target.stood = true
-		target.hp = 1
-		state.emit(GridEv.LAST_STAND, target.ref, -1, target.x, target.y, 1)
+		# 086 (A9): the Phoenix Cell rises at `rise_pct` of its HP.
+		target.hp = maxi(1, target.max_hp * target.rise_pct / 100)
+		state.emit(GridEv.LAST_STAND, target.ref, -1, target.x, target.y, target.hp)
 	if target.hp > 0:
 		_maybe_enrage(state, target)
 		return
@@ -1073,8 +1164,10 @@ static func hurt(state: CombatState, actor: int, target: GridUnit, dmg: int) -> 
 		state.emit(GridEv.PILE_DROPPED, actor, target.ref, cell.x, cell.y, state.setup.pile_value)
 		if target.team == GridUnit.TEAM_PLAYER:
 			_add_wreck(state, cell, target.ref)
-	if target.kind == "bomber":
-		explode(state, target.ref, cell, int((state.setup.kinds.get("bomber", {}) as Dictionary).get("blast", 4)))
+	# A bomber, or (086, A5) a VOLATILE elite: its `blast` goes off over every neighbour.
+	var blast: int = int(kind_rules(state, target).get("blast", 0))
+	if blast > 0:
+		explode(state, target.ref, cell, blast)
 	# 050, the Twin Furnaces: one that falls while its twin stands is rebuilt in `rebuild_rounds`.
 	var rounds: int = int(kind_rules(state, target).get("rebuild_rounds", 0))
 	if rounds > 0:
@@ -1101,6 +1194,12 @@ static func kind_rules(state: CombatState, u: GridUnit) -> Dictionary:
 	if state.enraged.has(u.ref) and rules.has("enraged"):
 		rules = rules.duplicate()
 		rules.merge(rules["enraged"] as Dictionary, true)
+	# 086 (A5): an elite's affix lays its `rules` over its kind's (`enemy_kinds.json` `elite_affixes`).
+	if not u.affix.is_empty():
+		var affix: Dictionary = ((state.setup.kinds.get("elite_affixes", {}) as Dictionary).get(u.affix, {}) as Dictionary)
+		if affix.has("rules"):
+			rules = rules.duplicate()
+			rules.merge(affix["rules"] as Dictionary, true)
 	return rules
 
 
@@ -1241,7 +1340,7 @@ static func shove_dir(state: CombatState, u: GridUnit, origin: Vector2i, victim:
 ## What shoving `victim` one hex along `dir` is worth to `u`'s side: damage and kills to the
 ## other side count for it, to its own side twice over against it.
 static func _shove_value(state: CombatState, u: GridUnit, victim: GridUnit, dir: int) -> int:
-	if victim.unshovable or victim.objective:
+	if held(state, victim) or victim.objective:
 		return 0
 	var n: Vector2i = Hex.neighbor(Vector2i(victim.x, victim.y), dir)
 	var wreck: bool = not victim.alive
@@ -1271,7 +1370,7 @@ static func _worth(u: GridUnit, t: GridUnit, dmg: int) -> int:
 ## One hex away from the attacker. Into anything solid -- the edge, scrap, a unit -- it
 ## does not move, and both it and whatever it hit take bump damage instead.
 static func shove(state: CombatState, actor: int, target: GridUnit, dir: int) -> void:
-	if target.unshovable:
+	if held(state, target):
 		return
 	var n: Vector2i = Hex.neighbor(Vector2i(target.x, target.y), dir)
 	var bump: int = state.setup.bump_damage
@@ -1303,7 +1402,7 @@ static func shove(state: CombatState, actor: int, target: GridUnit, dir: int) ->
 ## cracks, a drum goes off. Into a pit, the wreck and the scrap it carried are gone. Onto open
 ## ground it lands there, and its scrap pile goes with it.
 static func throw_wreck(state: CombatState, actor: int, target: GridUnit, dir: int) -> void:
-	if target.unshovable or target.objective:
+	if held(state, target) or target.objective:
 		return
 	var from := Vector2i(target.x, target.y)
 	var n: Vector2i = Hex.neighbor(from, dir)
@@ -1350,6 +1449,7 @@ static func _end_turn(state: CombatState) -> void:
 	for u: GridUnit in state.units:
 		if u.team == GridUnit.TEAM_PLAYER:
 			u.snared = false
+			u.rooted = maxi(0, u.rooted - 1)
 	if _fire_intents(state):
 		return
 	state.intents.clear()
@@ -1417,6 +1517,11 @@ static func _begin_round(state: CombatState) -> void:
 	for u: GridUnit in state.units:
 		if u.alive and not u.objective and u.regen > 0 and u.hp < u.max_hp:
 			repair(state, u, u.regen)
+		elif u.alive and not u.objective and u.regen < 0 and u.hp > 1:
+			# 086 (A9): a negative regen burns (the Phoenix Cell), never below 1 HP.
+			var burn: int = mini(-u.regen, u.hp - 1)
+			state.emit(GridEv.BURNED, u.ref, -1, u.x, u.y, burn)
+			hurt(state, -1, u, burn)
 
 	_round_hazards(state)
 	_hold(state)
@@ -1439,6 +1544,10 @@ static func _begin_round(state: CombatState) -> void:
 		# off the machine it had thrown onto its pad, so only guns could use the opening).
 		if state.exposed.has(u.ref):
 			u.moved = true
+		# 086: an enemy rooted by its own strike (a Godhammer) loses this move.
+		if u.rooted > 0:
+			u.moved = true
+			u.rooted -= 1
 		var plan: Dictionary = IntentAI.plan(state, u, {})
 		var dest: Vector2i = plan["dest"]
 		if dest != Vector2i(u.x, u.y):
@@ -1467,6 +1576,7 @@ static func _begin_round(state: CombatState) -> void:
 	# 050: what the keepers will do at the next round's start, marked now, after they moved.
 	_mark_charges(state)
 	_mark_grabs(state)
+	_face_fronts(state)
 
 
 ## HOLD (028): a round that starts with a crew machine on the zone and no enemy on it scores.
@@ -1988,7 +2098,7 @@ static func _charges(state: CombatState) -> void:
 			stuck = true
 		if hit != null and hit.team != u.team and not hit.objective:
 			var behind: Vector2i = Hex.neighbor(Vector2i(hit.x, hit.y), dir)
-			var braced: bool = hit.unshovable or not state.inside(behind) or state.solid(behind) \
+			var braced: bool = held(state, hit) or not state.inside(behind) or state.solid(behind) \
 				or state.unit_at(behind.x, behind.y) != null
 			hurt(state, u.ref, hit, dmg)
 			if hit.alive:

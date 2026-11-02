@@ -53,7 +53,7 @@ static func plan(state: CombatState, u: GridUnit, ctx: Dictionary) -> Dictionary
 	var here := Vector2i(u.x, u.y)
 	var options: Dictionary = {}
 	# A kind that is `still` (025: the Core) never leaves its hex.
-	if not u.moved and not u.snared and not bool((state.setup.kinds.get(u.kind, {}) as Dictionary).get("still", false)):
+	if not u.moved and not u.snared and u.rooted <= 0 and not bool((state.setup.kinds.get(u.kind, {}) as Dictionary).get("still", false)):
 		options = CombatSim.paths_from(state, u, u.move)
 	options[here] = [] as Array[Vector2i]
 	var danger: Dictionary = ctx.get("danger", {})
