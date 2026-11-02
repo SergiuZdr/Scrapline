@@ -58,6 +58,32 @@ what happens when two sources meet on one machine. **Decided before building any
    CINDER's tears and +1 work on melee arms only; a Cinder machine with no melee arm gets nothing from
    them (an open question below).
 
+## Measured (086)
+
+`balance_fights --arms 150` (enemies +40 HP +5 damage), before 086 and after (crew won 67.7% -> 63.2%):
+
+| Arm | Before | After | What changed |
+|---|---|---|---|
+| Sunspear | +26.3 | **+15.5** (+6.9 to +24.1) | pierces everything, heaps and walls too, and its own crew; 3 damage (was 5), range 5 (was 6) |
+| Godhammer | +21.7 | **+12.8** (+4.3 to +21.3) | shoves 2, tears every hit, roots its wielder for the rest of the turn; 5 damage (was 7). A root into the NEXT turn measured -47.4 (10.7% won): a Godhammer that hits every turn never moves again |
+| Saw / Cleaver | +1.7 / +1.7 (byte-identical rows) | +6.1 / +2.8 | the Saw tears at 4 |
+| Pulse | -13.0 (outside the noise) | +0.8 | 3 damage (was 2): its arcs jump for 2, not 1 |
+| Hammer | -1.7 | -1.9 | untouched (inside the noise both times) |
+
+No two rows are byte-identical. The Sunspear sits at the +15 line (its interval is wide; heat 3 is the next
+trim if it should come under). The non-arm legendaries (Colossus, Crucible Heart, Aegis Rig, Phoenix Cell) are
+not in the arm trial; `part_power.gd` cannot separate them (see 033) -- they wait for the run bot and the user.
+
+**Focus (B6)**, `balance_fights --fights 600 --b` on the same fights (per machine that carries Focus, per fight):
+free 1.06; costs 1 heat 0.95 (overheats 0.78 -> 0.81); costs 2 heat 0.99 (overheats 0.91); counts as the move
+0.18 (the bot moves first, then cannot focus). Win rate and crew HP lost unchanged in all three. **Shipped: 1
+heat** -- the move dial (`takes_move`) all but deletes Focus for the bot; a human may play it differently.
+
+**Elite affixes (A5)**, crew HP lost per random fight against 4.3 with no affix (no extra enemy, no HP bonus --
+those are the run's): every enemy RIGGED 4.7 (x1.1), every enemy BULWARK 5.2 (x1.2), every enemy VOLATILE 13.4
+(x3.1), one VOLATILE among its escorts 6.6 (x1.5). Win rates unchanged (94%). So VOLATILE belongs on one machine,
+not a whole squad; RIGGED and BULWARK need the elite's extra enemy and HP to reach 1.5-2x.
+
 ## Measured by the arm trial (072)
 
 `balance_fights --arms 150` finally separates the arms that `part_power.gd` could not: tougher enemies
