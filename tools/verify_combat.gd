@@ -986,6 +986,13 @@ func _test_rules_086() -> void:
 	_check("bulwark: faces the nearest crew machine (dir %d); its front takes 2 less (%d vs %d from behind)" % [face, front_hit, back_hit],
 		face == 3 and front_hit == back_hit - 2)
 	_check("bulwark: the facing and the affix survive a clone", bu.clone().facing.get(10, -1) == face and bu.clone().unit(10).affix == "bulwark")
+	var opening: Dictionary = (_db.fights["slag_pit"] as Dictionary).duplicate(true)
+	for spec: Dictionary in opening["enemy"]:
+		spec["affix"] = "bulwark"
+	var op_setup: CombatSetup = CombatSetup.build(opening, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 2026)
+	var op: CombatState = CombatSim.start(op_setup)
+	_check("bulwark: every front is set (and announced) before the crew's first turn (%d of %d)" % [op.facing.size(), (opening["enemy"] as Array).size()],
+		op.facing.size() == (opening["enemy"] as Array).size() and _count(op, 0, GridEv.FRONT_TURNED) == op.facing.size())
 	_check("every affix has its words for the screens", ((_db.enemy_kinds.get("elite_affixes", {}) as Dictionary).values()).all(
 		func(a: Dictionary) -> bool: return not String(a.get("text", "")).is_empty() and not String(a.get("tag", "")).is_empty()))
 
