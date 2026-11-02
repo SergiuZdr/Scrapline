@@ -62,6 +62,9 @@ var grabs: Dictionary = {}
 var facing: Dictionary = {}
 ## 050: a fallen twin being rebuilt: its ref -> rounds left.
 var rebuilds: Dictionary = {}
+## 087 (A4b) CONTRACT: hot ground left by a mortar or slag lob: Vector2i -> {"rounds": int, "heat": int}.
+## A machine that enters or ends its move on it takes `heat`. Cleared when `rounds` runs out.
+var hot_ground: Dictionary = {}
 ## 083 (A2): the escort each of `wave_marks` brings in, by ref, in the same order (empty for a
 ## SURVIVE wave, which brings drones).
 var wave_refs: Array = []
@@ -222,6 +225,7 @@ func clone() -> CombatState:
 	c.charges = charges.duplicate(true)
 	c.grabs = grabs.duplicate()
 	c.facing = facing.duplicate()
+	c.hot_ground = hot_ground.duplicate(true)
 	c.rebuilds = rebuilds.duplicate()
 	c.wave_refs = wave_refs.duplicate()
 	c.held_escorts = held_escorts.duplicate()
