@@ -505,9 +505,10 @@ func _compare(numbers: Dictionary, authored_items: int, count: int) -> void:
 		for kind: Variant in (st["uses"] as Dictionary):
 			if not ["focus", "boost", "shield arm"].has(String(kind)):
 				others += int(st["uses"][kind])
-		print("  %s per fight: Focus %.2f, Overdrive %.2f, Charge/Dash/Barricade/... %.2f, overheats %.2f" % [pair[0],
-			int((st["uses"] as Dictionary).get("focus", 0)) / n, int((st["uses"] as Dictionary).get("boost", 0)) / n,
-			others / n, int(st.get("overheats", 0)) / n])
+		print("  %s per fight: Focus %.2f (%.2f per machine carrying it), Overdrive %.2f, Charge/Dash/Barricade/... %.2f, overheats %.2f" % [pair[0],
+			int((st["uses"] as Dictionary).get("focus", 0)) / n,
+			int((st["uses"] as Dictionary).get("focus", 0)) / maxf(1.0, float(st.get("focus_carriers", 0))),
+			int((st["uses"] as Dictionary).get("boost", 0)) / n, others / n, int(st.get("overheats", 0)) / n])
 	print("")
 
 
@@ -526,7 +527,7 @@ func _uses_text(uses: Dictionary) -> String:
 func _new_stats() -> Dictionary:
 	return {"fights": 0, "won": 0, "lost_objective": 0, "lost_crew": 0, "timeout": 0, "rounds": 0,
 		"player_dmg": 0, "enemy_dmg": 0, "crew_hp_lost": 0,
-		"crew_hp_lost_sq": 0, "intents": 0, "intents_hit": 0, "uses": {}, "overheats": 0}
+		"crew_hp_lost_sq": 0, "intents": 0, "intents_hit": 0, "uses": {}, "overheats": 0, "focus_carriers": 0}
 
 
 ## Plays one fight with the bot. Returns true on a win.
@@ -540,6 +541,10 @@ func _play(db: ContentDB, fight: Dictionary, seed_value: int, stats: Dictionary)
 	var state: CombatState = CombatSim.start(setup)
 	var guard: int = 0
 	var uses: Dictionary = stats["uses"]
+	# 086 (B6): how many crew machines carry Focus, so its use reads per machine that has it.
+	for u: GridUnit in state.units:
+		if u.team == GridUnit.TEAM_PLAYER and u.abilities.any(func(ab: Dictionary) -> bool: return String(ab["id"]) == "focus"):
+			stats["focus_carriers"] += 1
 	while state.outcome == CombatState.ONGOING and guard < 60:
 		for action: Array in CombatBot.take_turn(state):
 			# 073: what the bot used, by ability kind (and casts of a shield arm).
