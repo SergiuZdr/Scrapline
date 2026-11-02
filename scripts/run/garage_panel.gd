@@ -728,9 +728,17 @@ func _build_stats() -> void:
 		var perk: Dictionary = Run.db.perks.get(String(id), {})
 		body.add_child(Glossary.label("%s  ·  %s" % [String(perk.get("name", id)).to_upper(), String(perk.get("text", ""))],
 			NUM_TEXT, UIKit.INK_GREEN, words, width))
+	# 086 (A10): every maker on the machine, how far its set has come (2/3) and the rule three give;
+	# then the bonuses it has now.
+	var progress: Array = PartText.set_progress(Run.db.parts, Run.db.makers, member["parts"])
 	var sets: PackedStringArray = PartText.set_lines(Run.db.parts, Run.db.makers, member["parts"])
-	if not sets.is_empty():
+	if not progress.is_empty():
 		_section(body, "SETS")
+	for entry: Dictionary in progress:
+		var line := Glossary.label(PartText.set_progress_line(entry), NUM_TEXT, UIKit.INK_GREEN if bool(entry["complete"]) else UIKit.TEXT,
+			words, width, UIKit.font_strong())
+		line.name = "set_progress_%s" % String(entry["maker"])
+		body.add_child(line)
 	for line_text: String in sets:
 		body.add_child(Glossary.label(line_text, NUM_TEXT, UIKit.INK_GREEN, words, width))
 
@@ -762,9 +770,14 @@ func _maker_tag(i: int, part: String) -> Control:
 		if String((Run.db.parts.get(String(id), {}) as Dictionary).get("maker", "")) == maker:
 			count += 1
 	var colour: Color = UIKit.GREEN if count >= 2 else UIKit.TEXT_DIM
-	var name := _label(PartText.maker_short(Run.db.makers, Run.db.parts, part), UIKit.SIZE_LABEL, colour, UIKit.font_strong())
+	# 086 (A10): "KESSLER 2/3" -- how far the set has come, out of the pieces its rule needs.
+	var full: int = 3
+	for entry: Dictionary in PartText.set_progress(Run.db.parts, Run.db.makers, Run.state.crew[i]["parts"]):
+		if String(entry["maker"]) == maker:
+			full = int(entry["full"])
+	var name := _label("%s %d/%d" % [PartText.maker_short(Run.db.makers, Run.db.parts, part), mini(count, full), full], UIKit.SIZE_LABEL, colour, UIKit.font_strong())
 	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	box.add_child(name)
+	box.add_child(UIKit.fit(name, 104, 1, 10))
 	var pips := HBoxContainer.new()
 	pips.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pips.alignment = BoxContainer.ALIGNMENT_END
@@ -1025,11 +1038,19 @@ func _offer_perks() -> void:
 ## A perk as a card: its name, what it does, the numbers in the colour of a gain.
 func _perk_card(k: int, id: String) -> Button:
 	var perk: Dictionary = Run.db.perks.get(id, {})
+	# 086 (A8): a perk that changes what the machine DOES stands out from one that adds a number --
+	# a band down its edge, NEW RULE over its name, and the verb it adds in place of the numbers.
+	var rule: bool = PartText.is_rule_perk(perk)
 	var card := Button.new()
 	card.name = "perk_%d" % k
-	card.custom_minimum_size = Vector2(430, 200)
+	card.custom_minimum_size = Vector2(430, 220)
 	card.focus_mode = Control.FOCUS_NONE
 	var style: InkBox = UIKit.choice()
+	if rule:
+		style = style.duplicate()
+		style.band_width = 10.0
+		style.band = Ink.RUST
+		card.set_meta("rule", true)
 	var hover: InkBox = style.duplicate()
 	hover.bg_color = UIKit.SURFACE_HIGH.lightened(0.05)
 	for key: String in ["normal", "pressed", "focus"]:
@@ -1040,16 +1061,22 @@ func _perk_card(k: int, id: String) -> Button:
 	inner.add_theme_constant_override("separation", UIKit.SPACE_SM)
 	card.add_child(inner)
 	inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_LG)
-	inner.add_child(_label(String(perk.get("name", id)).to_upper(), 28, UIKit.TEXT, UIKit.font_comic()))
-	var text := _label(String(perk.get("text", "")), UIKit.SIZE_BODY, UIKit.TEXT_DIM)
-	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.custom_minimum_size = Vector2(390, 0)
-	inner.add_child(text)
+	var grid: Dictionary = perk.get("grid", {})
+	if rule:
+		var tag := UIKit.fit(_label("NEW RULE", UIKit.SIZE_LABEL, Ink.RUST, UIKit.font_comic()), 380, 1, 10)
+		tag.name = "rule_tag"
+		inner.add_child(tag)
+	inner.add_child(UIKit.fit(_label(String(perk.get("name", id)).to_upper(), 28, UIKit.TEXT, UIKit.font_comic()), 380, 1, 16))
+	inner.add_child(UIKit.fit(_label(String(perk.get("text", "")), UIKit.SIZE_BODY, UIKit.TEXT_DIM), 380, 3, 12))
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	inner.add_child(spacer)
-	inner.add_child(_label(PartText.bonus_text(perk.get("grid", {})).to_upper(), 22, UIKit.GREEN, UIKit.font_comic()))
+	var verbs: PackedStringArray = PartText.verb_lines(grid) if rule else PackedStringArray()
+	var gain: String = "\n".join(verbs).to_upper() if not verbs.is_empty() else PartText.bonus_text(grid).to_upper()
+	var gain_label := UIKit.fit(_label(gain, 22, UIKit.GREEN, UIKit.font_comic()), 380, maxi(2, verbs.size()), 12)
+	gain_label.name = "gain"
+	inner.add_child(gain_label)
 	card.pressed.connect(_level_up.bind(k))
 	return card
 
