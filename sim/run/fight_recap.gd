@@ -22,6 +22,8 @@ static func build(state: CombatState, setup: RunSetup, crew: Array) -> Dictionar
 			"hits_taken": 0, "by_weapon": [0, 0]}
 	# What caused each DAMAGE: the last ATTACK, EXPLOSION, BUMP or ability before it.
 	var cause: Dictionary = {}
+	# 086 (A7): the enemy arms torn off this fight, in the order they came off ("Tore off: Rail Driver, Saw").
+	var torn_off: Array = []
 	for e: Array in state.events:
 		var kind: int = int(e[GridEv.F_KIND])
 		var actor: int = int(e[GridEv.F_ACTOR])
@@ -58,6 +60,11 @@ static func build(state: CombatState, setup: RunSetup, crew: Array) -> Dictionar
 			GridEv.PART_TORN:
 				if stats.has(target):
 					stats[target]["torn"] += 1
+				var victim: GridUnit = state.unit(target)
+				var socket: int = 2 + int(e[GridEv.F_V1])
+				if victim != null and victim.team == GridUnit.TEAM_ENEMY and socket < victim.part_ids.size():
+					var arm: String = PartTuning.base_of(String(victim.part_ids[socket]))
+					torn_off.append(String((setup.parts.get(arm, {}) as Dictionary).get("name", arm)))
 
 	var machines: Array = []
 	var builds: Array = []
@@ -75,11 +82,17 @@ static func build(state: CombatState, setup: RunSetup, crew: Array) -> Dictionar
 	builds.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return int(a["size"]) > int(b["size"]) or (int(a["size"]) == int(b["size"]) and String(a["what"]) < String(b["what"])))
 	return {"machines": machines, "builds": builds.slice(0, MAX_BUILDS), "scrap": state.scrap_collected,
-		"piles": state.piles_collected, "rounds": state.round_number}
+		"piles": state.piles_collected, "rounds": state.round_number, "torn_off": torn_off}
 
 
 ## `[label, grid, weapon]` for every set, perk and tuning on a machine. `weapon` is the arm a
 ## tuned weapon's bonus belongs to (0 or 1), or -1 for the whole machine.
+## 086 (A7): the recap's line for the arms torn off the enemy, "" when none came off.
+static func torn_line(recap: Dictionary) -> String:
+	var names: Array = recap.get("torn_off", [])
+	return "" if names.is_empty() else "Tore off: " + ", ".join(PackedStringArray(names))
+
+
 static func _sources(setup: RunSetup, member: Dictionary) -> Array:
 	var out: Array = []
 	var parts: Array = member.get("parts", [])

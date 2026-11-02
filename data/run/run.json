@@ -18,8 +18,8 @@
     "auction": 4,
     "arena": 7
   },
-  "refinery": {"costs": [15, 35, 70], "_comment": "031: refining a part of rarity r costs costs[r-1] and gives a random part of rarity r+1, the same slot (a rare becomes a legendary)."},
-  "auction": {"tiers": [{"cost": 25, "min": 2, "legend_pct": 4}, {"cost": 55, "min": 3, "legend_pct": 12}], "_comment": "031: crates bought blind; `legend_pct` is the chance it holds a legendary instead."},
+  "refinery": {"costs": [15, 35], "_comment": "031: refining a part of rarity r costs costs[r-1] and gives a random part of rarity r+1, the same slot.", "_086": "086 (A9, the user: legendaries only from gate keepers): no cost for a rare, so a rare is never refined into a legendary."},
+  "auction": {"tiers": [{"cost": 25, "min": 2, "legend_pct": 0}, {"cost": 55, "min": 3, "legend_pct": 0}], "_comment": "031: crates bought blind; `legend_pct` is the chance it holds a legendary instead.", "_086": "086 (A9, the user: legendaries only from gate keepers): legend_pct 0 (was 4 and 12)."},
   "_sites_013": "013: traders (buy from stock, sell from the hold), watchtowers (scout), signals (data/run/events.json).",
   "trader": {
     "prices": [12, 20, 32, 60],
@@ -109,17 +109,19 @@
     "count_by_column": [3, 3, 3, 3, 4, 4, 4, 5, 5],
     "rarity_cap_by_column": [1, 1, 1, 2, 2, 2, 3, 3, 3],
     "elite_extra": 1,
-    "elite_hp_bonus": 3,
+    "elite_affixes": ["volatile", "rigged", "bulwark"],
+    "elite_hp_bonus": 2,
     "boss_count": 5,
     "boss_hp_bonus": 4,
     "boss_escorts": 3,
     "warlord_escorts": 2,
     "arena": {"extra": 2, "hp": 3, "damage": 1, "cap": 3, "_comment": "032 (play-test 10: the arena was not hard): `extra` machines over an elite's count, each `hp` tougher and `damage` harder, parts up to rarity `cap`."},
+    "_elite_086": "086 (A5): an elite is a different problem, not a bigger number: its veteran carries one affix from `elite_affixes` (ids in data/combat/enemy_kinds.json `elite_affixes`), picked by its own SimRNG stream; an empty list gives none. elite_hp_bonus 3/4/5 -> 2 in every act.",
     "_boss": "013: the gate is its own map (data/fights/sorting_gate.json): the Sorter, its pylons, and `boss_escorts` rolled escorts. boss_count / boss_hp_bonus apply only if no gate map exists."
   },
   "rewards": {
     "skirmish_scrap": 10,
-    "elite_scrap": 20,
+    "elite_scrap": 14,
     "boss_scrap": 0,
     "scrapyard_scrap": 15,
     "choices": 3,
@@ -133,8 +135,13 @@
     "warlord_scrap": 30,
     "arena_scrap": 35,
     "arena_min_rarity": 3,
-    "warlord_legend_pct": 35,
+    "warlord_legend_pct": 0,
+    "gate_legend_pct": 100,
+    "_warlord_086": "086 (A9, the user: legendaries only from gate keepers, 1-2 a run; warlords give a rare and scrap): warlord_legend_pct 35 -> 0; warlord_scrap stays. `gate_legend_pct` (by act): the chance a keeper's hoard holds its legendary.",
     "hoard_scrap": 25,
+    "spoils_slot": -1,
+    "spoils_max_rarity": 2,
+    "_spoils": "086 (A7): a won skirmish, elite or arena shows one part torn off or out of an enemy (an arm it lost to PART_TORN, the module -- else the core -- of an enemy it wrecked) in place of option `spoils_slot` (-1: the last), picked by SimRNG from the ones in the pools, untuned, not legendary and at most `spoils_max_rarity` (by act). The reward then carries `torn_from` (the enemy, \"THE TRACKER\") and `torn_index`. Hoards keep their own rolls. `hoard_scrap` is the SCRAP instead at every hoard.",
     "salvage_scrap": 8,
     "defend_partial": true,
     "_defend_partial": "083 (A7-defend): a won DEFEND keeps ceil(choices x saved / placed) of its salvage options and ceil(salvage_scrap x saved / placed) scrap; false pays it all whenever it is won. All caches broken is still a lost fight.",
@@ -237,25 +244,25 @@
     ]
   },
   "acts": [
-    {"name": "THE CRANE YARDS"},
+    {"name": "THE CRANE YARDS", "enemies": {"elite_affixes": ["volatile", "rigged"]}, "_086": "086 (A5): Act 1 elites roll two of the three affixes."},
     {
       "name": "THE SLAG FLATS",
       "_comment": "021. Laid over the run's rules one level deep while the crew is in Act 2. `arrive` is what breaking the gate before it gives.",
       "arrive": {"repair": 6, "scrap": 15},
-      "enemies": {"count_by_column": [4, 4, 4, 4, 4, 5, 5, 5, 5], "rarity_cap_by_column": [2, 2, 2, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 4, "hp_all": 5, "boss_escorts": 4, "warlord_escorts": 3, "boss_late_waves": [{"round": 6, "count": 2}], "bonus": {"damage": 1}},
+      "enemies": {"count_by_column": [4, 4, 4, 4, 4, 5, 5, 5, 5], "rarity_cap_by_column": [2, 2, 2, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 2, "hp_all": 5, "boss_escorts": 4, "warlord_escorts": 3, "boss_late_waves": [{"round": 6, "count": 2}], "bonus": {"damage": 1}},
       "kinds": {"chance_by_column": [40, 50, 50, 60, 60, 70, 70, 80, 80], "weights": {"tracker": 20, "bomber": 20, "warden": 15, "hive": 15, "sentinel": 30}},
       "terrain": {"slag": [1, 3]},
-      "rewards": {"rarity_weights": [55, 38, 7], "elite_min_rarity": 2, "choices": 3},
+      "rewards": {"rarity_weights": [55, 38, 7], "elite_min_rarity": 2, "choices": 3, "spoils_max_rarity": 3, "gate_legend_pct": 50, "_086": "086 (A9): the Act 2 keeper's hoard holds a legendary half the time (a rare otherwise), so a run sees one or two and they stay under ~8-12% of the sockets"},
       "board": {"enemies": 1}
     },
     {
       "name": "THE CRUCIBLE",
       "_comment": "025. The furnace-city, the run's last act: bigger squads of rare parts that hit harder, conduits, furnace flues on every board, and the Core at its gate.",
       "arrive": {"repair": 6, "scrap": 20},
-      "enemies": {"count_by_column": [4, 4, 5, 5, 5, 5, 6, 6, 6], "rarity_cap_by_column": [3, 3, 3, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 5, "hp_all": 5, "boss_escorts": 4, "warlord_escorts": 3, "boss_late_waves": [{"round": 6, "count": 2}], "bonus": {"damage": 2}},
+      "enemies": {"count_by_column": [4, 4, 5, 5, 5, 5, 6, 6, 6], "rarity_cap_by_column": [3, 3, 3, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 2, "hp_all": 5, "boss_escorts": 4, "warlord_escorts": 3, "boss_late_waves": [{"round": 6, "count": 2}], "bonus": {"damage": 2}},
       "kinds": {"chance_by_column": [50, 50, 60, 60, 70, 70, 80, 80, 90], "weights": {"tracker": 15, "bomber": 15, "warden": 10, "hive": 10, "sentinel": 20, "conduit": 30}},
       "terrain": {"flues": [2, 4], "slag": [0, 2]},
-      "rewards": {"rarity_weights": [35, 48, 15, 2], "elite_min_rarity": 2, "choices": 3, "_032": "play-test 10: most parts were rare+ by Act 3 (031: 10/42/42/6, elites always rare)"},
+      "rewards": {"rarity_weights": [35, 48, 17], "elite_min_rarity": 2, "choices": 3, "spoils_max_rarity": 3, "_032": "play-test 10: most parts were rare+ by Act 3 (031: 10/42/42/6, elites always rare)", "_086": "086 (A9): no legendary in Act 3 salvage (was 2 of 100): legendaries come only from gate keepers"},
       "board": {"enemies": 1}
     }
   ]
