@@ -110,8 +110,8 @@ Iterations further ahead are sketches and get refined as we get closer.
 | 082 | [Truth, speed and an honest ladder](iterations/082-truth-and-speed.md) | The move rule told truthfully (ROOTED), playback 1x/2x/3x and a settings sheet, tiers that apply in every act, FIT IT NOW, flavour on cards, the roll call | ✅ |
 | 083 | The boss is the fight | A boss's death ends its fight, escort waves and a visible pulse, bosses stop healing the crew, bosses read as the biggest thing (push-in on a before/after sheet), partial salvage for DEFEND, a guarded wreck saves one part | ✅ |
 | 084 | The road | The fight on the map before you go, the Reclaimer as a budget (wandering costs), act conditions and rotating warlords, seed codes and run history | ✅ |
-| 085 | Come back tomorrow | A 10-rung ladder, the daily and weekly yard, 3 start deals (gift + cost), crew rules, medals | 🔨 |
-| 086 | Builds that change rules | Trophies torn from enemies, rule perks, legendaries with drawbacks from gates only, maker-set verbs, a starter kit with no dead arm, elite affixes, a bot that chooses | ⬜ |
+| 085 | [Come back tomorrow](iterations/085-come-back-tomorrow.md) | A 10-rung ladder, the daily and weekly yard, 3 start deals (gift + cost), crew rules, medals, trophies and liveries | ✅ |
+| 086 | Builds that change rules | Trophies torn from enemies, rule perks, legendaries with drawbacks from gates only, maker-set verbs, a starter kit with no dead arm, elite affixes, a bot that chooses | 🔨 |
 | 087 | Every round counts | Marked reinforcements from round 3, lock-on intents and lingering ground, damage that explains itself, a CANCELLED beat, consequences on the board, red means danger | ⬜ |
 | 088 | First five minutes and Act 3 | The shakedown rebuilt on tear/pit/cancel, objective strips, Act 3 prop slots and no repeats | ⬜ |
 | — | Ship prep | Android and desktop exports, low-end phone performance, Steam demo | ⬜ |

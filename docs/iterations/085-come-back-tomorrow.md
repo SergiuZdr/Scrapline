@@ -1,7 +1,7 @@
 # Iteration 085 — Come back tomorrow
 
-**Status:** planned
-**Started:** — · **Finished:** —
+**Status:** done
+**Started:** 2026-10-24 · **Finished:** 2026-11-02
 **Answers:** the engagement review (B4, B9, B10, T4) and the user's answers of 2026-10-22: harder overall;
 "it must not be played once and uninstalled, it needs a motive to be played again and again"; players
 should come back daily and weekly for something new (daily + weekly yard); a run starts with 3 deals,
@@ -65,6 +65,24 @@ Higher rungs could add a fourth fixer with a bigger deal (a later choice for the
 - [ ] Screens: the ladder line, the daily/weekly panel, the three deals, a crew card with medals.
 
 ## Result
+
+### Summary
+Two agents in parallel (the run sim and data; the screens and the profile), then a third for the weekly
+reward after the user dropped the 3D plates. `tools/check.sh --fingerprint`: verify_combat 398,
+verify_combat_input 39, verify_run 299, verify_run_ui 111, verify_save 43, verify_onboarding 54,
+verify_meta 109, verify_assembly 168, verify_animation 38 -- all passed; fingerprint `bdbf204e`, unchanged
+(rung 0 plays as before; deals only come with a player's options).
+
+- Ladder, plain bot, no deals: rung 0 57.3% (49-65, 150 runs), rung 1 57.3% (150; 44 seeds changed outcome,
+  22 each way), rung 4 33.3% (150), rung 7 19.0% (100), rung 10 12.0% (8-18, 150; the user: keep it).
+  With the Salvagers' rule and a deal, rung 10 was 17.3% (before FOREMAN went to +1).
+- Deals, costs all run, 60 paired seeds vs WALK ON (56.7%): rare_arm -1.7, module +5.0, scout +5.0,
+  free_level +5.0, scrap +6.7, swap_arm +8.3, plating +10.0 (the user: accept).
+- Crews at rung 0 with their rule, 60 runs: Salvagers 70.0%, Wall 81.7%, Runners 76.7% (the user: keep).
+- Career replay (300 careers): the ending at median run 5; rung 10 open at median run 30.5 (25-37); medals
+  within 10 runs 6.1%; the last medal never falls to the non-aiming bot.
+- Liveries: contrast on slag_pit grows for every scheme in the fight (tables below).
+- Not met: fights costing the crew no HP stay ~26% at rung 10 (aim 20-25%).
 
 ### The weekly reward: trophies and liveries (2026-10-29/30, the user's call)
 - **Plates out:** `art/props/pl_*`, `ConstructView.add_plate`, the 2D plate badge (yard board, garage, roll

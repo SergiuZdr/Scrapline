@@ -2,6 +2,27 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [085] Come back tomorrow — done ([detail](iterations/085-come-back-tomorrow.md))
+
+### Added
+- The ladder: 10 cumulative rungs on top of YARD HAND (FOREMAN +1 enemy HP, RECLAIMED +1 damage and a bite of
+  3, COLD PILES, SHORT RATIONS, TRACKERS LOCK ON, WORN OUT, HUNGRY LINE, VETERANS, GATE GUARD, LEAN PAY); the
+  title names the next rung and its rule; a per-crew record stamp. The ending stays on RECLAIMED (rung 2).
+- Start deals: after the bay, three fixers' deals (a gift now, a cost for the whole run) or WALK ON
+  (`data/run/deals.json`, `RunSim.DEAL`); costs in force as chips under the map's top bar.
+- The daily yard (one attempt a day, a seed from the UTC day, a condition per act, fixed deals; best and
+  streak) and the weekly contract (a fixed crew, rung 4, three twists with at least one that changes play;
+  any attempts, best kept) on the YARD BOARD; neither counts toward the ladder or unlocks.
+- Weekly rewards: six drawn trophies on a TROPHY WALL in the garage and six liveries (HAZARD YELLOW, OXIDE
+  RED, GUNMETAL CAMO, BONE WHITE, SODIUM ORANGE, TEAL SCRAPPER) any crew can wear, bolder in fights
+  (`data/weekly_rewards.json`).
+- Crew rules (Salvagers 4 salvage parts, the Wall abilities a round sooner, the Runners a slower Reclaimer)
+  and three medals per crew on the GOALS tab.
+- run_bot `--set run.rung=N / run.crew / run.deals / run.deal / bot.deals`, `--dump`; per-deal and medal metrics.
+
+### Changed
+- `RunSetup.is_seeded` covers daily and weekly runs; `apply_adds` takes per-act and per-element adds.
+
 ## [084] The road — done ([detail](iterations/084-the-road.md))
 
 ### Added
