@@ -68,6 +68,11 @@ static func summary(parts: Dictionary, id: String, abilities: Dictionary = {}) -
 				extra.append("marks")
 			if bool(g.get("tears", false)):
 				extra.append("tears arms")
+			# 086: its own tear threshold (the Saw), and a beam that runs through walls (the Sunspear).
+			if int(g.get("tear_at", 0)) > 0:
+				extra.append("tears at %d" % int(g["tear_at"]))
+			if bool(g.get("breach", false)):
+				extra.append("through walls")
 			if not extra.is_empty():
 				bits.append(", ".join(extra))
 		"core":
@@ -148,7 +153,7 @@ static func tune_line(parts: Dictionary, id: String) -> String:
 ## The order a bonus block is read out in: what it survives, how it moves, what it hits.
 const BONUS_ORDER: PackedStringArray = ["hp", "armor", "move", "damage", "melee", "range", "range_min", "pierce",
 	"chain", "arc", "mark", "shove", "tears", "heat", "heat_cap", "vent", "cooldown", "unshovable", "move_after_attack",
-	"thorns", "regen", "kill_heal", "last_stand"]
+	"thorns", "regen", "kill_heal", "last_stand", "rise_pct", "anchors", "ward", "meltdown"]
 
 
 ## A bonus block -- a tuning, a perk, a set -- in words: "+1 damage, -1 heat per attack".
@@ -205,11 +210,20 @@ static func bonus_text(grid: Dictionary) -> String:
 			"thorns":
 				bits.append("melee attackers take %d" % n)
 			"regen":
-				bits.append("repairs %d HP a round" % n)
+				bits.append("repairs %d HP a round" % n if n > 0 else "burns %d HP a round" % -n)
 			"kill_heal":
 				bits.append("+%d HP per kill" % n)
 			"last_stand":
 				bits.append("survives its first wreck at 1 HP")
+			# 086 (A9): the legendaries' rules.
+			"rise_pct":
+				bits.append("comes back from its wreck at %d%% HP" % n)
+			"anchors":
+				bits.append("its neighbours cannot be shoved")
+			"ward":
+				bits.append("its neighbours take %d less per hit" % n)
+			"meltdown":
+				bits.append("blasts its neighbours for %d when it overheats" % n)
 	return ", ".join(bits)
 
 
@@ -295,15 +309,32 @@ static func _legend_text(parts: Dictionary, id: String, key: String) -> String:
 
 ## A maker's set rule: the verbs of the tier that has any (the 3-piece, A10), or [] for none.
 ## `[tier, verbs]`.
+## The maker's own `verb` line names them when it has one ("THORNS + ANCHORED: ..." -> its head).
 static func set_rule(makers: Dictionary, maker: String) -> Array:
 	var sets: Dictionary = (makers.get(maker, {}) as Dictionary).get("sets", {})
 	var tiers: Array = sets.keys()
 	tiers.sort_custom(func(a: Variant, b: Variant) -> bool: return int(str(a)) > int(str(b)))
+	var said: String = String((makers.get(maker, {}) as Dictionary).get("verb", ""))
 	for tier: Variant in tiers:
 		var verbs: PackedStringArray = rule_verbs(sets[tier] as Dictionary)
 		if not verbs.is_empty():
+			if not said.is_empty():
+				verbs = PackedStringArray(Array(said.get_slice(":", 0).split("+")).map(func(v: String) -> String: return v.strip_edges().to_upper()))
 			return [int(str(tier)), verbs]
 	return []
+
+
+## 086 (A10): the maker's set rule in full ("THORNS + ANCHORED: melee attackers take 1, ..."), from its
+## `verb` line, else its verbs with what each does.
+static func set_rule_text(makers: Dictionary, maker: String) -> String:
+	var said: String = String((makers.get(maker, {}) as Dictionary).get("verb", ""))
+	if not said.is_empty():
+		return said
+	var rule: Array = set_rule(makers, maker)
+	if rule.is_empty():
+		return ""
+	var sets: Dictionary = (makers.get(maker, {}) as Dictionary).get("sets", {})
+	return "%s: %s" % [" + ".join(rule[1] as PackedStringArray), bonus_text(sets.get(str(rule[0]), {}))]
 
 
 ## Per maker on a loadout, how far its set has come (A10): `{maker, short, count, full, verbs,
@@ -322,17 +353,20 @@ static func set_progress(parts: Dictionary, makers: Dictionary, part_ids: Array)
 		var full: int = int(rule[0]) if not rule.is_empty() else 3
 		out.append({"maker": String(maker), "short": String((makers[maker] as Dictionary).get("short", String(maker).to_upper())),
 			"count": int(counts[maker]), "full": full, "verbs": rule[1] if not rule.is_empty() else PackedStringArray(),
-			"complete": int(counts[maker]) >= full})
+			"complete": int(counts[maker]) >= full, "text": set_rule_text(makers, String(maker))})
 	return out
 
 
-## "KESSLER 2/3 · at 3: THORNS + ANCHORED", or "KESSLER 3/3 · THORNS + ANCHORED" once complete.
+## "KESSLER 2/3 · at 3: THORNS + ANCHORED", or "KESSLER 3/3 · THORNS + ANCHORED: melee attackers take 1,
+## ..." once complete.
 static func set_progress_line(entry: Dictionary) -> String:
 	var verbs: PackedStringArray = entry["verbs"]
 	var head: String = "%s %d/%d" % [String(entry["short"]), mini(int(entry["count"]), int(entry["full"])), int(entry["full"])]
 	if verbs.is_empty():
 		return head
-	return "%s  ·  %s%s" % [head, "" if bool(entry["complete"]) else "at %d: " % int(entry["full"]), " + ".join(verbs)]
+	if bool(entry["complete"]) and not String(entry.get("text", "")).is_empty():
+		return "%s  ·  %s" % [head, String(entry["text"])]
+	return "%s  ·  at %d: %s" % [head, int(entry["full"]), " + ".join(verbs)]
 
 
 ## 086 (A5): an elite affix's `{name, text, short}` -- `name` the one word its tag carries ("VOLATILE"),
