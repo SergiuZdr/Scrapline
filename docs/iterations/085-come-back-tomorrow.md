@@ -115,6 +115,13 @@ Higher rungs could add a fourth fixer with a bigger deal (a later choice for the
 
   Raw: `shots/085/contrast_ab_bold*.txt`. Sheet: `shots/085/fight_liveries_sheet.png` (the whole frame, the
   crew at 1:1, a grey copy, makers first).
+- **OXIDE RED and SODIUM ORANGE apart** (the user: they looked alike on the board). OXIDE RED is now a
+  two-tone: brick a95c48 on the painted panels, cream ead6ae on the plain plating in a fight (a fourth
+  `LIVERIES` field, ink_toon `livery_plate_trim`). A brick hue alone is too dark: cf6b55 and d6705c both
+  measured below the makers' paint. SODIUM ORANGE moved toward amber (f0903a -> f2942e), still clear of the
+  action amber ffc43d. Alternating on slag_pit (makers -> livery): OXIDE 2.22/2.16/2.17/2.19 -> 2.52/2.48/2.50/2.53
+  (2.19 -> 2.51); SODIUM 2.15/2.16/2.16/2.12 -> 2.22/2.25/2.30/2.25 (2.15 -> 2.26). Sheet:
+  `shots/085/oxide_vs_sodium_sheet.png`; their rows in `fight_liveries_sheet.png` redone.
 - Sheets: `shots/085/liveries_sheet.png` (before/after on the three starting machines, with a grey copy),
   `shots/085/rewards_sheet.png` (wall, picker, garage, a fight, the six trophies).
 
