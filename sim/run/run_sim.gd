@@ -283,7 +283,8 @@ static func perk_offer(state: RunState, setup: RunSetup, index: int) -> Array[St
 	var ids: Array = perks.keys()
 	ids.sort()
 	for id: Variant in ids:
-		if taken.has(String(id)) or not _perk_fits(unit, String((perks[id] as Dictionary).get("needs", ""))):
+		if taken.has(String(id)) or not _perk_fits(unit, String((perks[id] as Dictionary).get("needs", ""))) \
+				or _perk_owned(unit, (perks[id] as Dictionary).get("grid", {})):
 			continue
 		var key: int = IntentAI.mix(setup.rng_seed, index, level, _text_hash(String(id)))
 		# 086 (the user: "more focused on the current build"): a perk that adds to a trait the
@@ -329,10 +330,6 @@ static func _perk_favoured(setup: RunSetup, member: Dictionary, u: GridUnit, gri
 		if int(w["pierce"]) > 0:
 			has["pierce"] = true
 			has["ap"] = true
-		if bool(w.get("tears", false)):
-			has["tears"] = true
-		if bool(w.get("mark", false)):
-			has["mark"] = true
 		if int(w["chain"]) > 0:
 			has["chain"] = true
 			has["arc"] = true
@@ -352,6 +349,22 @@ static func _perk_favoured(setup: RunSetup, member: Dictionary, u: GridUnit, gri
 				if block.has(k) and k != "hp" and k != "move":
 					return true
 	return false
+
+
+## 086: a perk whose only rule is a flag the machine already has on every weapon that hits (tears,
+## mark) would do nothing -- it is never offered (parts-power.md, trait rule 3).
+static func _perk_owned(u: GridUnit, grid: Dictionary) -> bool:
+	if grid.size() != 1 or not (grid.has("tears") or grid.has("mark")):
+		return false
+	var key: String = "tears" if grid.has("tears") else "mark"
+	var any: bool = false
+	for w: Dictionary in u.weapons:
+		if bool(w["empty"]) or String(w["shape"]) == "shield":
+			continue
+		any = true
+		if not bool(w.get(key, false)):
+			return false
+	return any
 
 
 ## Whether a perk would do anything for this machine (`needs` in perks.json).
