@@ -9,6 +9,7 @@ extends SceneTree
 ##       --select 0 --move 3 4 --weapon 1 --aim 2 3   walks first, then aims
 ##       --steps "select=2 weapon=0 tap=0,3 tap=0,3 select=0 hover=0,3 end"   any sequence, in
 ##           order, before the flags above (tap and end settle the playback; hover draws a route)
+##       --fire 0 --wait-meta cancelled 6   (087) fire, then wait for the CANCELLED beat, 6 frames more
 ##       --livery oxide_red --close 0 2.5   (085) the crew in a weekly livery; the camera 2.5 m from unit 0
 ##
 ## Not headless: it has to render. Everything is driven through the scene's own methods,
@@ -49,6 +50,24 @@ func _run() -> void:
 				"hover":
 					var camera: Camera3D = scene.get("_camera")
 					scene.call("_hover_path", camera.unproject_position(scene.call("_to_world", cell.x, cell.y)))
+	# 087: --stage-hot X Y / --stage-wave X Y: put hot ground, or a reinforcement's wave mark (and two
+	# waves to come), on the live state -- the LOOK only, for a sheet before the sim makes them itself.
+	var state: CombatState = scene.get("_state")
+	var sh: int = args.find("--stage-hot")
+	for i: int in args.size() - 2:
+		if args[i] == "--stage-hot":
+			state.hot_ground[Vector2i(args[i + 1].to_int(), args[i + 2].to_int())] = {"rounds": 1, "heat": 2}
+	var sw: int = args.find("--stage-wave")
+	if sw >= 0 and sw + 2 < args.size():
+		state.wave_marks.append(Vector2i(args[sw + 1].to_int(), args[sw + 2].to_int()))
+		state.wave_refs.append(90)
+		var setup: CombatSetup = scene.get("_setup")
+		setup.escort_waves.append({"round": state.round_number + 1, "refs": [90]})
+		setup.escort_waves.append({"round": state.round_number + 3, "refs": [91]})
+	if args.has("--deselect"):
+		scene.set("_selected", -1)
+	if sh >= 0 or sw >= 0 or args.has("--deselect"):
+		scene.call("_refresh")
 	var select: int = _int_arg(args, "--select", -1)
 	if select >= 0:
 		scene.call("_select", select)
@@ -76,6 +95,17 @@ func _run() -> void:
 	if fire >= 0 and at >= 0:
 		scene.call("_tap", Vector2i(args[at + 1].to_int(), args[at + 2].to_int()))
 		for i: int in fire:
+			await process_frame
+	# 087: --wait-meta NAME N: after firing, wait until a mark carrying meta NAME is on the board (the
+	# CANCELLED beat's "cancelled"), then N frames more -- to photograph a beat mid-play.
+	var wm: int = args.find("--wait-meta")
+	if wm >= 0 and wm + 2 < args.size():
+		var marks: Node = scene.get("_marks_root")
+		for i: int in 3000:
+			await process_frame
+			if marks.get_children().any(func(n: Node) -> bool: return n.has_meta(args[wm + 1]) and not n.is_queued_for_deletion()):
+				break
+		for i: int in args[wm + 2].to_int():
 			await process_frame
 
 	# --boom x y N: play the explosion effect on a hex and wait N frames (the look only).

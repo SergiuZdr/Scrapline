@@ -37,6 +37,48 @@
         "intents"
       ]
     },
+    "locked": {
+      "group": "THE FIGHT",
+      "name": "Locked",
+      "text": "LOCKED beside a red total: a tracker's shot has locked onto that machine, not a hex, and follows it wherever it moves this turn. Break the line, get out of range, kill the tracker or shove it.",
+      "forms": [
+        "locked"
+      ]
+    },
+    "ko": {
+      "group": "THE FIGHT",
+      "name": "KO",
+      "text": "KO beside a number: that damage destroys the machine. Red: the enemy will destroy yours if you end the turn now. Amber: the attack you are aiming destroys it.",
+      "forms": [
+        "KO"
+      ]
+    },
+    "cancelled": {
+      "group": "THE FIGHT",
+      "name": "Cancelled",
+      "text": "An enemy's shot that never fires: you killed it, dropped it in a pit, tore off the arm that held it or SEIZED it before the end of your turn. The cloud is struck through and says what it would have dealt.",
+      "forms": [
+        "cancelled"
+      ]
+    },
+    "hot_ground": {
+      "group": "TERRAIN",
+      "name": "Hot ground",
+      "text": "Scorched plate where a mortar or slag lob landed, for one round. A machine that enters it or ends its move on it takes 2 heat. It is floor, not a hit: it never deals damage.",
+      "forms": [
+        "hot ground"
+      ]
+    },
+    "reinforcements": {
+      "group": "THE FIGHT",
+      "name": "Reinforcements",
+      "text": "From round 3, more enemies come in waves (one in Act 1, two in Acts 2 and 3). Each is marked on the enemy's half a round before it arrives: stand on a mark to block it, at a cost in HP. The objective line counts the waves left.",
+      "forms": [
+        "reinforcements",
+        "reinforcement",
+        "waves left"
+      ]
+    },
     "heat": {
       "group": "THE FIGHT",
       "name": "Heat",

@@ -22,7 +22,7 @@ func _initialize() -> void:
 	print("=== combat input ===")
 	# A script error inside a coroutine stops `_run` without quitting, and the test would
 	# hang forever looking like a slow pass. A watchdog turns that into a failure.
-	create_timer(480.0).timeout.connect(func() -> void:
+	create_timer(720.0).timeout.connect(func() -> void:
 		print("  FAIL  watchdog: the test did not finish (a script error above?)")
 		quit(1))
 	_run.call_deferred()
@@ -198,6 +198,7 @@ func _run() -> void:
 
 	await _playback_speeds(packed)
 	await _builds(packed)
+	await _round_counts(packed)
 
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
@@ -384,6 +385,190 @@ func _builds(packed: PackedScene) -> void:
 		_check("aimed clear of the crew, no DRAWBACK line", not (_scene.get("_pending") as Dictionary).is_empty() and not body.contains("DRAWBACK"))
 	_scene.queue_free()
 	await process_frame
+
+
+## 087: every round counts, on the fight screen -- the aimed target's damage explained step by step
+## (A12), the CANCELLED beat (A17), consequences drawn only while aiming (A18), hot ground as floor
+## (A4b), reinforcement waves on the board and counted on the objective line (A3), and the new cards.
+func _round_counts(packed: PackedScene) -> void:
+	var hud: Control
+	var state: CombatState
+	# --- A12 on slag_pit: the Lancer's mortar at the Skirmisher beside the Citadel (a warden).
+	_scene = packed.instantiate()
+	_scene.set("_fight_id", "slag_pit")
+	root.add_child(_scene)
+	await _settle()
+	state = _scene.get("_state")
+	hud = _scene.get("_hud")
+	_key(KEY_2, true)
+	_key(KEY_2, false)
+	await _settle()
+	_click_control(_weapon_buttons(hud)[1])
+	await _settle()
+	var aim := Vector2i(6, 3)
+	var plan: Dictionary = CombatSim.preview_attack(state, 1, 1, aim)
+	var primary: Dictionary = {}
+	var others: int = 0
+	for hit: Dictionary in (plan.get("hits", []) as Array):
+		if bool(hit["primary"]) and primary.is_empty():
+			primary = hit
+		elif int(hit.get("damage", 0)) > 0:
+			others += 1
+	var steps: Array = primary.get("steps", [])
+	var total: int = 0
+	for step: Array in steps:
+		total += int(step[1])
+	_check("(precondition) the Lancer's mortar at %s has an aimed target with %d steps, summing to its damage %d, and %d other hit"
+		% [aim, steps.size(), int(primary.get("damage", -1)), others], steps.size() > 1 and total == int(primary.get("damage", -1)) and others >= 1)
+	_click_tile(aim.x, aim.y)
+	await _settle()
+	var body: String = (hud.get("_info_body") as RichTextLabel).get_parsed_text()
+	var why: String = _scene.call("_steps_text", steps)
+	_check("A12: the aimed preview explains the aimed target's number: \"%s\"" % why,
+		not (_scene.get("_pending") as Dictionary).is_empty() and not why.is_empty() and body.contains(why))
+	var explained: Array = Array(body.split("\n")).filter(func(l: String) -> bool: return l.begins_with("    ") and l.contains(" → "))
+	_check("A12: and only the aimed target's (%d explanation line in the balloon, %d other hit)" % [explained.size(), others], explained.size() == 1)
+	# A step line reads: base, arrow, result, the steps in brackets.
+	_check("A12: the step line reads \"base → result (steps)\"", why.begins_with("%d → %d (" % [int(steps[0][1]), total]) and why.ends_with(")"))
+	_scene.queue_free()
+	await process_frame
+
+	# --- A18 on container_row: the Skirmisher steps to (5, 6) and aims its Scattergun at (3, 6): the
+	# shove moves the Courier and the tracker it shields re-aims. Ghosts and dashes only while aiming.
+	_scene = packed.instantiate()
+	_scene.set("_fight_id", "container_row")
+	root.add_child(_scene)
+	await _settle()
+	state = _scene.get("_state")
+	hud = _scene.get("_hud")
+	_key(KEY_3, true)
+	_key(KEY_3, false)
+	await _settle()
+	_click_tile(5, 6)
+	await _settle()
+	state = _scene.get("_state")
+	_check("(precondition) the Skirmisher walked to (5, 6)", state.unit(2).x == 5 and state.unit(2).y == 6)
+	_check("A18: nothing is ghosted before aiming", _marks_with("ghost").is_empty() and _marks_with("dashed").is_empty())
+	_click_control(_weapon_buttons(hud)[1])
+	await _settle()
+	_click_tile(3, 6)
+	await _settle()
+	var copy: CombatState = state.clone()
+	CombatSim.apply(copy, [CombatSim.ACT_ATTACK, 2, 1, 3, 6])
+	var moved: Array = []
+	for effect: Dictionary in CombatSim.diff(state, copy):
+		if effect.has("ref") and effect["moved_to"] != null and int(effect["ref"]) != 2:
+			moved.append(int(effect["ref"]))
+	_check("(precondition) aimed, and the sim says the shot moves %s" % [moved], not (_scene.get("_pending") as Dictionary).is_empty() and not moved.is_empty())
+	var ghosts: Array = _marks_with("ghost").map(func(n: Node) -> int: return int(n.get_meta("ghost")))
+	_check("A18: a ghost on the board for every machine the shot would move %s" % [ghosts], not ghosts.is_empty() and moved.all(func(r: int) -> bool: return ghosts.has(r)))
+	_check("A18: a dashed line for the intent that would re-aim", not _marks_with("dashed").is_empty())
+	_click_control(_weapon_buttons(hud)[1])
+	await _settle()
+	_check("(precondition) back to moving", not bool(_scene.get("_armed")))
+	_check("A18: the ghosts and dashes are gone once not aiming", _marks_with("ghost").is_empty() and _marks_with("dashed").is_empty())
+
+	# --- A4b, hot ground (staged on the live state: the look only). Drawn as floor, kept across a
+	# refresh, gone when the state drops it, and told by tapping the hex.
+	_scene.set("_selected", -1)
+	var hot := Vector2i(-1, -1)
+	for y: int in state.height:
+		for x: int in state.width:
+			if hot.x < 0 and state.unit_at(x, y) == null and not state.props.has(Vector2i(x, y)) and not state.solid(Vector2i(x, y)) \
+					and not state.is_pit(Vector2i(x, y)) and not state.piles.has(Vector2i(x, y)) and y >= 1 and y <= 3 and x >= 2 and x <= state.width - 3:
+				hot = Vector2i(x, y)
+	state.hot_ground[hot] = {"rounds": 1, "heat": 2}
+	_scene.call("_refresh")
+	await _settle()
+	var hot_views: Dictionary = _scene.get("_hot_views")
+	_check("A4b: hot ground at %s is drawn as floor" % [hot], hot_views.has(hot) and not (hot_views[hot] as Node).has_meta("intent"))
+	_click_tile(hot.x, hot.y)
+	await _settle()
+	_check("A4b: tapping it says HOT GROUND and the heat it adds", (hud.get("_info_title") as Label).text == "HOT GROUND"
+		and (hud.get("_info_body") as RichTextLabel).get_parsed_text().contains("takes 2 heat"))
+	state.hot_ground.erase(hot)
+	_scene.call("_refresh")
+	await _settle()
+	_check("A4b: and it goes when the ground cools", not (_scene.get("_hot_views") as Dictionary).has(hot))
+
+	# --- A3, reinforcements (staged: two waves to come, one marked now).
+	var setup: CombatSetup = _scene.get("_setup")
+	var mark := Vector2i(hot.x, hot.y)
+	state.wave_marks.append(mark)
+	state.wave_refs.append(90)
+	setup.escort_waves.append({"round": state.round_number + 1, "refs": [90]})
+	setup.escort_waves.append({"round": state.round_number + 3, "refs": [91]})
+	_scene.call("_refresh")
+	await _settle()
+	var line: String = (hud.get("_objective_label") as Label).text
+	_check("A3: the objective line counts the waves left (%s)" % line, line.contains("2 WAVES LEFT"))
+	_check("A3: the wave's mark says REINFORCEMENT NEXT ROUND",
+		(_scene.get("_marks_root") as Node).get_children().any(func(n: Node) -> bool: return n is Label3D and (n as Label3D).text.begins_with("REINFORCEMENT NEXT ROUND")))
+	state.wave_marks.clear()
+	state.wave_refs.clear()
+	setup.escort_waves.clear()
+	_scene.queue_free()
+	await process_frame
+
+	# --- A17 on container_row: the Dredge steps to (1, 5) and its Siege Maul at (1, 4) takes the enemy's
+	# shot away. The beat: a struck-through cloud, CANCELLED -N in amber, a hit-stop claimed.
+	_scene = packed.instantiate()
+	_scene.set("_fight_id", "container_row")
+	root.add_child(_scene)
+	await _settle()
+	state = _scene.get("_state")
+	hud = _scene.get("_hud")
+	_key(KEY_1, true)
+	_key(KEY_1, false)
+	await _settle()
+	_click_tile(1, 5)
+	await _settle()
+	_click_control(_weapon_buttons(hud)[0])
+	await _settle()
+	state = _scene.get("_state")
+	var trial: CombatState = state.clone()
+	var n0: int = trial.events.size()
+	CombatSim.apply(trial, [CombatSim.ACT_ATTACK, 0, 0, 1, 4])
+	var lost: Array = []
+	for i: int in range(n0, trial.events.size()):
+		if int(trial.events[i][GridEv.F_KIND]) == GridEv.INTENT_LOST:
+			lost = trial.events[i]
+	_check("(precondition) the Dredge at (1, 5) striking (1, 4) cancels a standing intent: %s" % [lost], not lost.is_empty())
+	_click_tile(1, 4)
+	await _settle()
+	_click_tile(1, 4)
+	var word: Label3D = null
+	var froze: bool = false
+	var vfx: Node = _scene.get("_vfx")
+	for frame: int in 2400:
+		await process_frame
+		for n: Node in _marks_with("cancelled"):
+			if n is Label3D and (n as Label3D).text.begins_with("CANCELLED"):
+				word = n
+		if word != null:
+			froze = float(vfx.get("_hitstop_cooldown")) > 0.0
+			break
+	var expect: String = ("CANCELLED -%d" % int(lost[GridEv.F_V1])) if not lost.is_empty() and int(lost[GridEv.F_V1]) > 0 else "CANCELLED"
+	_check("A17: the cancelled intent's beat letters \"%s\"" % expect, word != null and word.text == expect)
+	_check("A17: in amber (your doing), over a struck-through cloud", word != null and word.modulate == Ink.ACTION
+		and _marks_with("cancelled").any(func(n: Node) -> bool: return n is Sprite3D and (n as Sprite3D).texture != null and (n as Sprite3D).render_priority == 9))
+	_check("A17: with the rare hit-stop claimed", froze)
+	_check("A17: its sound is in the bank", (root.get_node("Audio").call("names") as Array).has("cancel"))
+	await _settle()
+	# Real time: the beat is gone within a second whatever the playback speed.
+	await create_timer(1.3, true, false, true).timeout
+	_check("A17: the beat clears itself", _marks_with("cancelled").filter(func(n: Node) -> bool: return not n.is_queued_for_deletion()).is_empty())
+	_scene.queue_free()
+	await process_frame
+
+	# --- The new cards, linked from their words.
+	var db: ContentDB = ContentDB.load_all()
+	for pair: Array in [["LOCKED", "locked"], ["KO", "ko"], ["hot ground", "hot_ground"], ["reinforcements", "reinforcements"], ["CANCELLED", "cancelled"]]:
+		_check("the glossary links %s to its card" % pair[0], Glossary.linkify("-4 %s here" % pair[0], db.glossary).contains("[url=%s]" % pair[1]))
+
+
+func _marks_with(meta: String) -> Array:
+	return (_scene.get("_marks_root") as Node).get_children().filter(func(n: Node) -> bool: return n.has_meta(meta) and not n.is_queued_for_deletion())
 
 
 func _key(code: Key, pressed: bool) -> void:
