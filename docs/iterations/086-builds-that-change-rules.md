@@ -55,14 +55,19 @@ bot's choices changed on purpose).
 - Focus A/B, uses per carrier per fight: free 1.06, **1 heat 0.95 (shipped)**, 2 heat 0.99, takes the move 0.18.
 - Affixes, crew HP lost per random fight (4.3 plain): rigged everywhere 1.1x, bulwark (plate 2) 1.2x, volatile
   everywhere 3.1x, volatile on one 1.5x. BULWARK went to plate 3 and RIGGED anchored after (the user).
-- T1 bot takes a rule perk at 39.2% of level-ups (aim over 50%): **not met** -- 3 rounds undervalue rules.
+- T1 bot takes a rule perk at 39.2% of level-ups in V1's build, 46.8% after the user's picks (aim over 50%): **not met**.
 - run_bot 150 (V1's build, before the user's picks): 56.0% (48-64) vs 57.3%; legendaries 1.34 offered, 0.61 fitted,
-  6.8% of sockets. After the picks: BOTNUMBERS
+  6.8% of sockets. After the picks (HEAD 773e7bb, before the
+  flag-perk filter): **won 90 of 150, 60.0% (52-67)**; lost in act 1/2/3 of those who got there 2.0% / 24.5% / 18.9%;
+  rounds per fight 5.2; fights costing no HP 32.4%; spoils in 97.9% of salvage; rule perks taken at **46.8%**
+  (44-50) of level-ups; legendaries 1.72 offered, 0.85 fitted, 9.1% (8-11) of sockets (aim under 8%, two gates
+  always is the user's pick); crew HP into a boss 36.8; rare+ fitted at the last gate 4.7.
 - The 2x enemy-turn gauge on slag_pit read 1836 ms (limit 1800). 086's code on 085's data plays it in 1586 ms:
   the new data changed what that turn holds, no beat grew. The limit for this fight is 1.9 s.
 
 ### Not met
-- T1's rule-perk share (39% < 50%).
+- T1's rule-perk share (46.8% < 50%).
+- Legendaries at 9.1% of sockets (aim under 8%) with both gates always holding one: the user's pick.
 - Fights costing no HP at rung 10 (carried from 085).
 
 ## Decisions, lessons, open questions
