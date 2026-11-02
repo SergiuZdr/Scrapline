@@ -131,8 +131,13 @@ static func override(db: ContentDB, setting: String, quiet: bool = false) -> voi
 		elif pair[0] == "bot.deals":
 			# 085: `bot.deals="walk"` (or "best", or a deal id): how RunBot takes a start deal.
 			db.set_meta("bot_deals", String(JSON.parse_string(pair[1])))
+		elif pair[0] == "bot.choose":
+			# 086 (T1): `bot.choose="old"` picks perks and salvage as before (perk 0, rarity); "dry" by a dry run.
+			db.set_meta("bot_choose", String(JSON.parse_string(pair[1])))
+		elif pair[0] == "bot.dry_rounds":
+			db.set_meta("bot_dry_rounds", int(JSON.parse_string(pair[1])))
 		elif pair[0] != "bot.abilities":
-			push_error("override %s: the bot has only bot.abilities, bot.route and bot.deals" % pair[0])
+			push_error("override %s: the bot has only bot.abilities, bot.route, bot.deals, bot.choose and bot.dry_rounds" % pair[0])
 		else:
 			db.set_meta("bot_abilities", bool(JSON.parse_string(pair[1])))
 		if not quiet:
@@ -161,6 +166,8 @@ static func bot_for(db: ContentDB) -> void:
 	CombatBot.use_abilities = bool(db.get_meta("bot_abilities", true))
 	RunBot.route = String(db.get_meta("bot_route", "forward"))
 	RunBot.deals = String(db.get_meta("bot_deals", "best"))
+	RunBot.choose = String(db.get_meta("bot_choose", "dry"))
+	RunBot.dry_rounds = int(db.get_meta("bot_dry_rounds", 3))
 
 
 ## 085: the options a bot run starts with, from `--set run.*` (none: `{}`, the plain game every bot

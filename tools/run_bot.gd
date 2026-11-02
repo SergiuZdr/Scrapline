@@ -146,7 +146,8 @@ func _new_stats() -> Dictionary:
 		"last_gate_rares": 0, "reasons": {}, "ended_col": {}, "ended_act": {}, "reached_act": {},
 		"gate_lost": {}, "fights_sq": 0, "fought": 0, "fought_sq": 0, "acts": 0, "bitten_acts": 0, "reached_acts": 0,
 		"pressed_acts": 0, "bites": 0, "reaches": 0, "conditions": {},
-		"fights_n": 0, "free_fights": 0, "rounds": 0, "rounds_sq": 0, "deals": {}, "deal_won": {}, "medals": {}, "records": {}}
+		"fights_n": 0, "free_fights": 0, "rounds": 0, "rounds_sq": 0, "deals": {}, "deal_won": {}, "medals": {}, "records": {},
+		"rewards": 0, "spoils": 0, "rule_perks": 0, "legends_seen": 0, "legends_fitted": 0, "sockets": 0, "affixed": 0, "elites": 0}
 
 
 ## Plays one run to its end and counts it into `stats`. Returns a line about it ("+" if won).
@@ -182,6 +183,18 @@ func _play(db: ContentDB, seed_value: int, stats: Dictionary) -> String:
 					hp_in += int(member["hp"])
 			stats["free_fights"] += 1 if hp_out >= hp_in else 0
 		var was_boss: bool = String(state.pending.get("site_type", "")) == "boss"
+		var site_type: String = String(state.pending.get("site_type", ""))
+		# 086 (A8/T1): how often the bot's level-up takes a perk that changes a rule.
+		if int(action[0]) == RunSim.LEVEL_UP:
+			var offer: Array[String] = RunSim.perk_offer(state, setup, int(action[1]))
+			if int(action[2]) < offer.size() and RunSim.is_rule_perk(setup, offer[int(action[2])]):
+				stats["rule_perks"] += 1
+		if int(action[0]) == RunSim.FIGHT and site_type == "elite":
+			stats["elites"] += 1
+			for spec: Variant in ((state.pending.get("fight", {}) as Dictionary).get("enemy", []) as Array):
+				if (spec as Dictionary).has("affix"):
+					stats["affixed"] += 1
+					break
 		var hp_before: int = 0
 		for member: Dictionary in state.crew:
 			hp_before += int(member["hp"])
@@ -189,6 +202,14 @@ func _play(db: ContentDB, seed_value: int, stats: Dictionary) -> String:
 			stats["errors"] += 1
 			print("  seed %d: illegal bot action %s (pending %s)" % [seed_value, str(action).left(80), state.pending.get("kind", "")])
 			break
+		# 086 (A7): the share of won fights' salvage that shows a part torn off the enemy.
+		if int(action[0]) == RunSim.FIGHT and ["skirmish", "elite", "arena"].has(site_type):
+			var reward: Dictionary = state.pending
+			if String(reward.get("kind", "")) == "wreck":
+				reward = reward.get("next", {})
+			if String(reward.get("kind", "")) == "reward":
+				stats["rewards"] += 1
+				stats["spoils"] += 1 if reward.has("torn_from") else 0
 		if bites:
 			bitten[act_now] = true
 			stats["bites"] += 1
@@ -220,6 +241,12 @@ func _play(db: ContentDB, seed_value: int, stats: Dictionary) -> String:
 		_count(stats["deal_won"], deal)
 	# 085 (B10): every crew's medals read off this run (the bot does not aim at any).
 	var summary: Dictionary = RunSim.run_summary(state, setup)
+	# 086 (A9): legendaries seen (offered) this run, and fitted at the end over every filled socket.
+	stats["legends_seen"] += state.legends.size()
+	stats["legends_fitted"] += int(summary["legendaries"])
+	for member: Dictionary in state.crew:
+		for part: Variant in (member["parts"] as Array):
+			stats["sockets"] += 0 if String(part).is_empty() else 1
 	for crew_id: Variant in (db.meta.get("crews", {}) as Dictionary):
 		for medal: Variant in Meta.medals(db.meta, String(crew_id)):
 			if RunSim.medal_met(medal as Dictionary, summary):
@@ -298,6 +325,12 @@ func _report(db: ContentDB, s: Dictionary, ms: int) -> void:
 	for m: Variant in medal_names:
 		medal_text.append("%s %d" % [m, int(s["medals"][m])])
 	print("    medals met (any crew's, unaimed): %s" % ", ".join(medal_text))
+	print("  086: salvage with a torn-off part %s; rule perks %s of level-ups; elites with an affix %s" % [
+		Stats.rate(int(s.get("spoils", 0)), int(s.get("rewards", 0))), Stats.rate(int(s.get("rule_perks", 0)), int(s.get("levels", 0))),
+		Stats.rate(int(s.get("affixed", 0)), int(s.get("elites", 0)))])
+	print("    legendaries per run: %.2f offered, %.2f fitted at the end (%s of filled sockets)" % [
+		s.get("legends_seen", 0) / n, s.get("legends_fitted", 0) / n,
+		Stats.rate(int(s.get("legends_fitted", 0)), int(s.get("sockets", 0)))])
 	print("  economy per run: %.1f levels bought, %.1f parts tuned, %.1f scrap unspent at the end" % [
 		s["levels"] / n, s["tunes"] / n, s["scrap_left"] / n])
 	print("  reached the boss: %d, crew HP going in: %.1f avg (total of the three)" % [s["reached_boss"],
