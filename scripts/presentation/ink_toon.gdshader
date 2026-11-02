@@ -80,6 +80,13 @@ uniform float livery_bold = 0.0;
 // brick over cream: a brick hue alone is too dark to keep the board's machine contrast).
 uniform float livery_plate_trim = 0.0;
 
+// 087 (A20, red means danger): a generated texture's HOT texels -- saturated red and orange, lit
+// enough to be molten, not rust -- recoloured to `hot_colour` (sRGB) at their own luminance times
+// `hot_value`, so the slag pool's glow becomes cooled umber and red is left to danger. 0 = off.
+uniform float hot_remap = 0.0;
+uniform vec3 hot_colour = vec3(0.48, 0.34, 0.21);
+uniform float hot_value = 0.85;
+
 // 0 none, 1 stipple dots, 2 diagonal hatching.
 uniform int pattern = 0;
 uniform vec3 pattern_colour : source_color = vec3(0.078, 0.067, 0.059);
@@ -143,6 +150,18 @@ vec3 repaint(vec3 c, vec2 uv) {
 	return pow(out_s, vec3(2.2));
 }
 
+// 087: see `hot_remap`. Works in sRGB like `repaint`; luminance is kept (times `hot_value`).
+vec3 cool_hot(vec3 c) {
+	vec3 s = pow(max(c, vec3(0.0)), vec3(1.0 / 2.2));
+	vec3 hsv = rgb2hsv(s);
+	float hot = (1.0 - smoothstep(0.1, 0.13, hsv.x) + smoothstep(0.9, 0.94, hsv.x))
+		* smoothstep(0.3, 0.45, hsv.y) * smoothstep(0.18, 0.3, hsv.z);
+	vec3 w = vec3(0.299, 0.587, 0.114);
+	float l = dot(s, w);
+	vec3 cooled = clamp(hot_colour * (l / max(dot(hot_colour, w), 0.001)) * hot_value, 0.0, 1.0);
+	return pow(mix(s, cooled, hot * hot_remap), vec3(2.2));
+}
+
 void fragment() {
 	vec3 c = use_tex ? texture(albedo_tex, UV, comic > 0.0 ? 1.2 : 0.0).rgb : albedo;
 	if (use_tex && use_clean) {
@@ -153,6 +172,9 @@ void fragment() {
 	}
 	if (use_tex && livery_on) {
 		c = repaint(c, UV);
+	}
+	if (use_tex && hot_remap > 0.0) {
+		c = cool_hot(c);
 	}
 	if (use_tex && comic > 0.0) {
 		float l = dot(c, vec3(0.299, 0.587, 0.114));
