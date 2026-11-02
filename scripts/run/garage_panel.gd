@@ -653,6 +653,16 @@ func _build_stats() -> void:
 	var width: int = int(NUMBERS_W) - 44
 	var words: Dictionary = Run.db.glossary
 
+	# 086 (A10): first, the sets it has going -- two or more of one maker, out of the pieces the rule
+	# needs (KESSLER 2/3) -- and the rule a full set gives, so a build reads before its numbers.
+	for entry: Dictionary in PartText.set_progress(Run.db.parts, Run.db.makers, member["parts"]):
+		if int(entry["count"]) < 2:
+			continue
+		var set_line := Glossary.label(PartText.set_progress_line(entry), NUM_TEXT, UIKit.INK_GREEN if bool(entry["complete"]) else UIKit.INK,
+			words, width, UIKit.font_strong())
+		set_line.name = "set_progress_%s" % String(entry["maker"])
+		body.add_child(set_line)
+
 	var grid := GridContainer.new()
 	grid.columns = 1
 	grid.add_theme_constant_override("v_separation", 2)
@@ -728,17 +738,9 @@ func _build_stats() -> void:
 		var perk: Dictionary = Run.db.perks.get(String(id), {})
 		body.add_child(Glossary.label("%s  ·  %s" % [String(perk.get("name", id)).to_upper(), String(perk.get("text", ""))],
 			NUM_TEXT, UIKit.INK_GREEN, words, width))
-	# 086 (A10): every maker on the machine, how far its set has come (2/3) and the rule three give;
-	# then the bonuses it has now.
-	var progress: Array = PartText.set_progress(Run.db.parts, Run.db.makers, member["parts"])
 	var sets: PackedStringArray = PartText.set_lines(Run.db.parts, Run.db.makers, member["parts"])
-	if not progress.is_empty():
-		_section(body, "SETS")
-	for entry: Dictionary in progress:
-		var line := Glossary.label(PartText.set_progress_line(entry), NUM_TEXT, UIKit.INK_GREEN if bool(entry["complete"]) else UIKit.TEXT,
-			words, width, UIKit.font_strong())
-		line.name = "set_progress_%s" % String(entry["maker"])
-		body.add_child(line)
+	if not sets.is_empty():
+		_section(body, "SET BONUSES")
 	for line_text: String in sets:
 		body.add_child(Glossary.label(line_text, NUM_TEXT, UIKit.INK_GREEN, words, width))
 
@@ -1062,19 +1064,25 @@ func _perk_card(k: int, id: String) -> Button:
 	card.add_child(inner)
 	inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_LG)
 	var grid: Dictionary = perk.get("grid", {})
+	var head := HBoxContainer.new()
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.add_child(head)
+	head.add_child(UIKit.fit(_label(String(perk.get("name", id)).to_upper(), 28, UIKit.TEXT, UIKit.font_comic()), 270 if rule else 380, 1, 16))
 	if rule:
-		var tag := UIKit.fit(_label("NEW RULE", UIKit.SIZE_LABEL, Ink.RUST, UIKit.font_comic()), 380, 1, 10)
+		var tag := UIKit.fit(_label("NEW RULE", UIKit.SIZE_BODY, Ink.RUST, UIKit.font_comic()), 106, 1, 10)
 		tag.name = "rule_tag"
-		inner.add_child(tag)
-	inner.add_child(UIKit.fit(_label(String(perk.get("name", id)).to_upper(), 28, UIKit.TEXT, UIKit.font_comic()), 380, 1, 16))
+		tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		head.add_child(tag)
 	inner.add_child(UIKit.fit(_label(String(perk.get("text", "")), UIKit.SIZE_BODY, UIKit.TEXT_DIM), 380, 3, 12))
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	inner.add_child(spacer)
-	var verbs: PackedStringArray = PartText.verb_lines(grid) if rule else PackedStringArray()
-	var gain: String = "\n".join(verbs).to_upper() if not verbs.is_empty() else PartText.bonus_text(grid).to_upper()
-	var gain_label := UIKit.fit(_label(gain, 22, UIKit.GREEN, UIKit.font_comic()), 380, maxi(2, verbs.size()), 12)
+	# A rule perk's gain is the verb it adds ("+ TEARS"); its text above says what the verb does.
+	var verbs: PackedStringArray = PartText.rule_verbs(grid) if rule else PackedStringArray()
+	var gain: String = ("+ " + " + ".join(verbs)) if not verbs.is_empty() else PartText.bonus_text(grid).to_upper()
+	var gain_label := UIKit.fit(_label(gain, 26 if rule else 22, UIKit.GREEN, UIKit.font_comic()), 380, 2, 12)
 	gain_label.name = "gain"
 	inner.add_child(gain_label)
 	card.pressed.connect(_level_up.bind(k))

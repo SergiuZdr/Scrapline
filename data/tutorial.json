@@ -143,7 +143,7 @@
     },
     "spoils": {
       "title": "TORN FROM",
-      "text": "The marked card is a part your crew tore off an enemy in this fight. Rip an arm off the machine you want it from, and it can turn up here."
+      "text": "The card under TORN FROM is a part your crew ripped off an enemy in this fight. Tear an arm off the machine you want it from, and it can turn up here."
     },
     "workshop": {
       "title": "WORKSHOP",
