@@ -2121,8 +2121,12 @@ func _test_spoils() -> void:
 	var ids: Array = low.map(func(f: Array) -> String: return String(f[0]))
 	var sorted_ids: Array = ids.duplicate()
 	sorted_ids.sort()
+	var unique: Dictionary = {}
+	for id: Variant in ids:
+		unique[id] = true
+	# Under a cap of 2 a wreck whose module is rare (the Courier's Targeting Rig) gives its core instead.
 	_check("spoils are sorted by id, one entry each %s" % [ids], not ids.is_empty() and ids == sorted_ids
-		and ids.size() == high.filter(func(f: Array) -> bool: return setup.rarity(String(f[0])) <= 2).size())
+		and unique.size() == ids.size())
 	var clean: bool = true
 	for f: Array in high:
 		var id: String = String(f[0])
