@@ -80,6 +80,21 @@ var regen: int = 0
 var kill_heal: int = 0
 var last_stand: bool = false
 var stood: bool = false
+## 086 (A9, the legendaries): `rise_pct` -- a last stand leaves it at that share of its max HP
+## instead of 1 (the Phoenix Cell); `anchors` -- no machine of its side next to it can be shoved
+## (the Colossus); `ward` -- every machine of its side next to it takes that much less from every
+## hit (the Aegis Rig, the warden's rule); `meltdown` -- the moment it overheats it blasts every
+## neighbour for that much, its own side included (the Crucible Heart); `rooted` -- moves it has
+## lost (a weapon that `roots`: the Godhammer). A negative `regen` burns it a point a round, never
+## below 1 HP.
+var rise_pct: int = 0
+var anchors: bool = false
+var ward: int = 0
+var meltdown: int = 0
+var rooted: int = 0
+## 086 (A5): an elite's affix (`enemy_kinds.json` `elite_affixes`), laid over its kind's rules by
+## `CombatSim.kind_rules`, or "".
+var affix: String = ""
 
 ## False once destroyed. A destroyed unit stays on its tile as a wreck that blocks.
 var alive: bool = true
@@ -154,4 +169,10 @@ func copy() -> GridUnit:
 	u.kill_heal = kill_heal
 	u.last_stand = last_stand
 	u.stood = stood
+	u.rise_pct = rise_pct
+	u.anchors = anchors
+	u.ward = ward
+	u.meltdown = meltdown
+	u.rooted = rooted
+	u.affix = affix
 	return u

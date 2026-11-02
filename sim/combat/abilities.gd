@@ -46,7 +46,7 @@ static func targets(state: CombatState, u: GridUnit, i: int) -> Array[Vector2i]:
 				if not state.inside(cell) or Hex.distance(here, cell) < 2:
 					continue
 				var other: GridUnit = state.unit_at(cell.x, cell.y)
-				if other == null or other.unshovable or not _clear_line(state, here, cell):
+				if other == null or CombatSim.held(state, other) or not _clear_line(state, here, cell):
 					continue
 				out.append(cell)
 		"barricade":
@@ -71,7 +71,10 @@ static func usable(state: CombatState, u: GridUnit, i: int) -> bool:
 	if not bool(ability["free"]) and u.acted:
 		return false
 	# 047: a snared machine cannot move -- not on foot, not by a dash or a charge.
-	if u.snared and ["dash", "charge"].has(String(ability["kind"])):
+	if (u.snared or u.rooted > 0) and ["dash", "charge"].has(String(ability["kind"])):
+		return false
+	# 086 (B6): an ability that `takes_move` (a dial on Focus) is the machine's move: not after one.
+	if bool(ability.get("takes_move", false)) and u.moved:
 		return false
 	match String(ability["kind"]):
 		"charge":
@@ -132,6 +135,8 @@ static func use(state: CombatState, ref: int, i: int, target: Vector2i) -> bool:
 		"magnet":
 			CombatSim.collect_at(state, u, target)
 	ability["wait"] = int(ability["cooldown"])
+	if bool(ability.get("takes_move", false)):
+		u.moved = true
 	if not bool(ability["free"]):
 		u.acted = true
 		if not u.move_after_attack:
