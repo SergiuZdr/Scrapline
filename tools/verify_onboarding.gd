@@ -90,9 +90,44 @@ func _test_glossary() -> void:
 		if not String(id).begins_with("_") and not forms.has(String((_db.combat_abilities[id] as Dictionary).get("name", id)).to_lower()):
 			missing.append(String(id))
 	for id: Variant in _db.enemy_kinds:
-		if not String(id).begins_with("_") and not forms.has(String(id).to_lower()):
+		# 086: `elite_affixes` is not a kind (its affixes are checked below).
+		if not String(id).begins_with("_") and String(id) != "elite_affixes" and not forms.has(String(id).to_lower()):
 			missing.append(String(id))
 	_check("every ability and enemy kind has a glossary card %s" % [missing], missing.is_empty())
+	# 086: every elite affix, every rule a perk or a full set gives, and the words of builds that
+	# change rules (spoils, rule perks, set rules, drawbacks) each have a card a screen links to.
+	var text_script: Script = load("res://scripts/ui/part_text.gd")
+	var bare: PackedStringArray = []
+	var affixes: Dictionary = _db.enemy_kinds.get("elite_affixes", {})
+	for id: Variant in affixes:
+		var tag: String = String((text_script.call("affix", _db.enemy_kinds, words, String(id)) as Dictionary)["name"])
+		if String(id).begins_with("_"):
+			continue
+		if not (words["terms"] as Dictionary).has(String(id)) or not Glossary.terms_in("ELITE: " + tag, words).has(String(id)):
+			bare.append("affix " + String(id))
+	var verbs: Dictionary = {}
+	for id: Variant in _db.perks:
+		var perk: Variant = _db.perks[id]
+		if perk is Dictionary and bool(text_script.call("is_rule_perk", perk)):
+			for line: String in (text_script.call("verb_lines", (perk as Dictionary).get("grid", {})) as PackedStringArray):
+				verbs[line] = "perk " + String(id)
+	for maker: Variant in _db.makers:
+		if String(maker).begins_with("_"):
+			continue
+		var rule: Array = text_script.call("set_rule", _db.makers, String(maker))
+		if not rule.is_empty():
+			var sets: Dictionary = (_db.makers[maker] as Dictionary).get("sets", {})
+			for line: String in (text_script.call("verb_lines", sets.get(str(rule[0]), {})) as PackedStringArray):
+				verbs[line] = "set " + String(maker)
+	for line: Variant in verbs:
+		if Glossary.terms_in(String(line), words).is_empty():
+			bare.append("%s (%s)" % [verbs[line], line])
+	for pair: Array in [["spoils", "TORN FROM THE TRACKER"], ["rule_perk", "NEW RULE"], ["set_rule", "full set"], ["drawback", "DRAWBACK: it hits your own too"],
+			["affix", "elite affix"]]:
+		if not Glossary.terms_in(String(pair[1]), words).has(String(pair[0])):
+			bare.append(String(pair[0]))
+	_check("086: every affix (%d), every rule verb a perk or set gives (%d) and spoils, rule perks, set rules and drawbacks have a linked card %s" % [
+		affixes.size(), verbs.size(), bare], bare.is_empty() and verbs.size() >= 5)
 
 
 ## The shakedown's data is well formed: every step's `until` is one the coach knows.
