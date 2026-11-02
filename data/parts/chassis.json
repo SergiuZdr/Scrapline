@@ -416,9 +416,10 @@
     "role": "anchor",
     "grid": {
       "hp": 18,
-      "move": 3,
+      "move": 2,
       "heat_cap": 8,
-      "ability": "charge"
+      "ability": "charge",
+      "anchors": true
     },
     "tuning": [
       {
@@ -428,12 +429,14 @@
         }
       },
       {
-        "name": "Geared",
+        "name": "Cooled",
         "grid": {
-          "move": 1
+          "heat_cap": 2
         }
       }
     ],
-    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')",
+    "rule": "Cannot be shoved, and neither can any of your machines next to it.",
+    "drawback": "Moves only 2."
   }
 ]

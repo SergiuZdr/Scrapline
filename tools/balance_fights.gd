@@ -497,6 +497,17 @@ func _compare(numbers: Dictionary, authored_items: int, count: int) -> void:
 		int(100.0 * b["enemy_dmg"] / maxf(1.0, b["player_dmg"]))])
 	print("  the bot used: A %s" % _uses_text(a["uses"]))
 	print("                B %s" % _uses_text(b["uses"]))
+	# 086 (B6): per fight -- Focus (a boost without heat) against the other abilities, and overheats.
+	for pair: Array in [["A", a], ["B", b]]:
+		var st: Dictionary = pair[1]
+		var n: float = maxf(1.0, float(st["fights"]))
+		var others: int = 0
+		for kind: Variant in (st["uses"] as Dictionary):
+			if not ["focus", "boost", "shield arm"].has(String(kind)):
+				others += int(st["uses"][kind])
+		print("  %s per fight: Focus %.2f, Overdrive %.2f, Charge/Dash/Barricade/... %.2f, overheats %.2f" % [pair[0],
+			int((st["uses"] as Dictionary).get("focus", 0)) / n, int((st["uses"] as Dictionary).get("boost", 0)) / n,
+			others / n, int(st.get("overheats", 0)) / n])
 	print("")
 
 
@@ -515,7 +526,7 @@ func _uses_text(uses: Dictionary) -> String:
 func _new_stats() -> Dictionary:
 	return {"fights": 0, "won": 0, "lost_objective": 0, "lost_crew": 0, "timeout": 0, "rounds": 0,
 		"player_dmg": 0, "enemy_dmg": 0, "crew_hp_lost": 0,
-		"crew_hp_lost_sq": 0, "intents": 0, "intents_hit": 0, "uses": {}}
+		"crew_hp_lost_sq": 0, "intents": 0, "intents_hit": 0, "uses": {}, "overheats": 0}
 
 
 ## Plays one fight with the bot. Returns true on a win.
@@ -535,6 +546,9 @@ func _play(db: ContentDB, fight: Dictionary, seed_value: int, stats: Dictionary)
 			var u: GridUnit = state.unit(int(action[1]))
 			if int(action[0]) == CombatSim.ACT_ABILITY:
 				var kind: String = String(u.abilities[int(action[2])]["kind"])
+				# 086 (B6): Focus counted apart from Overdrive (both are boosts).
+				if String(u.abilities[int(action[2])]["id"]) == "focus":
+					kind = "focus"
 				uses[kind] = int(uses.get(kind, 0)) + 1
 			elif int(action[0]) == CombatSim.ACT_ATTACK and String(u.weapons[int(action[2])]["shape"]) == "shield":
 				uses["shield arm"] = int(uses.get("shield arm", 0)) + 1
@@ -562,6 +576,8 @@ func _play(db: ContentDB, fight: Dictionary, seed_value: int, stats: Dictionary)
 		var actor: int = int(e[GridEv.F_ACTOR])
 		if kind == GridEv.INTENT_SET:
 			stats["intents"] += 1
+		elif kind == GridEv.OVERHEAT and actor >= 0 and actor < 10:
+			stats["overheats"] += 1
 		elif kind == GridEv.ATTACK:
 			fired_by_enemy = actor >= 10
 		elif kind == GridEv.DAMAGE and actor >= 0:
@@ -616,7 +632,8 @@ func _random_squad(rng: SimRNG, template: Array) -> Array:
 ## 084 (B7): `all.<key>=json` in `--set` / `--b` lays a key over every fight played (authored and
 ## random). `all.modifiers=["wires"]` also lays the cables the way a run does (`RunSim.lay_wires`);
 ## `all.enemy_bonus={"hp":20,"damage":2}` arms every enemy, so a condition is judged on fights the
-## crew can lose (a test the crew always wins cannot show a 5-point change).
+## crew can lose (a test the crew always wins cannot show a 5-point change). `all.enemy_affix="bulwark"`
+## (086) gives every enemy an elite affix.
 static func _all_settings(settings: PackedStringArray) -> Dictionary:
 	var out: Dictionary = {}
 	for setting: String in settings:
@@ -634,7 +651,11 @@ func _lay_all(db: ContentDB, fight: Dictionary, seed_value: int) -> Dictionary:
 	var keys: Array = lay.keys()
 	keys.sort()
 	for key: Variant in keys:
-		if String(key) == "enemy_bonus":
+		if String(key) == "enemy_affix":
+			# 086 (A5): `all.enemy_affix="volatile"` gives every enemy that elite affix.
+			for spec: Dictionary in out.get("enemy", []):
+				spec["affix"] = String(lay[key])
+		elif String(key) == "enemy_bonus":
 			for spec: Dictionary in out.get("enemy", []):
 				var bonus: Dictionary = spec.get("bonus", {})
 				for k: Variant in lay[key]:

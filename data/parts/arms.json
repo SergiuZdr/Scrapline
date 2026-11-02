@@ -228,7 +228,8 @@
       "shape": "melee",
       "range": 1,
       "damage": 4,
-      "heat": 1
+      "heat": 1,
+      "tear_at": 4
     },
     "tuning": [
       {
@@ -243,7 +244,8 @@
           "damage": 1
         }
       }
-    ]
+    ],
+    "_086": "B6: the Saw stops being the Cleaver -- it tears an arm off at 4 damage, not the rules' 5 (its own trait; T2 in docs/plans/parts-power.md)"
   },
   {
     "id": "ar_scatter",
@@ -534,10 +536,11 @@
     "grid": {
       "shape": "melee",
       "range": 1,
-      "damage": 7,
+      "damage": 6,
       "heat": 2,
-      "shove": 1,
-      "tears": true
+      "shove": 2,
+      "tears": true,
+      "roots": 1
     },
     "tuning": [
       {
@@ -554,7 +557,9 @@
       }
     ],
     "look": "sledge",
-    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')",
+    "rule": "Shoves 2 hexes and tears an arm off with every hit.",
+    "drawback": "Striking roots you: no move for the rest of the turn or the next."
   },
   {
     "id": "ar_sunspear",
@@ -568,9 +573,10 @@
     "grid": {
       "shape": "shot",
       "range": 6,
-      "damage": 5,
+      "damage": 4,
       "heat": 2,
-      "pierce": 3
+      "pierce": 99,
+      "breach": true
     },
     "tuning": [
       {
@@ -589,7 +595,9 @@
     "damage_type": "thermal",
     "_037": "play-test 11: this arm deals its OWN damage type, whatever core drives it",
     "look": "rail_lance",
-    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')",
+    "rule": "The beam goes through everything on its line -- machines, crates, heaps and walls.",
+    "drawback": "Your own machines on the line take it too."
   },
   {
     "id": "ar_flail",
