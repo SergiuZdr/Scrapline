@@ -335,13 +335,15 @@ static func set_progress_line(entry: Dictionary) -> String:
 	return "%s  ·  %s%s" % [head, "" if bool(entry["complete"]) else "at %d: " % int(entry["full"]), " + ".join(verbs)]
 
 
-## 086 (A5): an elite affix's `{name, text}`, from enemy_kinds.json's `elite_affixes` block, else from
-## its glossary card; the id in capitals when neither knows it.
+## 086 (A5): an elite affix's `{name, text, short}` -- `name` the one word its tag carries ("VOLATILE"),
+## `short` its rule in a phrase for a map card -- from enemy_kinds.json's `elite_affixes` block, else
+## from its glossary card; the id in capitals when neither knows it.
 static func affix(enemy_kinds: Dictionary, glossary: Dictionary, id: String) -> Dictionary:
 	var own: Dictionary = (enemy_kinds.get("elite_affixes", {}) as Dictionary).get(id, {})
 	var term: Dictionary = (glossary.get("terms", {}) as Dictionary).get(id, {})
-	return {"name": String(own.get("name", term.get("name", id.capitalize()))).to_upper(),
-		"text": String(own.get("text", term.get("text", "")))}
+	var text: String = String(own.get("text", term.get("text", "")))
+	return {"name": String(own.get("tag", own.get("name", term.get("name", id.capitalize())))).to_upper(),
+		"text": text, "short": String(own.get("short", text))}
 
 
 ## The affixes a fight spec or a unit carries: `affix` (one id) or `affixes` (a list), [] for none.

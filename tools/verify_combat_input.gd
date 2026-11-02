@@ -197,6 +197,7 @@ func _run() -> void:
 		_check("a round-2 UNDO takes under 150 ms", took < 150000)
 
 	await _playback_speeds(packed)
+	await _builds(packed)
 
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
@@ -275,6 +276,94 @@ func _playback_speeds(packed: PackedScene) -> void:
 	_scene.queue_free()
 	await process_frame
 	_check("leaving the fight leaves the clock at 1x", Engine.time_scale == 1.0)
+
+
+## 086: an elite's affix as a tag over the machine (one word and its icon) and in its info balloon;
+## a legendary's drawback said in the preview of the attack that sets it off (the Sunspear's beam
+## through a crew machine), and not in one that does not.
+func _builds(packed: PackedScene) -> void:
+	_scene = packed.instantiate()
+	_scene.set("_fight_id", "slag_pit")
+	root.add_child(_scene)
+	await _settle()
+	var state: CombatState = _scene.get("_state")
+	var db: ContentDB = _scene.get("_db")
+	var enemy: GridUnit = state.crew(GridUnit.TEAM_ENEMY)[0]
+	# Staged on the live state (a run's elite carries it from its spec); the view rebuilds a machine
+	# whose look changed.
+	enemy.set("affix", "volatile")
+	_scene.call("_resync_units")
+	await _settle()
+	var view: Dictionary = (_scene.get("_views") as Dictionary)[enemy.ref]
+	var tag: Label3D = view.get("affix", null) as Label3D
+	var info: Dictionary = (load("res://scripts/ui/part_text.gd") as Script).call("affix", db.enemy_kinds, db.glossary, "volatile")
+	_check("an elite with an affix carries it over its tag: %s" % (tag.text if tag != null else "none"),
+		tag != null and tag.visible and tag.text == String(info["name"]) and tag.text == "VOLATILE")
+	var icon: Sprite3D = tag.get_node_or_null("affix_icon") as Sprite3D if tag != null else null
+	_check("with its icon beside the word", icon != null and icon.texture != null and icon.offset.x < 0.0)
+	_check("and the word sits above the HP tag", tag != null and tag.offset.y > 0.0)
+	var other: GridUnit = state.crew(GridUnit.TEAM_ENEMY)[1] if state.crew(GridUnit.TEAM_ENEMY).size() > 1 else null
+	_check("an enemy without one has no affix tag", other == null or not ((_scene.get("_views") as Dictionary)[other.ref] as Dictionary).has("affix"))
+	_click_tile(enemy.x, enemy.y)
+	await _settle()
+	var hud: Control = _scene.get("_hud")
+	var body: String = (hud.get("_info_body") as RichTextLabel).get_parsed_text()
+	_check("tapping it says the affix and what it does", body.contains("VOLATILE: " + String(info["text"])))
+	_check("and VOLATILE links to its glossary card", (hud.get("_info_body") as RichTextLabel).text.contains("[url=volatile]"))
+
+	# The Sunspear, on the first machine, with a crew machine on its beam's line.
+	var spear: Dictionary = db.parts.get("ar_sunspear", {})
+	_check("(the Sunspear has a drawback in its data: %s)" % String(spear.get("drawback", "")), not String(spear.get("drawback", "")).is_empty())
+	var shooter: GridUnit = state.unit(0)
+	shooter.weapons[0] = CombatSetup.weapon_from(spear)
+	shooter.heat = 0
+	var from := Vector2i(shooter.x, shooter.y)
+	var aim := Vector2i(-1, -1)
+	var ally_at := Vector2i(-1, -1)
+	for d: int in 6:
+		var near: Vector2i = Hex.neighbor(from, d)
+		var far: Vector2i = Hex.neighbor(Hex.neighbor(near, d), d)
+		var there: GridUnit = state.unit_at(far.x, far.y) if state.inside(far) else null
+		if aim.x < 0 and state.inside(near) and state.inside(far) and state.unit_at(near.x, near.y) == null \
+				and (there == null or there.team != GridUnit.TEAM_PLAYER) and CombatSim.can_attack(state, shooter.ref, 0, far):
+			ally_at = near
+			aim = far
+	_check("(a line from the shooter with room for an ally on it)", aim.x >= 0)
+	if aim.x < 0:
+		return
+	var ally: GridUnit = state.unit(1)
+	ally.x = ally_at.x
+	ally.y = ally_at.y
+	_scene.call("_resync_units")
+	await _settle()
+	var plan: Dictionary = CombatSim.preview_attack(state, shooter.ref, 0, aim)
+	_check("(the sim says the beam hits %s: friendly %s)" % [ally.name, plan.get("friendly", [])], (plan.get("friendly", []) as Array).has(ally.ref))
+	# Picked by its key (1): its own tile now has a crew machine beside it, in front of the camera.
+	_key(KEY_1, true)
+	_key(KEY_1, false)
+	await _settle()
+	_check("(key 1 picks the shooter)", int(_scene.get("_selected")) == shooter.ref)
+	_click_control(_weapon_buttons(hud)[0])
+	await _settle()
+	_click_tile(aim.x, aim.y)
+	await _settle()
+	body = (hud.get("_info_body") as RichTextLabel).get_parsed_text()
+	_check("aiming it through %s, the preview leads with the DRAWBACK" % ally.name.to_upper(), not (_scene.get("_pending") as Dictionary).is_empty()
+		and body.begins_with("DRAWBACK: it hits your own too (%s)" % ally.name.to_upper()))
+	# Aimed where no crew machine stands on the line: no drawback.
+	var clear := Vector2i(-1, -1)
+	for cell: Vector2i in CombatSim.aim_options(state, shooter, 0):
+		var occupant: GridUnit = state.unit_at(cell.x, cell.y)
+		if clear.x < 0 and (occupant == null or occupant.team != GridUnit.TEAM_PLAYER) and (CombatSim.preview_attack(state, shooter.ref, 0, cell).get("friendly", []) as Array).is_empty() \
+				and bool(CombatSim.preview_attack(state, shooter.ref, 0, cell).get("legal", false)):
+			clear = cell
+	if clear.x >= 0:
+		_click_tile(clear.x, clear.y)
+		await _settle()
+		body = (hud.get("_info_body") as RichTextLabel).get_parsed_text()
+		_check("aimed clear of the crew, no DRAWBACK line", not (_scene.get("_pending") as Dictionary).is_empty() and not body.contains("DRAWBACK"))
+	_scene.queue_free()
+	await process_frame
 
 
 func _key(code: Key, pressed: bool) -> void:
