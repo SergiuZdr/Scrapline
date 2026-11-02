@@ -245,6 +245,16 @@ func _go() -> void:
 		# gone (`--until fight --enter`).
 		change_scene_to_file("res://scenes/combat.tscn")
 		await create_timer(_arg(args, "--enter", "8").to_float()).timeout
+		if args.has("--affixes"):
+			# 086, screenshot only: the enemies wear these affixes in turn (every icon at board distance).
+			var ids: PackedStringArray = _arg(args, "--affixes", "volatile,rigged,bulwark").split(",")
+			var fight: CombatState = current_scene.get("_state")
+			var enemies: Array = fight.crew(GridUnit.TEAM_ENEMY)
+			for i: int in mini(ids.size(), enemies.size()):
+				(enemies[i] as GridUnit).set("affix", ids[i])
+			current_scene.call("_resync_units")
+			current_scene.call("_refresh")
+			await create_timer(1.0).timeout
 	var image: Image = root.get_texture().get_image()
 	DirAccess.make_dir_recursive_absolute(out.get_base_dir())
 	print("shot: %s (%s)" % [out, error_string(image.save_png(out))])

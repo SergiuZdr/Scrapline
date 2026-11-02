@@ -2118,8 +2118,8 @@ func _set_tag_text(view: Dictionary, u: GridUnit) -> void:
 	(view["tag"] as Label3D).text = "\n".join(lines)
 
 
-## 086 (A5): the affix tag of an elite (`u.affix`): its name in the danger red on the tag's ink edge,
-## an icon to its left, or null for a unit without one. Placed by `_place_affix`.
+## 086 (A5): the affix tag of an elite (`u.affix`): its name in paper on the tag's ink edge, its red
+## icon to its left, or null for a unit without one. Placed by `_place_affix`.
 func _affix_tag(u: GridUnit, tag: Label3D) -> Label3D:
 	var ids: PackedStringArray = PartText.affixes_of(u)
 	if ids.is_empty() or u.team != GridUnit.TEAM_ENEMY:
@@ -2137,7 +2137,8 @@ func _affix_tag(u: GridUnit, tag: Label3D) -> Label3D:
 	label.no_depth_test = true
 	label.outline_size = 24
 	label.outline_modulate = Ink.INK
-	label.modulate = Ink.DANGER
+	# The user (086): paper like every other tag; the icon carries the red.
+	label.modulate = Ink.PAPER
 	label.render_priority = 10
 	label.outline_render_priority = 9
 	label.position = tag.position
@@ -2170,49 +2171,82 @@ func _place_affix(affix: Label3D, tag: Label3D) -> void:
 		icon.offset = Vector2(affix.offset.x - own.x * 0.5 - icon_w * 0.5 - 6.0, affix.offset.y)
 
 
-const AFFIX_ICON_PX: int = 64
+const AFFIX_ICON_PX: int = 80
 static var _affix_icons: Dictionary = {}
 
 
-## 086 (A5): an affix's icon, drawn once into a texture: VOLATILE a burst, RIGGED a bolt through a
-## bar (the arms are bolted on), BULWARK a shield; anything else a diamond. Ink edge, red fill.
+## 086 (A5): an affix's icon, drawn once into a texture, the red the tag leaves to it: VOLATILE a burst,
+## RIGGED a bolt (its arms are bolted on), BULWARK a shield; anything else a diamond. Each is a union
+## of solid polygons, filled red inside a heavy ink edge (the mask eroded by EDGE pixels) so the
+## shape still reads at board distance.
 func _affix_icon(id: String) -> Texture2D:
 	if _affix_icons.has(id):
 		return _affix_icons[id]
 	var n: int = AFFIX_ICON_PX
 	var c := Vector2(n, n) * 0.5
-	var shape := PackedVector2Array()
+	var shapes: Array[PackedVector2Array] = []
 	match id:
 		"volatile":
+			var burst := PackedVector2Array()
 			for i: int in 16:
-				var r: float = (0.48 if i % 2 == 0 else 0.24) * n
+				var r: float = (0.49 if i % 2 == 0 else 0.26) * n
 				var a: float = TAU * float(i) / 16.0 - PI / 2.0
-				shape.append(c + Vector2(cos(a), sin(a)) * r)
+				burst.append(c + Vector2(cos(a), sin(a)) * r)
+			shapes.append(burst)
 		"bulwark":
-			for p: Vector2 in [Vector2(0.1, 0.14), Vector2(0.5, 0.04), Vector2(0.9, 0.14), Vector2(0.84, 0.58), Vector2(0.5, 0.96), Vector2(0.16, 0.58)]:
-				shape.append(p * n)
+			var shield := PackedVector2Array()
+			for p: Vector2 in [Vector2(0.08, 0.12), Vector2(0.5, 0.02), Vector2(0.92, 0.12), Vector2(0.86, 0.58), Vector2(0.5, 0.98), Vector2(0.14, 0.58)]:
+				shield.append(p * n)
+			shapes.append(shield)
 		"rigged":
-			# A hex nut: what holds the arms on.
+			# A bolt standing on end: a wide hex head and a thick threaded shank under it.
+			var head := PackedVector2Array()
 			for i: int in 6:
 				var a: float = TAU * float(i) / 6.0
-				shape.append(c + Vector2(cos(a), sin(a)) * 0.47 * n)
+				head.append(Vector2(0.5, 0.25) * n + Vector2(cos(a) * 0.45, sin(a) * 0.24) * n)
+			shapes.append(head)
+			var shank := PackedVector2Array()
+			for p: Vector2 in [Vector2(0.33, 0.4), Vector2(0.67, 0.4), Vector2(0.67, 0.86), Vector2(0.5, 0.99), Vector2(0.33, 0.86)]:
+				shank.append(p * n)
+			shapes.append(shank)
 		_:
-			for p: Vector2 in [Vector2(0.5, 0.04), Vector2(0.96, 0.5), Vector2(0.5, 0.96), Vector2(0.04, 0.5)]:
-				shape.append(p * n)
-	var inner := PackedVector2Array()
-	for p: Vector2 in shape:
-		inner.append(c + (p - c) * 0.68)
+			var diamond := PackedVector2Array()
+			for p: Vector2 in [Vector2(0.5, 0.02), Vector2(0.98, 0.5), Vector2(0.5, 0.98), Vector2(0.02, 0.5)]:
+				diamond.append(p * n)
+			shapes.append(diamond)
+	var mask := PackedByteArray()
+	mask.resize(n * n)
+	for y: int in n:
+		for x: int in n:
+			var at := Vector2(x + 0.5, y + 0.5)
+			for shape: PackedVector2Array in shapes:
+				if Geometry2D.is_point_in_polygon(at, shape):
+					mask[y * n + x] = 1
+					break
+	const EDGE: int = 6
 	var image := Image.create(n, n, false, Image.FORMAT_RGBA8)
 	image.fill(Color(0, 0, 0, 0))
 	for y: int in n:
 		for x: int in n:
-			var at := Vector2(x + 0.5, y + 0.5)
-			if Geometry2D.is_point_in_polygon(at, inner):
-				# RIGGED's nut has a hole: the bolt's shaft, in ink.
-				var hole: bool = id == "rigged" and at.distance_to(c) < 0.15 * n
-				image.set_pixel(x, y, Ink.INK if hole else Ink.DANGER)
-			elif Geometry2D.is_point_in_polygon(at, shape):
-				image.set_pixel(x, y, Ink.INK)
+			if mask[y * n + x] == 0:
+				continue
+			var core: bool = true
+			for dy: int in range(-EDGE, EDGE + 1):
+				for dx: int in range(-EDGE, EDGE + 1):
+					if not core or dx * dx + dy * dy > EDGE * EDGE:
+						continue
+					var xx: int = x + dx
+					var yy: int = y + dy
+					if xx < 0 or yy < 0 or xx >= n or yy >= n or mask[yy * n + xx] == 0:
+						core = false
+			image.set_pixel(x, y, Ink.DANGER if core else Ink.INK)
+	# RIGGED's thread: ink notches across the shank.
+	if id == "rigged":
+		for row: float in [0.55, 0.68, 0.81]:
+			var y: int = int(row * n)
+			for x: int in range(int(0.33 * n) + EDGE, int(0.67 * n) - EDGE):
+				for t: int in 3:
+					image.set_pixel(x, y + t, Ink.INK)
 	var tex := ImageTexture.create_from_image(image)
 	_affix_icons[id] = tex
 	return tex

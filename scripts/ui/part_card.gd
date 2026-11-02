@@ -79,7 +79,8 @@ static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array 
 		picture.texture = tex
 		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		picture.custom_minimum_size = Vector2(0, size.y * 0.3)
+		# 086: a card with a drawback strip gives its picture less height, so nothing runs off the card.
+		picture.custom_minimum_size = Vector2(0, size.y * (0.18 if not PartText.drawback_of(parts, id).is_empty() else 0.3))
 		# The picture takes whatever height the text leaves, so a tall card is not half empty.
 		picture.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -93,23 +94,21 @@ static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array 
 		var rule_line := UIKit.fit(_label("RULE: " + rule, UIKit.SIZE_MICRO, colour, UIKit.font_strong()), inner_w, 2, 9)
 		rule_line.name = "rule"
 		inner.add_child(rule_line)
-	if not drawback.is_empty():
-		var cost_line := UIKit.fit(_label("DRAWBACK: " + drawback, UIKit.SIZE_MICRO, UIKit.RED, UIKit.font_strong()), inner_w, 2, 9)
-		cost_line.name = "drawback"
-		inner.add_child(cost_line)
 	# 086 (A10): the rule its maker's full set gives ("KESSLER SET (3): THORNS + ANCHORED").
 	var set_line: String = set_rule_line(db, id)
 	if not set_line.is_empty():
 		var verb := UIKit.fit(_label(set_line, UIKit.SIZE_MICRO, UIKit.GREEN, UIKit.font_strong()), inner_w, 1, 9)
 		verb.name = "set_rule"
 		inner.add_child(verb)
-	# 082 (A22): the line the part's maker would say about it, in italics.
+	# 082 (A22): the line the part's maker would say about it, in italics. 086: a legendary's card
+	# keeps it in the tooltip only -- its rule and drawback need the room.
 	var said: String = flavour(parts, id)
 	if not said.is_empty():
-		var lines: int = 2 if size.y >= 220.0 and rule.is_empty() and drawback.is_empty() else 1
+		button.tooltip_text = said
+	if not said.is_empty() and drawback.is_empty():
+		var lines: int = 2 if size.y >= 220.0 and rule.is_empty() else 1
 		var line := UIKit.fit(_label(said, UIKit.SIZE_MICRO, UIKit.TEXT_DIM, italic()), inner_w, lines, 9)
 		line.name = "flavour"
-		button.tooltip_text = said
 		inner.add_child(line)
 	if not compare_crew.is_empty():
 		var verdict: Array = compare(parts, id, compare_crew)
@@ -118,6 +117,21 @@ static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array 
 		var completes: String = set_verdict(db, id, compare_crew)
 		if not completes.is_empty():
 			inner.add_child(UIKit.fit(_label(completes, UIKit.SIZE_MICRO, UIKit.GREEN, UIKit.font_strong()), inner_w, 1, 9))
+	# 086 (A9, the user): a legendary's drawback in its own red-edged strip along the card's foot.
+	if not drawback.is_empty():
+		var strip := PanelContainer.new()
+		strip.name = "drawback_strip"
+		strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var edge := InkBox.new(UIKit.SURFACE_SUNK, UIKit.SPACE_SM, 3)
+		edge.border = UIKit.RED
+		edge.border_width = 3.0
+		edge.shadow = Vector2.ZERO
+		strip.add_theme_stylebox_override("panel", edge)
+		var cost_line := UIKit.fit(_label("DRAWBACK: " + drawback, UIKit.SIZE_MICRO, UIKit.RED, UIKit.font_strong()),
+			size.x - UIKit.SPACE_SM * 2 - 12, 2, 9)
+		cost_line.name = "drawback"
+		strip.add_child(cost_line)
+		box.add_child(strip)
 	return button
 
 

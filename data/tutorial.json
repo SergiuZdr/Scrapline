@@ -135,7 +135,7 @@
     },
     "perks": {
       "title": "PERKS",
-      "text": "A level adds its HP and ONE of these, kept for the rest of the run. Each card says exactly what it adds. A card marked NEW RULE changes what the machine does, not just its numbers."
+      "text": "A level adds its HP and ONE of these, kept for the rest of the run. Each card says exactly what it adds. A card with a rust band (+ MARKS) is a new rule: it changes what the machine does, not just its numbers."
     },
     "affix": {
       "title": "ELITE AFFIX",
