@@ -363,8 +363,9 @@
     "damage_type": "thermal",
     "grid": {
       "damage": 2,
-      "heat": 0,
-      "vent": 2
+      "heat": 1,
+      "vent": 1,
+      "meltdown": 4
     },
     "tuning": [
       {
@@ -380,6 +381,8 @@
         }
       }
     ],
-    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')"
+    "_042": "its own model (042, play-test 12: 'the game lacks models for each part')",
+    "rule": "+2 damage on every attack; when it overheats it blasts every neighbour for 4.",
+    "drawback": "The blast hits your own machines too, and it runs 1 heat hotter."
   }
 ]

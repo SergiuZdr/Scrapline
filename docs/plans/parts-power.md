@@ -20,6 +20,44 @@ wins anyway). Its loudest signals agree with the model -- the Flamer and Shield 
 common arm, the Lance and Coilgun on top -- and those were acted on. Losses in the game come from
 damage carried between fights, which a single fight cannot see; the run bot measures that.
 
+## Trait ownership (086, T2)
+
+The engagement review (T2): perks (A8), maker sets (A10), legendaries (A9) and the parts already
+in the game hand out the same few traits. This table says who gives what, and the rule below says
+what happens when two sources meet on one machine. **Decided before building any of them.**
+
+| Trait | Rule perk (A8, V1) | Maker set, 3 pieces (A10) | Legendary (A9) | Cores / modules | Arms (their own) |
+|---|---|---|---|---|---|
+| **pierce** (shots go on through a machine) | AP Rounds +1 (needs a shot) | VEKTOR +1 | Sunspear: through *everything*, heaps and walls too (`breach`); hits your own on the line | Mag Core +1, Belt Feeder +1 | Lance 1, Coilgun 1, Railgun 9 |
+| **tears** (a hit tears an arm off) | Rending Grip: every melee hit (needs melee) | CINDER: every melee hit | Godhammer: every hit (its own arm) | Solvent Core, Gripping Hooks: every melee hit | Ripper Claw every hit; **Saw at 4 damage** (`tear_at`, not the rules' 5) |
+| **arc** (a shot jumps on) | -- (Arc Relay perk is `chain`: +1 on a weapon that already arcs) | ARCLIGHT +1 jump on every shot | -- | Tesla Core +1, Arc Relay module +1 | Pulse 2, Coilgun 1 |
+| **mark** (next hit on it +2) | Spotter | -- | -- | Null Core, Spotter Uplink | Spotter Array |
+| **thorns** (melee attackers take it) | Barbed Hull 1 | KESSLER 1 | -- | Spiked Plating 1 | -- |
+| **unshovable** | Ground Spikes (needs shovable) | KESSLER | Colossus: and every machine of yours next to it (`anchors`) | Gyro Anchor | anchor frames (Bulwark, Citadel, Colossus) |
+| **kill heal** | Scavenger 2 | -- | -- | Scrap Leech 3 | -- |
+| shove | -- | -- | Godhammer: 2 hexes | Hydraulic Ram | Hammer, Scattergun, Godhammer |
+| ward (neighbours take less) | -- | -- | Aegis Rig 2 (the enemy Warden's rule) | -- | -- |
+| meltdown, rise, burn, roots | -- | -- | Crucible Heart, Phoenix Cell, Phoenix Cell, Godhammer | -- | -- |
+| crew rule (`meta.json`) | -- | -- | -- | -- | WALL: abilities a round sooner (cooldown, as ARCLIGHT x2) |
+
+**The rule.**
+1. **Arms own their signature at their own number**; perks, sets, cores and modules lend a machine-wide
+   trait (a flag, or +1); **legendaries own rules no other source gives** (breach, shove 2, roots, anchors,
+   meltdown, ward, rise and burn). A legendary may also carry a shared trait, never as its point.
+2. **Counted traits add up** (pierce, arc, chain, thorns, kill heal, cooldown): every source is +1, so no
+   second source is ever dead.
+3. **Flag traits are owned once** (tears, mark, unshovable, move after attacking): a second source on the
+   same machine does nothing. So a perk that gives a flag is only offered where it would do something
+   (`needs`): Ground Spikes already needs "shovable"; **Rending Grip should need a melee arm that does not
+   already tear, Spotter a weapon that does not already mark** (V1's `needs`, reported).
+4. **Saw against Rending Grip** (the overlap the review named): the Saw's trait is a *lower threshold*
+   (tears at 4), the Grip's is *every hit*. On one machine the Grip covers the Saw and still works on the
+   other arm, so the pick is never dead unless both arms already tear (rule 3 keeps it off the offer then).
+5. **Sets carry no heat** (the user, 2026-10-22): the 2-piece is a small stat (KESSLER +2 HP, ARCLIGHT
+   abilities a round sooner, VEKTOR +1 move, CINDER +1 melee), the 3-piece the maker's verb above.
+   CINDER's tears and +1 work on melee arms only; a Cinder machine with no melee arm gets nothing from
+   them (an open question below).
+
 ## Measured by the arm trial (072)
 
 `balance_fights --arms 150` finally separates the arms that `part_power.gd` could not: tougher enemies

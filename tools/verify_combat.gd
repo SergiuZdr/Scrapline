@@ -73,6 +73,7 @@ func _initialize() -> void:
 	_timed(_test_arms_047)
 	_timed(_test_bot_abilities_073)
 	_timed(_test_keepers_083)
+	_timed(_test_rules_086)
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
 			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core",
 		"warlord_grinder", "warlord_magnet", "warlord_twins"]:
@@ -705,17 +706,17 @@ func _test_modules_033() -> void:
 	var stand: CombatState = _fight(_rows(), [_unit(phoenix, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
 	var p: GridUnit = stand.unit(0)
 	CombatSim.hurt(stand, 10, p, 99)
-	var held: bool = p.alive and p.hp == 1
+	var held: bool = p.alive and p.hp == p.max_hp / 2
 	CombatSim.hurt(stand, 10, p, 99)
-	_check("last stand: the Phoenix Cell holds the first wreck at 1 HP, and only the first", held and not p.alive)
+	_check("last stand: the Phoenix Cell (086) rises from the first wreck at half its HP, and only the first", held and not p.alive)
 	var copy: CombatState = _fight(_rows(), [_unit(phoenix, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
 	copy.unit(0).stood = true
 	_check("and a dry run carries the spent stand (clone)", copy.clone().unit(0).stood)
 
 	var gun: Array = ["ch_strider", "co_dynamo", "ar_lance", "ar_hammer", "mo_feeder"]
 	var built: CombatState = _fight(_rows(), [_unit(gun, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
-	_check("Belt Feeder: +1 pierce on shots (lance %d), none on melee (%d)" % [int(built.unit(0).weapons[0]["pierce"]), int(built.unit(0).weapons[1]["pierce"])],
-		int(built.unit(0).weapons[0]["pierce"]) == 2 and int(built.unit(0).weapons[1]["pierce"]) == 0)
+	_check("Belt Feeder: +1 pierce on shots (lance %d: 1, +1, +1 Vektor x3), none on melee (%d)" % [int(built.unit(0).weapons[0]["pierce"]), int(built.unit(0).weapons[1]["pierce"])],
+		int(built.unit(0).weapons[0]["pierce"]) == 3 and int(built.unit(0).weapons[1]["pierce"]) == 0)
 	gun[4] = "mo_arcrelay"
 	built = _fight(_rows(), [_unit(gun, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
 	_check("Arc Relay: a shot that never arced arcs once", int(built.unit(0).weapons[0]["chain"]) == 1)
@@ -797,6 +798,211 @@ func _test_bosses_038() -> void:
 
 
 # --- Fixtures ---------------------------------------------------------------
+
+## 086: builds that change rules -- the Saw's own threshold, the legendaries' rules and drawbacks,
+## the maker sets' verbs, the elite affixes, the Focus dials, and what a dry run must not leak.
+func _test_rules_086() -> void:
+	var n: Vector2i = Hex.neighbor(C, 0)
+	# B6: the Saw tears at 4, the Cleaver (the rules' 5) does not.
+	var kit: Array = ["ch_courier", "co_dynamo", "ar_saw", "ar_cleaver", "mo_plating"]
+	var saw: CombatState = _fight(_rows(), [_unit(kit, C, 30)], [_unit(HAMMER, n, 30)])
+	_place(saw, 0, C)
+	_place(saw, 10, n)
+	var victim: GridUnit = saw.unit(10)
+	var d0: int = int((CombatSim.strike_plan(saw, saw.unit(0), 0, n)["hits"] as Array)[0]["damage"])
+	victim.armor += d0 - 4
+	var p_saw: Dictionary = CombatSim.preview_attack(saw, 0, 0, n)
+	var p_cleaver: Dictionary = CombatSim.preview_attack(saw, 0, 1, n)
+	_check("Saw: a 4-damage hit tears (%s), the Cleaver's 4 does not (%s)" % [p_saw["tears"], p_cleaver["tears"]],
+		int((p_saw["hits"] as Array)[0]["damage"]) == 4 and (p_saw["tears"] as Array).has(10) and (p_cleaver["tears"] as Array).is_empty())
+	_attack(saw, 0, 0, n)
+	_check("and the attack tears it for real", bool(saw.unit(10).weapons[GridUnit.ARM_R]["torn"]))
+	var same: Array = []
+	var arms: Array = []
+	for id: Variant in _db.parts:
+		if String((_db.parts[id] as Dictionary).get("slot", "")) == "arm" and not PartTuning.is_tuned(String(id)):
+			arms.append(String(id))
+	arms.sort()
+	for i: int in arms.size():
+		for j: int in range(i + 1, arms.size()):
+			if JSON.stringify((_db.parts[arms[i]] as Dictionary)["grid"], "", true) == JSON.stringify((_db.parts[arms[j]] as Dictionary)["grid"], "", true):
+				same.append("%s=%s" % [arms[i], arms[j]])
+	_check("no two arms share a grid block %s" % [same], same.is_empty())
+
+	# A9, Godhammer: shoves 2, always tears; roots its wielder this turn and the next.
+	var god: Array = ["ch_brute", "co_dynamo", "ar_godhammer", "ar_hammer", "mo_plating"]
+	var g: CombatState = _fight(_rows(), [_unit(god, C, 40)], [_unit(HAMMER, n, 40)])
+	_place(g, 0, C)
+	_place(g, 10, n)
+	var pv: Dictionary = CombatSim.preview_attack(g, 0, 0, n)
+	_check("Godhammer preview says it roots (%d) and tears, and the dry run left the wielder free" % int(pv["roots"]),
+		int(pv["roots"]) == 1 and (pv["tears"] as Array).has(10) and g.unit(0).rooted == 0 and _at(g, 10) == n)
+	var two: Vector2i = Hex.neighbor(Hex.neighbor(n, 0), 0)
+	_attack(g, 0, 0, n)
+	_check("Godhammer: shoved 2 hexes (%s), an arm off" % [_at(g, 10)],
+		_at(g, 10) == two and bool(g.unit(10).weapons[GridUnit.ARM_R]["torn"]))
+	_check("rooted: no move this turn", CombatSim.reachable(g, 0).is_empty() and g.unit(0).rooted > 0)
+	_check("and the clone carries the root", g.clone().unit(0).rooted == g.unit(0).rooted)
+	g.intents.clear()
+	CombatSim.apply(g, [CombatSim.ACT_END, 0, 0, 0])
+	var next_turn: bool = CombatSim.reachable(g, 0).is_empty()
+	g.intents.clear()
+	CombatSim.apply(g, [CombatSim.ACT_END, 0, 0, 0])
+	_check("nor the next; free the turn after", next_turn and not CombatSim.reachable(g, 0).is_empty())
+
+	# Sunspear: through everything on its line -- a heap, the crew -- and the preview names the crew.
+	var line: Array[Vector2i] = []
+	var at: Vector2i = C
+	for k: int in 4:
+		at = Hex.neighbor(at, 0)
+		line.append(at)
+	var spear: Array = ["ch_lancer", "co_dynamo", "ar_sunspear", "ar_hammer", "mo_plating"]
+	var sp: CombatState = _fight(_rows({line[1]: "s"}), [_unit(spear, C, 30), _unit(HAMMER, line[0], 30)],
+		[_unit(HAMMER, line[2], 30), _unit(HAMMER, line[3], 30)])
+	_place(sp, 0, C)
+	_place(sp, 1, line[0])
+	_place(sp, 10, line[2])
+	_place(sp, 11, line[3])
+	var beam: Dictionary = CombatSim.preview_attack(sp, 0, 0, line[3])
+	var refs: Array = []
+	for hit: Dictionary in (beam["hits"] as Array):
+		refs.append(int(hit["ref"]))
+	_check("Sunspear: through the crew and the heap into both enemies %s, the preview names the crew %s" % [refs, beam["friendly"]],
+		refs.has(1) and refs.has(10) and refs.has(11) and (beam["friendly"] as Array) == [1])
+	var lance: CombatState = _fight(_rows({line[1]: "s"}), [_unit(LANCE, C, 30)], [_unit(HAMMER, line[2], 30)])
+	_place(lance, 0, C)
+	_place(lance, 10, line[2])
+	_check("a heap still stops an ordinary piercing shot", (CombatSim.strike_plan(lance, lance.unit(0), 1, line[2])["hits"] as Array).is_empty())
+
+	# Colossus: cannot be shoved, nor can its neighbours; moves 2.
+	var col: Array = ["ch_colossus", "co_dynamo", "ar_hammer", "ar_saw", "mo_plating"]
+	var co: CombatState = _fight(_rows(), [_unit(col, C, 30), _unit(LANCE, n, 30)], [_unit(HAMMER, Vector2i(0, 0), 30)])
+	_place(co, 0, C)
+	_place(co, 1, n)
+	CombatSim.shove(co, 10, co.unit(1), 0)
+	var stayed: bool = _at(co, 1) == n
+	_place(co, 0, Vector2i(0, 8))
+	CombatSim.shove(co, 10, co.unit(1), 0)
+	_check("Colossus anchors the machine next to it (held %s), not one it left (%s); move %d" % [stayed, _at(co, 1), co.unit(0).move],
+		stayed and _at(co, 1) == Hex.neighbor(n, 0) and co.unit(0).move == 2)
+
+	# Crucible Heart: overheating blasts every neighbour for 4, the crew too; the preview says so.
+	var cru: Array = ["ch_brute", "co_crucible", "ar_hammer", "ar_saw", "mo_plating"]
+	var side: Vector2i = Hex.neighbor(C, 3)
+	var cr: CombatState = _fight(_rows(), [_unit(cru, C, 30), _unit(LANCE, side, 30)], [_unit(HAMMER, n, 30)])
+	_place(cr, 0, C)
+	_place(cr, 1, side)
+	_place(cr, 10, n)
+	cr.unit(0).heat = cr.unit(0).heat_cap - 1
+	var hot: Dictionary = CombatSim.preview_attack(cr, 0, 0, n)
+	var ally_hp: int = cr.unit(1).hp
+	var since: int = cr.events.size()
+	_attack(cr, 0, 0, n)
+	_check("Crucible: preview meltdown %d; the blast took 4 off the crew beside it (%d -> %d)" % [int(hot["meltdown"]), ally_hp, cr.unit(1).hp],
+		int(hot["meltdown"]) == 4 and cr.unit(1).hp == ally_hp - 4 and _count(cr, since, GridEv.MELTDOWN) == 1)
+
+	# Aegis Rig: its neighbours take 2 less; its own weapons 1 less.
+	var aeg: Array = ["ch_brute", "co_dynamo", "ar_hammer", "ar_saw", "mo_aegis"]
+	var plain: Array = ["ch_brute", "co_dynamo", "ar_hammer", "ar_saw", "mo_plating"]
+	var ae: CombatState = _fight(_rows(), [_unit(aeg, C, 30), _unit(LANCE, n, 30)], [_unit(HAMMER, Vector2i(0, 0), 30)])
+	var pl: CombatState = _fight(_rows(), [_unit(plain, C, 30), _unit(LANCE, n, 30)], [_unit(HAMMER, Vector2i(0, 0), 30)])
+	for st: CombatState in [ae, pl]:
+		_place(st, 0, C)
+		_place(st, 1, n)
+	var warded: int = CombatSim.damage_to(ae, ae.unit(10), ae.unit(1), 8, false)
+	var bare: int = CombatSim.damage_to(pl, pl.unit(10), pl.unit(1), 8, false)
+	_check("Aegis Rig: the machine beside it takes 2 less (%d vs %d); its own damage %d vs %d" % [warded, bare,
+		ae.unit(0).damage_bonus, pl.unit(0).damage_bonus], warded == bare - 2 and ae.unit(0).damage_bonus == pl.unit(0).damage_bonus - 1)
+
+	# Phoenix Cell: burns 1 a round, never below 1.
+	var phx: Array = HAMMER.duplicate()
+	phx[4] = "mo_phoenix"
+	var ph: CombatState = _fight(_rows(), [_unit(phx, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	ph.unit(0).hp = 10
+	ph.intents.clear()
+	since = ph.events.size()
+	CombatSim.apply(ph, [CombatSim.ACT_END, 0, 0, 0])
+	var burnt: int = ph.unit(0).hp
+	ph.unit(0).hp = 1
+	ph.intents.clear()
+	CombatSim.apply(ph, [CombatSim.ACT_END, 0, 0, 0])
+	_check("Phoenix Cell burns 1 a round (10 -> %d), never below 1 (%d)" % [burnt, ph.unit(0).hp],
+		burnt == 9 and ph.unit(0).hp == 1 and _count(ph, since, GridEv.BURNED) == 1)
+
+	# A10: the sets' verbs, and no set touches heat.
+	var ks: CombatState = _fight(_rows(), [_unit(["ch_brute", "co_slug", "ar_hammer", "ar_saw", "mo_plating"], C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	var ac: CombatState = _fight(_rows(), [_unit(["ch_skirmisher", "co_arc", "ar_pulse", "ar_lance", "mo_plating"], C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	var vk: CombatState = _fight(_rows(), [_unit(["ch_courier", "co_dynamo", "ar_lance", "ar_hammer", "mo_plating"], C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	var cn: CombatState = _fight(_rows(), [_unit(["ch_hauler", "co_furnace", "ar_cleaver", "ar_lance", "mo_plating"], C, 30)], [_unit(HAMMER, Vector2i(0, 0), 20)])
+	_check("KESSLER x3: thorns and cannot be shoved", ks.unit(0).thorns == 1 and ks.unit(0).unshovable)
+	_check("ARCLIGHT x3: the Lance arcs once, the Pulse once more (%d, %d)" % [int(ac.unit(0).weapons[1]["chain"]), int(ac.unit(0).weapons[0]["chain"])],
+		int(ac.unit(0).weapons[1]["chain"]) == 1 and int(ac.unit(0).weapons[0]["chain"]) == 3)
+	_check("VEKTOR x3: the Lance pierces 2 (%d)" % int(vk.unit(0).weapons[0]["pierce"]), int(vk.unit(0).weapons[0]["pierce"]) == 2)
+	_check("CINDER x3: the Cleaver tears, +1 melee", bool(cn.unit(0).weapons[0]["tears"]) and not bool(cn.unit(0).weapons[1]["tears"]))
+	var heat_in_sets: Array = []
+	for maker: Variant in _db.makers:
+		if String(maker).begins_with("_"):
+			continue
+		var sets: Dictionary = (_db.makers[maker] as Dictionary).get("sets", {})
+		for tier: Variant in sets:
+			for key: Variant in (sets[tier] as Dictionary):
+				if ["heat", "heat_cap", "vent"].has(String(key)):
+					heat_in_sets.append("%s %s %s" % [maker, tier, key])
+	_check("no maker set touches heat %s" % [heat_in_sets], heat_in_sets.is_empty())
+
+	# A5: the elite affixes.
+	var vol: Dictionary = _unit(HAMMER, n, 1)
+	vol["affix"] = "volatile"
+	var other_side: Vector2i = Hex.neighbor(n, 1)
+	var vo: CombatState = _fight(_rows(), [_unit(HAMMER, C, 30), _unit(LANCE, other_side, 30)], [vol])
+	_place(vo, 0, C)
+	_place(vo, 1, other_side)
+	_place(vo, 10, n)
+	var before_hp: int = vo.unit(1).hp
+	var dry: Array = CombatSim.dry_run(vo, [CombatSim.ACT_ATTACK, 0, 0, n.x, n.y])
+	_check("volatile: the dry run shows the blast and leaves the board as it was", vo.unit(1).hp == before_hp and vo.unit(10).alive \
+		and dry.any(func(e: Dictionary) -> bool: return int(e.get("ref", -1)) == 1 and int(e["hp_lost"]) == 5))
+	_attack(vo, 0, 0, n)
+	_check("volatile: destroyed, it blasts every neighbour for 5 (%d -> %d)" % [before_hp, vo.unit(1).hp],
+		not vo.unit(10).alive and vo.unit(1).hp == before_hp - 5)
+	var rig: Dictionary = _unit(HAMMER, n, 40)
+	rig["affix"] = "rigged"
+	var ri: CombatState = _fight(_rows(), [_unit(god, C, 40)], [rig])
+	_place(ri, 0, C)
+	_place(ri, 10, n)
+	_check("rigged: the preview promises no tear", (CombatSim.preview_attack(ri, 0, 0, n)["tears"] as Array).is_empty())
+	_attack(ri, 0, 0, n)
+	_check("rigged: even a Godhammer tears nothing off", ri.unit(10).has_weapon() and not bool(ri.unit(10).weapons[GridUnit.ARM_R]["torn"]))
+	var bul: Dictionary = _unit(HAMMER, n, 40)
+	bul["affix"] = "bulwark"
+	var bu: CombatState = _fight(_rows(), [_unit(LANCE, C, 30)], [bul])
+	_place(bu, 0, C)
+	_place(bu, 10, n)
+	CombatSim._face_fronts(bu)
+	var face: int = int(bu.facing.get(10, -1))
+	var front_hit: int = CombatSim.damage_to(bu, bu.unit(0), bu.unit(10), 8, false)
+	_place(bu, 0, Hex.neighbor(n, 0))
+	var back_hit: int = CombatSim.damage_to(bu, bu.unit(0), bu.unit(10), 8, false)
+	_check("bulwark: faces the nearest crew machine (dir %d); its front takes 2 less (%d vs %d from behind)" % [face, front_hit, back_hit],
+		face == 3 and front_hit == back_hit - 2)
+	_check("bulwark: the facing and the affix survive a clone", bu.clone().facing.get(10, -1) == face and bu.clone().unit(10).affix == "bulwark")
+	_check("every affix has its words for the screens", ((_db.enemy_kinds.get("elite_affixes", {}) as Dictionary).values()).all(
+		func(a: Dictionary) -> bool: return not String(a.get("text", "")).is_empty() and not String(a.get("tag", "")).is_empty()))
+
+	# B6: the Focus dials -- `takes_move` is the move; `heat` costs heat.
+	var foc: CombatState = _fight(_rows(), [_unit(RAIL, C, 30)], [_unit(HAMMER, Vector2i(0, 0), 30)])
+	var fi: int = -1
+	for i: int in foc.unit(0).abilities.size():
+		if String(foc.unit(0).abilities[i]["kind"]) == "boost":
+			fi = i
+	foc.unit(0).abilities[fi]["takes_move"] = true
+	var moved_first: CombatState = foc.clone()
+	var dest: Vector2i = CombatSim.reachable(moved_first, 0).keys()[0]
+	CombatSim.apply(moved_first, [CombatSim.ACT_MOVE, 0, dest.x, dest.y])
+	_check("Focus that takes the move: not after moving", not CombatAbilities.usable(moved_first, moved_first.unit(0), fi))
+	_ability(foc, 0, fi)
+	_check("and after it, no move", CombatSim.reachable(foc, 0).is_empty() and foc.unit(0).boost_damage == 2)
+
 
 func _rows(marks: Dictionary = {}) -> Array:
 	var rows: Array = []
@@ -917,7 +1123,8 @@ func _test_stats_come_from_parts() -> void:
 	var brute: GridUnit = state.unit(0)
 	# HAMMER carries two Kessler parts (frame, hammer) and RAIL four Vektor ones: sets (011).
 	_check("HP = chassis + module + Kessler's 2-piece (11 + 2 + 2)", brute.max_hp == 15)
-	_check("brawler +1 melee; marksman +1 range, and Vektor's 3-piece +1 more", brute.melee_bonus == 1 and state.unit(1).range_bonus == 2)
+	# 086: Cinder's 2-piece is +1 melee (the Saw and the Scavenger Rig), Vektor's 3-piece pierce, not range.
+	_check("brawler +1 melee and Cinder's pair +1 more; marksman +1 range", brute.melee_bonus == 2 and state.unit(1).range_bonus == 1)
 	var carried: CombatState = _fight(_rows(), [{"parts": HAMMER, "x": C.x, "y": C.y, "hp_now": 5}], [_unit(HAMMER, Vector2i(0, 0))])
 	_check("a machine can enter a fight damaged (HP carried from the run)", carried.unit(0).hp == 5 and carried.unit(0).max_hp == 15)
 	_check("an enemy on the same parts wears no set (11 + 2)", state.unit(10).max_hp == 13)
@@ -994,7 +1201,7 @@ func _test_pierce() -> void:
 	_place(state, 10, a)
 	_place(state, 11, b)
 	_place(state, 12, c)
-	_check("lance (pierce 1) hits the first two in line", (CombatSim.strike_plan(state, state.unit(0), 1, a)["hits"] as Array).size() == 2)
+	_check("lance (pierce 1, and 1 more from Vektor x3: 086) hits the first three in line", (CombatSim.strike_plan(state, state.unit(0), 1, a)["hits"] as Array).size() == 3)
 	_place(state, 0, Vector2i(0, 8))
 	_place(state, 1, C)
 	_check("railgun beams through every unit to full reach", (CombatSim.strike_plan(state, state.unit(1), 1, a)["hits"] as Array).size() == 3)
@@ -1040,7 +1247,7 @@ func _test_shove_and_bump() -> void:
 	_place(bumped, 0, edge)
 	_place(bumped, 10, wall)
 	_attack(bumped, 0, 1, wall)
-	_check("shoved off the board edge: no move, 1 bump on top", _at(bumped, 10) == wall and bumped.unit(10).hp == 20 - 4 - 1)
+	_check("shoved off the board edge: no move, 1 bump on top", _at(bumped, 10) == wall and bumped.unit(10).hp == 20 - 5 - 1)
 
 
 func _test_mark() -> void:
@@ -1053,7 +1260,7 @@ func _test_mark() -> void:
 	_attack(state, 0, 0, n)
 	_check("the scanner chips 1 and marks", state.unit(10).marked and state.unit(10).hp == 19)
 	_attack(state, 1, 0, n)
-	_check("a marked target takes +2 (saw 5 + 2) and the mark clears", state.unit(10).hp == 12 and not state.unit(10).marked)
+	_check("a marked target takes +2 (saw 6 + 2) and the mark clears", state.unit(10).hp == 11 and not state.unit(10).marked)
 
 
 func _test_heat() -> void:
@@ -1148,7 +1355,7 @@ func _test_playtest5() -> void:
 	_check("a piercing shot goes through a drum (which goes off) and hits the machine behind it",
 		not p1.props.has(drum_cell) and p1.unit(10).hp < 20 - 3)
 	var two: Vector2i = Hex.neighbor(past, 0)
-	var p2: CombatState = _fight(_rows({drum_cell: "c"}), [_unit(LANCE, C)], [_unit(HAMMER, past, 20), _unit(HAMMER, two, 20)])
+	var p2: CombatState = _fight(_rows({drum_cell: "c"}), [_unit(["ch_hauler", "co_slug", "ar_scanner", "ar_lance", "mo_scavenger"], C)], [_unit(HAMMER, past, 20), _unit(HAMMER, two, 20)])
 	_place(p2, 0, C)
 	_place(p2, 10, past)
 	_place(p2, 11, two)
@@ -1687,7 +1894,8 @@ func _test_barrels_and_props() -> void:
 
 	var wall: Vector2i = Hex.neighbor(C, 0)
 	var behind: Vector2i = Hex.neighbor(wall, 0)
-	var crate: CombatState = _fight(_rows({wall: "c"}), [_unit(LANCE, C)], [_unit(HAMMER, behind, 20)])
+	# 086: a kit without Vektor's 3-piece (which pierces every shot).
+	var crate: CombatState = _fight(_rows({wall: "c"}), [_unit(["ch_hauler", "co_slug", "ar_scanner", "ar_lance", "mo_scavenger"], C)], [_unit(HAMMER, behind, 20)])
 	_place(crate, 0, C)
 	_place(crate, 10, behind)
 	_attack(crate, 0, 0, behind)   # the spotter array: no pierce
@@ -1722,8 +1930,8 @@ func _test_abilities() -> void:
 	_check("a brawler frame gives Charge, a Scavenger module gives Magnet",
 		String(brute.unit(0).abilities[0]["id"]) == "charge" and String(brute.unit(0).abilities[1]["id"]) == "magnet")
 	_check("charge can aim down a straight hex line", CombatAbilities.targets(brute, brute.unit(0), 0).has(target))
-	_check("charge runs 2 hexes up to the enemy, hits for 3 + 2 + 1 brawler and shoves it", _ability(brute, 0, 0, target)
-		and Hex.distance(_at(brute, 0), target) == 1 and brute.unit(10).hp == 14 and _at(brute, 10) != target)
+	_check("charge runs 2 hexes up to the enemy, hits for 3 + 2 + 1 brawler + 1 Cinder pair and shoves it", _ability(brute, 0, 0, target)
+		and Hex.distance(_at(brute, 0), target) == 1 and brute.unit(10).hp == 13 and _at(brute, 10) != target)
 	_check("charge uses the action", brute.unit(0).acted)
 	_check("and then waits its cooldown", not brute.unit(0).ability_ready(0))
 
@@ -1766,7 +1974,7 @@ func _test_abilities() -> void:
 	_place(boosted, 10, _off(C, 3, -3, 0))
 	_ability(boosted, 0, 1)
 	_ability(boosted, 0, 0, _off(C, 3, -3, 0))
-	_check("overdrive boosts a charge (3 + 2 run + 2 overdrive + 1 bypass + 1 brawler = 9)", boosted.unit(10).hp == 11)
+	_check("overdrive boosts a charge (3 + 2 run + 2 overdrive + 1 bypass + 1 brawler + 1 Cinder pair = 10)", boosted.unit(10).hp == 10)
 
 	# Play-test 3: a charge after a move, and a charge from next door.
 	var step_in: Vector2i = _off(C, 1, -1, 0)
@@ -1776,12 +1984,12 @@ func _test_abilities() -> void:
 	_place(late, 11, Vector2i(0, 0))
 	_check("(precondition) the brute moves first", CombatSim.apply(late, [CombatSim.ACT_MOVE, 0, step_in.x, step_in.y]) and late.unit(0).moved)
 	_check("charge can still be used after moving", CombatAbilities.usable(late, late.unit(0), 0))
-	_check("a charge from 2 away runs 1 hex and hits for 4 + 1 brawler", _ability(late, 0, 0, _off(C, 3, -3, 0)) and late.unit(10).hp == 15)
+	_check("a charge from 2 away runs 1 hex and hits for 4 + 1 brawler + 1 Cinder pair", _ability(late, 0, 0, _off(C, 3, -3, 0)) and late.unit(10).hp == 14)
 	var close: CombatState = _fight(_rows(), [_unit(HAMMER, C)], [_unit(HAMMER, Hex.neighbor(C, 0), 20), _unit(HAMMER, Vector2i(0, 0), 20)])
 	_place(close, 0, C)
 	_place(close, 10, Hex.neighbor(C, 0))
 	_place(close, 11, Vector2i(0, 0))
-	_check("a charge into an adjacent enemy hits for the base 3 + 1 brawler", _ability(close, 0, 0, Hex.neighbor(C, 0)) and close.unit(10).hp == 16)
+	_check("a charge into an adjacent enemy hits for the base 3 + 1 brawler + 1 Cinder pair", _ability(close, 0, 0, Hex.neighbor(C, 0)) and close.unit(10).hp == 15)
 
 	var wall_at: Vector2i = Hex.neighbor(C, 0)
 	var shooter_at: Vector2i = Hex.neighbor(wall_at, 0)

@@ -1,27 +1,31 @@
 {
-  "_comment": "011. Every part names its maker. Two parts from one maker on a machine give the maker's 2-piece bonus; three give the 3-piece bonus as well. A bonus is an additive block with the same keys as a module's grid, plus melee, cooldown (abilities ready that many rounds sooner, never below 1), chain, and the flags unshovable / move_after_attack. Player machines only: enemy loadouts are rolled slot by slot, so a set on one would be an accident, not a design.",
+  "_comment": "011; 086 (A10, the user): three pieces of one maker give the maker's VERB, two a small stat; no set touches heat. Every part names its maker. Two parts from one maker on a machine give the maker's 2-piece bonus; three give the 3-piece bonus as well. A bonus is an additive block with the same keys as a module's grid, plus melee, cooldown (abilities ready that many rounds sooner, never below 1), chain, and the flags unshovable / move_after_attack. Player machines only: enemy loadouts are rolled slot by slot, so a set on one would be an accident, not a design.",
   "kessler": {
     "name": "Kessler Mining",
     "short": "KESSLER",
     "text": "Mining plant, built to be hit by the mountain.",
-    "sets": {"2": {"hp": 2}, "3": {"armor": 1}}
+    "verb": "THORNS + ANCHORED: melee attackers take 1, and it cannot be shoved",
+    "sets": {"2": {"hp": 2}, "3": {"thorns": 1, "unshovable": 1}}
   },
   "arclight": {
     "name": "Arclight Electric",
     "short": "ARCLIGHT",
     "text": "Grid maintenance: light frames, hot wiring, fast hands.",
-    "sets": {"2": {"vent": 1}, "3": {"cooldown": 1}}
+    "verb": "ARC: every shot jumps to one more machine",
+    "sets": {"2": {"cooldown": 1}, "3": {"arc": 1}}
   },
   "vektor": {
     "name": "Vektor Ballistics",
     "short": "VEKTOR",
     "text": "Security contractor. Everything it made points at something.",
-    "sets": {"2": {"move": 1}, "3": {"range": 1}}
+    "verb": "PIERCE: every shot goes through one more machine",
+    "sets": {"2": {"move": 1}, "3": {"pierce": 1}}
   },
   "cinder": {
     "name": "Cinder Foundry",
     "short": "CINDER",
     "text": "Smelting and demolition. Runs hot on purpose.",
-    "sets": {"2": {"heat_cap": 2}, "3": {"damage": 1}}
+    "verb": "TEARS: every melee hit tears an arm off",
+    "sets": {"2": {"melee": 1}, "3": {"tears": 1}}
   }
 }

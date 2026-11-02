@@ -381,8 +381,8 @@
     "flavour": "The keeper's own shield, rewired to you.",
     "grid": {
       "hp": 4,
-      "armor": 1,
-      "ability": "shield"
+      "ward": 2,
+      "damage": -1
     },
     "tuning": [
       {
@@ -392,14 +392,16 @@
         }
       },
       {
-        "name": "Fast Cycle",
+        "name": "Hardened",
         "grid": {
-          "cooldown": 1
+          "armor": 1
         }
       }
     ],
     "_042": "its own model (042, play-test 12: 'the game lacks models for each part')",
-    "look": "dome"
+    "look": "dome",
+    "rule": "Every machine of yours next to it takes 2 less from every hit.",
+    "drawback": "Its own weapons hit 1 less."
   },
   {
     "id": "mo_spikes",
@@ -731,7 +733,8 @@
     "flavour": "A furnace heart that will not go out. Once.",
     "grid": {
       "last_stand": true,
-      "regen": 1,
+      "rise_pct": 50,
+      "regen": -1,
       "hp": 2
     },
     "tuning": [
@@ -744,11 +747,13 @@
       {
         "name": "Bright Fire",
         "grid": {
-          "regen": 1
+          "rise_pct": 25
         }
       }
     ],
     "_042": "its own model (042, play-test 12: 'the game lacks models for each part')",
-    "look": "furnace"
+    "look": "furnace",
+    "rule": "The first blow that would wreck it leaves it at half its HP.",
+    "drawback": "It burns: 1 HP lost at the start of every round (never below 1)."
   }
 ]

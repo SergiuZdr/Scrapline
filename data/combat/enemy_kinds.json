@@ -1,5 +1,28 @@
 {
-  "_comment": "Enemy kinds: rules layered on top of an ordinary part-built enemy. Generated fights roll tracker/bomber/warden/hive by column (see data/run/run.json). `builds`: sets down a pad beside itself that builds a drone every `every` rounds (the hive's drone). sorter: the gate's boss (013). reclaimer: the drones that arrive in fights near the Reclaimer's line (013). `keeps_arms` (043, play-test 13): bosses and warlords never lose an arm to a tear.",
+  "_comment": "Enemy kinds: rules layered on top of an ordinary part-built enemy. Generated fights roll tracker/bomber/warden/hive by column (see data/run/run.json). `builds`: sets down a pad beside itself that builds a drone every `every` rounds (the hive's drone). sorter: the gate's boss (013). reclaimer: the drones that arrive in fights near the Reclaimer's line (013). `keeps_arms` (043, play-test 13): bosses and warlords never lose an arm to a tear. `elite_affixes` (086, A5): one announced rule an elite enemy carries (`\"affix\": id` on its spec, rolled by the run): `rules` are laid over its kind's own (`CombatSim.kind_rules`); `name`, `tag`, `short` and `text` are for the screens. Not a kind: skip it when listing kinds.",
+  "elite_affixes": {
+    "volatile": {
+      "name": "Volatile",
+      "tag": "VOLATILE",
+      "short": "explodes for 5 when destroyed",
+      "text": "Rigged to blow: when it is destroyed it explodes for 5 on every neighbour, its own side included. Kill it away from your machines -- or in the middle of its friends.",
+      "rules": {"blast": 5}
+    },
+    "rigged": {
+      "name": "Rigged",
+      "tag": "RIGGED",
+      "short": "its arms cannot be torn off",
+      "text": "Its arms are welded on: no hit tears one off. It fights with every gun it came with to the end -- kill it, shove it, or keep out of its reach.",
+      "rules": {"keeps_arms": true}
+    },
+    "bulwark": {
+      "name": "Bulwark",
+      "tag": "BULWARK",
+      "short": "plated front: 2 less from the 3 sides it faces",
+      "text": "Plated front: hits from the three sides it faces take 2 less. After it moves it turns to face your nearest machine, and the board shows its front -- go round it. Blasts and bumps ignore the plate.",
+      "rules": {"front_plate": 2}
+    }
+  },
   "tracker": {
     "name": "Tracker",
     "text": "Its attack locks onto a machine, not a hex. The shot follows that machine: break its line of sight, get out of range, kill it or shove it."
