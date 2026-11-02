@@ -206,6 +206,8 @@ var _flood_views: Dictionary = {}
 ## 068: mines are part of the floor like the slag pools: intent marks are cleared for every
 ## playback, and the mines vanished whenever anything moved. `{ cell: Node3D }`.
 var _mine_views: Dictionary = {}
+## 087 (A4b): hot ground on the board, by hex, kept as floor (reconciled with `_state.hot_ground`).
+var _hot_views: Dictionary = {}
 ## Events already animated.
 var _shown: int = 0
 var _busy: bool = false
@@ -450,6 +452,14 @@ func _opening(objective: String) -> void:
 	_focus_lines(at)
 	_streaks(at, at + Vector3(1, 0, 0))
 	_badge("-3 KO", at, Ink.DANGER, 1.0)
+	# 087: the CANCELLED beat's slash, cloud and lettering, and the consequence ghosts and dashes.
+	for warm: GridUnit in _state.units:
+		if warm.team == GridUnit.TEAM_ENEMY and warm.alive:
+			_cancelled(warm.ref, 7, true)
+			break
+	_ghost_at(cell, Ink.ACTION)
+	_dashed_line(at, at + Vector3(1.5, 0, 0.5), Ink.DANGER)
+	_hot_ground_marker(cell, false)
 	_marker_label("warm", at, Ink.PAPER, 24)
 	_spawn_marker(-1, cell)
 	_arrival_marker(cell)
@@ -839,6 +849,7 @@ func _build_board() -> void:
 	_pile_views.clear()
 	_flood_views.clear()
 	_mine_views.clear()
+	_hot_views.clear()
 	_origin = Vector2(SQRT3 * HEX * (float(_setup.width) - 0.5) * 0.5, 1.5 * HEX * float(_setup.height - 1) * 0.5)
 	var arena: bool = _is_arena()
 
@@ -3012,6 +3023,11 @@ func _animate(e: Array) -> void:
 				await _wait(0.4)
 		GridEv.KEEPERS_FALL:
 			await _keepers_fall(actor, cell)
+		GridEv.GROUND_SET:
+			_hot_ground_marker(cell)
+			_float_text(_to_world(cell.x, cell.y) + Vector3(0, 1.0, 0), "HOT GROUND", UIKit.GOLD)
+		GridEv.INTENT_LOST:
+			await _cancelled(actor, int(e[GridEv.F_V1]))
 		GridEv.FIGHT_END:
 			pass
 
@@ -3415,9 +3431,11 @@ func _letters(at: Vector3, text: String, colour: Color, size: int = 110, tilt: f
 
 ## 039: a thought cloud over an enemy: a bumpy paper cloud lettered in ink, two puffs trailing
 ## down to its head. Part of the intent marks (cleared with them).
-func _thought(u: GridUnit, text: String) -> void:
+func _thought(u: GridUnit, text: String, cell: Vector2i = Vector2i(-1, -1)) -> Array[Node3D]:
+	var made: Array[Node3D] = []
 	var top: float = _top_of(u)
-	var head: Vector3 = _to_world(u.x, u.y) + Vector3(0, top, 0)
+	var at: Vector2i = cell if cell.x >= 0 else Vector2i(u.x, u.y)
+	var head: Vector3 = _to_world(at.x, at.y) + Vector3(0, top, 0)
 	var cloud_at: Vector3 = head + Vector3(0, 0.62, 0)
 	var cloud: Texture2D = Ink.texture("cloud", Vector2i(192, 112), func(image: Image) -> void:
 		image.fill(Color(0, 0, 0, 0))
@@ -3443,10 +3461,12 @@ func _thought(u: GridUnit, text: String) -> void:
 	sprite.position = cloud_at
 	sprite.set_meta("intent", true)
 	_marks_root.add_child(sprite)
+	made.append(sprite)
 	for puff: Array in [[0.32, 0.09], [0.16, 0.06]]:
 		var dot: Node3D = _disc(head + Vector3(0, float(puff[0]), 0), float(puff[1]), Ink.PAPER, Ink.INK, 7)
 		dot.set_meta("intent", true)
 		_marks_root.add_child(dot)
+		made.append(dot)
 	var label := Label3D.new()
 	label.text = text
 	label.font = UIKit.font_comic()
@@ -3460,6 +3480,95 @@ func _thought(u: GridUnit, text: String) -> void:
 	label.position = cloud_at
 	label.set_meta("intent", true)
 	_marks_root.add_child(label)
+	made.append(label)
+	return made
+
+
+## 087 (A17): the CANCELLED beat. An enemy's standing intent was lost before it fired (a kill, a
+## fall, a torn arm, a seize: `GridEv.INTENT_LOST`): its thought cloud comes back over where it
+## stood, its words dimmed and struck through by an amber slash, "CANCELLED -7" lettered over it in
+## amber (the player's doing), its own sound, and the rare hit-stop (the cooldown decides).
+## The cloud lives on the real clock (0.9 s), so 2x and 3x play the beat shorter but leave it on
+## screen long enough to read; the playback itself only waits a short beat.
+const T_CANCEL: float = 0.22
+const CANCEL_SECONDS: float = 0.9
+
+
+func _cancelled(actor: int, would: int, quiet: bool = false) -> void:
+	var u: GridUnit = _state.unit(actor)
+	if u == null:
+		return
+	var order: int = 0
+	if _turn_state != null:
+		for intent: Dictionary in _turn_state.intents:
+			if int(intent["ref"]) == actor:
+				order = int(intent["order"])
+	var nodes: Array[Node3D] = _thought(u, ("%d  ·  -%d" % [order, would]) if order > 0 and would > 0 else ("-%d" % would if would > 0 else "?"))
+	var cloud_at: Vector3 = nodes[0].position
+	for node: Node3D in nodes:
+		node.remove_meta("intent")
+		node.set_meta("cancelled", actor)
+		if node is Label3D:
+			(node as Label3D).modulate = Ink.INK.lightened(0.35)
+	var slash := Sprite3D.new()
+	slash.texture = Ink.texture("cancel_slash", Vector2i(208, 48), func(image: Image) -> void:
+		image.fill(Color(0, 0, 0, 0))
+		# A hand-cut slash, rising left to right: ink edge, amber body, ragged ends.
+		for x: int in 208:
+			var t: float = float(x) / 207.0
+			var centre: float = 32.0 - t * 16.0
+			var half: float = 5.5 + 2.5 * sin(t * 9.0) * (1.0 - absf(t - 0.5) * 2.0)
+			if t < 0.06 or t > 0.94:
+				half *= 0.55
+			for y: int in 48:
+				var d: float = absf(float(y) - centre)
+				if d <= half + 2.5:
+					image.set_pixel(x, y, Ink.INK if d > half else Ink.ACTION))
+	slash.pixel_size = 0.0062
+	slash.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	slash.no_depth_test = true
+	slash.shaded = false
+	slash.render_priority = 9
+	slash.position = cloud_at
+	slash.scale = Vector3(0.2, 1.0, 1.0)
+	slash.set_meta("cancelled", actor)
+	_marks_root.add_child(slash)
+	nodes.append(slash)
+	var word := Label3D.new()
+	word.text = "CANCELLED -%d" % would if would > 0 else "CANCELLED"
+	word.font = UIKit.font_letters()
+	word.font_size = 72
+	word.pixel_size = 0.006
+	word.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	word.no_depth_test = true
+	word.outline_size = 24
+	word.outline_modulate = Ink.INK
+	word.modulate = Ink.ACTION
+	word.render_priority = 10
+	word.outline_render_priority = 9
+	word.rotation.z = 0.08
+	word.position = cloud_at + Vector3(0, 0.55, 0)
+	word.scale = Vector3.ONE * 0.4
+	word.set_meta("cancelled", actor)
+	_marks_root.add_child(word)
+	nodes.append(word)
+	# The slash is cut across, the word pops: both on the real clock.
+	var cut := slash.create_tween().set_ignore_time_scale(true)
+	cut.tween_property(slash, "scale", Vector3.ONE, 0.08).set_ease(Tween.EASE_OUT)
+	var pop := word.create_tween().set_ignore_time_scale(true)
+	pop.tween_property(word, "scale", Vector3.ONE * 1.1, 0.09).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	pop.tween_property(word, "scale", Vector3.ONE, 0.06)
+	for node: Node3D in nodes:
+		var fade := node.create_tween().set_ignore_time_scale(true)
+		fade.tween_interval(CANCEL_SECONDS)
+		if node is Label3D or node is Sprite3D:
+			fade.tween_property(node, "modulate:a", 0.0, 0.2)
+		fade.tween_callback(node.queue_free)
+	if quiet:
+		return
+	Audio.play("cancel", -4.0, 0.03)
+	_vfx.hitstop(0.1)
+	await _wait(T_CANCEL)
 
 
 ## 039: the sound a hit makes, lettered by what made it: one word per attack.
@@ -3645,6 +3754,14 @@ func _refresh() -> void:
 			_mine_views.erase(cell)
 	for cell: Variant in _state.mines:
 		_mine_marker(cell)
+	# 087 (A4b): hot ground, as floor (never red, never a mark: hud-budget.md layer 9).
+	var hot: Dictionary = _hot_ground()
+	for cell: Variant in _hot_views.keys():
+		if not hot.has(cell):
+			(_hot_views[cell] as Node).queue_free()
+			_hot_views.erase(cell)
+	for cell: Variant in hot:
+		_hot_ground_marker(cell)
 	for cell: Vector2i in _state.pour_marks:
 		_mark(_threat_quads, cell, COL_THREAT)
 		var top: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y), 0)
@@ -3675,6 +3792,7 @@ func _refresh() -> void:
 				# Play-test 11: an aimed ability shows what it will do on the board, as a shot does.
 				var cell_p: Vector2i = _pending["cell"]
 				_aim_badges(CombatSim.dry_run(_state, [CombatSim.ACT_ABILITY, sel.ref, int(_pending["i"]), cell_p.x, cell_p.y]))
+				_consequences([CombatSim.ACT_ABILITY, sel.ref, int(_pending["i"]), cell_p.x, cell_p.y], threats)
 			else:
 				for cell: Vector2i in CombatAbilities.targets(_state, sel, _ability):
 					_mark(_hint_quads, cell, COL_ATTACK)
@@ -3682,6 +3800,8 @@ func _refresh() -> void:
 			if not _pending.is_empty():
 				var plan: Dictionary = CombatSim.strike_plan(_state, sel, _weapon, _pending["cell"])
 				_preview_marks(sel, _weapon, _pending["cell"])
+				var aim_c: Vector2i = _pending["cell"]
+				_consequences([CombatSim.ACT_ATTACK, sel.ref, _weapon, aim_c.x, aim_c.y], threats)
 				for cell: Vector2i in (plan["tiles"] as Array):
 					_mark(_hint_quads, cell, COL_TARGET)
 			else:
@@ -3874,7 +3994,7 @@ func _refresh_hud(threats: Dictionary) -> void:
 		})
 	_hud.set_crew(cards)
 	var status: Dictionary = CombatSim.objective_status(_state)
-	_hud.set_objective(String(status["text"]) + _yard_line(), String(status["type"]) == "defend" and int(status["caches"]) < int(status["caches_total"]))
+	_hud.set_objective(String(status["text"]) + _waves_line(status) + _yard_line(), String(status["type"]) == "defend" and int(status["caches"]) < int(status["caches_total"]))
 	_hud_boss()
 	var ongoing: bool = _state.outcome == CombatState.ONGOING and not _bot
 	_hud.set_controls(ongoing and not _busy and _actions.size() > _turn_start, ongoing and not _busy)
@@ -4029,12 +4149,22 @@ func _effects_text(effects: Array, preview: Dictionary, action: Array = []) -> S
 	# hit the damage type helps or blunts says so (STRONG / WEAK).
 	var parts: Dictionary = CombatSim.damage_parts(_state, action) if not action.is_empty() else {}
 	var how: Dictionary = {}
+	# 087 (A12): the AIMED target's number explains itself, step by step, from the sim's own
+	# `damage_steps` (hud-budget.md: the aimed target only; the others keep the short form).
+	var aimed_ref: int = -1
+	var aimed_why: String = ""
+	for hit: Dictionary in (preview.get("hits", []) as Array):
+		if bool(hit.get("primary", false)) and aimed_ref < 0:
+			aimed_ref = int(hit["ref"])
+			aimed_why = _steps_text(_hit_steps(hit))
 	for hit: Dictionary in (preview.get("hits", []) as Array):
 		var ref_h: int = int(hit["ref"])
 		var notes: PackedStringArray = []
 		if bool(hit.get("arc", false)):
 			notes.append("arc: 1 less")
 		var pct: int = int(hit.get("pct", 100))
+		if ref_h == aimed_ref and not aimed_why.is_empty():
+			pct = 100  # the step line says STRONG / WEAK itself
 		if pct > 100:
 			notes.append("STRONG x%.1f" % (float(pct) / 100.0))
 		elif pct < 100:
@@ -4073,9 +4203,58 @@ func _effects_text(effects: Array, preview: Dictionary, action: Array = []) -> S
 			lines.append("%s -%d%s → %d/%d%s" % [who, int(effect["hp_lost"]), made, t.hp - int(effect["hp_lost"]), t.max_hp, tear])
 		elif effect["moved_to"] != null:
 			lines.append("%s is moved" % who)
+		if t.ref == aimed_ref and not aimed_why.is_empty() and (int(effect["hp_lost"]) > 0 or bool(effect["killed"])):
+			lines.append("    " + aimed_why)
 	if lines.is_empty():
 		return "Nothing there is affected."
 	return "\n".join(lines)
+
+
+## 087 (A12): a hit's steps, as the sim worked them out (`damage_steps`, carried on the hit by
+## `strike_plan`). A hit without them (an older sim) has only its total.
+func _hit_steps(hit: Dictionary) -> Array:
+	if hit.has("steps"):
+		return hit["steps"]
+	if hit.has("amount") and _selected >= 0:
+		var t: GridUnit = _state.unit(int(hit["ref"]))
+		var u: GridUnit = _state.unit(_selected)
+		if t != null and u != null:
+			return CombatSim.damage_steps(_state, u, t, int(hit["amount"]), bool(hit.get("shot", false)))
+	return [["base", int(hit.get("damage", 0))]]
+
+
+## Words for each step of `damage_steps` (087, A12).
+const STEP_WORDS: Dictionary = {"type": "", "cover": "cover", "armor": "armour", "mark": "marked",
+	"ward": "warden", "front": "plated front", "min": "at least"}
+
+
+## "5 → 3 (-2 armour, -1 cover, +1 marked)": the base, the result, and every step that changed it.
+## "" when nothing but the base counts (the total says it all).
+static func _steps_text(steps: Array) -> String:
+	if steps.is_empty():
+		return ""
+	var base: int = 0
+	var total: int = 0
+	var bits: PackedStringArray = []
+	for step: Variant in steps:
+		var key: String = String((step as Array)[0])
+		var delta: int = int((step as Array)[1])
+		total += delta
+		if key == "base":
+			base += delta
+			continue
+		if delta == 0:
+			continue
+		var word: String = String(STEP_WORDS.get(key, key))
+		if key == "type":
+			word = "strong" if delta > 0 else "weak"
+		elif key == "min":
+			bits.append("at least %d" % total)
+			continue
+		bits.append("%s%d %s" % ["+" if delta > 0 else "-", absi(delta), word])
+	if bits.is_empty():
+		return ""
+	return "%d → %d (%s)" % [base, total, ", ".join(bits)]
 
 
 ## Play-test 7: the preview reads from the shooter outwards -- the other side's machines nearest
@@ -4771,9 +4950,207 @@ func _objective_marks() -> void:
 		if i < escort_count:
 			_zone_ring(cell, COL_PAD_DANGER, 1.6)
 			var hurt: int = int(cost) if cost != null else 0
-			_arrival_marker(cell, "ESCORT NEXT ROUND · block it: -%d HP" % hurt if hurt > 0 else "ESCORT NEXT ROUND · stand here to block", 40)
+			# 087 (A3): an ordinary fight's waves are REINFORCEMENTS (a keeper's are its escort).
+			var who: String = "ESCORT" if not _setup.keepers.is_empty() else "REINFORCEMENT"
+			_arrival_marker(cell, ("%s NEXT ROUND · block it: -%d HP" % [who, hurt]) if hurt > 0 else ("%s NEXT ROUND · stand here to block" % who), 40 if who == "ESCORT" else 32)
 		else:
 			_arrival_marker(cell, "WAVE NEXT TURN · stand here to block")
+
+
+## 087 (A3): "  ·  2 WAVES LEFT" on the objective line while an ordinary fight still has
+## reinforcements to come (`CombatSim.escort_waves_left`). A keeper's line and SURVIVE's say their
+## own waves; a line that already counts them is left alone.
+func _waves_line(status: Dictionary) -> String:
+	var kind: String = String(status["type"])
+	if kind == "keeper" or kind == "survive" or String(status["text"]).to_upper().contains("WAVE"):
+		return ""
+	var left: int = CombatSim.escort_waves_left(_state)
+	if left <= 0:
+		return ""
+	return "  ·  %d WAVE%s LEFT" % [left, "" if left == 1 else "S"]
+
+
+## 087 (A4b): the hot ground the state holds (`CombatState.hot_ground`: hex -> {rounds, heat}).
+func _hot_ground() -> Dictionary:
+	var hot: Variant = _state.get("hot_ground")
+	return hot if hot is Dictionary else {}
+
+
+## 087 (A4b): hot ground, drawn as FLOOR: a scorched plate (dark umber, burnt black at the edge,
+## pale ochre cracks) over the tile, with a heat shimmer -- faint pale ripples rising across it.
+## Never red (red is danger: hud-budget.md) and never lit like slag (a glowing pool). In grey it is
+## a darker hex with a light ripple moving over it.
+const HOT_PLATE := Color("4a3426")
+const HOT_SHIMMER := Color("f3dcb0")
+
+
+func _hot_ground_marker(cell: Vector2i, as_floor: bool = true) -> void:
+	if as_floor and _hot_views.has(cell):
+		return
+	var top: float = _tile_top(cell.x, cell.y)
+	var root := Node3D.new()
+	root.position = _to_world(cell.x, cell.y) + Vector3(0, top + 0.015, 0)
+	var plate := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = HEX * 0.84
+	disc.bottom_radius = HEX * 0.84
+	disc.height = 0.02
+	disc.radial_segments = 6
+	disc.rings = 1
+	plate.mesh = disc
+	plate.rotation.y = PI / 6.0 * 0.0
+	var scorch := StandardMaterial3D.new()
+	scorch.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	scorch.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	scorch.albedo_texture = Ink.texture("hot_plate", Vector2i(128, 128), func(image: Image) -> void:
+		image.fill(Color(0, 0, 0, 0))
+		for y: int in 128:
+			for x: int in 128:
+				var p := Vector2(x - 64, y - 64) / 64.0
+				var r: float = p.length()
+				if r > 1.0:
+					continue
+				# Burnt black toward the rim, scorched umber inside, a grain of soot.
+				var grain: float = float(IntentAI.mix(x, y, 87, 4) % 100) / 100.0
+				var c: Color = HOT_PLATE.lerp(Ink.INK, clampf((r - 0.45) * 1.6, 0.0, 1.0) + grain * 0.18)
+				# Pale ochre cracks: three jagged rays from the centre.
+				var ang: float = atan2(p.y, p.x)
+				for k: int in 5:
+					var ray: float = float(k) * TAU / 5.0 + 0.4 + sin(r * 9.0 + float(k)) * 0.12
+					var gap: float = absf(wrapf(ang - ray, -PI, PI)) * r * 64.0
+					if gap < 2.4 and r > 0.1 and r < 0.86:
+						c = Color("f0b45a").lerp(c, clampf(gap / 2.4 * 0.7 + r * 0.3, 0.0, 1.0))
+				image.set_pixel(x, y, Color(c, 0.92)))
+	plate.material_override = Ink.hold(scorch)
+	root.add_child(plate)
+	# The shimmer: a ripple texture scrolled up the plate, on its own quad just above it.
+	var shimmer := MeshInstance3D.new()
+	var quad := PlaneMesh.new()
+	quad.size = Vector2(HEX * 1.45, HEX * 1.45)
+	shimmer.mesh = quad
+	shimmer.position.y = 0.02
+	var wave := StandardMaterial3D.new()
+	wave.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	wave.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	wave.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	wave.albedo_color = Color(HOT_SHIMMER, 0.75)
+	wave.albedo_texture = Ink.texture("hot_shimmer", Vector2i(64, 64), func(image: Image) -> void:
+		image.fill(Color(0, 0, 0, 0))
+		for y: int in 64:
+			for x: int in 64:
+				var p := Vector2(x - 32, y - 32) / 32.0
+				var fall: float = clampf(1.0 - p.length() * 1.15, 0.0, 1.0)
+				var ripple: float = pow(maxf(0.0, sin(float(y) * TAU / 16.0 + sin(float(x) * TAU / 32.0) * 1.4)), 6.0)
+				image.set_pixel(x, y, Color(1, 1, 1, ripple * fall)))
+	shimmer.material_override = Ink.hold(wave)
+	root.add_child(shimmer)
+	var drift := shimmer.create_tween().set_loops()
+	drift.tween_property(wave, "uv1_offset:y", 1.0, 1.6).from(0.0)
+	if as_floor:
+		_hot_views[cell] = root
+	else:
+		root.set_meta("intent", true)
+	_marks_root.add_child(root)
+
+
+## 087 (A18): what the aimed action would change besides damage, drawn on the board -- only
+## while aiming (hud-budget.md layer 4). From the real rules run on a copy (`CombatSim.apply` on
+## `CombatState.clone`, read with `CombatSim.diff` and `CombatSim.threats`): a ghost on the hex
+## each machine would be moved to (sunk into the pit for a fall), and a dashed line for every
+## enemy intent that would aim somewhere else afterwards.
+func _consequences(action: Array, threats: Dictionary) -> void:
+	var copy: CombatState = _state.clone()
+	if not CombatSim.apply(copy, action):
+		return
+	var actor: int = int(action[1])
+	for effect: Dictionary in CombatSim.diff(_state, copy):
+		if effect.has("prop") or bool(effect.get("spawned", false)):
+			continue
+		var ref: int = int(effect["ref"])
+		var after: GridUnit = copy.unit(ref)
+		var now: GridUnit = _state.unit(ref)
+		if after == null or now == null or ref == actor:
+			continue
+		var from := Vector2i(now.x, now.y)
+		var to := Vector2i(after.x, after.y)
+		if bool(effect.get("fell", false)) and to != from:
+			_ghost_at(to, Ink.ACTION, -0.55, ref)
+			_throw_arrow(from, to)
+		elif effect["moved_to"] != null and not bool(effect["killed"]):
+			_ghost_at(to, Ink.ACTION, 0.0, ref)
+			_throw_arrow(from, to)
+	var later: Dictionary = CombatSim.threats(copy)
+	for ref: Variant in later:
+		var was: Dictionary = threats.get(ref, {})
+		var will: Dictionary = later[ref]
+		if was.is_empty():
+			continue
+		var moved_end: bool = (will["end"] as Vector2i) != (was["end"] as Vector2i) or bool(will["legal"]) != bool(was["legal"])
+		if not moved_end:
+			continue
+		var shooter: GridUnit = copy.unit(int(ref))
+		if shooter == null or not shooter.alive:
+			continue
+		var end: Vector2i = will["end"] if bool(will["legal"]) else will["aim"]
+		var a: Vector3 = _to_world(shooter.x, shooter.y) + Vector3(0, 0.4, 0)
+		var b: Vector3 = _to_world(end.x, end.y) + Vector3(0, 0.4, 0)
+		_dashed_line(a, b, Ink.DANGER if bool(will["legal"]) else Color(0.6, 0.6, 0.6, 0.8))
+		_marker_label("RE-AIMS" if bool(will["legal"]) else "WILL MISS", b + Vector3(0, 0.1, HEX * 0.45),
+			COL_PAD_DANGER.lightened(0.35) if bool(will["legal"]) else Ink.PAPER, 26)
+
+
+## A see-through stand-in for a machine where an aimed action would put it (087, A18): the
+## arrival ghost's box, in the action's amber, `sink` metres lower for a fall.
+func _ghost_at(cell: Vector2i, colour: Color, sink: float = 0.0, ref: int = -1) -> void:
+	var at: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y) + sink, 0)
+	var ghost := MeshInstance3D.new()
+	var body := BoxMesh.new()
+	body.size = Vector3(HEX * 0.6, HEX * 1.0, HEX * 0.6)
+	ghost.mesh = body
+	ghost.position = at + Vector3(0, HEX * 0.5, 0)
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.albedo_color = Color(colour, 0.42)
+	ghost.material_override = Ink.hold(material)
+	Ink.line(ghost, Ink.LINE_ACT)
+	ghost.set_meta("intent", true)
+	ghost.set_meta("ghost", ref)
+	_marks_root.add_child(ghost)
+
+
+## A dashed ribbon from `from` to `to` over the board (087, A18): an intent that would re-aim.
+func _dashed_line(from: Vector3, to: Vector3, colour: Color) -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.UP)
+	var length: float = from.distance_to(to)
+	if length < 0.05:
+		return
+	var dir: Vector3 = (to - from) / length
+	var side: Vector3 = dir.cross(Vector3.UP).normalized() * 0.05
+	var dash: float = 0.22
+	var gap: float = 0.14
+	var t: float = 0.0
+	while t < length:
+		var a: Vector3 = from + dir * t
+		var b: Vector3 = from + dir * minf(t + dash, length)
+		for v: Vector3 in [a - side, a + side, b + side, a - side, b + side, b - side]:
+			st.add_vertex(v)
+		t += dash + gap
+	var bar := MeshInstance3D.new()
+	bar.mesh = st.commit()
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.albedo_color = colour
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.no_depth_test = true
+	material.render_priority = 3
+	bar.material_override = Ink.hold(material)
+	bar.set_meta("intent", true)
+	bar.set_meta("dashed", true)
+	_marks_root.add_child(bar)
 
 
 func _zone_ring(cell: Vector2i, colour: Color, weight: float = 1.0) -> void:
@@ -5144,6 +5521,13 @@ func _terrain_info(cell: Vector2i) -> void:
 		return
 	if _state.pulse_marks.has(cell):
 		_hud.set_info("THE CORE'S RING", "The Core pulses here at the start of next round: 4 to any of your machines standing in it. Get out of the ring.")
+		return
+	var hot: Dictionary = _hot_ground()
+	if hot.has(cell):
+		var spot: Dictionary = hot[cell]
+		var rounds: int = int(spot.get("rounds", 1))
+		_hud.set_info("HOT GROUND", "A lob landed here: a machine that enters it or ends its move on it takes %d heat. Cools in %d round%s." % [
+			int(spot.get("heat", 0)), rounds, "" if rounds == 1 else "s"])
 		return
 	if _state.arrivals.has(cell):
 		_hud.set_info("RECLAIMER ARRIVAL", "You are fighting near the Reclaimer's line: one of its drones comes in here next round. Stand on the hex to block it.")

@@ -95,7 +95,44 @@ func _build_bank() -> void:
 	_bank["reward"] = _notes([523.0, 659.0, 784.0], 0.09, 0.4)
 	_bank["win"] = _notes([392.0, 523.0, 659.0, 784.0, 1047.0], 0.13, 0.45)
 	_bank["lose"] = _sweep(0.9, 300.0, 70.0, 0.55)
+	# 087 (A17): an enemy's shot CANCELLED -- a breaker snaps, its charge whines down and dies,
+	# then one bright clink: the threat powering off, and the player's win.
+	_bank["cancel"] = _cancel()
 	_ambience_stream = _ambience()
+
+
+## 087 (A17): CANCELLED. A breaker's snap (a click of bright noise), a chopped tone falling from
+## 760 to 90 Hz as a charge dies, and one high clink after it. Distinct from SEIZE (a smooth sine
+## falling) by the snap, the chop and the clink.
+func _cancel() -> AudioStreamWAV:
+	var seconds: float = 0.5
+	var count: int = int(SAMPLE_RATE * seconds)
+	var data := PackedByteArray()
+	data.resize(count * 2)
+	var phase: float = 0.0
+	var clink: float = 0.0
+	var noise: int = 12345
+	for i: int in count:
+		var s: float = float(i) / float(SAMPLE_RATE)
+		var value: float = 0.0
+		# The snap: 25 ms of noise with a hard decay (a fixed LCG: the bank is the same every run).
+		if s < 0.025:
+			noise = (noise * 1103515245 + 12345) & 0x7fffffff
+			value += (float(noise % 2000) / 1000.0 - 1.0) * (1.0 - s / 0.025) * 0.8
+		# The charge dying: a square-ish tone falling, chopped at 34 Hz.
+		if s > 0.015 and s < 0.33:
+			var t: float = (s - 0.015) / 0.315
+			phase += TAU * lerpf(760.0, 90.0, pow(t, 0.7)) / float(SAMPLE_RATE)
+			var tone: float = clampf(sin(phase) * 2.2, -1.0, 1.0)
+			var chop: float = 0.6 + 0.4 * signf(sin(TAU * 34.0 * s))
+			value += tone * chop * pow(1.0 - t, 1.4) * minf(t / 0.03, 1.0) * 0.45
+		# The clink: 1320 Hz with an octave, after the fall.
+		if s > 0.31:
+			var c: float = s - 0.31
+			clink += TAU * 1320.0 / float(SAMPLE_RATE)
+			value += (sin(clink) * 0.75 + sin(clink * 2.0) * 0.25) * exp(-c * 22.0) * 0.4
+		_write_sample(data, i, value)
+	return _wav(data)
 
 
 ## A buzz: a tone swept from one pitch to another and chopped at `rate` Hz. A saw's teeth, a
