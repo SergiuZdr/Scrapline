@@ -4624,7 +4624,8 @@ func _pylon_beams() -> void:
 func _warlord_marks() -> void:
 	var twins: Array[GridUnit] = []
 	for u: GridUnit in _state.units:
-		if not u.alive or u.kind.is_empty():
+		# 086: an elite's affix has marks of its own (a BULWARK's front), kind or not.
+		if not u.alive or (u.kind.is_empty() and PartText.affixes_of(u).is_empty()):
 			continue
 		var rules: Dictionary = CombatSim.kind_rules(_state, u)
 		var here := Vector2i(u.x, u.y)
