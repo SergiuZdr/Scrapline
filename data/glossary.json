@@ -465,7 +465,7 @@
     "perk": {
       "group": "YOUR MACHINES",
       "name": "Perk",
-      "text": "What a level-up adds besides HP: one of three offered, kept for the run.",
+      "text": "What a level-up adds besides HP: one of three offered, kept for the run. At least one of the three is a rule perk, which changes what the machine does.",
       "forms": [
         "perk",
         "perks"
@@ -542,7 +542,7 @@
     "elite": {
       "group": "THE RUN",
       "name": "Elite",
-      "text": "A harder fight with a veteran; its salvage includes an uncommon or better part, already upgraded.",
+      "text": "A harder fight with a veteran that carries one announced rule, its affix (shown on the map site and over the machine in the fight); its salvage includes an uncommon or better part, already upgraded.",
       "forms": [
         "elite"
       ]
@@ -716,7 +716,7 @@
     "legendary": {
       "group": "YOUR MACHINES",
       "name": "Legendary",
-      "text": "The rarest parts, from a gate's or a warlord's hoard, and rarely from Act 3's salvage. Never on an enemy.",
+      "text": "The rarest parts, from a gate keeper's hoard (and sometimes a warlord's). Each has a strong RULE and a DRAWBACK, both printed on its card. Never on an enemy.",
       "forms": [
         "legendary",
         "legendaries"
@@ -758,6 +758,17 @@
     "daily_yard": {"group": "THE RUN", "name": "Daily yard", "text": "One run everyone gets on the same day, its deals fixed, any crew. ONE attempt a day: abandoning it counts. Scored by acts cleared, then fights won, then HP left; days in a row make a streak. It counts for nothing on the ladder.", "forms": ["daily yard", "today's yard"]},
     "weekly_contract": {"group": "THE RUN", "name": "Weekly contract", "text": "A harder run for the week: a fixed crew, a fixed rung and two or three announced twists. Any number of attempts, the best kept. Clearing it gives the week's plate. It counts for nothing on the ladder.", "forms": ["weekly contract", "this week's contract"]},
     "medal": {"group": "THE RUN", "name": "Medal", "text": "Three per crew, each for a way of winning that the crew does not fall into on its own. Earned at the end of a run that counts (not seeded, daily or weekly); shown on the UNLOCKS screen and the crew's card.", "forms": ["medal", "medals"]},
-    "plate": {"group": "THE RUN", "name": "Plate", "text": "A name plate for clearing a weekly contract, riveted beside the machines' names of the crew that cleared it. Only for show: it changes nothing in a fight.", "forms": ["weekly plate"]}
+    "plate": {"group": "THE RUN", "name": "Plate", "text": "A name plate for clearing a weekly contract, riveted beside the machines' names of the crew that cleared it. Only for show: it changes nothing in a fight.", "forms": ["weekly plate"]},
+    "affix": {"group": "ENEMIES", "name": "Elite affix", "text": "An elite's veteran carries one rule of its own, announced before you go: ELITE: VOLATILE under the map site, and the word over the machine in the fight. Volatile, rigged or bulwark: each asks for a different answer.", "forms": ["affix", "affixes", "elite affix"]},
+    "volatile": {"group": "ENEMIES", "name": "Volatile", "text": "An elite affix. It blows up when it is destroyed: damage to everything next to it, its own side included. Finish it at range, or next to its friends.", "forms": ["volatile"]},
+    "rigged": {"group": "ENEMIES", "name": "Rigged", "text": "An elite affix. Its arms are bolted on: no hit tears them off, so you cannot disarm it. Keep out of its reach, or kill it.", "forms": ["rigged"]},
+    "bulwark": {"group": "ENEMIES", "name": "Bulwark", "text": "An elite affix. Plated at the front: hits from its front hexes do less. Come at it from the side or from behind.", "forms": ["bulwark"]},
+    "spoils": {"group": "THE RUN", "name": "Torn from", "text": "One salvage card can be a part your crew ripped off an enemy in that fight: an arm you tore off, or the core or module of a wreck. The card says whose it was (TORN FROM THE TRACKER), and the fight's recap says what came off. Aim at the arm you want.", "forms": ["torn from", "tore off"]},
+    "rule_perk": {"group": "YOUR MACHINES", "name": "Rule perk", "text": "A perk that changes what the machine DOES, not how much: its card says NEW RULE and the verb it adds (TEARS, MARKS, PIERCES, SCAVENGES, THORNS). Every level-up offers at least one.", "forms": ["rule perk", "rule perks", "new rule"]},
+    "set_rule": {"group": "YOUR MACHINES", "name": "Set rule", "text": "Three parts from one maker on a machine give it that maker's rule, on top of the bonus two give. The garage counts each maker (KESSLER 2/3), and a part's card names its maker's rule.", "forms": ["set rule", "set rules", "full set"]},
+    "drawback": {"group": "YOUR MACHINES", "name": "Drawback", "text": "What a legendary costs for its rule, printed on its card on a line of its own. In a fight the preview says DRAWBACK when the attack you aim sets it off: a beam through your own machine, a strike that roots the wielder, an overheat that blasts its neighbours.", "forms": ["drawback", "drawbacks"]},
+    "arc": {"group": "WEAPONS", "name": "Arc", "text": "A shot that arcs jumps on from what it hits to one more target next to it, 1 weaker.", "forms": ["arc", "arcs"]},
+    "anchored": {"group": "YOUR MACHINES", "name": "Anchored", "text": "Cannot be shoved or dragged: shoves, harpoons and grapples leave it where it stands. Every ANCHOR frame is; a perk, a part or a set can make another machine so.", "forms": ["anchored", "cannot be shoved", "unshovable"]},
+    "scavenge": {"group": "YOUR MACHINES", "name": "Scavenge", "text": "Each kill it makes patches it for a few HP, never past its maximum (the Scavenger perk).", "forms": ["scavenges", "scavenger", "per kill"]}
   }
 }
