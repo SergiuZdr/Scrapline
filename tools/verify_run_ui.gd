@@ -732,6 +732,23 @@ func _builds() -> void:
 	_check("a %s part's card names the set rule (%s)" % [short, named.text if named != null else "none"],
 		verbs.is_empty() == (named == null) and (named == null or named.text.contains(" + ".join(verbs))))
 	card.free()
+	# A legendary's drawback sits in its own strip at the card's foot, and the card holds everything.
+	var legend: String = ""
+	for id: Variant in db.parts:
+		if legend.is_empty() and not String((db.parts[id] as Dictionary).get("drawback", "")).is_empty() and not PartTuning.is_tuned(String(id)):
+			legend = String(id)
+	if legend.is_empty():
+		print("  (no part has a drawback yet)")
+	else:
+		var legend_card: Button = card_script.call("build", db, legend, Vector2(380, 236), state.crew)
+		map.add_child(legend_card)
+		await _frames(2)
+		var strip: Control = legend_card.find_child("drawback_strip", true, false) as Control
+		var said: Label = legend_card.find_child("drawback", true, false) as Label
+		var inside: bool = strip != null and legend_card.get_global_rect().grow(1.0).encloses(strip.get_global_rect())
+		_check("%s's card: its DRAWBACK in its own strip at the foot, inside the card (%s)" % [legend, said.text if said != null else "none"],
+			said != null and said.text.begins_with("DRAWBACK: ") and inside and legend_card.size.y <= 236.5)
+		legend_card.queue_free()
 	# The level-up offer: at least one RULE perk, standing out.
 	var offer: Array[String] = RunSim.perk_offer(state, setup, 0)
 	_press(_find_button_prefix(panel, "LEVEL UP"))
@@ -743,16 +760,17 @@ func _builds() -> void:
 	for k: int in offer.size():
 		var perk: Dictionary = db.perks.get(offer[k], {})
 		var perk_card: Node = pick.find_child("perk_%d" % k, true, false) if pick != null else null
+		var verb: Label = perk_card.find_child("rule_verb", true, false) as Label if perk_card != null else null
 		if bool(text_script.call("is_rule_perk", perk)):
 			rules += 1
-			if perk_card != null and perk_card.has_meta("rule") and perk_card.find_child("rule_tag", true, false) != null:
+			if perk_card != null and perk_card.has_meta("rule") and perk_card.find_child("rule_band", true, false) != null:
 				marked += 1
-			var gain: Label = perk_card.find_child("gain", true, false) as Label if perk_card != null else null
-			verbs_ok = verbs_ok and gain != null and gain.text.begins_with("+ ")
-		elif perk_card != null and perk_card.has_meta("rule"):
+			var want: String = "+ " + " + ".join(text_script.call("rule_verbs", perk.get("grid", {})) as PackedStringArray)
+			verbs_ok = verbs_ok and verb != null and verb.text == want and perk_card.find_child("gain", true, false) == null
+		elif perk_card == null or perk_card.has_meta("rule") or verb != null or perk_card.find_child("gain", true, false) == null:
 			verbs_ok = false
-	_check("the level-up offer holds a rule perk, and every rule card says NEW RULE (%d of %d)" % [marked, rules], rules >= 1 and marked == rules)
-	_check("each rule card's gain is the verb it adds (\"+ TEARS: ...\")", verbs_ok)
+	_check("the level-up offer holds a rule perk, and every rule card carries a band (%d of %d)" % [marked, rules], rules >= 1 and marked == rules)
+	_check("the band is the verb it adds (\"+ MARKS\"), with no gain line; a number perk keeps its gain line", verbs_ok)
 	if pick != null:
 		_press(_find_button(pick, "NOT NOW"))
 	await _frames(2)

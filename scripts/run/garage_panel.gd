@@ -1040,51 +1040,57 @@ func _offer_perks() -> void:
 ## A perk as a card: its name, what it does, the numbers in the colour of a gain.
 func _perk_card(k: int, id: String) -> Button:
 	var perk: Dictionary = Run.db.perks.get(id, {})
-	# 086 (A8): a perk that changes what the machine DOES stands out from one that adds a number --
-	# a band down its edge, NEW RULE over its name, and the verb it adds in place of the numbers.
+	# 086 (A8, the user): a perk that changes what the machine DOES carries the verb it adds in a rust
+	# band across its top ("+ MARKS"); its text says what the verb does. A number perk keeps its gain line.
 	var rule: bool = PartText.is_rule_perk(perk)
+	var grid: Dictionary = perk.get("grid", {})
 	var card := Button.new()
 	card.name = "perk_%d" % k
 	card.custom_minimum_size = Vector2(430, 220)
 	card.focus_mode = Control.FOCUS_NONE
 	var style: InkBox = UIKit.choice()
-	if rule:
-		style = style.duplicate()
-		style.band_width = 10.0
-		style.band = Ink.RUST
-		card.set_meta("rule", true)
 	var hover: InkBox = style.duplicate()
 	hover.bg_color = UIKit.SURFACE_HIGH.lightened(0.05)
 	for key: String in ["normal", "pressed", "focus"]:
 		card.add_theme_stylebox_override(key, style)
 	card.add_theme_stylebox_override("hover", hover)
+	var outer := VBoxContainer.new()
+	outer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	outer.add_theme_constant_override("separation", 0)
+	card.add_child(outer)
+	outer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, 3)
+	if rule:
+		card.set_meta("rule", true)
+		var verbs: PackedStringArray = PartText.rule_verbs(grid)
+		var band := PanelContainer.new()
+		band.name = "rule_band"
+		band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		band.add_theme_stylebox_override("panel", UIKit.plain(Ink.RUST, 0, UIKit.SPACE_LG, 4))
+		var verb := UIKit.fit(_label("+ " + " + ".join(verbs) if not verbs.is_empty() else "NEW RULE", 26, UIKit.PAGE_TEXT, UIKit.font_comic()),
+			400, 1, 14)
+		verb.name = "rule_verb"
+		band.add_child(verb)
+		outer.add_child(band)
+	var pad := MarginContainer.new()
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pad.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	for side: String in ["left", "right", "top", "bottom"]:
+		pad.add_theme_constant_override("margin_" + side, UIKit.SPACE_LG - 3 if side != "top" or not rule else UIKit.SPACE_SM)
+	outer.add_child(pad)
 	var inner := VBoxContainer.new()
 	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	inner.add_theme_constant_override("separation", UIKit.SPACE_SM)
-	card.add_child(inner)
-	inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, UIKit.SPACE_LG)
-	var grid: Dictionary = perk.get("grid", {})
-	var head := HBoxContainer.new()
-	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inner.add_child(head)
-	head.add_child(UIKit.fit(_label(String(perk.get("name", id)).to_upper(), 28, UIKit.TEXT, UIKit.font_comic()), 270 if rule else 380, 1, 16))
-	if rule:
-		var tag := UIKit.fit(_label("NEW RULE", UIKit.SIZE_BODY, Ink.RUST, UIKit.font_comic()), 106, 1, 10)
-		tag.name = "rule_tag"
-		tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		head.add_child(tag)
+	pad.add_child(inner)
+	inner.add_child(UIKit.fit(_label(String(perk.get("name", id)).to_upper(), 28, UIKit.TEXT, UIKit.font_comic()), 380, 1, 16))
 	inner.add_child(UIKit.fit(_label(String(perk.get("text", "")), UIKit.SIZE_BODY, UIKit.TEXT_DIM), 380, 3, 12))
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inner.add_child(spacer)
-	# A rule perk's gain is the verb it adds ("+ TEARS"); its text above says what the verb does.
-	var verbs: PackedStringArray = PartText.rule_verbs(grid) if rule else PackedStringArray()
-	var gain: String = ("+ " + " + ".join(verbs)) if not verbs.is_empty() else PartText.bonus_text(grid).to_upper()
-	var gain_label := UIKit.fit(_label(gain, 26 if rule else 22, UIKit.GREEN, UIKit.font_comic()), 380, 2, 12)
-	gain_label.name = "gain"
-	inner.add_child(gain_label)
+	if not rule:
+		var spacer := Control.new()
+		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		inner.add_child(spacer)
+		var gain_label := UIKit.fit(_label(PartText.bonus_text(grid).to_upper(), 22, UIKit.GREEN, UIKit.font_comic()), 380, 2, 12)
+		gain_label.name = "gain"
+		inner.add_child(gain_label)
 	card.pressed.connect(_level_up.bind(k))
 	return card
 
