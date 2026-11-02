@@ -24,6 +24,12 @@ func _run() -> void:
 	var scene: Node = (load("res://scenes/combat.tscn") as PackedScene).instantiate()
 	root.add_child(scene)
 	await _settle(scene)
+	# 087: the opening can still be playing when the first settle ends (a slow shader warm-up):
+	# wait for the player's turn to be announced.
+	for i: int in 3000:
+		if String(((scene.get("_hud") as Node).get("_banner") as Label).text).contains("YOUR TURN"):
+			break
+		await process_frame
 
 	var steps: int = args.find("--steps")
 	if steps >= 0 and steps + 1 < args.size():
