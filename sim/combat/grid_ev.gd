@@ -72,6 +72,8 @@ const ROOTED: int = 61       ## actor (086: a weapon that roots, the Godhammer) 
 const FRONT_TURNED: int = 62 ## actor (086: a BULWARK elite) at (x, y) faces direction v1: hits from its front three sides take v2 less
 const MELTDOWN: int = 63     ## actor (086: the Crucible Heart) overheated at (x, y) and blasts every neighbour for v1 (an EXPLOSION follows)
 const BURNED: int = 64       ## actor (086: the Phoenix Cell) burns v1 HP at the start of the round (a DAMAGE follows)
+const INTENT_LOST: int = 65  ## 087 (A17): actor's standing intent (weapon v2, aimed at (x, y)) was cancelled before it fired -- killed, fell, torn or seized; v1 = the damage it would have dealt to the crew; target = what cancelled it (-1 unknown)
+const GROUND_SET: int = 66   ## 087 (A4b): the hex (x, y) is hot ground for v1 rounds (a mortar or slag lob landed); actor = who fired; v2 = heat it adds to a machine on it
 
 ## What a PROP_PLACED / PROP_BROKEN `v1` names. An int, because events are flat ints.
 const PROP_KINDS: PackedStringArray = ["crate", "barrel", "pylon", "coolant"]
@@ -94,7 +96,7 @@ const NAMES: PackedStringArray = [
 	"REPAIRED", "LAST_STAND", "MINE_LAID", "MINE_BLEW", "SNARED",
 	"EXPOSED", "CHARGE_MARKED", "CHARGED", "GRAB_MARKED", "GRABBED", "PROP_MOVED", "QUENCHED",
 	"SIDE_TURNED", "REBUILD_MARKED", "REBUILT", "KEEPERS_FALL",
-	"ROOTED", "FRONT_TURNED", "MELTDOWN", "BURNED",
+	"ROOTED", "FRONT_TURNED", "MELTDOWN", "BURNED", "INTENT_LOST", "GROUND_SET",
 ]
 
 

@@ -587,6 +587,14 @@ static func type_pct(state: CombatState, u: GridUnit, target: GridUnit) -> int:
 	return 100
 
 
+## 087 (A12) CONTRACT: the steps that turn `amount` into `damage_to`'s result, in the order they
+## apply: `[[key, delta], ...]` with key one of "base", "type", "cover", "armor", "mark", "ward",
+## "front", "min" (the floor). The deltas sum to `damage_to(...)` exactly; the first step is
+## ["base", amount]. STUB until the sim agent lands it: one step, the whole result.
+static func damage_steps(state: CombatState, u: GridUnit, target: GridUnit, amount: int, shot: bool) -> Array:
+	return [["base", damage_to(state, u, target, amount, shot)]]
+
+
 ## Final damage of `amount` from `u` to `target`: the type wheel, cover against shots,
 ## armour, and a mark. Integer only; `(x * pct + 50) / 100` rounds half up.
 ## A zero-damage weapon stays at zero.
