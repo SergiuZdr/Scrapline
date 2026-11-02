@@ -310,6 +310,23 @@ func _builds(packed: PackedScene) -> void:
 	var body: String = (hud.get("_info_body") as RichTextLabel).get_parsed_text()
 	_check("tapping it says the affix and what it does", body.contains("VOLATILE: " + String(info["text"])))
 	_check("and VOLATILE links to its glossary card", (hud.get("_info_body") as RichTextLabel).text.contains("[url=volatile]"))
+	# A BULWARK's front (staged: the sim turns it after the enemy moves) is marked as plated, not open.
+	enemy.set("affix", "bulwark")
+	state.facing[enemy.ref] = 0
+	_scene.call("_resync_units")
+	_scene.call("_refresh")
+	await _settle()
+	var plated: bool = false
+	var opened: bool = false
+	for node: Node in (_scene.get("_marks_root") as Node).get_children():
+		if node is Label3D:
+			plated = plated or (node as Label3D).text.begins_with("PLATED FRONT")
+			opened = opened or (node as Label3D).text.begins_with("OPEN SIDE")
+	_check("a BULWARK's facing is drawn as its PLATED FRONT, never an OPEN SIDE", plated and not opened)
+	state.facing.erase(enemy.ref)
+	enemy.set("affix", "volatile")
+	_scene.call("_resync_units")
+	await _settle()
 
 	# The Sunspear, on the first machine, with a crew machine on its beam's line.
 	var spear: Dictionary = db.parts.get("ar_sunspear", {})

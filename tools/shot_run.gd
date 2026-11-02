@@ -26,6 +26,9 @@ extends SceneTree
 ## streak) for these shots; `--title` shows the rung line; `--yard` opens the yard board, `--goals` the
 ## UNLOCKS panel's GOALS tab; `--deal N` takes deal N before the map opens (its cost on the map); a new
 ## run with `--until moves:0` stops on the deals screen.
+## 086: `--scout` scouts every site the camp reaches; `--stage-spoils NAME`, `--stage-legend ID` (with
+## `--until reward`) and `--stage-set MAKER` (with `--refit`) stage the spoils card, a legendary's card
+## and a machine's maker set.
 ## Uses the real `Run` autoload; under `--script` it saves to `user://tool_run.json` and a profile
 ## of its own (032), never the player's.
 
@@ -55,6 +58,12 @@ func _go() -> void:
 		var fresh: RunState = run.get("state")
 		for id: int in RunSim.destinations(fresh):
 			fresh.sites[id]["type"] = _arg(args, "--force", "signal")
+	if args.has("--scout"):
+		# 086, screenshot only: every site the camp reaches is scouted (its affix and fight show).
+		var seen: RunState = run.get("state")
+		for id: int in RunSim.destinations(seen):
+			if not seen.scouted.has(id):
+				seen.scouted.append(id)
 	var guard: int = 0
 	var card_script: Script = load("res://scripts/ui/part_card.gd")
 	while guard < (3000 if until == "over" else 300):
@@ -93,6 +102,34 @@ func _go() -> void:
 		member["hp"] = 0
 		member["parts"] = [String(member["parts"][0]), "", "", "", ""]
 		RunSim._queue_wreck(at, RunSim.wreck_pull(at, run.get("setup"), [0, 1, 2], {1: lost}, [1]))
+	# 086, screenshot only: `--stage-spoils NAME` marks salvage card 1 as torn off NAME; `--stage-legend ID`
+	# puts that part on card 0; `--stage-set MAKER` gives machine `--crew` (0) that maker's frame, core and
+	# module, for the garage's set progress.
+	if args.has("--stage-spoils") or args.has("--stage-legend"):
+		var at: RunState = run.get("state")
+		if not ["reward", "scrapyard"].has(String(at.pending.get("kind", ""))):
+			at.pending = RunSim.salvage(at, run.get("setup"), "skirmish")
+		if args.has("--stage-spoils"):
+			at.pending["torn_from"] = _arg(args, "--stage-spoils", "THE TRACKER")
+			at.pending["torn_index"] = 1
+		if args.has("--stage-legend"):
+			(at.pending["options"] as Array)[0] = _arg(args, "--stage-legend", "ar_sunspear")
+	if args.has("--stage-set"):
+		var at: RunState = run.get("state")
+		var maker: String = _arg(args, "--stage-set", "kessler")
+		var db: ContentDB = run.get("db")
+		var member: Dictionary = at.crew[_arg(args, "--crew", "0").to_int()]
+		var sockets: Dictionary = {"chassis": 0, "core": 1, "module": 4}
+		var done: Dictionary = {}
+		var ids: Array = db.parts.keys()
+		ids.sort()
+		for id: Variant in ids:
+			var part: Dictionary = db.parts[id]
+			var slot: String = String(part.get("slot", ""))
+			if String(part.get("maker", "")) == maker and sockets.has(slot) and not done.has(slot) \
+					and not PartTuning.is_tuned(String(id)) and int(part.get("rarity", 1)) < 4:
+				(member["parts"] as Array)[int(sockets[slot])] = String(id)
+				done[slot] = true
 	if args.has("--wreck"):
 		# Screenshot only: the crew is wrecked where it stands, for the roll call after a loss.
 		var lost: RunState = run.get("state")

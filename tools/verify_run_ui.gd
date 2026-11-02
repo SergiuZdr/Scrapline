@@ -660,9 +660,9 @@ func _builds() -> void:
 		motion.position = yard.screen_pos(site)
 		root.push_input(motion, true)
 		await _frames(3)
-		var head: Label = (map.get("_preview") as Node).find_child("affix_head", true, false) as Label
+		var head: Label = (map.get("_preview") as Node).find_child("site_head", true, false) as Label
 		var said: Label = (map.get("_preview") as Node).find_child("affix_text_" + String(affixes[0]), true, false) as Label
-		_check("and its card heads with it and says what it does", head != null and head.text == "ELITE: " + name
+		_check("and its card heads with it and says what it does", head != null and head.text.ends_with("ELITE: " + name)
 			and said != null and said.text.begins_with(name + ": ") and said.text.length() > name.length() + 8)
 		_check("the affix has a glossary card", (db.glossary["terms"] as Dictionary).has(String(affixes[0])))
 	# The spoils: a salvage whose card 1 was torn off the Tracker.
