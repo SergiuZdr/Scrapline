@@ -1537,7 +1537,7 @@ func _look_key(u: GridUnit) -> String:
 	var torn: Array = []
 	for w: int in u.weapons.size():
 		torn.append(u.can_fire(w))
-	return str([u.part_ids, u.level, u.kind, u.objective, u.carries_scrap, u.team, torn])
+	return str([u.part_ids, u.level, u.kind, u.objective, u.carries_scrap, u.team, torn, PartText.affixes_of(u)])
 
 
 func _clear_board_objects() -> void:
@@ -4669,7 +4669,22 @@ func _trick_marks(u: GridUnit, here: Vector2i, top: Vector3, rules: Dictionary) 
 			_throw_arrow(Vector2i(t.x, t.y), here)
 			_marker_label("THE CLAW · get more than %d away, or land on its pad" % int(rules.get("grab_range", 4)),
 				_to_world(t.x, t.y) + Vector3(0, 0.08, HEX * 0.72), COL_PAD_DANGER.lightened(0.35), 36)
-	if _state.facing.has(u.ref):
+	var plate: int = int(CombatSim.kind_rules(_state, u).get("front_plate", 0)) if _state.facing.has(u.ref) else 0
+	if plate > 0:
+		# 086 (A5): a BULWARK's facing is its plated front, not an opening: the three hexes it faces
+		# ringed in danger red, and a label that says to go round.
+		var face: int = int(_state.facing[u.ref])
+		var front: Array[Vector2i] = []
+		for d: int in [face + 5, face, face + 1]:
+			var cell: Vector2i = Hex.neighbor(here, d % 6)
+			if _state.inside(cell):
+				front.append(cell)
+				_zone_ring(cell, COL_PAD_DANGER, 1.4)
+		if not front.is_empty():
+			var mid: Vector2i = front[front.size() / 2]
+			_marker_label("PLATED FRONT · -%d from these sides: go round it" % plate,
+				_to_world(mid.x, mid.y) + Vector3(0, 0.08, HEX * 0.72), COL_PAD_DANGER.lightened(0.35), 36)
+	elif _state.facing.has(u.ref):
 		# An amber arrow out of its open face and rings down that side: hit it from there.
 		var dir: int = int(_state.facing[u.ref])
 		var side: Vector2i = Hex.neighbor(here, dir)

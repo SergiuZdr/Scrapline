@@ -765,7 +765,7 @@ func _show_preview() -> void:
 		box.add_child(tag)
 		for affix: String in PartText.affixes_of(RunSim.fight_preview(state, Run.setup, _hover)):
 			var info: Dictionary = _affix(affix)
-			var line := _wrap("%s: %s" % [String(info["name"]), String(info["text"])], UIKit.SIZE_LABEL, UIKit.TEXT, 340)
+			var line := _wrap("%s: %s" % [String(info["name"]), String(info["short"])], UIKit.SIZE_LABEL, UIKit.TEXT, 340)
 			line.name = "affix_text_%s" % affix
 			box.add_child(line)
 	var text: String = _site_text(String(site["type"])) if known \
