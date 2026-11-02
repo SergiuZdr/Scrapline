@@ -28,8 +28,8 @@ what happens when two sources meet on one machine. **Decided before building any
 
 | Trait | Rule perk (A8, V1) | Maker set, 3 pieces (A10) | Legendary (A9) | Cores / modules | Arms (their own) |
 |---|---|---|---|---|---|
-| **pierce** (shots go on through a machine) | AP Rounds +1 (needs a shot) | VEKTOR +1 | Sunspear: through *everything*, heaps and walls too (`breach`); hits your own on the line | Mag Core +1, Belt Feeder +1 | Lance 1, Coilgun 1, Railgun 9 |
-| **tears** (a hit tears an arm off) | Rending Grip: every melee hit (needs melee) | CINDER: every melee hit | Godhammer: every hit (its own arm) | Solvent Core, Gripping Hooks: every melee hit | Ripper Claw every hit; **Saw at 4 damage** (`tear_at`, not the rules' 5) |
+| **pierce** (shots go on through a machine) | AP Rounds +1 on shots; other weapons +1 damage (`ap`, no slot) | VEKTOR +1 | Sunspear: through *everything*, heaps and walls too (`breach`); hits your own on the line | Mag Core +1, Belt Feeder +1 | Lance 1, Coilgun 1, Railgun 9 |
+| **tears** (a hit tears an arm off) | Rending Grip: every hit, any weapon | CINDER: every hit, any weapon | Godhammer: every hit (its own arm) | Solvent Core, Gripping Hooks: every melee hit | Ripper Claw every hit; **Saw at 4 damage** (`tear_at`, not the rules' 5) |
 | **arc** (a shot jumps on) | -- (Arc Relay perk is `chain`: +1 on a weapon that already arcs) | ARCLIGHT +1 jump on every shot | -- | Tesla Core +1, Arc Relay module +1 | Pulse 2, Coilgun 1 |
 | **mark** (next hit on it +2) | Spotter | -- | -- | Null Core, Spotter Uplink | Spotter Array |
 | **thorns** (melee attackers take it) | Barbed Hull 1 | KESSLER 1 | -- | Spiked Plating 1 | -- |
@@ -55,8 +55,12 @@ what happens when two sources meet on one machine. **Decided before building any
    other arm, so the pick is never dead unless both arms already tear (rule 3 keeps it off the offer then).
 5. **Sets carry no heat** (the user, 2026-10-22): the 2-piece is a small stat (KESSLER +2 HP, ARCLIGHT
    abilities a round sooner, VEKTOR +1 move, CINDER +1 melee), the 3-piece the maker's verb above.
-   CINDER's tears and +1 work on melee arms only; a Cinder machine with no melee arm gets nothing from
-   them (an open question below).
+   CINDER's 2-piece +1 works on melee arms only; its 3-piece tears now work on every weapon (the user,
+   2026-11-02).
+6. **No slot `needs` on rule perks (the user, 2026-11-02):** a rule perk works with any weapon, and the
+   offer leans toward the build -- a perk that adds to a trait the machine carries, or to a set its makers
+   build, has its seeded roll halved (`RunSim._perk_favoured`). Flag traits can therefore be offered twice
+   over (rule 3 is relaxed for the build-weighting); a flag already owned stays a dead pick.
 
 ## Measured (086)
 
