@@ -76,6 +76,9 @@ uniform float livery_ref_trim = 0.45;
 // (olive panels too, and the mid-grey plating, not the dark mechanism or the rust) and flattens the
 // painted value toward the livery's own, so a scheme reads at board distance as a colour, not a tint.
 uniform float livery_bold = 0.0;
+// 1: on the board the plain grey plating takes the TRIM, not the paint -- a two-tone scheme (OXIDE RED's
+// brick over cream: a brick hue alone is too dark to keep the board's machine contrast).
+uniform float livery_plate_trim = 0.0;
 
 // 0 none, 1 stipple dots, 2 diagonal hatching.
 uniform int pattern = 0;
@@ -122,7 +125,7 @@ vec3 repaint(vec3 c, vec2 uv) {
 	float paint_w = yellow * smoothstep(mix(0.28, 0.2, b), mix(0.42, 0.32, b), hsv.y) * smoothstep(0.18, 0.3, hsv.z);
 	// Bold: the plain mid-grey plating takes the paint too (the dark mechanism and the rust do not).
 	float plate_w = b * (1.0 - smoothstep(0.12, 0.22, hsv.y)) * smoothstep(0.34, 0.46, hsv.z) * 0.9;
-	paint_w = max(paint_w, plate_w);
+	plate_w *= 1.0 - paint_w;
 	// Red and orange are paint only when bright: dark orange is rust and stays rust.
 	float trim_w = red * smoothstep(0.35, 0.5, hsv.y) * smoothstep(0.3, 0.42, hsv.z);
 	vec3 paint = livery_paint;
@@ -135,6 +138,7 @@ vec3 repaint(vec3 c, vec2 uv) {
 	float kt = mix(min(hsv.z / livery_ref_trim, 1.3), 1.0, 0.55 * b);
 	vec3 out_s = s;
 	out_s = mix(out_s, clamp(paint * kp, 0.0, 1.0), paint_w);
+	out_s = mix(out_s, clamp(mix(paint * kp, livery_trim * kt, livery_plate_trim), 0.0, 1.0), plate_w);
 	out_s = mix(out_s, clamp(livery_trim * kt, 0.0, 1.0), trim_w);
 	return pow(out_s, vec3(2.2));
 }
