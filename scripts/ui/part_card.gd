@@ -86,10 +86,28 @@ static func build(db: ContentDB, id: String, size: Vector2, compare_crew: Array 
 		inner.add_child(picture)
 	inner.add_child(UIKit.fit(_label(PartText.name_of(parts, id), 20, colour, UIKit.font_comic()), inner_w, 1, 13))
 	inner.add_child(UIKit.fit(_label(PartText.summary(parts, id, db.combat_abilities), UIKit.SIZE_MICRO, UIKit.TEXT_DIM), inner_w, 2, 10))
+	# 086 (A9): a legendary's rule, then its drawback on a line of its own, never folded into the summary.
+	var rule: String = PartText.rule_of(parts, id)
+	var drawback: String = PartText.drawback_of(parts, id)
+	if not rule.is_empty():
+		var rule_line := UIKit.fit(_label("RULE: " + rule, UIKit.SIZE_MICRO, colour, UIKit.font_strong()), inner_w, 2, 9)
+		rule_line.name = "rule"
+		inner.add_child(rule_line)
+	if not drawback.is_empty():
+		var cost_line := UIKit.fit(_label("DRAWBACK: " + drawback, UIKit.SIZE_MICRO, UIKit.RED, UIKit.font_strong()), inner_w, 2, 9)
+		cost_line.name = "drawback"
+		inner.add_child(cost_line)
+	# 086 (A10): the rule its maker's full set gives ("KESSLER SET (3): THORNS + ANCHORED").
+	var set_line: String = set_rule_line(db, id)
+	if not set_line.is_empty():
+		var verb := UIKit.fit(_label(set_line, UIKit.SIZE_MICRO, UIKit.GREEN, UIKit.font_strong()), inner_w, 1, 9)
+		verb.name = "set_rule"
+		inner.add_child(verb)
 	# 082 (A22): the line the part's maker would say about it, in italics.
 	var said: String = flavour(parts, id)
 	if not said.is_empty():
-		var line := UIKit.fit(_label(said, UIKit.SIZE_MICRO, UIKit.TEXT_DIM, italic()), inner_w, 2 if size.y >= 220.0 else 1, 9)
+		var lines: int = 2 if size.y >= 220.0 and rule.is_empty() and drawback.is_empty() else 1
+		var line := UIKit.fit(_label(said, UIKit.SIZE_MICRO, UIKit.TEXT_DIM, italic()), inner_w, lines, 9)
 		line.name = "flavour"
 		button.tooltip_text = said
 		inner.add_child(line)
@@ -128,6 +146,16 @@ static func set_verdict(db: ContentDB, id: String, crew: Array) -> String:
 						return "MAKES %s x%d ON %s" % [PartText.maker_short(db.makers, parts, id), int(entry["count"]),
 							String(member["name"]).to_upper()]
 	return ""
+
+
+## 086 (A10): "KESSLER SET (3): THORNS + ANCHORED" -- the rule this part's maker gives at its full
+## set -- or "" for a part without a maker or a maker whose sets add only numbers.
+static func set_rule_line(db: ContentDB, id: String) -> String:
+	var maker: String = String((db.parts.get(id, {}) as Dictionary).get("maker", ""))
+	var rule: Array = PartText.set_rule(db.makers, maker)
+	if rule.is_empty():
+		return ""
+	return "%s SET (%d): %s" % [PartText.maker_short(db.makers, db.parts, id), int(rule[0]), " + ".join(rule[1] as PackedStringArray)]
 
 
 static func _tiers(db: ContentDB, loadout: Array, maker: String) -> int:
