@@ -1,0 +1,26 @@
+{
+  "id": "spoils086",
+  "name": "Spoils",
+  "_comment": "086 (A7): a staged board for verify_run -- a crew whose melee tears, against three machines it can tear and wreck, so the fight leaves spoils. NOT content (tools/frames, never drawn by a run).",
+  "rows": [
+    "........",
+    "........",
+    "........",
+    "........",
+    "........",
+    "........",
+    "........",
+    "........"
+  ],
+  "player": [
+    {"name": "Knuckles", "parts": ["ch_brute", "co_slug", "ar_saw", "ar_hammer", "mo_scavenger"], "x": 3, "y": 5, "hp": 30, "bonus": {"tears": 1, "damage": 1}},
+    {"name": "Needle", "parts": ["ch_brute", "co_slug", "ar_cleaver", "ar_ripper", "mo_ablative"], "x": 4, "y": 5, "hp": 30, "bonus": {"tears": 1, "damage": 1}},
+    {"name": "Relay", "parts": ["ch_brute", "co_slug", "ar_maul", "ar_cleaver", "mo_governor"], "x": 2, "y": 5, "hp": 30, "bonus": {"tears": 1, "damage": 1}}
+  ],
+  "enemy": [
+    {"name": "Brute", "parts": ["ch_brute", "co_slug", "ar_ripper", "ar_cleaver", "mo_plating"], "x": 3, "y": 3, "hp": 10},
+    {"name": "Scrapper", "parts": ["ch_scrapper", "co_bile", "ar_saw", "ar_flail", "mo_spikes"], "x": 4, "y": 3, "hp": 10},
+    {"name": "Courier", "parts": ["ch_courier", "co_arc", "ar_railgun", "ar_cleaver", "mo_targeting"], "x": 2, "y": 3, "hp": 10}
+  ],
+  "objective": {"type": "rout"}
+}

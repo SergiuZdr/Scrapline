@@ -294,19 +294,31 @@ static func perk_offer(state: RunState, setup: RunSetup, index: int) -> Array[St
 		cards = mini(cards, state.free_level_cards)
 	for pair: Array in eligible.slice(0, cards):
 		out.append(String(pair[1]))
+	# 086 (A8): every offer holds a perk that changes a rule (`"rule": true`): if the seeded cards
+	# hold none, the last becomes the first eligible rule perk in the same seeded order.
+	if not out.is_empty() and not out.any(func(id: String) -> bool: return bool((perks[id] as Dictionary).get("rule", false))):
+		for pair: Array in eligible.slice(cards):
+			if bool((perks[String(pair[1])] as Dictionary).get("rule", false)):
+				out[out.size() - 1] = String(pair[1])
+				break
 	return out
+
+
+## 086 (A8): whether a perk changes what a machine does (`"rule": true` in perks.json), not a number.
+static func is_rule_perk(setup: RunSetup, id: String) -> bool:
+	return bool(((setup.rules.get("perks", {}) as Dictionary).get(id, {}) as Dictionary).get("rule", false))
 
 
 ## Whether a perk would do anything for this machine (`needs` in perks.json).
 static func _perk_fits(u: GridUnit, needs: String) -> bool:
 	match needs:
-		"melee", "ranged", "chain":
+		"melee", "ranged", "chain", "shot":
 			for w: Dictionary in u.weapons:
 				if bool(w["empty"]):
 					continue
 				var shape: String = String(w["shape"])
 				if (needs == "melee" and shape == "melee") or (needs == "ranged" and shape != "melee") \
-						or (needs == "chain" and int(w["chain"]) > 0):
+						or (needs == "chain" and int(w["chain"]) > 0) or (needs == "shot" and shape == "shot"):
 					return true
 			return false
 		"ability":
@@ -735,11 +747,19 @@ static func _fight(state: RunState, setup: RunSetup, combat_actions: Array) -> b
 	var status: Dictionary = CombatSim.objective_status(result)
 	var placed: int = int(status["caches_total"]) if String(status["type"]) == "defend" else 0
 	var saved: int = int(status["caches"])
-	state.pending = salvage(state, setup, kind, saved, placed)
+	var spoils: Array = spoils_of(result, setup, int(rewards.get("spoils_max_rarity", 2)))
+	state.pending = salvage(state, setup, kind, saved, placed, spoils)
 	# 085: a deal's cost -- the first won fights' salvage shows fewer parts.
 	if state.thin_salvage > 0:
 		state.thin_salvage -= 1
-		state.pending["options"] = (state.pending["options"] as Array).slice(0, maxi(1, state.thin_to))
+		var all: Array = state.pending["options"]
+		var kept: Array = all.slice(0, maxi(1, state.thin_to))
+		# 086: the part torn off stays on offer, in the last card left.
+		var torn: int = int(state.pending.get("torn_index", -1))
+		if torn >= kept.size():
+			kept[kept.size() - 1] = all[torn]
+			state.pending["torn_index"] = kept.size() - 1
+		state.pending["options"] = kept
 	state.log.append("Won. +%d scrap%s, and salvage to pick through." % [gained,
 		" (+%d from piles)" % result.scrap_collected if result.scrap_collected > 0 else ""])
 	if placed > 0 and saved < placed and bool(rewards.get("defend_partial", true)):
@@ -807,7 +827,14 @@ static func _recover(state: RunState, setup: RunSetup, index: int) -> bool:
 ## ceil(choices * saved / placed) of its options and ceil(salvage_scrap * saved / placed) scrap
 ## (`rewards.defend_partial`; false pays it all, as before). The parts are rolled as for a full
 ## salvage and the first ones kept, so the rarest pick and the RNG stay as they were.
-static func salvage(state: RunState, setup: RunSetup, kind: String, saved: int = 0, placed: int = 0) -> Dictionary:
+##
+## 086 (A7): `spoils` (`spoils_of`): the parts torn off or out of the enemy this fight. One of them
+## not in the hold nor among the recent offers (046),
+## picked by its own SimRNG stream, takes the card `rewards.spoils_slot` (-1: the last) -- or is
+## marked where the roll already put it -- and the reward carries `torn_from` (the enemy's name,
+## "THE TRACKER") and `torn_index` (the card).
+static func salvage(state: RunState, setup: RunSetup, kind: String, saved: int = 0, placed: int = 0,
+		spoils: Array = []) -> Dictionary:
 	# Play-test 8: the act's own rewards -- later acts lean rare, or a built crew finds nothing.
 	var rewards: Dictionary = rules_of(state, setup).get("rewards", {})
 	var min_rarity: int = int(rewards.get("elite_min_rarity", 2)) if kind == "elite" else 1
@@ -823,10 +850,71 @@ static func salvage(state: RunState, setup: RunSetup, kind: String, saved: int =
 		var keep: int = maxi(1, (options.size() * saved + placed - 1) / placed)
 		options = options.slice(0, keep)
 		scrap = (scrap * saved + placed - 1) / placed
+	var torn: Array = []
+	var torn_at: int = -1
+	# 046 holds for spoils too: never a part in the hold or among the last offers.
+	var avoid: Array = avoided(state, setup)
+	var fresh: Array = spoils.filter(func(f: Array) -> bool: return not avoid.has(String(f[0])))
+	if not fresh.is_empty() and not options.is_empty():
+		var srng: SimRNG = _rng(setup, state.current, 43, state.act)
+		torn = fresh[srng.range_int(0, fresh.size() - 1)]
+		var slot: int = int(rewards.get("spoils_slot", -1))
+		torn_at = options.find(String(torn[0]))
+		if torn_at < 0:
+			torn_at = options.size() - 1 if slot < 0 or slot >= options.size() else slot
+			options[torn_at] = String(torn[0])
 	var out: Dictionary = {"kind": "reward", "options": _offer(state, setup, options), "scrap": scrap}
+	if torn_at >= 0:
+		out["torn_from"] = String(torn[2])
+		out["torn_index"] = torn_at
 	if placed > 0:
 		out["caches"] = [saved, placed]
 	return out
+
+
+## 086 (A7): what the crew tore off or out of the enemy in a finished fight, as `[part, ref, name]`
+## sorted by part id then unit ref, one entry per part id (its lowest ref): every arm an enemy lost
+## to PART_TORN, and of every enemy wrecked its module -- or its core, when the module does not
+## qualify. Only parts in their slot's pool, untuned, not legendary and of rarity <= `max_rarity`.
+## `name` is the enemy as the reward card says it: "THE " and its kind's name, else its own name.
+static func spoils_of(result: CombatState, setup: RunSetup, max_rarity: int) -> Array:
+	var found: Array = []
+	var fits: Callable = func(id: String) -> bool:
+		if id.is_empty() or PartTuning.is_tuned(id) or not setup.parts.has(id):
+			return false
+		var slot: String = String((setup.parts[id] as Dictionary).get("slot", ""))
+		var r: int = setup.rarity(id)
+		return (setup.pools.get(slot, []) as Array).has(id) and r < 4 and r <= max_rarity
+	for e: Array in result.events:
+		if int(e[GridEv.F_KIND]) != GridEv.PART_TORN:
+			continue
+		var u: GridUnit = result.unit(int(e[GridEv.F_TARGET]))
+		var socket: int = 2 + int(e[GridEv.F_V1])
+		if u != null and u.team == GridUnit.TEAM_ENEMY and not u.objective and socket < u.part_ids.size() \
+				and fits.call(String(u.part_ids[socket])):
+			found.append([String(u.part_ids[socket]), u.ref, _spoils_name(result, u)])
+	for u: GridUnit in result.units:
+		if u.team != GridUnit.TEAM_ENEMY or u.objective or u.alive or u.part_ids.size() < 5:
+			continue
+		for socket: int in [4, 1]:
+			if fits.call(String(u.part_ids[socket])):
+				found.append([String(u.part_ids[socket]), u.ref, _spoils_name(result, u)])
+				break
+	found.sort_custom(func(a: Array, b: Array) -> bool:
+		return String(a[0]) < String(b[0]) or (String(a[0]) == String(b[0]) and int(a[1]) < int(b[1])))
+	var out: Array = []
+	for f: Array in found:
+		if out.is_empty() or String((out[out.size() - 1] as Array)[0]) != String(f[0]):
+			out.append(f)
+	return out
+
+
+static func _spoils_name(result: CombatState, u: GridUnit) -> String:
+	var name: String = String(CombatSim.kind_rules(result, u).get("name", u.name))
+	if name.is_empty():
+		name = "machine"
+	name = name.to_upper()
+	return name if name.begins_with("THE ") else "THE " + name
 
 
 ## A broken gate's hoard (029): three parts from three slots, the first a LEGENDARY (rarity 4),
@@ -839,7 +927,12 @@ static func hoard(state: RunState, setup: RunSetup, then_next_act: bool = true) 
 	# Play-test 10 ("most parts were rare+ by Act 3"): a gate's hoard holds a legendary; a
 	# warlord's holds a rare, and a legendary only `warlord_legend_pct` of the time.
 	var legend: String = ""
-	if then_next_act or rng.chance_percent(int(rewards.get("warlord_legend_pct", 35))):
+	# 086 (A9, the user): legendaries come only from gate keepers; a warlord gives a rare and scrap
+	# (`warlord_legend_pct` 0). `hoard_scrap` is the SCRAP instead at both.
+	# `gate_legend_pct` (by act): the chance a gate keeper's hoard holds its legendary (Act 2 at 50 makes it
+	# one or two a run); otherwise a rare, as at a warlord.
+	if (then_next_act and rng.chance_percent(int(rewards.get("gate_legend_pct", 100)))) \
+			or (not then_next_act and rng.chance_percent(int(rewards.get("warlord_legend_pct", 0)))):
 		legend = _roll_at_least(setup, rng, 4, avoid)
 	else:
 		legend = _roll_at_least(setup, rng, 3, avoid)
@@ -1513,6 +1606,12 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 			spec["hp"] = int(cg.get("hp", 8)) + int(mg.get("hp", 0)) + hp_bonus + hp_all
 			spec["name"] = String(spec["name"]) + (" Warlord" if kind == "boss" else " Veteran")
 		enemy.append(spec)
+	# 086 (A5): an elite's veteran carries one affix (`enemies.elite_affixes`, ids defined in
+	# enemy_kinds.json), from its own SimRNG stream so no other roll moves. None when the list is empty.
+	var affixes: Array = enemies_rules.get("elite_affixes", [])
+	if kind == "elite" and not affixes.is_empty() and not enemy.is_empty():
+		var arng: SimRNG = _rng(setup, site_id, 47, state.act)
+		(enemy[0] as Dictionary)["affix"] = String(affixes[arng.range_int(0, affixes.size() - 1)])
 	fight["enemy"] = enemy
 	return fight
 
@@ -1963,7 +2062,14 @@ static func fight_summary(setup: RunSetup, fight: Dictionary, kind: String) -> D
 	enemies.sort_custom(func(a: Array, b: Array) -> bool:
 		return int(a[1]) > int(b[1]) if int(a[1]) != int(b[1]) else String(a[0]) < String(b[0]))
 	var mods: Array = fight.get("modifiers", [])
-	return {"objective": String((fight.get("objective", {}) as Dictionary).get("type", "rout")),
+	# 086 (A5): the affixes the squad carries, sorted ("ELITE: VOLATILE").
+	var affixes: Array = []
+	for spec: Variant in (fight.get("enemy", []) as Array):
+		var affix: String = String((spec as Dictionary).get("affix", ""))
+		if not affix.is_empty():
+			affixes.append(affix)
+	affixes.sort()
+	return {"affixes": affixes, "objective": String((fight.get("objective", {}) as Dictionary).get("type", "rout")),
 		"condition": String(mods[0]) if not mods.is_empty() else "", "enemies": enemies,
 		"elite": kind == "elite" or kind == "arena", "site_type": kind,
 		"count": (fight.get("enemy", []) as Array).size(), "name": String(fight.get("name", ""))}
