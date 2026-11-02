@@ -381,6 +381,9 @@ func _fight_line(id: int) -> String:
 	# (An elite or arena site's card already says so in its head.)
 	if bool(p.get("elite", false)) and not ["elite", "arena"].has(String(Run.state.site(id)["type"])):
 		bits.append("ELITE")
+	# 086 (A5): the elite's announced rule, in the same line.
+	for affix: String in PartText.affixes_of(p):
+		bits.append(String(_affix(affix)["name"]))
 	if not String(p.get("objective", "")).is_empty():
 		bits.append(String(p["objective"]).to_upper())
 	var condition: String = String(p.get("condition", ""))
@@ -395,6 +398,24 @@ func _fight_line(id: int) -> String:
 	if not squad.is_empty():
 		bits.append(", ".join(squad))
 	return "  ·  ".join(bits)
+
+
+## 086 (A5): an elite affix's `{name, text}` (enemy_kinds.json `elite_affixes`, else its glossary card).
+func _affix(id: String) -> Dictionary:
+	return PartText.affix(Run.db.enemy_kinds, Run.db.glossary, id)
+
+
+## 086 (A5): "ELITE: VOLATILE" for a scouted fight site whose elite carries affixes, "" otherwise.
+func _affix_head(id: int) -> String:
+	var site: Dictionary = Run.state.site(id)
+	if site.is_empty() or bool(site["visited"]) or not RunSim.revealed(Run.state, id) or not RunSim.FIGHT_TYPES.has(String(site["type"])):
+		return ""
+	var names: PackedStringArray = []
+	for affix: String in PartText.affixes_of(RunSim.fight_preview(Run.state, Run.setup, id)):
+		names.append(String(_affix(affix)["name"]))
+	if names.is_empty():
+		return ""
+	return "%s: %s" % [String(SITE_NAMES.get(String(site["type"]), "ELITE")), " + ".join(names)]
 
 
 ## The warlord this act sends, by name, from the fight its site would hold ("" while unknown).
@@ -610,6 +631,12 @@ func _build_site_labels() -> void:
 			name += " · DONE"
 		var reachable: bool = targets.has(id)
 		box.add_child(_centred(name, 20, UIKit.PAGE_TEXT if reachable or id == state.current else Color("9a9384")))
+		# 086 (A5): an elite's rule under its name, before you choose the road: "ELITE: VOLATILE".
+		var affix_head: String = _affix_head(id)
+		if not affix_head.is_empty():
+			var tag := _centred(affix_head, UIKit.SIZE_LABEL + 2, Ink.DANGER if reachable else Color("b07a6a"))
+			tag.name = "affix_%d" % id
+			box.add_child(tag)
 		if not bool(site["visited"]) and SITE_DOES.has(String(site["type"])):
 			box.add_child(_centred(String(SITE_DOES[String(site["type"])]), UIKit.SIZE_MICRO + 2, Color("d8cfb8") if reachable else Color("8d8676")))
 		# 084 (the user): a revealed fight's objective under its name, readable without hovering.
@@ -730,6 +757,17 @@ func _show_preview() -> void:
 	if reachable:
 		head = "%s  ·  %s" % [_direction(_hover), head]
 	box.add_child(_label(head, 24, UIKit.TEXT, UIKit.font_comic()))
+	# 086 (A5): what makes this elite a different problem, said before the road is taken.
+	var affix_head: String = _affix_head(_hover)
+	if not affix_head.is_empty():
+		var tag := _label(affix_head, UIKit.SIZE_HEADING, UIKit.RED, UIKit.font_comic())
+		tag.name = "affix_head"
+		box.add_child(tag)
+		for affix: String in PartText.affixes_of(RunSim.fight_preview(state, Run.setup, _hover)):
+			var info: Dictionary = _affix(affix)
+			var line := _wrap("%s: %s" % [String(info["name"]), String(info["text"])], UIKit.SIZE_LABEL, UIKit.TEXT, 340)
+			line.name = "affix_text_%s" % affix
+			box.add_child(line)
 	var text: String = _site_text(String(site["type"])) if known \
 		else "Nobody has looked yet. You find out when you get there."
 	if bool(site["visited"]) and _hover != state.current:
@@ -853,6 +891,9 @@ func _show_overlay() -> void:
 			_fight_panel()
 		"reward", "scrapyard":
 			_pick_panel()
+			# 086 (A7): the first spoils card says what it is, once the salvage hint has been seen.
+			if Profile.seen("salvage") and _overlay != null and _overlay.find_child("spoils_band", true, false) != null:
+				Hints.show_once(_overlay, "spoils", Run.db, Vector2(40, 140))
 			Hints.show_once(_overlay, "salvage", Run.db, Vector2(40, 140))
 		"wreck":
 			_wreck_panel()
@@ -1060,9 +1101,16 @@ func _fight_panel() -> void:
 	var titles: Dictionary = {"skirmish": "FIGHT", "elite": "ELITE FIGHT", "boss": String(_act().get("gate", "THE GATE")),
 		"warlord": String((state.pending["fight"] as Dictionary).get("name", "THE WARLORD")).to_upper()}
 	var enemies: PackedStringArray = []
+	var affixes: PackedStringArray = []
 	for spec: Dictionary in (fight["enemy"] as Array):
 		var kind_name: String = String(spec.get("kind", ""))
-		enemies.append(String(spec["name"]) + ((" (%s)" % kind_name.to_upper()) if not kind_name.is_empty() else ""))
+		var tags: PackedStringArray = [kind_name.to_upper()] if not kind_name.is_empty() else []
+		# 086 (A5): an elite's affix beside its kind, and what it does under the list.
+		for affix: String in PartText.affixes_of(spec):
+			tags.append(String(_affix(affix)["name"]))
+			if not affixes.has(affix):
+				affixes.append(affix)
+		enemies.append(String(spec["name"]) + ((" (%s)" % ", ".join(tags)) if not tags.is_empty() else ""))
 	var objective: Dictionary = fight.get("objective", {"type": "rout"})
 	var goals: Dictionary = {
 		"rout": "ROUT: destroy every enemy.",
@@ -1087,6 +1135,13 @@ func _fight_panel() -> void:
 		var reach: Dictionary = fight["reclaimer"]
 		box.add_child(_label("THE RECLAIMER IS CLOSE: %d of its drones come in behind you at round %d." % [int(reach.get("count", 2)), int(reach.get("round", 3))],
 			UIKit.SIZE_HEADING, UIKit.RED, UIKit.font_comic()))
+	for affix: String in affixes:
+		var info: Dictionary = _affix(affix)
+		var line := _wrap("ELITE: %s  ·  %s" % [String(info["name"]), String(info["text"])], UIKit.SIZE_BODY, UIKit.RED, 900)
+		line.name = "affix_%s" % affix
+		box.add_child(line)
+	if not affixes.is_empty():
+		Hints.show_once(_overlay, "affix", Run.db, Vector2(40, 140))
 	if Run.fight_actions.size() > 0:
 		box.add_child(_label("This fight is in progress. It resumes where you left it.", UIKit.SIZE_BODY, UIKit.GOLD))
 	var go := _button("ENTER FIGHT" if Run.fight_actions.is_empty() else "RESUME FIGHT", UIKit.primary(), UIKit.BG, Vector2(300, 64))
@@ -1118,16 +1173,23 @@ func _pick_panel() -> void:
 	var box := _modal(title, note, 1240, true)
 	var row := _row(box)
 	var options: Array = state.pending["options"]
+	var any_torn: bool = false
+	for i: int in options.size():
+		any_torn = any_torn or not _torn_from(i).is_empty()
 	for i: int in options.size():
 		var column := VBoxContainer.new()
 		column.add_theme_constant_override("separation", UIKit.SPACE_XS)
 		row.add_child(column)
-		var card: Button = PartCard.build(Run.db, String(options[i]), Vector2(380, 236), state.crew)
+		# 086 (A7): the part the crew tore off an enemy says whose it was, over its card; the
+		# others keep the same height so the cards stay in line.
+		if any_torn:
+			column.add_child(_spoils_band(_torn_from(i), 380))
+		var card: Button = PartCard.build(Run.db, _option_id(i), Vector2(380, 236), state.crew)
 		card.pressed.connect(_pick.bind(i))
 		column.add_child(card)
 		# 082 (A21): a part that beats a fitted one (or fills an empty socket) goes straight on:
 		# the pick, then the garage's own REFIT -- two actions, no new kind.
-		var target: Array = PartCard.fit_target(Run.db.parts, String(options[i]), state.crew)
+		var target: Array = PartCard.fit_target(Run.db.parts, _option_id(i), state.crew)
 		if not target.is_empty():
 			var fit := _button("FIT ON %s" % String(state.crew[int(target[0])]["name"]).to_upper(), UIKit.choice(), UIKit.TEXT, Vector2(380, 52))
 			fit.name = "fit_%d" % i
@@ -1139,6 +1201,49 @@ func _pick_panel() -> void:
 		else "LEAVE IT", UIKit.secondary(), UIKit.TEXT, Vector2(320, 60))
 	skip.pressed.connect(_pick.bind(-1))
 	_row(box).add_child(skip)
+
+
+## 086 (A7): the part id of salvage option `i` (an option is an id, or `{id, torn_from}`).
+func _option_id(i: int) -> String:
+	var option: Variant = (Run.state.pending.get("options", []) as Array)[i]
+	return String((option as Dictionary).get("id", "")) if option is Dictionary else String(option)
+
+
+## 086 (A7): whose part salvage option `i` was, when the crew tore it off an enemy ("" if not):
+## the option's own `torn_from`, or the pending reward's `torn_from` on card `torn_index`.
+func _torn_from(i: int) -> String:
+	var option: Variant = (Run.state.pending.get("options", []) as Array)[i]
+	if option is Dictionary:
+		return String((option as Dictionary).get("torn_from", ""))
+	var torn: Variant = Run.state.pending.get("torn_from", null)
+	# V1's reward: `torn_from` (the enemy's name) and `torn_index` (the card it is on).
+	if torn is String:
+		return String(torn) if int(Run.state.pending.get("torn_index", -1)) == i else ""
+	if torn is Dictionary:
+		return String((torn as Dictionary).get(str(i), (torn as Dictionary).get(i, "")))
+	if torn is Array and i < (torn as Array).size():
+		return String((torn as Array)[i])
+	return ""
+
+
+## "TORN FROM THE TRACKER" over a spoils card; an empty strip of the same height otherwise.
+func _spoils_band(from: String, width: float) -> Control:
+	var band := PanelContainer.new()
+	band.custom_minimum_size = Vector2(width, 40)
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if from.is_empty():
+		band.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+		return band
+	band.name = "spoils_band"
+	band.add_theme_stylebox_override("panel", UIKit.plain(Ink.RUST, 0, UIKit.SPACE_SM, 2))
+	var who: String = from.to_upper()
+	if not who.begins_with("THE "):
+		who = "THE " + who
+	var text := UIKit.fit(_label("TORN FROM %s" % who, UIKit.SIZE_HEADING, UIKit.PAGE_TEXT, UIKit.font_comic()), width - UIKit.SPACE_SM * 2, 1, 12)
+	text.name = "spoils_text"
+	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	band.add_child(text)
+	return band
 
 
 ## 083 (wreck recovery): a crew machine was wrecked, but its pile still stood when the fight ended.
