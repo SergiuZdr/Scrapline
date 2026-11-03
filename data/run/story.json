@@ -156,5 +156,28 @@
    "how": "While both stand, each takes 2 less from every hit.",
    "beat": "Focus one until it breaks; then the other has no cover."
   }
+ },
+ "objectives": {
+  "_comment": "088 (A14): the coach callout the first time each objective appears, on the board, pointing at its piece. Shown once per objective per profile (`Profile.mark_seen('obj_<kind>')`). ContentDB hands them to the hints as `obj_<kind>`. Text only: not hashed.",
+  "defend": {
+   "title": "DEFEND THE CACHES",
+   "text": "These are salvage caches: they cannot move or fight, and the enemy will shoot them. If every cache breaks, the fight is lost. Keep one standing until the rounds run out (or destroy every enemy); each cache left pays out scrap."
+  },
+  "salvage": {
+   "title": "SALVAGE",
+   "text": "Scrap piles lie on the board. End a move on one to collect it: collect the number asked, top left, and the fight is won (or destroy every enemy). Enemies grab piles too."
+  },
+  "hold": {
+   "title": "HOLD THE ZONE",
+   "text": "The blue hexes are the zone. Start a round with one of your machines on it and no enemy on it, and it scores. Score the number asked, top left (or destroy every enemy). Enemies come to contest it."
+  },
+  "hack": {
+   "title": "HACK THE TERMINALS",
+   "text": "This is a terminal. End a move on it to take it for good. Take the number asked, top left, and the fight is won (or destroy every enemy)."
+  },
+  "survive": {
+   "title": "SURVIVE",
+   "text": "Waves of drones come in here, marked a round ahead. Stand a machine on a mark to block it. Outlast the rounds, top left (or destroy every enemy)."
+  }
  }
 }

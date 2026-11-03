@@ -182,6 +182,7 @@ var _crew_top: float = 0.0
 var _tops: Dictionary = {}
 
 const Coach := preload("res://scripts/combat/coach.gd")
+const ObjectiveCallout := preload("res://scripts/combat/objective_callout.gd")
 
 var _db: ContentDB
 var _fight_id: String = "proto_yard"
@@ -3747,6 +3748,8 @@ func _after_events() -> void:
 	_refresh()
 	if _coach == null and not _bot:
 		Hints.show_once(_hud, "fight", _db, Vector2(1535, 600), 360)
+		# 088 (A14): the first time an objective appears, the coach points at its piece.
+		ObjectiveCallout.attach(self, _hud, _db)
 	if _bot:
 		await _wait(0.6)
 		await _bot_turn()

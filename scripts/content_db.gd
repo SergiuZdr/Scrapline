@@ -99,6 +99,14 @@ static func load_all(root: String = DATA_ROOT) -> ContentDB:
 	var tutorial_data: Variant = db._read_json("%s/tutorial.json" % root)
 	if tutorial_data is Dictionary:
 		db.tutorial = tutorial_data as Dictionary
+	# 088 (A14): each objective's first-time callout is a hint like the others, `obj_<kind>`, its words
+	# in story.json `objectives`: so whatever marks the hints seen (every UI test and tool) marks these.
+	var hints: Dictionary = db.tutorial.get("hints", {})
+	var callouts: Dictionary = db.story.get("objectives", {})
+	for kind: Variant in callouts:
+		if not String(kind).begins_with("_"):
+			hints["obj_" + String(kind)] = callouts[kind]
+	db.tutorial["hints"] = hints
 
 	for pair: Array in [["abilities", "combat_abilities"], ["enemy_kinds", "enemy_kinds"]]:
 		var data: Variant = db._read_json("%s/combat/%s.json" % [root, pair[0]])

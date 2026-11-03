@@ -24,6 +24,19 @@ func _ready() -> void:
 			if tutorial is Dictionary:
 				_data["seen_tips"] = ((tutorial as Dictionary).get("hints", {}) as Dictionary).keys()
 			_save()
+		# 088 (A14): the objective callouts are hints too (`obj_<kind>`, words in story.json): a tool
+		# profile made before them gets them marked seen, or a callout sits over a shot.
+		var story: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/run/story.json"))
+		if story is Dictionary:
+			var tips: Array = _data.get("seen_tips", [])
+			var added: bool = false
+			for kind: Variant in ((story as Dictionary).get("objectives", {}) as Dictionary):
+				if not String(kind).begins_with("_") and not tips.has("obj_" + String(kind)):
+					tips.append("obj_" + String(kind))
+					added = true
+			if added:
+				_data["seen_tips"] = tips
+				_save()
 		return
 	_load()
 

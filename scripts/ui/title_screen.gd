@@ -183,7 +183,7 @@ func _new_run() -> void:
 	UIKit.on_page(head, 12)
 	_column.add_child(head)
 	var line := Label.new()
-	line.text = "The shakedown is one short, guided fight: moving, reading the enemy, attacking, heat, the yard's drums and scrap. About five minutes."
+	line.text = "The shakedown is one short, guided fight: reading the enemy, cancelling a shot, shoving into a pit, heat, tearing an arm off. About five minutes."
 	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	line.custom_minimum_size = Vector2(600, 0)
 	line.add_theme_font_size_override("font_size", UIKit.SIZE_HEADING)
