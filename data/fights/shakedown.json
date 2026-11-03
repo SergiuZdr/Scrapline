@@ -2,26 +2,26 @@
   "id": "shakedown",
   "name": "The Shakedown",
   "tutorial": true,
-  "_comment": "012: the tutorial's board, never a run's (RunSim skips `tutorial` fights). Three yard runners with 4 HP and spotter arrays (1 damage): enough to show intents, safe enough to learn on. The near runner carries scrap so the first kill drops a pile; a drum sits between the far two.",
+  "_comment": "012, rebuilt in 088 (A15): the tutorial's board, never a run's (RunSim skips `tutorial` fights). Laid out so the coached line (data/tutorial.json) plays every signature verb in round 1: the Yard Gunner and the Runner Boss aim lances through Relay (6 damage, all its HP: a real threat); Needle's lance kills the Gunner first (4 HP: its intent is CANCELLED); Knuckles walks to (2,4) and hammers the Yard Runner (6 HP, 4 damage: no tear) into the pit at (3,2); Relay pays 1 heat for FOCUS and its Scattergun tears the Runner Boss's lance (5+ tears; without FOCUS it falls short). Knuckles wears Ablative Plating, not the Scavenger Rig: two Cinder parts would give +1 melee and the hammer would tear the runner too. The Boss carries 10 HP so it stands into round 2 with one arm. Enemy moves and intents are the AI's own, fixed by the tutorial seed: re-check them with verify_onboarding after any rules change.",
   "rows": [
     "........",
-    "...s....",
-    "..b.....",
     "........",
-    ".r......",
-    "....c...",
+    "...o....",
+    "........",
+    "........",
+    "........",
     "........",
     "........"
   ],
   "player": [
-    {"name": "Knuckles", "parts": ["ch_brute", "co_slug", "ar_saw", "ar_hammer", "mo_scavenger"], "x": 2, "y": 6},
-    {"name": "Needle", "parts": ["ch_hauler", "co_furnace", "ar_pulse", "ar_lance", "mo_ablative"], "x": 4, "y": 7},
-    {"name": "Relay", "parts": ["ch_strider", "co_arc", "ar_scanner", "ar_scatter", "mo_governor"], "x": 5, "y": 6}
+    {"name": "Knuckles", "parts": ["ch_brute", "co_slug", "ar_saw", "ar_hammer", "mo_ablative"], "x": 2, "y": 6},
+    {"name": "Needle", "parts": ["ch_hauler", "co_furnace", "ar_pulse", "ar_lance", "mo_ablative"], "x": 5, "y": 6},
+    {"name": "Relay", "parts": ["ch_strider", "co_arc", "ar_scanner", "ar_scatter", "mo_governor"], "x": 4, "y": 7}
   ],
   "enemy": [
-    {"name": "Yard Runner", "parts": ["ch_courier", "co_slug", "ar_scanner", "ar_scanner", "mo_governor"], "hp": 4, "carries": true, "x": 2, "y": 3},
-    {"name": "Yard Runner", "parts": ["ch_courier", "co_slug", "ar_scanner", "ar_scanner", "mo_governor"], "hp": 4, "carries": false, "x": 3, "y": 2},
-    {"name": "Runner Boss", "parts": ["ch_courier", "co_slug", "ar_scanner", "ar_scanner", "mo_governor"], "hp": 5, "carries": true, "x": 5, "y": 1}
+    {"name": "Yard Runner", "parts": ["ch_courier", "co_slug", "ar_scanner", "ar_scanner", "mo_governor"], "hp": 6, "carries": false, "x": 2, "y": 3},
+    {"name": "Yard Gunner", "parts": ["ch_courier", "co_slug", "ar_lance", "ar_scanner", "mo_governor"], "hp": 4, "carries": true, "x": 6, "y": 3},
+    {"name": "Runner Boss", "parts": ["ch_courier", "co_slug", "ar_scanner", "ar_lance", "mo_governor"], "hp": 10, "carries": true, "x": 4, "y": 1}
   ],
   "objective": {"type": "rout"}
 }

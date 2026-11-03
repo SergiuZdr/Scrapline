@@ -1,76 +1,123 @@
 {
-  "_comment": "012: the shakedown -- the tutorial fight's coaching, one step at a time. `until` is what ends a step: next (the NEXT button), selected (machine `unit` picked; note the first ready machine is picked automatically), moved, armed (a weapon armed), attacked, ability, prop (a drum went off, or none is left), round (round `round` reached), won. `point` is what the marker shows: {unit}, {beside_enemy} (a hex the selected machine can reach next to an enemy), {enemy_near} (the enemy nearest the selected machine), {prop: barrel}, {pile}, {button: weapon|ability|end_turn}, and {unit, then: button} (the machine until it is picked, then the button). Text only: NOT in the content hash.",
+  "_comment": "012, rebuilt in 088 (A15) around the signature verbs: a real threat, a CANCELLED intent, a pit fall, heat as a choice, a tear. `until` is what ends a step: next (the NEXT button), selected, moved, armed (`weapon`: that arm), attacked, ability, heat_choice (the ability, an attack or a vent), cancelled (an enemy intent lost to the crew, 087's INTENT_LOST), fell (an enemy shoved into a pit), torn (an arm torn off), prop, round (round `round` reached), won; `unit` names the machine it waits on. `point` is one mark or a LIST of marks, shown one at a time (the first not yet done): {unit} (the machine, until it is picked), {cell: [x, y], unit} (a hex to walk to: never one an intent aims at), {weapon: i} / {ability: i} (that button), {enemy: ref}, {pile}, {button: end_turn}, {beside_enemy}, {prop: barrel}. Text only: NOT in the content hash.",
   "fight": "shakedown",
   "seed": 1,
   "steps": [
     {
       "id": "welcome",
       "title": "THE SHAKEDOWN",
-      "text": "Three machines, a yard, three scrap runners. Each turn every machine can MOVE once and ATTACK once. Move first: a machine that attacks is rooted where it stands (only a LINE machine can still move after firing). Then you END TURN and the enemies act. The enemies always show what they will do first.",
+      "text": "Knuckles, Needle and Relay against three scrap runners. Each turn every machine can MOVE once and ATTACK once. Move first: a machine that attacks is rooted where it stands (only a LINE machine, like Needle, can still move after firing). Then you END TURN and the enemies act. They always show what they will do first.",
       "until": "next"
+    },
+    {
+      "id": "threat",
+      "title": "READ THE ENEMY",
+      "text": "The red hexes and numbered badges are INTENTS: where each enemy fires when you end your turn, in that order. The Yard Gunner and the Runner Boss both aim their lances through Relay: 6 damage, all of Relay's HP. That is a real threat. Nothing fires until you end the turn, so step out of the red, or break the shooter first.",
+      "until": "next",
+      "point": {
+        "enemy": 11
+      }
+    },
+    {
+      "id": "arm",
+      "title": "BREAK IT FIRST",
+      "text": "Needle can reach the Yard Gunner. Click Needle (or press 2), then its RAIL LANCE in the WEAPONS row. Its targets light up yellow.",
+      "until": "armed",
+      "unit": 1,
+      "weapon": 1,
+      "point": [
+        {
+          "unit": 1
+        },
+        {
+          "weapon": 1
+        }
+      ]
+    },
+    {
+      "id": "cancel",
+      "title": "CANCEL ITS SHOT",
+      "text": "Click the Yard Gunner to aim: the panel on the right says exactly what will happen. Click it again to fire. A wreck fires nothing: its intent is CANCELLED, and Relay is out of half the red.",
+      "until": "cancelled",
+      "point": {
+        "enemy": 11
+      }
     },
     {
       "id": "move",
       "title": "MOVE",
-      "text": "The BRUTE is picked: its card is outlined (click a machine, or press 1-3, to pick another). The blue hexes are where it can walk this turn. Click the hex with the amber ring, next to a runner.",
+      "text": "Knuckles next. Click Knuckles (or press 1), then the hex with the amber ring, beside the Yard Runner. The blue hexes are where it can walk; a ring never sits in the red.",
       "until": "moved",
-      "point": {
-        "beside_enemy": true
-      }
+      "unit": 0,
+      "point": [
+        {
+          "unit": 0
+        },
+        {
+          "cell": [
+            2,
+            4
+          ],
+          "unit": 0
+        }
+      ]
     },
     {
-      "id": "intents",
-      "title": "READ THE ENEMY",
-      "text": "The red hexes and numbered badges are INTENTS: where each enemy will fire when you end your turn. Nothing hits you until then. Step out of the red, or break the enemy first.",
-      "until": "next"
-    },
-    {
-      "id": "arm",
-      "title": "ARM A WEAPON",
-      "text": "Click a weapon in the WEAPONS row at the bottom. Its targets light up yellow.",
-      "until": "armed",
-      "point": {
-        "button": "weapon"
-      }
-    },
-    {
-      "id": "fire",
-      "title": "AIM, THEN FIRE",
-      "text": "Click the runner to aim: the panel on the right says exactly what will happen. Click it again to fire.",
-      "until": "attacked",
-      "point": {
-        "enemy_near": true
-      }
+      "id": "pit",
+      "title": "INTO THE PIT",
+      "text": "The BREAKER HAMMER shoves what it hits one hex away from Knuckles, and right behind the Yard Runner is a pit. Arm the hammer and hit the runner, twice to fire. Whatever falls in a pit is gone, at any HP.",
+      "until": "fell",
+      "unit": 0,
+      "point": [
+        {
+          "weapon": 1
+        },
+        {
+          "enemy": 10
+        }
+      ]
     },
     {
       "id": "heat",
-      "title": "HEAT",
-      "text": "Every attack makes heat (the number on the machine's card). At the heat cap it overheats and skips its next attack. VENT (V) dumps the heat instead of attacking.",
-      "until": "next"
+      "title": "HEAT IS A CHOICE",
+      "text": "A hit of 5 or more TEARS an arm off. Relay's Scattergun alone falls short on the Runner Boss; FOCUS adds +2 to its next hit, for 1 HEAT. Every attack makes heat (the number on the card), and at the cap (Relay's is 6) a machine SEIZES: it skips its next attack. VENT (V) dumps heat instead of attacking. Here the heat buys a tear: click Relay (or press 3), then FOCUS.",
+      "until": "heat_choice",
+      "unit": 2,
+      "point": [
+        {
+          "unit": 2
+        },
+        {
+          "ability": 0
+        }
+      ]
     },
     {
-      "id": "focus",
-      "title": "ABILITIES",
-      "text": "Click RELAY, then FOCUS in the ABILITIES row. It is free: +2 damage on Relay's next shot.",
-      "until": "ability",
-      "point": {
-        "unit": 2,
-        "then": "ability"
-      }
-    },
-    {
-      "id": "drum",
-      "title": "USE THE YARD",
-      "text": "Fuel drums explode when hit: 3 damage to everything next to them. Arm Relay's gun and shoot the drum in the amber ring.",
-      "until": "prop",
-      "point": {
-        "prop": "barrel"
-      }
+      "id": "tear",
+      "title": "TEAR AN ARM OFF",
+      "text": "Walk Relay to the amber ring, arm the SCATTERGUN and fire at the Runner Boss. Arms tear right arm first: its lance, the one aimed at Relay. A torn arm's intent is cancelled too.",
+      "until": "torn",
+      "unit": 2,
+      "point": [
+        {
+          "cell": [
+            4,
+            6
+          ],
+          "unit": 2
+        },
+        {
+          "weapon": 1
+        },
+        {
+          "enemy": 12
+        }
+      ]
     },
     {
       "id": "end",
       "title": "END TURN",
-      "text": "Done with your machines? END TURN (Space). The enemies do exactly what their intents showed, then show the next round's.",
+      "text": "Every machine has acted. END TURN (Space): the enemies do exactly what their intents showed, and what was cancelled does nothing. Then they show the next round's.",
       "until": "round",
       "round": 2,
       "point": {
@@ -80,17 +127,20 @@
     {
       "id": "piles",
       "title": "SCRAP PILES",
-      "text": "An enemy with the scrap mark on its tag carries scrap: break it and it leaves a pile. End a move on a pile for scrap and 2 HP. Enemies grab them too.",
+      "text": "An enemy with the scrap mark on its tag carries scrap: break it and it leaves a pile. Ending a move on a pile gives scrap and 2 HP. Enemies grab them too, to patch themselves: watch the Runner Boss.",
       "until": "next",
       "point": {
-        "pile": true
+        "enemy": 12
       }
     },
     {
       "id": "rout",
       "title": "FINISH IT",
-      "text": "Every fight has an OBJECTIVE, top left. This one is ROUT: break every enemy. Tap anything on the board, or any blue word, to see what it is.",
-      "until": "won"
+      "text": "Every fight has an OBJECTIVE, top left. This one is ROUT: break every enemy. The Runner Boss has one arm and a few HP left. Tap anything on the board, or any blue word, to see what it is.",
+      "until": "won",
+      "point": {
+        "enemy": 12
+      }
     },
     {
       "id": "done",

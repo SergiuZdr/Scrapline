@@ -7,6 +7,10 @@ extends Control
 ## showing -- the state, what is selected, what is armed -- and moves to its next step when
 ## the thing it asked for has happened (`data/tutorial.json`: `until`). So the tutorial is
 ## the real rules with a guide on top, and cannot teach something the game does not do.
+##
+## 088 (A15): a step's `point` may be a LIST of marks, shown one at a time -- the first one not yet
+## done: pick the machine, walk to the ring, arm the weapon, then the enemy. A move ring never
+## stands on a hex an enemy intent aims at (`aimed`): the coach would be walking you into the red.
 
 signal finished(to_run: bool)
 
@@ -25,6 +29,8 @@ var _title: Label
 var _text: RichTextLabel
 var _buttons: HBoxContainer
 var _outline: Panel
+## Over the board once the shakedown is skipped: the last card is all there is to press.
+var _blocker: Control
 
 
 ## `scene`: the combat scene; `tutorial`: `ContentDB.tutorial`.
@@ -46,6 +52,13 @@ func _ready() -> void:
 	_outline.add_theme_stylebox_override("panel", ring)
 	_outline.visible = false
 	add_child(_outline)
+	_blocker = ColorRect.new()
+	_blocker.name = "coach_blocker"
+	(_blocker as ColorRect).color = Color(0, 0, 0, 0.35)
+	_blocker.mouse_filter = Control.MOUSE_FILTER_STOP
+	_blocker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_blocker.visible = false
+	add_child(_blocker)
 
 	_panel = PanelContainer.new()
 	_panel.name = "coach_panel"
@@ -110,6 +123,8 @@ func refresh() -> void:
 func restart() -> void:
 	_index = 0
 	_since = 0
+	if _blocker != null:
+		_blocker.visible = false
 	_show()
 
 
@@ -125,6 +140,18 @@ func next_step() -> void:
 	refresh()
 
 
+## 088 (the user): SKIP on the first card ends the shakedown as if it were played -- the profile
+## records it (played, and that it was skipped) and the last card offers the run or the title.
+func skip() -> void:
+	var profile: Node = get_tree().root.get_node_or_null("Profile") if is_inside_tree() else null
+	if profile != null:
+		profile.call("finish_tutorial")
+		profile.call("mark_seen", "shakedown_skipped")
+	_index = _steps.size() - 1
+	_blocker.visible = true
+	_show()
+
+
 func _advance() -> void:
 	_index += 1
 	var state: CombatState = _scene.get("_state")
@@ -133,17 +160,31 @@ func _advance() -> void:
 
 func _met(step: Dictionary) -> bool:
 	var state: CombatState = _scene.get("_state")
+	var unit: int = int(step.get("unit", -1))
 	match String(step.get("until", "next")):
 		"selected":
-			return int(_scene.get("_selected")) == int(step.get("unit", 0))
+			return int(_scene.get("_selected")) == unit
 		"moved":
-			return _happened(state, [GridEv.MOVED])
+			return _happened(state, [GridEv.MOVED], unit)
 		"armed":
-			return bool(_scene.get("_armed")) and int(_scene.get("_ability")) < 0
+			return bool(_scene.get("_armed")) and int(_scene.get("_ability")) < 0 \
+				and (unit < 0 or int(_scene.get("_selected")) == unit) \
+				and (not step.has("weapon") or int(_scene.get("_weapon")) == int(step["weapon"]))
 		"attacked":
-			return _happened(state, [GridEv.ATTACK])
+			# The machine named has used its attack, whatever it hit: the step cannot wait forever.
+			return _happened(state, [GridEv.ATTACK], unit) or (unit >= 0 and state.unit(unit) != null and state.unit(unit).acted)
 		"ability":
-			return _happened(state, [GridEv.ABILITY])
+			return _happened(state, [GridEv.ABILITY], unit)
+		"heat_choice":
+			# 088: heat is a choice -- paid (the ability), refused (fired without it), or vented.
+			return _happened(state, [GridEv.ABILITY, GridEv.ATTACK, GridEv.VENTED], unit)
+		"cancelled":
+			# 087's INTENT_LOST: an enemy's standing intent was cancelled by one of the crew.
+			return _cancelled(state)
+		"fell":
+			return _happened(state, [GridEv.FELL], unit) or (unit >= 0 and state.unit(unit) != null and state.unit(unit).acted)
+		"torn":
+			return _happened(state, [GridEv.PART_TORN], unit) or (unit >= 0 and state.unit(unit) != null and state.unit(unit).acted)
 		"prop":
 			return _happened(state, [GridEv.PROP_BROKEN, GridEv.EXPLOSION]) or _barrel(state) == null
 		"round":
@@ -153,11 +194,21 @@ func _met(step: Dictionary) -> bool:
 	return false
 
 
-## Whether one of the player's machines did one of `kinds` since the step began.
-func _happened(state: CombatState, kinds: Array) -> bool:
+func _cancelled(state: CombatState) -> bool:
 	for i: int in range(_since, state.events.size()):
 		var e: Array = state.events[i]
-		if kinds.has(int(e[GridEv.F_KIND])) and int(e[GridEv.F_ACTOR]) >= 0 and int(e[GridEv.F_ACTOR]) < 10:
+		if int(e[GridEv.F_KIND]) == GridEv.INTENT_LOST and int(e[GridEv.F_TARGET]) >= 0 and int(e[GridEv.F_TARGET]) < 10:
+			return true
+	return false
+
+
+## Whether one of the player's machines (`unit`, when one is named) did one of `kinds` since the
+## step began.
+func _happened(state: CombatState, kinds: Array, unit: int = -1) -> bool:
+	for i: int in range(_since, state.events.size()):
+		var e: Array = state.events[i]
+		var actor: int = int(e[GridEv.F_ACTOR])
+		if kinds.has(int(e[GridEv.F_KIND])) and actor >= 0 and actor < 10 and (unit < 0 or actor == unit):
 			return true
 	return false
 
@@ -176,51 +227,131 @@ func _show() -> void:
 	if final:
 		_buttons.add_child(_button("START A RUN", Ink.ACTION, func() -> void: finished.emit(true)))
 		_buttons.add_child(_button("TITLE", UIKit.PAPER_CARD, func() -> void: finished.emit(false)))
+	elif _index == 0:
+		# 088 (the user): the first card can end the shakedown at once.
+		_buttons.add_child(_button("NEXT", Ink.ACTION, next_step))
+		_buttons.add_child(_button("SKIP", UIKit.PAPER_CARD, skip))
 	elif String(step.get("until", "next")) == "next":
 		_buttons.add_child(_button("NEXT", Ink.ACTION, next_step))
-		_buttons.add_child(_button("SKIP TUTORIAL", UIKit.PAPER_CARD, func() -> void: finished.emit(false)))
+		_buttons.add_child(_button("SKIP TUTORIAL", UIKit.PAPER_CARD, skip))
 	else:
 		_buttons.add_child(_button("SKIP STEP", UIKit.PAPER_CARD, next_step))
-		_buttons.add_child(_button("SKIP TUTORIAL", UIKit.PAPER_CARD, func() -> void: finished.emit(false)))
+		_buttons.add_child(_button("SKIP TUTORIAL", UIKit.PAPER_CARD, skip))
 	if _scene.get("_state") != null:
 		_scene.call("coach_point", _board_target())
 
 
-## The hex the marker stands on, or null (a button, or nothing).
-func _board_target() -> Variant:
-	var step: Dictionary = _steps[_index]
-	var point: Dictionary = step.get("point", {})
+## The mark showing now: of the step's marks (one, or a list), the first not yet done.
+func current_mark() -> Dictionary:
+	if _steps.is_empty() or _index >= _steps.size():
+		return {}
+	var point: Variant = (_steps[_index] as Dictionary).get("point", {})
+	var marks: Array = point if point is Array else [point]
+	for i: int in marks.size():
+		var mark: Dictionary = marks[i]
+		if i == marks.size() - 1 or not _mark_done(mark):
+			return mark
+	return {}
+
+
+## Whether a mark's own little goal is reached, so the next mark in the list takes over.
+func _mark_done(mark: Dictionary) -> bool:
 	var state: CombatState = _scene.get("_state")
 	var selected: int = int(_scene.get("_selected"))
-	if point.has("unit"):
-		if point.has("then") and selected == int(point["unit"]):
+	if mark.has("cell"):
+		var u: GridUnit = state.unit(int(mark.get("unit", selected)))
+		return u == null or not u.alive or u.moved or Vector2i(u.x, u.y) == _cell(mark["cell"])
+	if mark.has("weapon"):
+		return bool(_scene.get("_armed")) and int(_scene.get("_ability")) < 0 and int(_scene.get("_weapon")) == int(mark["weapon"])
+	if mark.has("unit"):
+		# Legacy form {unit, then: button}: the machine until it is picked, then the button.
+		return selected == int(mark["unit"]) and not mark.has("then")
+	return false
+
+
+## The hex the marker stands on, or null (a button, or nothing).
+func _board_target() -> Variant:
+	var mark: Dictionary = current_mark()
+	var state: CombatState = _scene.get("_state")
+	var selected: int = int(_scene.get("_selected"))
+	if mark.has("cell"):
+		return _cell(mark["cell"])
+	if mark.has("weapon") or mark.has("ability") or mark.has("button"):
+		return null
+	if mark.has("enemy"):
+		var foe: GridUnit = state.unit(int(mark["enemy"]))
+		return Vector2i(foe.x, foe.y) if foe != null and foe.alive else null
+	if mark.has("unit"):
+		if mark.has("then") and selected == int(mark["unit"]):
 			return null
-		var u: GridUnit = state.unit(int(point["unit"]))
+		var u: GridUnit = state.unit(int(mark["unit"]))
 		return Vector2i(u.x, u.y) if u != null and u.alive else null
-	if point.has("beside_enemy"):
+	if mark.has("beside_enemy"):
 		return _beside_enemy(state, selected)
-	if point.has("enemy_near"):
-		var foe: GridUnit = _nearest_enemy(state, selected)
-		return Vector2i(foe.x, foe.y) if foe != null else null
-	if point.has("prop"):
+	if mark.has("enemy_near"):
+		var near: GridUnit = _nearest_enemy(state, selected)
+		return Vector2i(near.x, near.y) if near != null else null
+	if mark.has("prop"):
 		return _barrel(state)
-	if point.has("pile"):
-		var cells: Array = state.piles.keys()
-		cells.sort()
+	if mark.has("pile"):
+		var cells: Array = state.pile_cells()
 		return cells[0] if not cells.is_empty() else null
 	return null
 
 
+## Whether the marker is a MOVE ring (it stands on an empty hex the crew is told to walk to).
+func is_move_ring() -> bool:
+	var mark: Dictionary = current_mark()
+	return mark.has("cell") or mark.has("beside_enemy")
+
+
+## Every hex an enemy intent will hit if the turn ended now: the red the player is told to avoid.
+static func aimed(state: CombatState) -> Dictionary:
+	var out: Dictionary = {}
+	var threats: Dictionary = CombatSim.threats(state)
+	for ref: Variant in threats:
+		var threat: Dictionary = threats[ref]
+		if bool(threat["legal"]):
+			for cell: Vector2i in (threat["tiles"] as Array):
+				out[cell] = true
+	return out
+
+
 func _button_target() -> Control:
-	if _steps.is_empty() or _index >= _steps.size():
+	var mark: Dictionary = current_mark()
+	var hud: CombatHUD = _scene.get("_hud")
+	if hud == null or mark.is_empty():
 		return null
-	var point: Dictionary = (_steps[_index] as Dictionary).get("point", {})
-	var kind: String = String(point.get("button", ""))
-	if point.has("then") and int(_scene.get("_selected")) == int(point.get("unit", -1)):
-		kind = String(point["then"])
+	if mark.has("weapon"):
+		return _bar_button(hud.get("_weapon_bar"), int(mark["weapon"]))
+	if mark.has("ability"):
+		return _bar_button(hud.get("_ability_bar"), int(mark["ability"]))
+	var kind: String = String(mark.get("button", ""))
+	if mark.has("then") and int(_scene.get("_selected")) == int(mark.get("unit", -1)):
+		kind = String(mark["then"])
 	if kind.is_empty():
 		return null
-	return (_scene.get("_hud") as CombatHUD).control_for(kind)
+	return hud.control_for(kind)
+
+
+## The `index`-th item button of one of the HUD's bars (weapons in arm order, abilities in order).
+static func _bar_button(bar: Node, index: int) -> Control:
+	if bar == null:
+		return null
+	var n: int = 0
+	for child: Node in bar.get_children():
+		if child is Button and child.has_meta("item") and not child.is_queued_for_deletion() \
+				and (child as Button).is_visible_in_tree() and (child as Button).text.is_empty():
+			if n == index:
+				return child
+			n += 1
+	return null
+
+
+static func _cell(value: Variant) -> Vector2i:
+	if value is Vector2i:
+		return value
+	return Vector2i(int((value as Array)[0]), int((value as Array)[1]))
 
 
 ## A hex the selected machine can walk to that stands next to an enemy: the closest one.
@@ -232,7 +363,10 @@ func _beside_enemy(state: CombatState, ref: int) -> Variant:
 	var best_d: int = 1 << 20
 	var cells: Array = CombatSim.reachable(state, ref).keys()
 	cells.sort()
+	var red: Dictionary = aimed(state)
 	for cell: Vector2i in cells:
+		if red.has(cell):
+			continue
 		for foe: GridUnit in state.units:
 			if foe.alive and foe.team == GridUnit.TEAM_ENEMY and Hex.distance(cell, Vector2i(foe.x, foe.y)) == 1:
 				var d: int = Hex.distance(cell, Vector2i(u.x, u.y))
