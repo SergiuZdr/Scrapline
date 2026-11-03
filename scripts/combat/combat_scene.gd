@@ -40,6 +40,8 @@ const COL_SPAWN := Color("a070e0")
 const COL_PAD := Color("a070e0")
 const COL_PAD_DANGER := Color("ff3b30")
 const COL_THREAT := Color("ff3b30c0")
+## 087 (A20): a danger zone hex that hits no crew machine now (the Core's ring): its own style.
+const COL_ZONE := Color("ff3b3060")
 ## A defend cache is YOURS to protect, so it wears your colour (docs/plans/art-and-audio.md:
 ## amber means "your action", and a cache is not one).
 const COL_CACHE := Ink.YOURS
@@ -57,15 +59,20 @@ const MARK_STYLES: Dictionary = {
 	COL_ATTACK_FAINT: [0.0, 0.0, 0.0, 0.06, 12.0, 0.0],
 	COL_SPAWN: [0.50, 0.30, 0.12, 0.09, 0.0, -1.0],
 	COL_THREAT: [0.62, 0.30, 0.16, 0.10, 0.0, -1.0],
+	# Dashed border, a light thin hatch, no wash: in grey a broken outline, never a filled hex.
+	COL_ZONE: [0.45, 0.13, 0.0, 0.13, 8.0, -1.0],
 	COL_BLAST: [0.22, 0.12, 0.05, 0.08, 10.0, 0.0],
 }
 ## Terrain in ink: flat fields, told apart by value and by what is drawn on them.
 const INK_TERRAIN: Dictionary = {
-	"open": Color("1f2024"), "rubble": Color("403830"), "slag": Color("3d1f17"), "ridge": Color("42454c"),
+	"open": Color("1f2024"), "rubble": Color("403830"), "slag": Ink.SLAG_FIELD, "ridge": Color("42454c"),
 	"scrap": Color("1c1917"), "barrel": Color("1f2024"), "crate": Color("1f2024"), "pylon": Color("1f2024"),
 	"flue": Color("241a17"), "wire": Color("2a2818"),
 }
 ## The gate keepers drawn bigger than anything else on the board (013, 025).
+## 087 (A20, the user's pick): slag pools in R's cooled umber (`Ink.SLAG_POOL`), with only a faint
+## warm glow left (was ff6a2a at 1.1: the red-orange of danger).
+const SLAG_POOL_GLOW: float = 0.25
 const BIG_KINDS: Array[String] = ["sorter", "heart", "pour", "grinder", "magnet", "twin"]
 ## 038: the act's bosses stand bigger still than the warlords (the Pour was not even big).
 const BOSS_KINDS: Array[String] = ["sorter", "pour", "heart"]
@@ -458,6 +465,10 @@ func _opening(objective: String) -> void:
 			_cancelled(warm.ref, 7, true)
 			break
 	_ghost_at(cell, Ink.ACTION)
+	for warm: GridUnit in _state.units:
+		if warm.alive and _views.has(warm.ref):
+			_ghost_at(cell, Ink.ACTION, 0.0, warm.ref)
+			break
 	_dashed_line(at, at + Vector3(1.5, 0, 0.5), Ink.DANGER)
 	_hot_ground_marker(cell, false)
 	_marker_label("warm", at, Ink.PAPER, 24)
@@ -1052,7 +1063,7 @@ func _tile_material(def: Dictionary, alternate: bool) -> Material:
 		"rubble":
 			return Ink.patterned(field, 1, field.lerp(Ink.PAPER, 0.5), 9.0, 0.55)
 		"slag":
-			return Ink.patterned(field, 2, Color("6b2a14"), 6.0, 0.22)
+			return Ink.patterned(field, 2, Ink.SLAG_HATCH, 6.0, 0.22)
 	return Ink.toon(field)
 
 
@@ -1089,7 +1100,7 @@ func _dress_tile(id: String, x: int, y: int, top: float, generated: bool = false
 			var pool := MeshInstance3D.new()
 			pool.mesh = _hex_mesh(HEX * 0.52, 0.02)
 			pool.position = at + Vector3(0, 0.012, 0)
-			pool.material_override = Ink.glow(Color("ff6a2a"), 1.1)
+			pool.material_override = Ink.glow(Ink.SLAG_POOL, SLAG_POOL_GLOW)
 			Ink.line(pool, Ink.LINE_WORLD)
 			_board.add_child(pool)
 		"wire":
@@ -2743,7 +2754,7 @@ func _animate(e: Array) -> void:
 			await _wait(0.35)
 		GridEv.SEIZED:
 			_refresh_tag(actor)
-			_float_text(_unit_pos(actor) + Vector3(0, 2.2, 0), "SEIZED", UIKit.RED)
+			_float_text(_unit_pos(actor) + Vector3(0, 2.2, 0), "SEIZED", Ink.COPPER)
 			await _wait(0.2)
 		GridEv.VENTED:
 			_refresh_tag(actor)
@@ -3218,13 +3229,37 @@ func _hit(attacker: int, victim: int, amount: int) -> void:
 		(view["rig"] as ConstructRig).stagger(_local_push(attacker, victim), severity)
 	# Terrain damage is labelled as terrain, so slag reads as a cause and not as a bug.
 	var ground: String = "FLUE" if u.x >= 0 and _state.flue(u.x, u.y) > 0 else "SLAG"
+	# 087 (A20, the user's pick): damage the crew TAKES floats red; damage dealt to an enemy floats in
+	# the colour of the attacker's damage type (the weapon's own type, else its core's).
+	var float_colour: Color = UIKit.RED.lightened(0.25)
+	var float_line: Color = Ink.INK
+	if u.team != GridUnit.TEAM_PLAYER:
+		float_colour = DEALT_COLOURS[clampi(_attack_type(attacker), 0, DEALT_COLOURS.size() - 1)]
 	_float_text(root.position + Vector3(0, 1.8, 0), ("-%d" % amount) if attacker >= 0 else ("%s -%d" % [ground, amount]),
-		UIKit.RED.lightened(0.25))
+		float_colour, float_line)
 	_refresh_tag_from_event(view, victim)
 	Audio.play("hit_heavy" if severity > 0.6 else "hit_light", -6.0)
 	if severity > 0.8:
 		_vfx.shake(0.35 * severity)
 	await _wait(T_HIT)
+
+
+## 087 (A20): the colours damage DEALT floats in, by damage type (`combat_rules.damage_types` order:
+## kinetic, thermal, emp, corrosive). None is red: red is what the crew takes.
+const DEALT_COLOURS: Array[Color] = [Color("e4ecf0"), Ink.COPPER, Color("3ee6c8"), Color("b8e04a")]
+
+
+## The damage type an attacker's hit carries: the weapon of the attack being played (its own
+## `dtype` when the arm has one), else the machine's core. Kinetic (0) for no attacker (terrain).
+func _attack_type(attacker: int) -> int:
+	var u: GridUnit = _state.unit(attacker) if attacker >= 0 else null
+	if u == null:
+		return 0
+	if attacker == _sfx_attacker and _sfx_weapon >= 0 and _sfx_weapon < u.weapons.size():
+		var own: int = int((u.weapons[_sfx_weapon] as Dictionary).get("dtype", -1))
+		if own >= 0:
+			return own
+	return u.damage_type
 
 
 ## HP as of THIS event, not as of the end of the turn: the tag must count down hit by
@@ -3383,7 +3418,7 @@ func _tracer(from: Vector3, to: Vector3, colour: Color) -> void:
 	tween.tween_callback(beam.queue_free)
 
 
-func _float_text(at: Vector3, text: String, colour: Color) -> void:
+func _float_text(at: Vector3, text: String, colour: Color, outline: Color = Ink.INK) -> void:
 	var label := Label3D.new()
 	label.text = text
 	label.font = UIKit.font_comic()
@@ -3392,8 +3427,11 @@ func _float_text(at: Vector3, text: String, colour: Color) -> void:
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
 	label.outline_size = 18
-	label.outline_modulate = Ink.INK
+	label.outline_modulate = outline
 	label.modulate = colour
+	# 087: over the machines' tags (it starts at their height), so a hit's number is read first.
+	label.render_priority = 6
+	label.outline_render_priority = 5
 	label.position = at
 	_marks_root.add_child(label)
 	var tween := create_tween().set_parallel(true)
@@ -3547,7 +3585,17 @@ func _cancelled(actor: int, would: int, quiet: bool = false) -> void:
 	word.render_priority = 10
 	word.outline_render_priority = 9
 	word.rotation.z = 0.08
-	word.position = cloud_at + Vector3(0, 0.55, 0)
+	# Beside the cloud, on its left (the user's pick): the hit's sound word goes up and to the
+	# right, a torn arm's float rises over the machine, so neither is covered.
+	word.position = cloud_at
+	word.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	word.offset = Vector2(-0.66 / word.pixel_size, 0.0)
+	# Near the left edge the crew cards cover that side: there it goes on the right, a little low,
+	# under where the sound word flies.
+	if _camera != null and not _camera.is_position_behind(cloud_at) \
+			and _camera.unproject_position(cloud_at).x < get_viewport().get_visible_rect().size.x * 0.36:
+		word.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		word.offset = Vector2(0.66 / word.pixel_size, -0.3 / word.pixel_size)
 	word.scale = Vector3.ONE * 0.4
 	word.set_meta("cancelled", actor)
 	_marks_root.add_child(word)
@@ -3777,8 +3825,11 @@ func _refresh() -> void:
 				if _state.flue(x, y) > 0:
 					_mark(_threat_quads, Vector2i(x, y), COL_THREAT)
 	if not _state.pulse_marks.is_empty():
+		# 087 (A20, the user's pick): a ring hex with a crew machine on it is solid threat red; an empty
+		# one is a danger ZONE -- a dashed red outline over a light hatch, no fill.
 		for cell: Vector2i in _state.pulse_marks:
-			_mark(_threat_quads, cell, COL_THREAT)
+			var standing: GridUnit = _state.unit_at(cell.x, cell.y)
+			_mark(_threat_quads, cell, COL_THREAT if standing != null and standing.alive and standing.team == GridUnit.TEAM_PLAYER else COL_ZONE)
 		var keeper: GridUnit = _state.unit(_state.pulse_by)
 		if keeper != null and keeper.alive:
 			var top: Vector3 = _to_world(keeper.x, keeper.y) + Vector3(0, _tile_top(keeper.x, keeper.y), 0)
@@ -4767,7 +4818,7 @@ func _flood_marker(cell: Vector2i, as_floor: bool = true) -> void:
 	disc.height = 0.03
 	disc.radial_segments = 6
 	pool.mesh = disc
-	pool.material_override = Ink.glow(Color("ff6a1f"), 0.5)
+	pool.material_override = Ink.glow(Ink.SLAG_POOL, SLAG_POOL_GLOW)
 	pool.position = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y) + 0.02, 0)
 	if as_floor:
 		_flood_views[cell] = pool
@@ -4982,6 +5033,8 @@ func _hot_ground() -> Dictionary:
 ## a darker hex with a light ripple moving over it.
 const HOT_PLATE := Color("4a3426")
 const HOT_SHIMMER := Color("f3dcb0")
+const HOT_EMBER := Color("e8962e")
+const HOT_EMBER_CORE := Color("ffd27a")
 
 
 func _hot_ground_marker(cell: Vector2i, as_floor: bool = true) -> void:
@@ -4990,15 +5043,12 @@ func _hot_ground_marker(cell: Vector2i, as_floor: bool = true) -> void:
 	var top: float = _tile_top(cell.x, cell.y)
 	var root := Node3D.new()
 	root.position = _to_world(cell.x, cell.y) + Vector3(0, top + 0.015, 0)
+	# A flat quad with the plate painted in (a cylinder's cap maps only a corner of its texture).
 	var plate := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = HEX * 0.84
-	disc.bottom_radius = HEX * 0.84
-	disc.height = 0.02
-	disc.radial_segments = 6
-	disc.rings = 1
+	var disc := PlaneMesh.new()
+	disc.size = Vector2(HEX * 1.7, HEX * 1.7)
 	plate.mesh = disc
-	plate.rotation.y = PI / 6.0 * 0.0
+	plate.position.y = 0.01
 	var scorch := StandardMaterial3D.new()
 	scorch.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	scorch.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -5008,7 +5058,9 @@ func _hot_ground_marker(cell: Vector2i, as_floor: bool = true) -> void:
 			for x: int in 128:
 				var p := Vector2(x - 64, y - 64) / 64.0
 				var r: float = p.length()
-				if r > 1.0:
+				# A pointy-top hex, a touch inside the tile's own.
+				var q := Vector2(absf(p.x), absf(p.y))
+				if q.x > 0.84 or q.x * 0.5 + q.y * 0.866 > 0.84 * 1.0:
 					continue
 				# Burnt black toward the rim, scorched umber inside, a grain of soot.
 				var grain: float = float(IntentAI.mix(x, y, 87, 4) % 100) / 100.0
@@ -5018,8 +5070,10 @@ func _hot_ground_marker(cell: Vector2i, as_floor: bool = true) -> void:
 				for k: int in 5:
 					var ray: float = float(k) * TAU / 5.0 + 0.4 + sin(r * 9.0 + float(k)) * 0.12
 					var gap: float = absf(wrapf(ang - ray, -PI, PI)) * r * 64.0
-					if gap < 2.4 and r > 0.1 and r < 0.86:
-						c = Color("f0b45a").lerp(c, clampf(gap / 2.4 * 0.7 + r * 0.3, 0.0, 1.0))
+					# The user's pick: brighter, like embers -- ochre to a hot yellow core, never red.
+					if gap < 3.2 and r > 0.08 and r < 0.9:
+						var ember: Color = HOT_EMBER_CORE.lerp(HOT_EMBER, clampf(gap / 1.6, 0.0, 1.0))
+						c = ember.lerp(c, clampf((gap - 1.2) / 2.0, 0.0, 1.0) * 0.8 + r * 0.15)
 				image.set_pixel(x, y, Color(c, 0.92)))
 	plate.material_override = Ink.hold(scorch)
 	root.add_child(plate)
@@ -5028,7 +5082,7 @@ func _hot_ground_marker(cell: Vector2i, as_floor: bool = true) -> void:
 	var quad := PlaneMesh.new()
 	quad.size = Vector2(HEX * 1.45, HEX * 1.45)
 	shimmer.mesh = quad
-	shimmer.position.y = 0.02
+	shimmer.position.y = 0.025
 	var wave := StandardMaterial3D.new()
 	wave.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	wave.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -5099,10 +5153,39 @@ func _consequences(action: Array, threats: Dictionary) -> void:
 			COL_PAD_DANGER.lightened(0.35) if bool(will["legal"]) else Ink.PAPER, 26)
 
 
-## A see-through stand-in for a machine where an aimed action would put it (087, A18): the
-## arrival ghost's box, in the action's amber, `sink` metres lower for a fall.
+## A see-through stand-in for a machine where an aimed action would put it (087, A18; the user's
+## pick): a copy of the machine's own model in a see-through amber (the action's colour), its ink
+## line kept so the silhouette reads, `sink` metres lower for a fall. A machine with no view (or the
+## warm-up without one) gets the arrival ghost's box.
+const GHOST_ALPHA: float = 0.5
+
+
 func _ghost_at(cell: Vector2i, colour: Color, sink: float = 0.0, ref: int = -1) -> void:
 	var at: Vector3 = _to_world(cell.x, cell.y) + Vector3(0, _tile_top(cell.x, cell.y) + sink, 0)
+	if _views.has(ref) and not bool((_views[ref] as Dictionary)["dead"]):
+		var view: Dictionary = _views[ref]
+		var source: Node3D = view["model"]
+		var root: Node3D = view["root"]
+		var holder := Node3D.new()
+		holder.position = at
+		holder.rotation = root.rotation
+		holder.scale = root.scale
+		var copy: Node3D = source.duplicate() as Node3D
+		holder.add_child(copy)
+		var see := StandardMaterial3D.new()
+		see.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		see.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		see.albedo_color = Color(colour, GHOST_ALPHA)
+		see.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS
+		var held: BaseMaterial3D = Ink.hold(see)
+		for node: Node in copy.find_children("*", "MeshInstance3D", true, false):
+			(node as MeshInstance3D).material_override = held
+		for node: Node in copy.find_children("*", "AnimationPlayer", true, false):
+			node.queue_free()
+		holder.set_meta("intent", true)
+		holder.set_meta("ghost", ref)
+		_marks_root.add_child(holder)
+		return
 	var ghost := MeshInstance3D.new()
 	var body := BoxMesh.new()
 	body.size = Vector3(HEX * 0.6, HEX * 1.0, HEX * 0.6)
