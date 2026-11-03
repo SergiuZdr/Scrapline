@@ -11,10 +11,12 @@
     "lf.^^.fl",
     "........",
     ".r.ff.r.",
-    "...bb...",
+    "........",
     "f......f",
     "........"
   ],
+  "prop_slots": [{"glyph": "b", "groups": [[[3, 5], [4, 5]], [[2, 3], [5, 3]], [[1, 5], [6, 5]], [[0, 4], [7, 4]]]}],
+  "mirror": true,
   "player": [
     {
       "name": "Knuckles",
@@ -131,5 +133,6 @@
   ],
   "objective": {
     "type": "rout"
-  }
+  },
+  "_088": "A6: the drum stack stands on one of four pairs of hexes (`prop_slots`; the original first), and a run reflects the map left-right half the time (`mirror`): the lance-into-the-drum opener is no longer the same every visit."
 }

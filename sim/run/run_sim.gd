@@ -494,6 +494,9 @@ static func _travel(state: RunState, setup: RunSetup, to: int) -> bool:
 static func _start_fight(state: RunState, setup: RunSetup, to: int, kind: String) -> void:
 	state.elite_fights = maxi(0, state.elite_fights - 1)
 	var fight: Dictionary = _make_fight(state, setup, to, kind)
+	# 088 (A6): the maps met this act, so the next fight finds a fresh one.
+	if fight.has("map"):
+		state.maps.append([state.act, String(fight["map"])])
 	if reclaimer_reaches(state, to):
 		var col: int = int(state.site(to)["col"])
 		fight["reclaimer"] = {"round": reach_round(setup, state.moves, col), "count": reach_drones(setup, state.moves, col)}
@@ -1591,11 +1594,14 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 		warlord = rotated
 	# The act may change the board (032: Acts 2 and 3 hold one more enemy).
 	var board: Dictionary = rules_of(state, setup).get("board", {})
-	var template: Dictionary = widen(setup.fights[ids[rng.range_int(0, ids.size() - 1)]], board)
+	# 088 (A6): no map twice in an act while one not yet met is left (`fresh_maps`); still one draw.
+	var pool: Array = fresh_maps(state, ids)
+	var map_id: String = String(pool[rng.range_int(0, pool.size() - 1)])
 	if kind == "boss" and not gate.is_empty():
-		return _make_gate_fight(state, setup, site_id, widen(setup.fights[gate], board), rng)
+		return _make_gate_fight(state, setup, site_id, lay_map(state, setup, site_id, setup.fights[gate], board), rng)
 	if kind == "warlord" and not warlord.is_empty():
-		return _make_gate_fight(state, setup, site_id, widen(_warlord_for_act(setup, warlord, state.act), board), rng, "warlord_escorts")
+		return _make_gate_fight(state, setup, site_id, lay_map(state, setup, site_id, _warlord_for_act(setup, warlord, state.act), board), rng, "warlord_escorts")
+	var template: Dictionary = lay_map(state, setup, site_id, setup.fights[map_id], board)
 	var col: int = int(state.sites[site_id]["col"])
 	var enemies_rules: Dictionary = rules_of(state, setup).get("enemies", {})
 	var counts: Array = enemies_rules.get("count_by_column", [3])
@@ -1616,11 +1622,20 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 		hp_bonus = int(enemies_rules.get("boss_hp_bonus", 4))
 		cap = 3
 
-	var fight: Dictionary = {"id": "run_site_%d" % site_id, "name": String(template.get("name", "")),
+	var fight: Dictionary = {"id": "run_site_%d" % site_id, "name": String(template.get("name", "")), "map": map_id,
 		"rows": _scatter_terrain(rules_of(state, setup).get("terrain", {}), rng, template)}
+	if bool(template.get("mirrored", false)):
+		fight["mirrored"] = true
 	var laid: Dictionary = template.duplicate()
 	laid["rows"] = fight["rows"]
 	fight["objective"] = _roll_objective(setup, rng, laid, kind)
+	# 088 (A6): a map built around its objective (`own_objective`) keeps it -- laid out with the map --
+	# unless the run's weights give that objective nothing (a weekly twist). The roll above still
+	# happens, so every later roll is drawn as on any map.
+	var own: Dictionary = template.get("objective", {})
+	if bool(template.get("own_objective", false)) and kind != "boss" \
+			and int((setup.rules.get("objective_weights", {}) as Dictionary).get(String(own.get("type", "rout")), 0)) > 0:
+		fight["objective"] = own.duplicate(true)
 	_roll_modifier(state, setup, rng, fight, template)
 	# 085: a rung may cut what a scrap pile heals (`fight_rules.pile_heal`, over combat rules.json).
 	var fight_rules: Dictionary = rules_of(state, setup).get("fight_rules", {})
@@ -1827,6 +1842,9 @@ static func _scatter_terrain(terrain: Dictionary, rng: SimRNG, template: Diction
 	var taken: Array = []
 	for spec: Dictionary in (template.get("player", []) as Array) + (template.get("enemy", []) as Array):
 		taken.append(Vector2i(int(spec["x"]), int(spec["y"])))
+	# 088 (A6): never on a map's own objective (other maps' file objectives are not used in a run).
+	if bool(template.get("own_objective", false)):
+		taken = CombatSetup.starts(template)
 	for pair: Array in [["barrels", "b"], ["crates", "c"], ["pits", "o"], ["slag", "l"], ["flues", "f"],
 			["rubble", "r"], ["scrap", "s"]]:
 		# A kind of terrain an act does not name draws nothing from the dice (025: Acts 1 and 2
@@ -2013,7 +2031,9 @@ static func widen(template: Dictionary, board: Dictionary) -> Dictionary:
 	var left: int = add_cols / 2
 	var right: int = add_cols - left
 	var rows: Array = template["rows"]
-	var cut: int = rows.size() / 2
+	# 088 (A6): a map may say where the blank rows go (`widen_cut`, the first row below them), so an
+	# objective it authors across the middle (the Taphole's zone) stays in one piece.
+	var cut: int = clampi(int(template.get("widen_cut", rows.size() / 2)), 1, rows.size() - 1)
 	var out_rows: Array = []
 	var blank: String = ".".repeat(String(rows[0]).length() + add_cols)
 	for y: int in rows.size():
@@ -2023,12 +2043,49 @@ static func widen(template: Dictionary, board: Dictionary) -> Dictionary:
 		out_rows.append(".".repeat(left) + String(rows[y]) + ".".repeat(right))
 	var out: Dictionary = template.duplicate(true)
 	out["rows"] = out_rows
-	for side: String in ["player", "enemy"]:
-		for spec: Variant in (out.get(side, []) as Array):
-			var d: Dictionary = spec
-			d["x"] = int(d["x"]) + left
-			if int(d["y"]) >= cut:
-				d["y"] = int(d["y"]) + add_rows
+	var shifted: Array = (out.get("player", []) as Array) + (out.get("enemy", []) as Array)
+	# 088 (A6): a map's own objective (`own_objective`) moves with it.
+	for key: String in ["cells", "caches", "piles"]:
+		shifted.append_array((out.get("objective", {}) as Dictionary).get(key, []) as Array)
+	for spec: Variant in shifted:
+		var d: Dictionary = spec
+		d["x"] = int(d["x"]) + left
+		if int(d["y"]) >= cut:
+			d["y"] = int(d["y"]) + add_rows
+	return out
+
+
+## 088 (A6): the ids in `ids` (sorted) not yet met in this act's fights, or -- once every one has
+## been -- all but the last one met, so a map never comes twice in a row.
+static func fresh_maps(state: RunState, ids: Array) -> Array:
+	var met: Array = []
+	for entry: Variant in state.maps:
+		if int((entry as Array)[0]) == state.act:
+			met.append(String((entry as Array)[1]))
+	var fresh: Array = ids.filter(func(id: Variant) -> bool: return not met.has(String(id)))
+	if fresh.is_empty():
+		fresh = ids.filter(func(id: Variant) -> bool: return ids.size() == 1 or String(id) != String(met.back()))
+	return fresh
+
+
+## 088 (A6): a map as a fight at `site_id` uses it: one group of each of its `prop_slots` written in
+## (in the file's coordinates), then widened to the act's board, then reflected left-right half the
+## time if it says `"mirror": true` (after widening, so the margin takes the hex an odd-r reflection
+## pushes off the edge). Its own SimRNG stream, so no other roll moves.
+static func lay_map(state: RunState, setup: RunSetup, site_id: int, template: Dictionary, board: Dictionary) -> Dictionary:
+	if not template.has("prop_slots") and not template.has("mirror"):
+		return widen(template, board)
+	var rng: SimRNG = _rng(setup, site_id, 61, state.act)
+	var out: Dictionary = template.duplicate(true)
+	out.erase("prop_slots")
+	out.erase("mirror")
+	if template.has("prop_slots"):
+		out["rows"] = CombatSetup.slotted_rows(out, template["prop_slots"], rng)
+	out = widen(out, board)
+	if bool(template.get("mirror", false)) and rng.chance_percent(50):
+		var m: Dictionary = CombatSetup.mirror_of(out)
+		if not m.is_empty():
+			out = m
 	return out
 
 

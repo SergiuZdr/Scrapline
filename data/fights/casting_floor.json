@@ -11,10 +11,12 @@
     "...ll...",
     ".f.ll.f.",
     "...^....",
-    "..b...r.",
+    "......r.",
     ".f....f.",
     "........"
   ],
+  "prop_slots": [{"glyph": "b", "groups": [[[2, 5]], [[5, 5]], [[4, 4]], [[5, 3]]]}],
+  "mirror": true,
   "player": [
     {
       "name": "Knuckles",
@@ -130,5 +132,6 @@
   ],
   "objective": {
     "type": "rout"
-  }
+  },
+  "_088": "A6: the drum is on one of four hexes (`prop_slots`; the original first); a run reflects the map half the time (`mirror`)."
 }

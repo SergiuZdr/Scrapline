@@ -78,9 +78,10 @@ func _initialize() -> void:
 	_timed(_test_intent_lost_087)
 	_timed(_test_hot_ground_087)
 	_timed(_test_reinforcements_087)
+	_timed(_test_layout_088)
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
 			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core",
-		"warlord_grinder", "warlord_magnet", "warlord_twins"]:
+		"warlord_grinder", "warlord_magnet", "warlord_twins", "blowing_house", "the_taphole", "skull_cracker"]:
 		_timed(_test_bot_fight.bind(id))
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
@@ -2730,3 +2731,113 @@ func _timed(test: Callable) -> void:
 	var ms: int = Time.get_ticks_msec() - start
 	if ms >= 1000:
 		print("  time  %5.1fs  %s%s" % [ms / 1000.0, test.get_method(), "" if test.get_bound_arguments().is_empty() else " " + str(test.get_bound_arguments()[0])])
+
+
+## 088 (A6): prop slots and left-right mirroring. The reflection is a real one on odd-r hexes (every
+## neighbour stays a neighbour), a mirrored fight replays exactly, and every map that asks for it can
+## be laid out both ways on the run's board.
+func _test_layout_088() -> void:
+	# The reflection: an involution that keeps distances, on both axes a board may use.
+	var keeps: bool = true
+	for k: int in [11, 12]:
+		for y: int in 6:
+			for x: int in 12:
+				var c := Vector2i(x, y)
+				if CombatSetup.mirror_cell(CombatSetup.mirror_cell(c, k), k) != c:
+					keeps = false
+				for n: Vector2i in Hex.neighbors(c):
+					if Hex.distance(CombatSetup.mirror_cell(c, k), CombatSetup.mirror_cell(n, k)) != 1:
+						keeps = false
+				var far := Vector2i((x * 7 + 3) % 12, (y * 5 + 2) % 6)
+				if Hex.distance(c, far) != Hex.distance(CombatSetup.mirror_cell(c, k), CombatSetup.mirror_cell(far, k)):
+					keeps = false
+	_check("mirroring is a reflection: undone by itself, every neighbour stays a neighbour, distances kept", keeps)
+	# East and west swap; the vertical directions keep their row.
+	var c0 := Vector2i(4, 3)
+	_check("east of a hex mirrors to west of its mirror", CombatSetup.mirror_cell(Hex.neighbor(c0, 0), 11) == Hex.neighbor(CombatSetup.mirror_cell(c0, 11), 3)
+		and CombatSetup.mirror_cell(Hex.neighbor(c0, 1), 11) == Hex.neighbor(CombatSetup.mirror_cell(c0, 11), 2))
+
+	var wide: Dictionary = RunSim.widen(_db.fights["blowing_house"], _db.run_rules.get("board", {}))
+	wide.erase("prop_slots")
+	wide.erase("mirror")
+	var m: Dictionary = CombatSetup.mirror_of(wide)
+	_check("a widened map can always be mirrored", not m.is_empty() and bool(m.get("mirrored", false)))
+	var k: int = CombatSetup.mirror_axis(wide)
+	var glyphs_follow: bool = true
+	for y: int in (wide["rows"] as Array).size():
+		for x: int in String(wide["rows"][0]).length():
+			var to: Vector2i = CombatSetup.mirror_cell(Vector2i(x, y), k)
+			if to.x >= 0 and to.x < String(wide["rows"][0]).length() and String(m["rows"][y])[to.x] != String(wide["rows"][y])[x]:
+				glyphs_follow = false
+	_check("every glyph lands on its mirror hex", glyphs_follow)
+	var units_follow: bool = true
+	for side: String in ["player", "enemy"]:
+		for i: int in (wide[side] as Array).size():
+			var a: Dictionary = wide[side][i]
+			var b: Dictionary = m[side][i]
+			units_follow = units_follow and Vector2i(int(b["x"]), int(b["y"])) == CombatSetup.mirror_cell(Vector2i(int(a["x"]), int(a["y"])), k)
+	for i: int in ((wide["objective"] as Dictionary)["cells"] as Array).size():
+		var a: Dictionary = wide["objective"]["cells"][i]
+		var b: Dictionary = m["objective"]["cells"][i]
+		units_follow = units_follow and Vector2i(int(b["x"]), int(b["y"])) == CombatSetup.mirror_cell(Vector2i(int(a["x"]), int(a["y"])), k)
+	_check("so does every start and every terminal", units_follow)
+	_check("a board whose edge hexes are taken both ways is not mirrored",
+		CombatSetup.mirror_of({"rows": ["s..", "..s"], "player": [], "enemy": []}).is_empty())
+
+	# Every map that says "mirror" can be mirrored on the run's board; every prop slot hex is open.
+	var bad: PackedStringArray = []
+	var ids: Array = _db.fights.keys()
+	ids.sort()
+	for id: Variant in ids:
+		var f: Dictionary = _db.fights[id]
+		if bool(f.get("mirror", false)) and CombatSetup.mirror_axis(RunSim.widen(f, _db.run_rules.get("board", {}))) < 0:
+			bad.append("%s cannot be mirrored" % id)
+		var taken: Array = CombatSetup.starts(f)
+		for entry: Variant in (f.get("prop_slots", []) as Array):
+			for group: Variant in ((entry as Dictionary)["groups"] as Array):
+				for cell: Variant in (group as Array):
+					var x: int = int((cell as Array)[0])
+					var y: int = int((cell as Array)[1])
+					if String(f["rows"][y])[x] != "." or taken.has(Vector2i(x, y)):
+						bad.append("%s: slot (%d,%d) is not open ground" % [id, x, y])
+	_check("every mirror map mirrors on the run's board and every prop slot is on open ground %s" % [bad], bad.is_empty())
+
+	# Prop slots: the same seed picks the same group; seeds between them pick every group.
+	var core: Dictionary = _db.fights["the_core"]
+	var groups: Dictionary = {}
+	var same: bool = true
+	for seed_value: int in 60:
+		var a: CombatSetup = CombatSetup.build(core, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, seed_value)
+		var b: CombatSetup = CombatSetup.build(core, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, seed_value)
+		var at: Array = a.start_props.filter(func(p: Dictionary) -> bool: return String(p["kind"]) == "barrel").map(
+			func(p: Dictionary) -> Vector2i: return Vector2i(int(p["x"]), int(p["y"])))
+		var bt: Array = b.start_props.filter(func(p: Dictionary) -> bool: return String(p["kind"]) == "barrel").map(
+			func(p: Dictionary) -> Vector2i: return Vector2i(int(p["x"]), int(p["y"])))
+		same = same and at == bt and at.size() == 2 and a.errors.is_empty()
+		groups[str(at)] = true
+	var slots: int = ((core["prop_slots"] as Array)[0]["groups"] as Array).size()
+	_check("the_core: the same seed puts its drums on the same pair, always two", same)
+	_check("and 60 seeds use all %d pairs (%d)" % [slots, groups.size()], groups.size() == slots)
+
+	# A mirrored fight replays exactly, and plays the same as itself.
+	var mf: Dictionary = m.duplicate(true)
+	var setup: CombatSetup = CombatSetup.build(mf, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 2026)
+	_check("the mirrored Blowing House builds %s" % [setup.errors], setup.errors.is_empty() and setup.mirrored)
+	var state: CombatState = CombatSim.start(setup)
+	var actions: Array = []
+	var guard: int = 0
+	while state.outcome == CombatState.ONGOING and guard < 100:
+		actions.append_array(CombatBot.take_turn(state))
+		guard += 1
+	var again: CombatState = CombatSim.replay(CombatSetup.build(mf, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 2026), actions)
+	var prefix: CombatState = CombatSim.replay(setup, actions.slice(0, actions.size() / 2))
+	var stable: bool = true
+	for i: int in prefix.events.size():
+		stable = stable and prefix.events[i] == state.events[i]
+	_check("a mirrored fight ends (%s in %d rounds) and replays to the same hash" % [
+		"WON" if state.outcome == CombatState.WON else "LOST", state.round_number],
+		state.outcome != CombatState.ONGOING and again.event_hash() == state.event_hash() and stable)
+	# The new maps: each its own objective, laid out from the file.
+	for pair: Array in [["blowing_house", "hack"], ["the_taphole", "hold"], ["skull_cracker", "salvage"]]:
+		var s: CombatSetup = CombatSetup.build(_db.fights[pair[0]], _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 3)
+		_check("%s builds as a %s fight %s" % [pair[0], pair[1], s.errors], s.errors.is_empty() and String(s.objective["type"]) == pair[1])

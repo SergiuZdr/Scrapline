@@ -9,12 +9,14 @@
     "...s....",
     ".o....o.",
     "..f..f..",
-    "..c..c..",
+    "........",
     ".f....f.",
     "...oo...",
     "..f..f..",
     "........"
   ],
+  "prop_slots": [{"glyph": "c", "groups": [[[2, 3], [5, 3]], [[1, 3], [6, 3]], [[3, 3], [4, 3]]]}],
+  "mirror": true,
   "player": [
     {
       "name": "Knuckles",
@@ -130,5 +132,6 @@
   ],
   "objective": {
     "type": "rout"
-  }
+  },
+  "_088": "A6: the crate walls stand on one of three pairs of hexes (`prop_slots`; the original first); a run reflects the map half the time (`mirror`)."
 }
