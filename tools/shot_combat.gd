@@ -141,8 +141,12 @@ func _run() -> void:
 			scene.call("_animate", [args[i + 1].to_int(), args[i + 2].to_int(), target, cell.x, cell.y, args[i + 4].to_int(), 0])
 			played = true
 	if played:
-		for i: int in _int_arg(args, "--event-frames", 12):
-			await process_frame
+		var ew: int = args.find("--event-wait")
+		if ew >= 0 and ew + 1 < args.size():
+			await create_timer(args[ew + 1].to_float()).timeout   # seconds: the same moment however slow the frames
+		else:
+			for i: int in _int_arg(args, "--event-frames", 12):
+				await process_frame
 
 	# 085: --close REF DIST: the board's camera brought down to DIST metres from unit REF (a close-up
 	# of a machine as the board sees it -- from the crew's side, so a player's back).
