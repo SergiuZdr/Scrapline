@@ -34,6 +34,10 @@ From round 3 on every round brings a new problem, dodging is no longer free, and
 - **OVERHEATED stays red** (it hurts); **SEIZED is copper**.
 - Core pulse ring: a hex under a crew machine stays solid red; an empty ring hex is a **red dashed outline
   with a light red hatch**, still a warning ("both colours you showed do not say machines get hurt there").
+- Slag, after the sheets: the **brighter ember** (d88a3c, value 1.1, hatch 0.15) **with its small contrast drop
+  accepted** (slag_pit 2.10 -> 2.07, slag_lake 1.98 -> 1.95; world red 21.85 -> 16.48 and 21.51 -> 10.02 per
+  mille). A straight two-thirds mix toward the old glow read red on screen (the print pass fringes bright warm
+  pools red), so the hue leans yellow.
 - The other reds on the board (a yard container, crate trim, the fuel drum, the SCRAP BLAST label, the Core's
   props) **stay** as they are.
 
