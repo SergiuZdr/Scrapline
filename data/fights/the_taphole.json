@@ -1,0 +1,136 @@
+{
+  "id": "the_taphole",
+  "name": "The Taphole",
+  "acts": [
+    3
+  ],
+  "_comment": "088 (A6), Act 3, built around HOLD: the zone is the tapping floor in front of the taphole, with runs of molten iron (slag) either side of it and crate cover at the edge of the crew's half. The blank rows of a run's bigger board go in above it (`widen_cut`), so the zone sits in the middle.",
+  "rows": [
+    ".f....f.",
+    "........",
+    "..r..r..",
+    ".l.l..l.",
+    "..l...l.",
+    "..c..c..",
+    ".f....f.",
+    "........"
+  ],
+  "widen_cut": 3,
+  "prop_slots": [{"glyph": "b", "groups": [[[3, 2], [4, 2]], [[0, 4], [7, 4]], [[1, 5], [6, 5]], [[1, 2], [6, 2]]]}],
+  "mirror": true,
+  "player": [
+    {
+      "name": "Knuckles",
+      "parts": [
+        "ch_brute",
+        "co_slug",
+        "ar_saw",
+        "ar_hammer",
+        "mo_scavenger"
+      ],
+      "x": 2,
+      "y": 7
+    },
+    {
+      "name": "Needle",
+      "parts": [
+        "ch_hauler",
+        "co_furnace",
+        "ar_pulse",
+        "ar_lance",
+        "mo_ablative"
+      ],
+      "x": 4,
+      "y": 7
+    },
+    {
+      "name": "Relay",
+      "parts": [
+        "ch_strider",
+        "co_arc",
+        "ar_scanner",
+        "ar_scatter",
+        "mo_governor"
+      ],
+      "x": 6,
+      "y": 7
+    }
+  ],
+  "enemy": [
+    {
+      "name": "Citadel",
+      "parts": [
+        "ch_citadel",
+        "co_mag",
+        "ar_maul",
+        "ar_scatter",
+        "mo_reactive"
+      ],
+      "x": 0,
+      "y": 0,
+      "kind": "conduit"
+    },
+    {
+      "name": "Lancer",
+      "parts": [
+        "ch_lancer",
+        "co_dynamo",
+        "ar_railgun",
+        "ar_scanner",
+        "mo_targeting"
+      ],
+      "x": 3,
+      "y": 0
+    },
+    {
+      "name": "Reaper",
+      "parts": [
+        "ch_reaper",
+        "co_ember",
+        "ar_ripper",
+        "ar_saw",
+        "mo_bypass"
+      ],
+      "x": 4,
+      "y": 0
+    },
+    {
+      "name": "Bulwark",
+      "parts": [
+        "ch_bulwark",
+        "co_tesla",
+        "ar_pulse",
+        "ar_hammer",
+        "mo_coolant"
+      ],
+      "x": 7,
+      "y": 0
+    },
+    {
+      "name": "Skirmisher",
+      "parts": [
+        "ch_skirmisher",
+        "co_arc",
+        "ar_scatter",
+        "ar_pulse",
+        "mo_capacitor"
+      ],
+      "x": 2,
+      "y": 1
+    },
+    {
+      "name": "Courier",
+      "parts": [
+        "ch_courier",
+        "co_solvent",
+        "ar_lance",
+        "ar_scatter",
+        "mo_servo"
+      ],
+      "x": 5,
+      "y": 1
+    }
+  ],
+  "objective": {"type": "hold", "need": 3, "cells": [{"x": 4, "y": 4}, {"x": 3, "y": 4}, {"x": 4, "y": 3}]},
+  "own_objective": true
+}

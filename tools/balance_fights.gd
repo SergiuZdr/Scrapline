@@ -3,7 +3,9 @@ extends SceneTree
 ## Bot fights in bulk: does the enemy threaten anything, and does the player ever lose?
 ##
 ##   godot --headless --path . --script res://tools/balance_fights.gd -- [--fights 300] [--seeds 5]
-##       [--jobs N] [--set path=json ...] [--b path=json ...]
+##       [--jobs N] [--set path=json ...] [--b path=json ...] [--maps a,b,c]
+##
+## `--maps` (088) plays only the maps named, and reports the random fights map by map as well.
 ##
 ## `--jobs` (070): over N processes, one per core but one by default (`tools/jobs.gd`).
 ## `--set` changes a number for this batch (`combat.<path>`, `fight.<id>.<path>`, as `run_bot.gd`);
@@ -90,6 +92,13 @@ func _initialize() -> void:
 	var pool: Array = ids.filter(func(id: Variant) -> bool:
 		var map: Dictionary = _db.fights[id]
 		return not bool(map.get("tutorial", false)) and not bool(map.get("boss", false)))
+	# 088: `--maps a,b,c` plays only those maps (authored and random), and the random fights are also
+	# reported map by map -- a new map judged against its act's others on the same kind of fight.
+	var only: String = _arg(args, "--maps", "")
+	if not only.is_empty():
+		var wanted: PackedStringArray = only.split(",", false)
+		ids = ids.filter(func(id: Variant) -> bool: return wanted.has(String(id)))
+		pool = pool.filter(func(id: Variant) -> bool: return wanted.has(String(id)))
 	# Work items, numbered so `--jobs` (070) can share them out: `seeds` of every authored fight,
 	# then the random fights; each played once per variant.
 	var authored_items: int = ids.size() * seeds
@@ -121,7 +130,16 @@ func _initialize() -> void:
 				var fight: Dictionary = template.duplicate(true)
 				fight["player"] = _random_squad(rng, template["player"])
 				fight["enemy"] = _random_squad(rng, template["enemy"])
+				var by_map: Dictionary = mine["by_map"]
+				if not by_map.has(String(pool[i % pool.size()])):
+					by_map[String(pool[i % pool.size()])] = _new_stats()
+				var before: Dictionary = (mine["random"] as Dictionary).duplicate(true)
 				won = _play(db, fight, i, mine["random"])
+				# The same fight counted into its map's own line (088).
+				var map_stats: Dictionary = by_map[String(pool[i % pool.size()])]
+				for key: Variant in ["fights", "won", "lost_objective", "lost_crew", "timeout", "rounds", "player_dmg",
+						"enemy_dmg", "crew_hp_lost", "crew_hp_lost_sq", "intents", "intents_hit", "overheats", "focus_carriers"]:
+					map_stats[key] = int(map_stats[key]) + int(mine["random"][key]) - int(before[key])
 				# 071: by FIGHT -- did the crew carry this arm class at all -- so a fight counts once.
 				var carried: Dictionary = {}
 				for spec: Dictionary in fight["player"]:
@@ -436,7 +454,7 @@ func _boss_line(label: String, g: Dictionary) -> void:
 
 
 func _new_numbers() -> Dictionary:
-	return {"authored": {}, "random": _new_stats(), "arms": {}}
+	return {"authored": {}, "random": _new_stats(), "arms": {}, "by_map": {}}
 
 
 func _report_all(ids: Array, numbers: Dictionary, count: int) -> void:
@@ -451,6 +469,12 @@ func _report_all(ids: Array, numbers: Dictionary, count: int) -> void:
 	var total: Dictionary = numbers["random"]
 	_report("random", total)
 	print("  the bot used: %s" % _uses_text(total["uses"]))
+	var maps: Array = (numbers.get("by_map", {}) as Dictionary).keys()
+	maps.sort()
+	if maps.size() > 1:
+		print("  by map (088):")
+		for id: Variant in maps:
+			_report(String(id), numbers["by_map"][id])
 
 	print("")
 	var fights: int = int(total["fights"])
@@ -604,6 +628,11 @@ func _report(label: String, s: Dictionary) -> void:
 		int(100.0 * s["enemy_dmg"] / maxf(1.0, s["player_dmg"])),
 		int(100.0 * s["intents_hit"] / maxf(1.0, s["intents"])),
 		Stats.mean_text(s["crew_hp_lost"], s["crew_hp_lost_sq"], int(s["fights"]))])
+
+
+func _arg(args: PackedStringArray, name: String, fallback: String) -> String:
+	var at: int = args.find(name)
+	return args[at + 1] if at >= 0 and at + 1 < args.size() else fallback
 
 
 func _arg_int(args: PackedStringArray, name: String, fallback: int) -> int:
