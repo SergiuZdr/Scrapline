@@ -21,6 +21,10 @@ var _db: ContentDB
 var _kind: String = ""
 var _panel: Control
 var _shown: bool = false
+## Where the piece is on screen (null: nothing on the board yet), and whether the balloon has been
+## set over it (it is placed a frame after it is made, once it knows its own height).
+var _point: Variant = null
+var _placed: bool = false
 
 
 ## Hangs the callout on the HUD if this fight's objective has not been pointed out on this profile.
@@ -83,6 +87,8 @@ func _process(_delta: float) -> void:
 		if _panel == null or not is_instance_valid(_panel) or _panel.is_queued_for_deletion():
 			_scene.call("coach_point", null)
 			queue_free()
+		elif not _placed and _point != null:
+			_place(get_parent())
 		return
 	var hud: Control = get_parent()
 	var state: CombatState = _scene.get("_state")
@@ -106,10 +112,8 @@ func _show(hud: Control, state: CombatState) -> void:
 		var world: Vector3 = _scene.call("_to_world", (cell as Vector2i).x, (cell as Vector2i).y)
 		var point: Vector2 = camera.unproject_position(world)
 		screen = point
-		# Beside the piece, on the side toward the middle of the screen, and above it.
-		var size: Vector2 = hud.size if hud.size.x > 0.0 else Vector2(1920, 1080)
-		var x: float = point.x + 110.0 if point.x < size.x * 0.5 else point.x - 110.0 - WIDTH
-		at = Vector2(clampf(x, 24.0, size.x - WIDTH - 24.0), clampf(point.y - 330.0, 130.0, size.y - 420.0))
+		_point = point
+		at = Vector2(clampf(point.x - 120.0, 24.0, 1920.0 - WIDTH - 24.0), maxf(130.0, point.y - 420.0))
 	else:
 		# Nothing on the board yet: the balloon points at the objective line, top left.
 		screen = Vector2(260, 60)
@@ -118,3 +122,21 @@ func _show(hud: Control, state: CombatState) -> void:
 	if _panel == null:
 		_scene.call("coach_point", null)
 		queue_free()
+
+
+## Sets the balloon just over the piece (its tail straight down onto it), on the screen, and lets
+## the tail reach it.
+func _place(hud: Control) -> void:
+	_placed = true
+	var point: Vector2 = _point
+	var size: Vector2 = hud.size if hud.size.x > 0.0 else Vector2(1920, 1080)
+	var height: float = _panel.size.y
+	var y: float = point.y - 150.0 - height
+	if y < 120.0:
+		# No room over it: hang it below instead.
+		y = point.y + 90.0
+	_panel.position = Vector2(clampf(point.x - 140.0, 24.0, size.x - WIDTH - 24.0), clampf(y, 110.0, size.y - height - 20.0))
+	var tail: Node = hud.get_node_or_null("hint_tail_obj_" + _kind)
+	if tail != null:
+		tail.set("max_length", 130.0)
+		tail.set("gap", 26.0)
