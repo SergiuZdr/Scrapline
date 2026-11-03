@@ -119,9 +119,9 @@
     "_elite_086": "086 (A5): an elite is a different problem, not a bigger number: its veteran carries one affix from `elite_affixes` (ids in data/combat/enemy_kinds.json `elite_affixes`), picked by its own SimRNG stream; an empty list gives none. elite_hp_bonus 3/4/5 -> 2 in every act.",
     "_boss": "013: the gate is its own map (data/fights/sorting_gate.json): the Sorter, its pylons, and `boss_escorts` rolled escorts. boss_count / boss_hp_bonus apply only if no gate map exists."
   },
-  "reinforcements": {"_comment": "087 (A3, the user): ordinary fights get marked REINFORCEMENTS: from `from_round`, one wave every `every` rounds, `waves_by_act` waves (counted down on the objective line), each `count_by_column` machines rolled from the act's pool. Marked a round ahead on the enemy's half; a crew machine on a mark blocks it and takes `block_damage` (rules.json), the machine comes a round later. They hold their fire on the round they land. Killing every enemy on the board still wins: the waves not yet landed never come. Not on SURVIVE (it has its own waves).",
+  "reinforcements": {"_comment": "087 (A3, the user; from round 4 by the user's pick after measuring round 3): ordinary fights get marked REINFORCEMENTS: from `from_round`, one wave every `every` rounds, `waves_by_act` waves (counted down on the objective line), each `count_by_column` machines rolled from the act's pool. Marked a round ahead on the enemy's half; a crew machine on a mark blocks it and takes `block_damage` (rules.json), the machine comes a round later. They hold their fire on the round they land. Killing every enemy on the board still wins: the waves not yet landed never come. Not on SURVIVE (it has its own waves).",
     "kinds": ["skirmish", "elite", "arena"], "not_objectives": ["survive"],
-    "from_round": 3, "every": 2, "waves_by_act": [1, 2, 2], "count_by_column": [1, 1, 1, 2, 2, 2, 2, 2, 2]},
+    "from_round": 4, "every": 2, "waves_by_act": [1, 2, 2], "count_by_column": [1, 1, 1, 2, 2, 2, 2, 2, 2]},
   "rewards": {
     "skirmish_scrap": 10,
     "elite_scrap": 14,
