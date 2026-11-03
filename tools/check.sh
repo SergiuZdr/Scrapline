@@ -13,7 +13,9 @@
 cd "$(dirname "$0")/.." || exit 1
 GODOT="${GODOT:-/Users/Sergiu/DevG/KingdomRebuilt/Godot.app/Contents/MacOS/Godot}"
 LOGS=shots/check
-LIMIT=900
+# 087: verify_run plays 4 whole bot runs (_test_bot_playtest, ~460 s alone) and runs ~17 min while the
+# other suites share the cores; 900 s killed it with every check passing.
+LIMIT=1500
 SUITES="verify_combat verify_combat_input verify_run verify_run_ui verify_save verify_onboarding verify_meta verify_assembly verify_animation stats"
 
 BOT=0

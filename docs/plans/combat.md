@@ -237,3 +237,14 @@ total is made of; `diff` reports damage to props that stand. Charge stops on the
   move in `_begin_round`. `reachable`, dash/charge and `IntentAI.plan` respect it.
 - The AI values a mine laid under a foe like the hit it will be (`IntentAI._mine_value`) and a
   snare like a mark; the dodge leaves the hex mined, which is the point.
+
+## Every round counts (087)
+- **Reinforcements** (`run.json reinforcements`): skirmish/elite/arena, never SURVIVE; marked a round ahead from
+  round 4, every 2; waves 1/2/2 by act; block a mark and the machine takes the HP shown. A landing machine (and
+  every escort) holds fire its first round. Clearing the board before a wave lands wins.
+- **Hot ground** (`rules.json ground_after_hit`): enemy lob/cone/sweep heats its aimed hex for one crew turn; +2
+  heat to enter or cross (`CombatSim.move_heat`, `path_heat`); routes go round it.
+- **Damage explained**: `CombatSim.damage_steps` (keys base, type, cover, armor, front, ward, mark, min); every
+  strike_plan hit carries `steps` summing to its damage.
+- **INTENT_LOST**: a kill, a fall or tearing the arm in use cancels the intent; v1 is what the cloud showed.
+- The screen's layers and what yields to what: `hud-budget.md`.
