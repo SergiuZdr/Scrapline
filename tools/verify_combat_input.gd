@@ -430,6 +430,40 @@ func _round_counts(packed: PackedScene) -> void:
 	_check("A12: and only the aimed target's (%d explanation line in the balloon, %d other hit)" % [explained.size(), others], explained.size() == 1)
 	# A step line reads: base, arrow, result, the steps in brackets.
 	_check("A12: the step line reads \"base → result (steps)\"", why.begins_with("%d → %d (" % [int(steps[0][1]), total]) and why.ends_with(")"))
+	# --- A20 (the user's picks): damage dealt floats in the attacker's damage type, never red; damage the
+	# crew takes stays red; SEIZED floats copper. The look of made-up events (the outcome is not asked).
+	var dealt: Array = (_scene.get("DEALT_COLOURS") as Array)
+	var by: GridUnit = state.unit(1)
+	var hit: GridUnit = state.crew(GridUnit.TEAM_ENEMY)[0]
+	_scene.call("_animate", [GridEv.DAMAGE, by.ref, hit.ref, hit.x, hit.y, 2, hit.hp - 2])
+	var crew_hit: GridUnit = state.unit(0)
+	_scene.call("_animate", [GridEv.DAMAGE, hit.ref, crew_hit.ref, crew_hit.x, crew_hit.y, 1, crew_hit.hp - 1])
+	_scene.call("_animate", [GridEv.SEIZED, 2, -1, 0, 0, 0, 0])
+	await process_frame
+	var floats: Dictionary = {}
+	for n: Node in (_scene.get("_marks_root") as Node).get_children():
+		if n is Label3D:
+			floats[(n as Label3D).text] = (n as Label3D).modulate
+	_check("A20: a hit on an enemy floats in its attacker's damage type colour (%s, type %d)" % [by.name, by.damage_type],
+		floats.has("-2") and floats["-2"] == dealt[by.damage_type])
+	_check("A20: no dealt colour is red (every one has more green than half its red)", dealt.all(func(c: Color) -> bool: return c.g > c.r * 0.5))
+	_check("A20: a hit on the crew still floats red", floats.has("-1") and floats["-1"] == UIKit.RED.lightened(0.25))
+	_check("A20: SEIZED floats copper", floats.has("SEIZED") and floats["SEIZED"] == Ink.COPPER)
+	# The Core's ring, staged: a hex with a crew machine on it solid threat, an empty one a dashed zone.
+	var empty_ring := Vector2i(-1, -1)
+	for n: Vector2i in Hex.neighbors(Vector2i(crew_hit.x, crew_hit.y)):
+		if empty_ring.x < 0 and state.inside(n) and state.unit_at(n.x, n.y) == null:
+			empty_ring = n
+	state.pulse_marks.append(Vector2i(crew_hit.x, crew_hit.y))
+	state.pulse_marks.append(empty_ring)
+	_scene.call("_refresh")
+	var quads: Dictionary = _scene.get("_threat_quads")
+	var dashes := func(cell: Vector2i) -> float:
+		var q: MeshInstance3D = quads.get(cell)
+		return float((q.material_override as ShaderMaterial).get_shader_parameter("dashes")) if q != null and q.visible else -1.0
+	_check("A20: the ring hex under %s is solid threat (dashes %s)" % [crew_hit.name, dashes.call(Vector2i(crew_hit.x, crew_hit.y))], dashes.call(Vector2i(crew_hit.x, crew_hit.y)) == 0.0)
+	_check("A20: an empty ring hex is a dashed zone (dashes %s)" % dashes.call(empty_ring), dashes.call(empty_ring) > 0.0)
+	state.pulse_marks.clear()
 	_scene.queue_free()
 	await process_frame
 
@@ -463,6 +497,8 @@ func _round_counts(packed: PackedScene) -> void:
 	var ghosts: Array = _marks_with("ghost").map(func(n: Node) -> int: return int(n.get_meta("ghost")))
 	_check("A18: a ghost on the board for every machine the shot would move %s" % [ghosts], not ghosts.is_empty() and moved.all(func(r: int) -> bool: return ghosts.has(r)))
 	_check("A18: a dashed line for the intent that would re-aim", not _marks_with("dashed").is_empty())
+	_check("A18: a ghost is a see-through copy of the machine's own model (the user's pick)", _marks_with("ghost").all(
+		func(n: Node) -> bool: return n.find_children("*", "MeshInstance3D", true, false).size() > 1))
 	_click_control(_weapon_buttons(hud)[1])
 	await _settle()
 	_check("(precondition) back to moving", not bool(_scene.get("_armed")))

@@ -10,6 +10,7 @@ extends SceneTree
 ##       --steps "select=2 weapon=0 tap=0,3 tap=0,3 select=0 hover=0,3 end"   any sequence, in
 ##           order, before the flags above (tap and end settle the playback; hover draws a route)
 ##       --fire 0 --wait-meta cancelled 6   (087) fire, then wait for the CANCELLED beat, 6 frames more
+##       --stage-pulse 3 4 --event 6 0 12 3 --event-frames 10   (087) a pulse ring hex; a made-up event's animation
 ##       --livery oxide_red --close 0 2.5   (085) the crew in a weekly livery; the camera 2.5 m from unit 0
 ##
 ## Not headless: it has to render. Everything is driven through the scene's own methods,
@@ -70,9 +71,13 @@ func _run() -> void:
 		var setup: CombatSetup = scene.get("_setup")
 		setup.escort_waves.append({"round": state.round_number + 1, "refs": [90]})
 		setup.escort_waves.append({"round": state.round_number + 3, "refs": [91]})
+	# 087: --stage-pulse X Y (repeatable): the Core's ring marked on these hexes (the look only).
+	for i: int in args.size() - 2:
+		if args[i] == "--stage-pulse":
+			state.pulse_marks.append(Vector2i(args[i + 1].to_int(), args[i + 2].to_int()))
 	if args.has("--deselect"):
 		scene.set("_selected", -1)
-	if sh >= 0 or sw >= 0 or args.has("--deselect"):
+	if sh >= 0 or sw >= 0 or args.has("--deselect") or args.has("--stage-pulse"):
 		scene.call("_refresh")
 	var select: int = _int_arg(args, "--select", -1)
 	if select >= 0:
@@ -121,6 +126,22 @@ func _run() -> void:
 		var vfx: Node = scene.get("_vfx")
 		vfx.call("fireball", scene.call("_to_world", cell.x, cell.y), 1.0)
 		for i: int in args[boom + 3].to_int():
+			await process_frame
+
+	# 087: --event KIND ACTOR TARGET V1 (repeatable): play a made-up event's animation (the look only:
+	# a DAMAGE float in its colour, a SEIZED float), all together, then --event-frames N (default 12).
+	var played: bool = false
+	if args.has("--event"):
+		scene.call("_clear_marks")  # as in real playback: the intent marks go while events play
+	for i: int in args.size() - 4:
+		if args[i] == "--event":
+			var target: int = args[i + 3].to_int()
+			var tu: GridUnit = (scene.get("_state") as CombatState).unit(target)
+			var cell := Vector2i(tu.x, tu.y) if tu != null else Vector2i.ZERO
+			scene.call("_animate", [args[i + 1].to_int(), args[i + 2].to_int(), target, cell.x, cell.y, args[i + 4].to_int(), 0])
+			played = true
+	if played:
+		for i: int in _int_arg(args, "--event-frames", 12):
 			await process_frame
 
 	# 085: --close REF DIST: the board's camera brought down to DIST metres from unit REF (a close-up
