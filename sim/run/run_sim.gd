@@ -1640,28 +1640,12 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 
 	var positions: Array = _enemy_positions(template, count)
 	var enemy: Array = []
+	var hp_all: int = int(enemies_rules.get("hp_all", 0)) + int(arena.get("hp", 0))
 	for i: int in positions.size():
-		var parts: Array = [_roll_slot(setup, rng, "chassis", cap), _roll_slot(setup, rng, "core", cap),
-			_roll_slot(setup, rng, "arm", cap), _roll_slot(setup, rng, "arm", cap), _roll_slot(setup, rng, "module", cap)]
-		var spec: Dictionary = {"name": String((setup.parts[parts[0]] as Dictionary).get("name", "")).replace(" Frame", ""),
-			"parts": parts, "x": int(positions[i].x), "y": int(positions[i].y)}
-		var kind_rules: Dictionary = rules_of(state, setup).get("kinds", {})
-		var chances: Array = kind_rules.get("chance_by_column", [0])
-		if rng.chance_percent(int(chances[mini(col, chances.size() - 1)])):
-			spec["kind"] = _weighted(rng, (kind_rules.get("weights", {}) as Dictionary).keys(), kind_rules.get("weights", {}), true)
-		# An act may arm every rolled enemy (021: `enemies.bonus`, the block levels use).
-		if enemies_rules.has("bonus"):
-			spec["bonus"] = (enemies_rules["bonus"] as Dictionary).duplicate()
-		if int(arena.get("damage", 0)) > 0:
-			var armed: Dictionary = spec.get("bonus", {})
-			armed["damage"] = int(armed.get("damage", 0)) + int(arena["damage"])
-			spec["bonus"] = armed
-		# An act may toughen every rolled enemy (021: `enemies.hp_all`); so does the arena.
-		var hp_all: int = int(enemies_rules.get("hp_all", 0)) + int(arena.get("hp", 0))
-		if hp_all > 0:
-			var base_c: Dictionary = (setup.parts[parts[0]] as Dictionary).get("grid", {})
-			var base_m: Dictionary = (setup.parts[parts[4]] as Dictionary).get("grid", {})
-			spec["hp"] = int(base_c.get("hp", 8)) + int(base_m.get("hp", 0)) + hp_all
+		var spec: Dictionary = _roll_enemy(state, setup, rng, col, cap, arena)
+		var parts: Array = spec["parts"]
+		spec["x"] = int(positions[i].x)
+		spec["y"] = int(positions[i].y)
 		if hp_bonus > 0 and i == 0:
 			var cg: Dictionary = (setup.parts[parts[0]] as Dictionary).get("grid", {})
 			var mg: Dictionary = (setup.parts[parts[4]] as Dictionary).get("grid", {})
@@ -1675,7 +1659,67 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 		var arng: SimRNG = _rng(setup, site_id, 47, state.act)
 		(enemy[0] as Dictionary)["affix"] = String(affixes[arng.range_int(0, affixes.size() - 1)])
 	fight["enemy"] = enemy
+	_reinforcements(state, setup, site_id, kind, fight, col, cap, arena)
 	return fight
+
+
+## One enemy rolled from the act's pool for column `col` (parts up to rarity `cap`, a kind by
+## `kinds`, the act's `bonus` and `hp_all`, an arena's extra), with no position yet.
+static func _roll_enemy(state: RunState, setup: RunSetup, rng: SimRNG, col: int, cap: int, arena: Dictionary) -> Dictionary:
+	var enemies_rules: Dictionary = rules_of(state, setup).get("enemies", {})
+	var parts: Array = [_roll_slot(setup, rng, "chassis", cap), _roll_slot(setup, rng, "core", cap),
+		_roll_slot(setup, rng, "arm", cap), _roll_slot(setup, rng, "arm", cap), _roll_slot(setup, rng, "module", cap)]
+	var spec: Dictionary = {"name": String((setup.parts[parts[0]] as Dictionary).get("name", "")).replace(" Frame", ""),
+		"parts": parts}
+	var kind_rules: Dictionary = rules_of(state, setup).get("kinds", {})
+	var chances: Array = kind_rules.get("chance_by_column", [0])
+	if rng.chance_percent(int(chances[mini(col, chances.size() - 1)])):
+		spec["kind"] = _weighted(rng, (kind_rules.get("weights", {}) as Dictionary).keys(), kind_rules.get("weights", {}), true)
+	# An act may arm every rolled enemy (021: `enemies.bonus`, the block levels use).
+	if enemies_rules.has("bonus"):
+		spec["bonus"] = (enemies_rules["bonus"] as Dictionary).duplicate()
+	if int(arena.get("damage", 0)) > 0:
+		var armed: Dictionary = spec.get("bonus", {})
+		armed["damage"] = int(armed.get("damage", 0)) + int(arena["damage"])
+		spec["bonus"] = armed
+	# An act may toughen every rolled enemy (021: `enemies.hp_all`); so does the arena.
+	var hp_all: int = int(enemies_rules.get("hp_all", 0)) + int(arena.get("hp", 0))
+	if hp_all > 0:
+		var base_c: Dictionary = (setup.parts[parts[0]] as Dictionary).get("grid", {})
+		var base_m: Dictionary = (setup.parts[parts[4]] as Dictionary).get("grid", {})
+		spec["hp"] = int(base_c.get("hp", 8)) + int(base_m.get("hp", 0)) + hp_all
+	return spec
+
+
+## 087 (A3, the user): an ordinary fight's marked REINFORCEMENTS (`run.json` `reinforcements`): from
+## `from_round`, every `every` rounds, `waves_by_act` waves of `count_by_column` machines each, rolled
+## from the act's pool like the fight's own (their own SimRNG stream, so no other roll moves). Only
+## for the site kinds it names, never on an objective it excludes (SURVIVE has its own waves). They
+## travel in the fight as `reinforcements: {from_round, every, waves: [[spec, ...], ...]}`.
+static func _reinforcements(state: RunState, setup: RunSetup, site_id: int, kind: String, fight: Dictionary,
+		col: int, cap: int, arena: Dictionary) -> void:
+	var rules: Dictionary = rules_of(state, setup).get("reinforcements", {})
+	if rules.is_empty() or not (rules.get("kinds", []) as Array).has(kind):
+		return
+	if (rules.get("not_objectives", []) as Array).has(String((fight.get("objective", {}) as Dictionary).get("type", "rout"))):
+		return
+	var by_act: Array = rules.get("waves_by_act", [])
+	var waves: int = int(by_act[clampi(state.act - 1, 0, by_act.size() - 1)]) if not by_act.is_empty() else 0
+	var counts: Array = rules.get("count_by_column", [1])
+	var count: int = int(counts[mini(col, counts.size() - 1)]) if not counts.is_empty() else 0
+	if waves <= 0 or count <= 0:
+		return
+	var rng: SimRNG = _rng(setup, site_id, 59, state.act)
+	var out: Array = []
+	for w: int in waves:
+		var wave: Array = []
+		for k: int in count:
+			var spec: Dictionary = _roll_enemy(state, setup, rng, col, cap, arena)
+			spec["x"] = 0
+			spec["y"] = 0
+			wave.append(spec)
+		out.append(wave)
+	fight["reinforcements"] = {"from_round": int(rules.get("from_round", 3)), "every": int(rules.get("every", 2)), "waves": out}
 
 
 ## The yard's condition for a fight (028): by column, one of `run.json` `modifiers.weights`, or

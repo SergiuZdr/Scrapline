@@ -81,6 +81,12 @@ var escort_waves: Array = []
 var reserves: Array[GridUnit] = []
 ## A2 (083): what a crew machine standing on an escort's mark takes when it blocks the arrival.
 var block_damage: int = 2
+## 087 (A4b): rules.json `ground_after_hit` (a fight may lay its own): which shapes, of which side,
+## leave the hex they land on hot -- `{shapes, teams, rounds, heat}`; empty for none.
+var ground_after_hit: Dictionary = {}
+## 087 (A3): escorts that come in as an ordinary fight's REINFORCEMENTS hold their fire on the
+## round they land (ref -> true).
+var hold_fire: Dictionary = {}
 var errors: PackedStringArray = []
 
 
@@ -102,6 +108,7 @@ static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_
 	setup.pile_value = int(rules.get("pile_value", 4))
 	setup.pile_heal = int(fight.get("pile_heal", rules.get("pile_heal", 2)))
 	setup.block_damage = int(rules.get("block_damage", 2))
+	setup.ground_after_hit = (fight.get("ground_after_hit", rules.get("ground_after_hit", {})) as Dictionary).duplicate(true)
 	setup.pile_drop_pct = int(rules.get("pile_drop_pct", 55))
 	setup.pierce_overshoot = int(rules.get("pierce_overshoot", 2))
 	setup.pierce_overshoot_pct = int(rules.get("pierce_overshoot_pct", 50))
@@ -259,18 +266,35 @@ static func _keepers_and_escorts(setup: CombatSetup, fight: Dictionary, specs: A
 		var spec: Dictionary = specs[slot]
 		if bool(spec.get("keeper", false)):
 			setup.keepers.append(GridUnit.TEAM_ENEMY * 10 + slot)
-		elif String(spec.get("kind", "")).is_empty():
+		elif String(spec.get("kind", "")).is_empty() and not spec.has("affix"):
 			escorts.append(spec)
 	setup.keepers.sort()
-	if setup.keepers.is_empty():
-		return
 	var waves: Array = []
-	for w: Variant in (fight.get("escort_waves", []) as Array):
+	# 087 (A3): an ordinary fight's reinforcements (the run rolls them: `RunSim._reinforcements`) are
+	# escort waves that need no keeper, and hold their fire on the round they land.
+	var listed: Array = (fight.get("escort_waves", []) as Array) if not setup.keepers.is_empty() else []
+	var reinforce: Dictionary = fight.get("reinforcements", {})
+	if not reinforce.is_empty():
+		listed = listed.duplicate()
+		var from: int = int(reinforce.get("from_round", 3))
+		var every: int = maxi(1, int(reinforce.get("every", 2)))
+		var given_waves: Array = reinforce.get("waves", [])
+		for i: int in given_waves.size():
+			var wave: Variant = given_waves[i]
+			var entry: Dictionary = {"round": from + i * every, "hold_fire": true}
+			if wave is Array:
+				entry["enemy"] = wave
+			else:
+				entry["count"] = int(wave)
+			listed.append(entry)
+	if listed.is_empty():
+		return
+	for w: Variant in listed:
 		var round: int = int((w as Dictionary).get("round", 0))
 		var given: Array = (w as Dictionary).get("enemy", [])
 		var count: int = given.size() if not given.is_empty() else int((w as Dictionary).get("count", 0))
 		if round >= 2 and count > 0:
-			waves.append({"round": round, "count": count, "enemy": given})
+			waves.append({"round": round, "count": count, "enemy": given, "hold_fire": bool((w as Dictionary).get("hold_fire", false))})
 	waves.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["round"]) < int(b["round"]))
 	var slot: int = specs.size()
 	var next_copy: int = 0
@@ -294,6 +318,8 @@ static func _keepers_and_escorts(setup: CombatSetup, fight: Dictionary, specs: A
 				u.unshovable = true
 			setup.reserves.append(u)
 			refs.append(u.ref)
+			if bool(wave["hold_fire"]):
+				setup.hold_fire[u.ref] = true
 			slot += 1
 		if not refs.is_empty():
 			setup.escort_waves.append({"round": int(wave["round"]), "refs": refs})

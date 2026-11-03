@@ -60,6 +60,7 @@ func _initialize() -> void:
 	_timed(_test_medals)
 	_timed(_test_spoils)
 	_timed(_test_affixes)
+	_timed(_test_reinforcements_087)
 	_timed(_test_hoard_sources)
 	_timed(_test_rule_perks)
 	print("")
@@ -2212,6 +2213,56 @@ func _test_affixes() -> void:
 	var off: RunSetup = RunSetup.create(_db.parts, _db.tiles, _db.fights, rules, _db.combat_rules, _db.effectiveness, 5)
 	var plain: RunState = RunSim.start(off)
 	_check("an empty `elite_affixes` gives none", not ((RunSim._make_fight(plain, off, 3, "elite")["enemy"] as Array)[0] as Dictionary).has("affix"))
+
+
+## 087 (A3): ordinary fights carry marked reinforcements -- waves by act, machines by column, rolled
+## from the act's pool -- never a gate, a warlord or a SURVIVE; they build and play with no error.
+func _test_reinforcements_087() -> void:
+	var rules: Dictionary = _db.run_rules["reinforcements"]
+	var by_act: Array = rules["waves_by_act"]
+	var counts: Array = rules["count_by_column"]
+	var right: bool = true
+	var none_where_not: bool = true
+	var seen: int = 0
+	var built: bool = true
+	var played: int = 0
+	var landed: int = 0
+	var same: bool = true
+	for seed_value: int in range(1, 21):
+		var setup: RunSetup = _setup(seed_value)
+		var state: RunState = RunSim.start(setup)
+		for act: int in 3:
+			for site: Dictionary in state.sites:
+				var id: int = int(site["id"])
+				for kind: String in ["skirmish", "elite", "boss", "warlord"]:
+					var fight: Dictionary = RunSim._make_fight(state, setup, id, kind)
+					var objective: String = String((fight.get("objective", {}) as Dictionary).get("type", "rout"))
+					var wants: bool = (rules["kinds"] as Array).has(kind) and not (rules["not_objectives"] as Array).has(objective)
+					if not wants:
+						none_where_not = none_where_not and not fight.has("reinforcements")
+						continue
+					var r: Dictionary = fight.get("reinforcements", {})
+					var waves: Array = r.get("waves", [])
+					var count: int = int(counts[mini(int(site["col"]), counts.size() - 1)])
+					right = right and waves.size() == int(by_act[act]) and int(r.get("from_round", 0)) == int(rules["from_round"])
+					for wave: Variant in waves:
+						right = right and (wave as Array).size() == count
+					seen += 1
+					same = same and JSON.stringify(RunSim._make_fight(state, setup, id, kind)) == JSON.stringify(fight)
+					if played < 12 and kind == "skirmish" and act == played % 3:
+						var combat: CombatSetup = CombatSetup.build(fight, setup.combat_rules, setup.parts, setup.tiles, setup.wheel, 7)
+						built = built and combat.errors.is_empty() and combat.escort_waves.size() == waves.size()
+						var cs: CombatState = CombatSim.replay(combat, RunBot.play_fight(combat))
+						for e: Array in cs.events:
+							if int(e[GridEv.F_KIND]) == GridEv.SPAWNED and combat.reserve(int(e[GridEv.F_TARGET])) != null:
+								landed += 1
+						played += 1
+			RunSim._next_act(state, setup)
+	_check("every skirmish and elite (not SURVIVE) carries %s waves by act of %s machines by column (%d fights)" % [
+		str(by_act), str(counts), seen], right and seen > 100)
+	_check("no gate, warlord or SURVIVE fight carries any", none_where_not)
+	_check("the same site rolls the same reinforcements", same)
+	_check("they build with no errors, and land in bot fights (%d landed over %d fights)" % [landed, played], built and played >= 9 and landed > 0)
 
 
 ## 086 (A9, the user): legendaries come only from gate keepers' hoards. Warlord hoards, salvage in

@@ -44,6 +44,8 @@
   "cache_hp": 7,
   "_block_damage": "083 (A2): a crew machine standing on a boss escort's arrival mark blocks it (that escort never comes) and takes this much.",
   "block_damage": 2,
+  "_ground_after_hit": "087 (A4b, the user): a lob of these shapes fired by these sides leaves the hex it lands on HOT for `rounds` of the crew's turns: a crew machine that enters or ends a move on it takes `heat` (each hot hex on its path). Drawn as floor, never red.",
+  "ground_after_hit": {"shapes": ["lob"], "teams": ["enemy"], "rounds": 1, "heat": 2},
   "_objectives": "rout: destroy every enemy. defend: caches (immobile) on the board; survive `rounds` rounds or rout; every cache left pays out. salvage: piles on the board; collect `need` of them or rout. A destroyed player machine always bursts into a scrap pile; an enemy only if it carries scrap (`pile_drop_pct`).",
   "barrel_hp": 1,
   "barrel_damage": 3,
