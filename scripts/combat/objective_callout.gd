@@ -14,6 +14,9 @@ extends Node
 ## The objectives that get a callout. ROUT is the shakedown's; a boss fight (`keeper`) opens with its
 ## own comic strip.
 const KINDS: Array = ["defend", "salvage", "hold", "hack", "survive"]
+## 088 (the user): and the first time marked REINFORCEMENTS appear (087's waves, a boss's escorts
+## too), the ring on a mark: block it or get ready. Its own hint, `obj_reinforcements`.
+const REINFORCEMENTS: String = "reinforcements"
 const WIDTH: float = 420.0
 
 var _scene: Node
@@ -34,11 +37,15 @@ static func attach(scene: Node, hud: Control, db: ContentDB) -> void:
 	var state: CombatState = scene.get("_state")
 	if state == null or state.outcome != CombatState.ONGOING:
 		return
-	var found: Dictionary = target(state)
-	if found.is_empty():
-		return
 	var profile: Node = hud.get_tree().root.get_node_or_null("Profile")
-	if profile == null or bool(profile.call("seen", "obj_" + String(found["kind"]))):
+	if profile == null:
+		return
+	var found: Dictionary = {}
+	for candidate: Dictionary in [target(state), reinforcement_target(state)]:
+		if not candidate.is_empty() and not bool(profile.call("seen", "obj_" + String(candidate["kind"]))):
+			found = candidate
+			break
+	if found.is_empty():
 		return
 	var node: Node = (load("res://scripts/combat/objective_callout.gd") as GDScript).new()
 	node.name = "objective_callout"
@@ -82,6 +89,16 @@ static func target(state: CombatState) -> Dictionary:
 	return {"kind": kind, "cell": cell}
 
 
+## Marked reinforcements on the board (not a SURVIVE fight's own waves): `{ "kind", "cell" }` on the
+## first mark, or {}.
+static func reinforcement_target(state: CombatState) -> Dictionary:
+	if state.wave_refs.is_empty() or String(state.objective().get("type", "rout")) == "survive":
+		return {}
+	var marks: Array = state.wave_marks.duplicate()
+	marks.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
+	return {"kind": REINFORCEMENTS, "cell": marks[0]} if not marks.is_empty() else {}
+
+
 func _process(_delta: float) -> void:
 	if _shown:
 		if _panel == null or not is_instance_valid(_panel) or _panel.is_queued_for_deletion():
@@ -102,7 +119,10 @@ func _process(_delta: float) -> void:
 
 func _show(hud: Control, state: CombatState) -> void:
 	_shown = true
-	var found: Dictionary = target(state)
+	var found: Dictionary = reinforcement_target(state) if _kind == REINFORCEMENTS else target(state)
+	if found.is_empty() and _kind == REINFORCEMENTS:
+		queue_free()   # the marks landed before the turn came: the next ones will do
+		return
 	var cell: Variant = found.get("cell") if not found.is_empty() else null
 	var screen: Variant = null
 	var at := Vector2(80, 150)

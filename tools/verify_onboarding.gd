@@ -382,6 +382,8 @@ func _test_shakedown(profile: Node) -> void:
 	_check("END TURN passes it (round %d) and the crew took nothing: every shot was cancelled" % state.round_number,
 		String(coach.call("current_id")) == "piles" and _crew_hp(state) == _crew_max(state))
 	_check("%d move rings, none on an aimed hex %s" % [_rings, _ring_on_red], _rings >= 2 and _ring_on_red.is_empty())
+	_check("the fuel drum (no step of its own) still stands at (0,4) after the coached round",
+		String((state.props.get(Vector2i(0, 4), {}) as Dictionary).get("kind", "")) == "barrel")
 	_press_text(coach, "NEXT")
 	await _settle()
 	_check("then FINISH IT", String(coach.call("current_id")) == "rout")
@@ -473,6 +475,15 @@ func _test_objectives(profile: Node) -> void:
 	var s_found: Dictionary = callout.call("target", s_state)
 	_check("survive points at its first wave mark, or at nothing before one is marked (%s, marks %s)" % [s_found, s_state.wave_marks],
 		String(s_found.get("kind", "")) == "survive" and (s_found.get("cell") == null if s_state.wave_marks.is_empty() else s_state.wave_marks.has(s_found.get("cell"))))
+	var reinf: Dictionary = (_db.fights["proto_yard"] as Dictionary).duplicate(true)
+	reinf["reinforcements"] = {"from_round": 2, "waves": [1]}
+	var r_state: CombatState = CombatSim.start(CombatSetup.build(reinf, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 3))
+	var r_found: Dictionary = callout.call("reinforcement_target", r_state)
+	_check("REINFORCEMENTS point at a wave mark (%s, marks %s), and have their words in story.json" % [r_found, r_state.wave_marks],
+		String(r_found.get("kind", "")) == "reinforcements" and r_state.wave_marks.has(r_found.get("cell"))
+		and not String((words.get("reinforcements", {}) as Dictionary).get("text", "")).is_empty()
+		and (_db.tutorial.get("hints", {}) as Dictionary).has("obj_reinforcements"))
+	_check("a SURVIVE fight's own waves are not reinforcements", (callout.call("reinforcement_target", s_state) as Dictionary).is_empty())
 	var keeper: Dictionary = callout.call("target", CombatSim.start(CombatSetup.build(_db.fights["sorting_gate"], _db.combat_rules,
 		_db.parts, _db.tiles, _db.effectiveness, 3)))
 	_check("a boss fight gets no callout (its strip says how to win)", keeper.is_empty())
@@ -514,6 +525,29 @@ func _test_objectives(profile: Node) -> void:
 	await process_frame
 	profile.call("use_path", PROFILE_PATH)
 	_check("only GOT IT marks one seen: salvage is still owed after leaving", not bool(profile.call("seen", "obj_salvage")))
+	# 088 (the user): the first marked reinforcements get their own callout, on a mark, once.
+	for pass_no: int in 2:
+		var scene: Node = await _open_fight("proto_yard")
+		((scene.get("_db") as ContentDB).fights["proto_yard"] as Dictionary)["reinforcements"] = {"from_round": 2, "waves": [1]}
+		scene.call("_start_fight")
+		await create_timer(0.6).timeout
+		await _settle()
+		var shown: Control = await _wait_node(_hud_of(scene), "hint_obj_reinforcements", 6.0)
+		var state: CombatState = scene.get("_state")
+		if pass_no == 0:
+			var marker: Node3D = scene.get("_coach_marker")
+			var on_mark: bool = false
+			for cell: Vector2i in state.wave_marks:
+				on_mark = on_mark or (marker != null and marker.position.distance_to(scene.call("_to_world", cell.x, cell.y)) < 1.0)
+			_check("REINFORCEMENTS, first marks (%s): the callout is up, its ring on a mark" % [state.wave_marks],
+				shown != null and not state.wave_marks.is_empty() and marker.visible and on_mark)
+			_click_control(shown.find_child("got_it", true, false) if shown != null else null)
+			await create_timer(0.3).timeout
+			_check("GOT IT remembers obj_reinforcements", bool(profile.call("seen", "obj_reinforcements")) and not marker.visible)
+		else:
+			_check("REINFORCEMENTS, second time: no callout", shown == null and not state.wave_marks.is_empty())
+		scene.queue_free()
+		await process_frame
 
 
 func _open_fight(id: String) -> Node:

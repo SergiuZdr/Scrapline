@@ -2,13 +2,13 @@
   "id": "shakedown",
   "name": "The Shakedown",
   "tutorial": true,
-  "_comment": "012, rebuilt in 088 (A15): the tutorial's board, never a run's (RunSim skips `tutorial` fights). Laid out so the coached line (data/tutorial.json) plays every signature verb in round 1: the Yard Gunner and the Runner Boss aim lances through Relay (6 damage, all its HP: a real threat); Needle's lance kills the Gunner first (4 HP: its intent is CANCELLED); Knuckles walks to (2,4) and hammers the Yard Runner (6 HP, 4 damage: no tear) into the pit at (3,2); Relay pays 1 heat for FOCUS and its Scattergun tears the Runner Boss's lance (5+ tears; without FOCUS it falls short). Knuckles wears Ablative Plating, not the Scavenger Rig: two Cinder parts would give +1 melee and the hammer would tear the runner too. The Boss carries 10 HP so it stands into round 2 with one arm. Enemy moves and intents are the AI's own, fixed by the tutorial seed: re-check them with verify_onboarding after any rules change.",
+  "_comment": "012, rebuilt in 088 (A15): the tutorial's board, never a run's (RunSim skips `tutorial` fights). Laid out so the coached line (data/tutorial.json) plays every signature verb in round 1: the Yard Gunner and the Runner Boss aim lances through Relay (6 damage, all its HP: a real threat); Needle's lance kills the Gunner first (4 HP: its intent is CANCELLED); Knuckles walks to (2,4) and hammers the Yard Runner (6 HP, 4 damage: no tear) into the pit at (3,2); Relay pays 1 heat for FOCUS and its Scattergun tears the Runner Boss's lance (5+ tears; without FOCUS it falls short). Knuckles wears Ablative Plating, not the Scavenger Rig: two Cinder parts would give +1 melee and the hammer would tear the runner too. The Boss carries 10 HP so it stands into round 2 with one arm. 088 (the user): a fuel drum at (0,4) with no coached step, two hexes left of the ring Knuckles walks to, off every line and path of the coached round (the probe gave the same events, move for move, with and without it; a drum at (6,1) changed them). Enemy moves and intents are the AI's own, fixed by the tutorial seed: re-check them with verify_onboarding after any rules change.",
   "rows": [
     "........",
     "........",
     "...o....",
     "........",
-    "........",
+    "b.......",
     "........",
     "........",
     "........"
