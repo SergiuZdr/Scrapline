@@ -997,7 +997,9 @@ func _test_wreck_recovery() -> void:
 	# Through the real fight: a machine wrecked with its pile standing at the end (enemies hit
 	# harder here so wrecks happen), the wreck offered, the run replayed from its actions and saved.
 	var found: bool = false
-	for seed_value: int in range(1, 120):
+	# 087: the bot reads a tracker's lock and reinforcements wait for round 4: fewer wrecks, so the
+	# search runs over more seeds.
+	for seed_value: int in range(1, 400):
 		var hard: RunSetup = _setup(seed_value)
 		hard.rules = hard.rules.duplicate(true)
 		hard.rules["enemies"]["bonus"] = {"damage": 4}
