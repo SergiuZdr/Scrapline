@@ -22,6 +22,21 @@ From round 3 on every round brings a new problem, dodging is no longer free, and
 - Reinforcement waves **1 / 2 / 2** by act, counted down on the objective line.
 - The CANCELLED beat: **strike-through + its own sound + the rare hit-stop**.
 
+## The user's answers on the sheets (2026-11-03)
+- Hot ground: **brighter ochre cracks, like embers** (never red).
+- Push ghosts: **a see-through copy of the machine's own model** (not the amber box), with the arrow.
+- CANCELLED: the lettering **beside the thought cloud**, so it never covers the hit floats; -4 dB kept.
+- Wording kept: "REINFORCEMENT NEXT ROUND · block it: -N HP", "N WAVES LEFT", "RE-AIMS" / "WILL MISS".
+- Slag: **mostly the old look**, about two thirds from umber toward the old glow, with only the hottest red
+  taken out; the pools keep a warm glow and the ink hatch.
+- Damage dealt floats **in a colour per damage type** (kinetic steel-white, thermal copper, EMP teal,
+  corrosive acid green); red stays for damage the crew takes.
+- **OVERHEATED stays red** (it hurts); **SEIZED is copper**.
+- Core pulse ring: a hex under a crew machine stays solid red; an empty ring hex is a **red dashed outline
+  with a light red hatch**, still a warning ("both colours you showed do not say machines get hurt there").
+- The other reds on the board (a yard container, crate trim, the fuel drum, the SCRAP BLAST label, the Core's
+  props) **stay** as they are.
+
 ## Work split (parallel agents, disjoint files)
 - **S, the sim:** A3, A4 (a, b), A12 `damage_steps`, A17 `INTENT_LOST`; run.json, enemy_kinds, verify_combat,
   verify_run, balance_fights/byround measurements.
