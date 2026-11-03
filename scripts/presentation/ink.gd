@@ -46,20 +46,25 @@ const DEALT := Color("14110f")
 const DEALT_LINE := Color("f7efdc")
 ## A danger zone hex that hits NO crew machine (the Core's pulse ring): paper hatching, not red.
 const ZONE := Color("efe3c8b0")
-## Slag (6b2c14 in tiles.json is hashed and drawn nowhere): cooled umber, hatched. The scripted
-## fallback field, its hatching, and a flooded hex's pool (The Pour) where it was a glow.
-const SLAG_FIELD := Color("2e2418")
-const SLAG_HATCH := Color("7a5636")
-const SLAG_POOL := Color("5e4630")
-## The slag looks on the review sheet, chosen with `-- --slag <name>` (old = the pre-087 glow, for an
-## interleaved A/B on one build): [umber the hot texels become, their value x, hatch colour, hatch
-## amount]. "umber" is the review's; "dark" sinks it further; "pale" hatches it in light lines.
+## Slag (6b2c14 in tiles.json is hashed and drawn nowhere). The user (087): between the umber and the
+## old glow, mostly the glow -- a warm ember, only the hottest red taken out, hatched in ink. The
+## scripted fallback field, its hatching, and a flooded hex's pool (The Pour), all ember, none red.
+const SLAG_FIELD := Color("3a2418")
+const SLAG_HATCH := Color("b8742e")
+const SLAG_POOL := Color("d8843a")
+## The slag looks, chosen with `-- --slag <name>` (old = the pre-087 glow, for an interleaved A/B on
+## one build): [colour the hot texels become, their value x, hatch colour, hatch amount, the
+## saturation a texel needs to count as hot]. "ember" (the default, the user's pick) is about two
+## thirds of the way from "umber" (8f6338, the review's) to the old glow: warm orange pools. A redder
+## ember (dc7430 / da5d27) came out red anyway -- the print pass's misregistration fringes a bright
+## warm pool in red -- so the orange is pushed toward yellow. "dark" and "pale" were the first sheet's.
 const SLAG_LOOKS: Dictionary = {
-	"umber": [Color("8f6338"), 1.0, Color("1e150d"), 0.3],
-	"dark": [Color("6b5034"), 0.78, Color("14110f"), 0.3],
-	"pale": [Color("7a5e3c"), 0.9, Color("d2bb8c"), 0.08],
+	"ember": [Color("d88a3c"), 0.9, Color("1e150d"), 0.22, 0.3],
+	"umber": [Color("8f6338"), 1.0, Color("1e150d"), 0.3, 0.3],
+	"dark": [Color("6b5034"), 0.78, Color("14110f"), 0.3, 0.3],
+	"pale": [Color("7a5e3c"), 0.9, Color("d2bb8c"), 0.08, 0.3],
 }
-const SLAG_DEFAULT: String = "umber"
+const SLAG_DEFAULT: String = "ember"
 
 # --- Line weights, in pixels at 1080 lines. Three, and only three: a line that varies
 # from object to object is the fastest way for ink to look cheap (the plan's one risk).
@@ -771,6 +776,7 @@ static func slag_material(base: ShaderMaterial) -> ShaderMaterial:
 	m.set_shader_parameter("hot_remap", 1.0)
 	m.set_shader_parameter("hot_colour", spec[0])
 	m.set_shader_parameter("hot_value", spec[1])
+	m.set_shader_parameter("hot_sat", spec[4])
 	m.set_shader_parameter("pattern", 2)
 	m.set_shader_parameter("pattern_colour", spec[2])
 	m.set_shader_parameter("pattern_scale", 6.0)
