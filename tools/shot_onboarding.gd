@@ -10,7 +10,7 @@ extends SceneTree
 ## 088: step (the shakedown at step `--step <id>`, the coached line played to it; `--phase` mark (the
 ## step as it opens), aim (its last target aimed, the preview up) or beat (just after the shot)),
 ## skip (the last card after SKIP on the first), objective (a fight's first objective callout,
-## `--fight <id>`, default container_row). `--label "AFTER · PIT"` captions the shot.
+## `--fight <id>`, default container_row; `--reinforce` adds a reinforcement wave due in round 2). `--label "AFTER · PIT"` captions the shot.
 ## Uses a scratch profile, never the player's.
 
 ## 088: the coached line, step by step, as the scene's own input methods (the shot, not a test).
@@ -62,6 +62,12 @@ func _go() -> void:
 			root.add_child(scene)
 			current_scene = scene
 			await _seconds(4.0)
+			if args.has("--reinforce"):
+				# 088: the fight again with one marked reinforcement due next round.
+				((scene.get("_db") as ContentDB).fights[_arg(args, "--fight", "container_row")] as Dictionary)["reinforcements"] = \
+					{"from_round": 2, "waves": [1]}
+				scene.call("_start_fight")
+				await _seconds(4.0)
 			while bool(scene.get("_busy")):
 				await _frames(10)
 			await _seconds(1.0)

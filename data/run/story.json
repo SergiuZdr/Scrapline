@@ -158,7 +158,7 @@
   }
  },
  "objectives": {
-  "_comment": "088 (A14): the coach callout the first time each objective appears, on the board, pointing at its piece. Shown once per objective per profile (`Profile.mark_seen('obj_<kind>')`). ContentDB hands them to the hints as `obj_<kind>`. Text only: not hashed.",
+  "_comment": "088 (A14): the coach callout the first time each objective appears (and, the user, the first time marked reinforcements appear), on the board, pointing at its piece. Shown once per objective per profile (`Profile.mark_seen('obj_<kind>')`). ContentDB hands them to the hints as `obj_<kind>`. Text only: not hashed.",
   "defend": {
    "title": "DEFEND THE CACHES",
    "text": "These are salvage caches: they cannot move or fight, and the enemy will shoot them. If every cache breaks, the fight is lost. Keep one standing until the rounds run out (or destroy every enemy); each cache left pays out scrap."
@@ -178,6 +178,10 @@
   "survive": {
    "title": "SURVIVE",
    "text": "Waves of drones come in here, marked a round ahead. Stand a machine on a mark to block it. Outlast the rounds, top left (or destroy every enemy)."
+  },
+  "reinforcements": {
+   "title": "REINFORCEMENTS",
+   "text": "An enemy machine comes in on this mark next round. Stand one of yours on it to block it (yours takes 2, and theirs comes a round later), or get ready for it: it holds its fire the round it lands. Break every enemy already on the board and the waves still to come never land."
   }
  }
 }
