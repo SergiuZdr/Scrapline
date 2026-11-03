@@ -10,11 +10,13 @@
     "..r..r..",
     ".f....f.",
     "c..ff..c",
-    "..b..b..",
+    "........",
     ".f.cc.f.",
     "...^^...",
     "........"
   ],
+  "prop_slots": [{"glyph": "b", "groups": [[[2, 4], [5, 4]], [[1, 3], [6, 3]], [[3, 4], [4, 4]], [[0, 4], [7, 4]], [[2, 3], [5, 6]]]}],
+  "mirror": true,
   "player": [
     {
       "name": "Knuckles",
@@ -147,5 +149,6 @@
     }
   ],
   "pile_heal": 0,
-  "_083b": "the user (2026-10-22): a bit less HP but more threatening -- 72 -> 60 HP; enemy_kinds.heart: pulses every round, guns +2 (`damage`), erupts for 6. Measured on run-built Act 3 gates: 8.3 -> 7.5 rounds, crew HP lost 8.4 -> 9.1, timeouts 1 -> 0 of 100."
+  "_083b": "the user (2026-10-22): a bit less HP but more threatening -- 72 -> 60 HP; enemy_kinds.heart: pulses every round, guns +2 (`damage`), erupts for 6. Measured on run-built Act 3 gates: 8.3 -> 7.5 rounds, crew HP lost 8.4 -> 9.1, timeouts 1 -> 0 of 100.",
+  "_088": "A6 (engagement review: one opener -- a lance into the drum by the spawn -- solved turn 1 here every time): the two drums stand on one of five pairs of hexes (`prop_slots`, picked per fight by SimRNG; the original pair is the first), and in a run the chamber is reflected left-right half the time (`mirror`)."
 }

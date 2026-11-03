@@ -63,6 +63,7 @@ func _initialize() -> void:
 	_timed(_test_reinforcements_087)
 	_timed(_test_hoard_sources)
 	_timed(_test_rule_perks)
+	_timed(_test_act3_variety_088)
 	print("")
 	print("  %d passed, %d failed" % [_passed, _failed])
 	print("")
@@ -2374,3 +2375,105 @@ func _test_rule_perks() -> void:
 				RunSim.apply(state, s, [RunSim.LEVEL_UP, i, level % offer.size()])
 	_check("every level offer holds a rule perk (%d offers)" % offers, every_offer and offers > 300)
 	_check("Rending Grip and AP Rounds are offered to any machine (086, the user)", grip_on_shooter and ap_on_brawler)
+
+
+## 088 (A6): no map twice in an act while another is left; a map's own objective and layout travel
+## into the run's fight; prop slots and mirroring are the same on every replay of the same site.
+func _test_act3_variety_088() -> void:
+	var setup: RunSetup = _setup(88)
+	var state: RunState = RunSim.start(setup)
+	RunSim._next_act(state, setup)
+	RunSim._next_act(state, setup)
+	_check("the crew is in Act 3 (precondition)", state.act == 3)
+	var pool: Array = []
+	for id: Variant in setup.fights:
+		var map: Dictionary = setup.fights[id]
+		if (map.get("acts", [1]) as Array).has(3.0) and not bool(map.get("boss", false)) and not bool(map.get("warlord", false)) \
+				and not bool(map.get("tutorial", false)):
+			pool.append(String(id))
+	_check("Act 3 has the 3 new maps among %d (%s)" % [pool.size(), pool], pool.size() >= 6
+		and pool.has("blowing_house") and pool.has("the_taphole") and pool.has("skull_cracker"))
+	var fights: Array = []
+	for s: Dictionary in state.sites:
+		if RunSim.FIGHT_TYPES.has(String(s["type"])) and not ["boss", "warlord"].has(String(s["type"])):
+			fights.append(int(s["id"]))
+	var met: Array = []
+	var no_repeat: bool = true
+	var no_twice_running: bool = true
+	for n: int in pool.size() * 2 + 1:
+		var site: int = int(fights[n % fights.size()])
+		RunSim._start_fight(state, setup, site, "skirmish")
+		var map_id: String = String((state.pending["fight"] as Dictionary).get("map", ""))
+		if n < pool.size() and met.has(map_id):
+			no_repeat = false
+		if not met.is_empty() and String(met.back()) == map_id:
+			no_twice_running = false
+		met.append(map_id)
+		state.pending = {}
+	_check("the first %d fights of an act are on %d different maps (%s)" % [pool.size(), pool.size(), met.slice(0, pool.size())], no_repeat)
+	_check("after that the act deals them again, never the same map twice running", no_twice_running)
+	_check("the maps are recorded by act", state.maps.size() == met.size() and int((state.maps[0] as Array)[0]) == 3)
+
+	# The same map at the same site lays out the same way; different sites differ somewhere.
+	var board: Dictionary = RunSim.rules_of(state, setup).get("board", {})
+	var core_rows: Dictionary = {}
+	var mirrored: int = 0
+	var same: bool = true
+	for site: int in 40:
+		var a: Dictionary = RunSim.lay_map(state, setup, site, setup.fights["the_core"], board)
+		var b: Dictionary = RunSim.lay_map(state, setup, site, setup.fights["the_core"], board)
+		same = same and a == b
+		core_rows["/".join(PackedStringArray(a["rows"]))] = true
+		mirrored += 1 if bool(a.get("mirrored", false)) else 0
+		var drums: int = "".join(PackedStringArray(a["rows"])).count("b")
+		if drums != 2:
+			same = false
+	_check("the_core at the same site lays out the same way twice, always with its two drums", same)
+	_check("over 40 sites the_core is laid out %d different ways (prop slots x mirror: at least 6)" % core_rows.size(), core_rows.size() >= 6)
+	_check("and mirrored at %d of 40 (about half)" % mirrored, mirrored >= 10 and mirrored <= 30)
+
+	# A map's own objective comes with it, widened (and mirrored) with the board.
+	var kept: int = 0
+	var checked: int = 0
+	var errors: PackedStringArray = []
+	for id: String in ["blowing_house", "the_taphole", "skull_cracker"]:
+		var own: String = String((setup.fights[id]["objective"] as Dictionary)["type"])
+		for site: int in 12:
+			state.maps = []
+			# Every other map met: the fresh pool is this one alone.
+			for other: String in pool:
+				if other != id:
+					state.maps.append([3, other])
+			var fight: Dictionary = RunSim._make_fight(state, setup, int(fights[site % fights.size()]), "skirmish")
+			checked += 1
+			var o: Dictionary = fight["objective"]
+			if String(fight.get("map", "")) == id and String(o.get("type", "")) == own:
+				kept += 1
+			var built: CombatSetup = CombatSetup.build(fight, setup.combat_rules, setup.parts, setup.tiles, setup.wheel, 1)
+			if not built.errors.is_empty():
+				errors.append("%s: %s" % [id, built.errors[0]])
+			for key: String in ["cells", "piles"]:
+				for c: Variant in (o.get(key, []) as Array):
+					var x: int = int((c as Dictionary)["x"])
+					var y: int = int((c as Dictionary)["y"])
+					if String((fight["rows"] as Array)[y])[x] != ".":
+						errors.append("%s: objective hex (%d,%d) is '%s'" % [id, x, y, String((fight["rows"] as Array)[y])[x]])
+	_check("the new maps keep their own objective in the run (%d of %d)" % [kept, checked], kept == checked)
+	_check("and build with every objective hex on open ground %s" % [errors.slice(0, 2)], errors.is_empty())
+	# The Taphole's zone stays in one piece on the bigger board (`widen_cut`).
+	var tap: Dictionary = RunSim.widen(setup.fights["the_taphole"], board)
+	var zone: Array = ((tap["objective"] as Dictionary)["cells"] as Array).map(func(c: Variant) -> Vector2i:
+		return Vector2i(int((c as Dictionary)["x"]), int((c as Dictionary)["y"])))
+	_check("the Taphole's zone is still three touching hexes on the run's board",
+		Hex.distance(zone[0], zone[1]) == 1 and Hex.distance(zone[0], zone[2]) == 1)
+	# A weekly twist that gives the map's objective no weight rolls one instead.
+	var twisted: RunSetup = _setup(88)
+	twisted.rules = twisted.rules.duplicate(true)
+	twisted.rules["objective_weights"] = {"rout": 0, "defend": 0, "hold": 0, "hack": 0, "survive": 0, "salvage": 10}
+	state.maps = []
+	for other: String in pool:
+		if other != "blowing_house":
+			state.maps.append([3, other])
+	var rolled: Dictionary = RunSim._make_fight(state, twisted, int(fights[0]), "skirmish")
+	_check("with HACK weighted 0 (a twist) the Blowing House rolls the run's objective (%s)" % (rolled["objective"] as Dictionary)["type"],
+		String(rolled.get("map", "")) == "blowing_house" and String((rolled["objective"] as Dictionary)["type"]) == "salvage")

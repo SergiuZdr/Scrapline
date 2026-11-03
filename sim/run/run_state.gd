@@ -73,6 +73,9 @@ var thin_to: int = 0
 var elite_fights: int = 0
 ## 085 (B10): sites entered this run, by type (a medal asks for a win without a workshop).
 var visits: Dictionary = {}
+## 088 (A6): the maps the run's ordinary fights were played on, `[act, map id]`, oldest first: a
+## map is not met twice in an act while another is left (`RunSim.fresh_maps`).
+var maps: Array = []
 ## Human-readable history, newest last. Deterministic like everything else.
 var log: PackedStringArray = []
 

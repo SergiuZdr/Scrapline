@@ -14,6 +14,8 @@ extends RefCounted
 var fight_id: String = ""
 ## The board's name, for the opening card.
 var fight_name: String = ""
+## 088 (A6): the map was laid out reflected left-right (`mirror_of`).
+var mirrored: bool = false
 var rng_seed: int = 0
 var width: int = 0
 var height: int = 0
@@ -96,7 +98,10 @@ var errors: PackedStringArray = []
 static func build(fight: Dictionary, rules: Dictionary, parts: Dictionary, tile_defs: Array,
 		wheel: Array, seed_value: int) -> CombatSetup:
 	var setup := CombatSetup.new()
+	# 088 (A6): a whole fight file's prop slots and mirroring, from its seed (a run's fight comes laid out).
+	fight = lay_out(fight, SimRNG.new(IntentAI.mix(seed_value, 0, 61, 0x5107)))
 	setup.fight_id = String(fight.get("id", ""))
+	setup.mirrored = bool(fight.get("mirrored", false))
 	setup.fight_name = String(fight.get("name", ""))
 	setup.rng_seed = seed_value
 	# A fight may set its own limit (014: the gate closes sooner than an ordinary fight ends).
@@ -594,3 +599,121 @@ static func _part(parts: Dictionary, id: String, what: String, owner: String,
 		errors.append("%s: unknown %s '%s'" % [owner, what, id])
 		return {}
 	return parts[id]
+
+
+## 088 (A6): a map's own variety, laid out before anything else reads it. `prop_slots`: groups of
+## candidate hexes, `[{"glyph": "b", "groups": [[[x, y], ...], ...]}, ...]` in the file's own
+## coordinates; for each entry one group is picked by `rng` and its glyph is written on each of
+## its hexes (a hex that is not open ground, or where someone starts, is left alone).
+## `"mirror": true`: the board is reflected left-right half the time (`mirror_of`). The result
+## carries neither key, so laying it out again changes nothing: the run lays a map out itself
+## (`RunSim._make_fight`, before it scatters terrain or rolls an objective) and `build` only lays
+## out a fight file handed to it whole (practice, tests, the balance tool), from its seed.
+static func lay_out(fight: Dictionary, rng: SimRNG) -> Dictionary:
+	if not fight.has("prop_slots") and not fight.has("mirror"):
+		return fight
+	var out: Dictionary = fight.duplicate(true)
+	out.erase("prop_slots")
+	out.erase("mirror")
+	if fight.has("prop_slots"):
+		out["rows"] = slotted_rows(out, fight["prop_slots"], rng)
+	if bool(fight.get("mirror", false)) and rng.chance_percent(50):
+		var m: Dictionary = mirror_of(out)
+		if not m.is_empty():
+			out = m
+	return out
+
+
+## `fight`'s rows with one group of every `prop_slots` entry written in.
+static func slotted_rows(fight: Dictionary, slots: Array, rng: SimRNG) -> Array:
+	var rows: Array = (fight.get("rows", []) as Array).duplicate()
+	var taken: Array = starts(fight)
+	for entry: Variant in slots:
+		var groups: Array = (entry as Dictionary).get("groups", [])
+		if groups.is_empty():
+			continue
+		var glyph: String = String((entry as Dictionary).get("glyph", "b"))
+		for cell: Variant in (groups[rng.range_int(0, groups.size() - 1)] as Array):
+			var x: int = int((cell as Array)[0])
+			var y: int = int((cell as Array)[1])
+			if y < 0 or y >= rows.size() or x < 0 or x >= String(rows[y]).length():
+				continue
+			if String(rows[y])[x] != "." or taken.has(Vector2i(x, y)):
+				continue
+			rows[y] = String(rows[y]).substr(0, x) + glyph + String(rows[y]).substr(x + 1)
+	return rows
+
+
+## Every hex someone or something starts on: the units and the objective's cells, caches and piles.
+static func starts(fight: Dictionary) -> Array:
+	var out: Array = []
+	for spec: Variant in (fight.get("player", []) as Array) + (fight.get("enemy", []) as Array):
+		out.append(Vector2i(int((spec as Dictionary)["x"]), int((spec as Dictionary)["y"])))
+	var o: Dictionary = fight.get("objective", {})
+	for key: String in ["cells", "caches", "piles"]:
+		for c: Variant in (o.get(key, []) as Array):
+			out.append(Vector2i(int((c as Dictionary)["x"]), int((c as Dictionary)["y"])))
+	return out
+
+
+## The left-right reflection of a hex in an odd-r board `width` wide about the line that maps
+## even rows' x to `k - x`. Odd rows sit half a hex right, so theirs go to `k - 1 - x`: a true
+## reflection (neighbours stay neighbours), never a plain flip of each row's string.
+static func mirror_cell(c: Vector2i, k: int) -> Vector2i:
+	return Vector2i((k - 1 - c.x) if c.y & 1 else (k - c.x), c.y)
+
+
+## The reflection axis that keeps everything on the board, or -1. A rectangular odd-r board
+## cannot be reflected onto itself: one edge column of every other row falls off. `width - 1`
+## (odd rows lose their last hex) is tried first, then `width` (even rows lose their first); the
+## lost column must be open ground with nothing starting on it.
+static func mirror_axis(fight: Dictionary) -> int:
+	var rows: Array = fight.get("rows", [])
+	if rows.is_empty():
+		return -1
+	var width: int = String(rows[0]).length()
+	var begun: Array = starts(fight)
+	for k: int in [width - 1, width]:
+		var ok: bool = true
+		for y: int in rows.size():
+			for x: int in width:
+				var m: Vector2i = mirror_cell(Vector2i(x, y), k)
+				if m.x >= 0 and m.x < width:
+					continue
+				if String(rows[y])[x] != "." or begun.has(Vector2i(x, y)):
+					ok = false
+		if ok:
+			return k
+	return -1
+
+
+## `fight` reflected left-right (rows, every start, the objective's cells), or {} when it cannot be.
+static func mirror_of(fight: Dictionary) -> Dictionary:
+	var k: int = mirror_axis(fight)
+	if k < 0:
+		return {}
+	var out: Dictionary = fight.duplicate(true)
+	var rows: Array = fight["rows"]
+	var width: int = String(rows[0]).length()
+	var new_rows: Array = []
+	for y: int in rows.size():
+		var chars: PackedStringArray = []
+		chars.resize(width)
+		chars.fill(".")
+		for x: int in width:
+			var m: Vector2i = mirror_cell(Vector2i(x, y), k)
+			if m.x >= 0 and m.x < width:
+				chars[m.x] = String(rows[y])[x]
+		new_rows.append("".join(chars))
+	out["rows"] = new_rows
+	for side: String in ["player", "enemy"]:
+		for spec: Variant in (out.get(side, []) as Array):
+			var d: Dictionary = spec
+			d["x"] = mirror_cell(Vector2i(int(d["x"]), int(d["y"])), k).x
+	var o: Dictionary = out.get("objective", {})
+	for key: String in ["cells", "caches", "piles"]:
+		for c: Variant in (o.get(key, []) as Array):
+			var d: Dictionary = c
+			d["x"] = mirror_cell(Vector2i(int(d["x"]), int(d["y"])), k).x
+	out["mirrored"] = true
+	return out
