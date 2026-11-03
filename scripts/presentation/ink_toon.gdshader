@@ -86,6 +86,9 @@ uniform float livery_plate_trim = 0.0;
 uniform float hot_remap = 0.0;
 uniform vec3 hot_colour = vec3(0.48, 0.34, 0.21);
 uniform float hot_value = 0.85;
+// 087: the saturation a texel needs before it counts as hot. Higher takes out only the hottest red
+// (the ember look), leaving the rest of the glow as painted.
+uniform float hot_sat = 0.3;
 
 // 0 none, 1 stipple dots, 2 diagonal hatching.
 uniform int pattern = 0;
@@ -155,7 +158,7 @@ vec3 cool_hot(vec3 c) {
 	vec3 s = pow(max(c, vec3(0.0)), vec3(1.0 / 2.2));
 	vec3 hsv = rgb2hsv(s);
 	float hot = (1.0 - smoothstep(0.1, 0.13, hsv.x) + smoothstep(0.9, 0.94, hsv.x))
-		* smoothstep(0.3, 0.45, hsv.y) * smoothstep(0.18, 0.3, hsv.z);
+		* smoothstep(hot_sat, hot_sat + 0.15, hsv.y) * smoothstep(0.18, 0.3, hsv.z);
 	vec3 w = vec3(0.299, 0.587, 0.114);
 	float l = dot(s, w);
 	vec3 cooled = clamp(hot_colour * (l / max(dot(hot_colour, w), 0.001)) * hot_value, 0.0, 1.0);
