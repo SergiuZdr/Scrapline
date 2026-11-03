@@ -2385,34 +2385,58 @@ func _test_act3_variety_088() -> void:
 	RunSim._next_act(state, setup)
 	RunSim._next_act(state, setup)
 	_check("the crew is in Act 3 (precondition)", state.act == 3)
-	var pool: Array = []
-	for id: Variant in setup.fights:
-		var map: Dictionary = setup.fights[id]
-		if (map.get("acts", [1]) as Array).has(3.0) and not bool(map.get("boss", false)) and not bool(map.get("warlord", false)) \
-				and not bool(map.get("tutorial", false)):
-			pool.append(String(id))
+	var pool: Array = RunSim.act_maps(setup, 3)
 	_check("Act 3 has the 3 new maps among %d (%s)" % [pool.size(), pool], pool.size() >= 6
 		and pool.has("blowing_house") and pool.has("the_taphole") and pool.has("skull_cracker"))
 	var fights: Array = []
 	for s: Dictionary in state.sites:
-		if RunSim.FIGHT_TYPES.has(String(s["type"])) and not ["boss", "warlord"].has(String(s["type"])):
+		if ["skirmish", "elite", "arena"].has(String(s["type"])):
 			fights.append(int(s["id"]))
+	# The region deals every ordinary fight site its map; the fight there is played on it.
+	var dealt_ok: bool = true
+	for id: int in fights:
+		var f: Dictionary = RunSim._make_fight(state, setup, id, String(state.sites[id]["type"]))
+		dealt_ok = dealt_ok and pool.has(String(state.sites[id].get("map", ""))) and String(f["map"]) == String(state.sites[id]["map"])
+	_check("every Act 3 fight site is dealt a map and its fight is played on it", dealt_ok)
+	# Over 100 regions per act, linked fight sites (one step apart) share a map rarely, and any two
+	# fight sites two steps apart (a road through a site between them) rarely too.
+	var pairs: int = 0
+	var shared: int = 0
+	for seed_value: int in 100:
+		var su: RunSetup = _setup(seed_value)
+		var st: RunState = RunSim.start(su)
+		for act: int in range(1, 4):
+			if act > 1:
+				RunSim._next_act(st, su)
+			for a: Dictionary in st.sites:
+				if not a.has("map"):
+					continue
+				var near: Dictionary = {}
+				for l: Variant in (a["links"] as Array):
+					near[int(l)] = true
+					for l2: Variant in (st.sites[int(l)]["links"] as Array):
+						near[int(l2)] = true
+				for b: Variant in near:
+					if int(b) > int(a["id"]) and st.sites[int(b)].has("map"):
+						pairs += 1
+						shared += 1 if String(st.sites[int(b)]["map"]) == String(a["map"]) else 0
+	_check("fight sites within two links share a map in %d of %d pairs (under 5%%)" % [shared, pairs], pairs > 0 and shared * 20 < pairs)
+	# A fight at a site with no map dealt (a signal's) takes one not yet met this act.
+	var bare: int = int(fights[0])
+	state.sites[bare].erase("map")
 	var met: Array = []
 	var no_repeat: bool = true
-	var no_twice_running: bool = true
-	for n: int in pool.size() * 2 + 1:
-		var site: int = int(fights[n % fights.size()])
-		RunSim._start_fight(state, setup, site, "skirmish")
+	for n: int in pool.size():
+		RunSim._start_fight(state, setup, bare, "skirmish")
 		var map_id: String = String((state.pending["fight"] as Dictionary).get("map", ""))
-		if n < pool.size() and met.has(map_id):
-			no_repeat = false
-		if not met.is_empty() and String(met.back()) == map_id:
-			no_twice_running = false
+		no_repeat = no_repeat and not met.has(map_id)
 		met.append(map_id)
 		state.pending = {}
-	_check("the first %d fights of an act are on %d different maps (%s)" % [pool.size(), pool.size(), met.slice(0, pool.size())], no_repeat)
-	_check("after that the act deals them again, never the same map twice running", no_twice_running)
-	_check("the maps are recorded by act", state.maps.size() == met.size() and int((state.maps[0] as Array)[0]) == 3)
+	_check("a site with no map dealt meets the act's %d maps once each (%s)" % [pool.size(), met], no_repeat)
+	RunSim._start_fight(state, setup, bare, "skirmish")
+	_check("then never the same map twice running", String((state.pending["fight"] as Dictionary)["map"]) != String(met.back()))
+	state.pending = {}
+	_check("the maps met are recorded by act", state.maps.size() == pool.size() + 1 and int((state.maps[0] as Array)[0]) == 3)
 
 	# The same map at the same site lays out the same way; different sites differ somewhere.
 	var board: Dictionary = RunSim.rules_of(state, setup).get("board", {})
@@ -2439,12 +2463,9 @@ func _test_act3_variety_088() -> void:
 	for id: String in ["blowing_house", "the_taphole", "skull_cracker"]:
 		var own: String = String((setup.fights[id]["objective"] as Dictionary)["type"])
 		for site: int in 12:
-			state.maps = []
-			# Every other map met: the fresh pool is this one alone.
-			for other: String in pool:
-				if other != id:
-					state.maps.append([3, other])
-			var fight: Dictionary = RunSim._make_fight(state, setup, int(fights[site % fights.size()]), "skirmish")
+			var at: int = int(fights[site % fights.size()])
+			state.sites[at]["map"] = id
+			var fight: Dictionary = RunSim._make_fight(state, setup, at, "skirmish")
 			checked += 1
 			var o: Dictionary = fight["objective"]
 			if String(fight.get("map", "")) == id and String(o.get("type", "")) == own:
@@ -2470,10 +2491,7 @@ func _test_act3_variety_088() -> void:
 	var twisted: RunSetup = _setup(88)
 	twisted.rules = twisted.rules.duplicate(true)
 	twisted.rules["objective_weights"] = {"rout": 0, "defend": 0, "hold": 0, "hack": 0, "survive": 0, "salvage": 10}
-	state.maps = []
-	for other: String in pool:
-		if other != "blowing_house":
-			state.maps.append([3, other])
+	state.sites[int(fights[0])]["map"] = "blowing_house"
 	var rolled: Dictionary = RunSim._make_fight(state, twisted, int(fights[0]), "skirmish")
 	_check("with HACK weighted 0 (a twist) the Blowing House rolls the run's objective (%s)" % (rolled["objective"] as Dictionary)["type"],
 		String(rolled.get("map", "")) == "blowing_house" and String((rolled["objective"] as Dictionary)["type"]) == "salvage")

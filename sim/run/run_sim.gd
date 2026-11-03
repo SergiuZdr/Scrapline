@@ -1521,6 +1521,72 @@ static func _generate_region(state: RunState, setup: RunSetup) -> void:
 				pick = String(option)
 				break
 		state.sites[calm]["type"] = pick
+	_deal_maps(state, setup)
+
+
+## 088 (A6): every ordinary fight site of the region is dealt its map when the region is made, so a
+## site's card (084, B2) shows from the start the map its fight is played on. Sites in column order;
+## each takes the map least used by the fight sites near it on the region's links (a site k links
+## away weighs 7 - k, up to 6 links), the act's maps tried in an order shuffled by SimRNG. Any road
+## through the act then meets as many different maps as the region allows; `fresh_maps` still keeps
+## a fight at a site with no map (a signal's) off the maps already met.
+static func _deal_maps(state: RunState, setup: RunSetup) -> void:
+	var ids: Array = act_maps(setup, state.act)
+	if ids.is_empty():
+		return
+	var rng: SimRNG = _rng(setup, -1, 65, state.act)
+	var order: Array = ids.duplicate()
+	for i: int in range(order.size() - 1, 0, -1):
+		var j: int = rng.range_int(0, i)
+		var t: Variant = order[i]
+		order[i] = order[j]
+		order[j] = t
+	var sites: Array = state.sites.duplicate()
+	sites.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a["col"]) < int(b["col"]) or (int(a["col"]) == int(b["col"]) and int(a["id"]) < int(b["id"])))
+	for site: Dictionary in sites:
+		if not ["skirmish", "elite", "arena"].has(String(site["type"])):
+			continue
+		# Distance in links from this site to every other, out to 6 (breadth first, ids in order).
+		var dist: Dictionary = {int(site["id"]): 0}
+		var frontier: Array = [int(site["id"])]
+		for step: int in range(1, 7):
+			var next: Array = []
+			for id: Variant in frontier:
+				var links: Array = (state.sites[int(id)]["links"] as Array).duplicate()
+				links.sort()
+				for l: Variant in links:
+					if not dist.has(int(l)):
+						dist[int(l)] = step
+						next.append(int(l))
+			frontier = next
+		var best: String = ""
+		var best_cost: int = 1 << 30
+		for map: Variant in order:
+			var cost: int = 0
+			for id: Variant in dist:
+				var other: Dictionary = state.sites[int(id)]
+				if int(id) != int(site["id"]) and String(other.get("map", "")) == String(map):
+					cost += 7 - int(dist[id])
+			if cost < best_cost:
+				best_cost = cost
+				best = String(map)
+		site["map"] = best
+		# The next site starts its search one further along, so equal choices spread round the pool.
+		order.push_back(order.pop_front())
+
+
+## 088 (A6): the ordinary maps of act `act` (not a gate, a warlord or the tutorial), sorted.
+static func act_maps(setup: RunSetup, act: int) -> Array:
+	var ids: Array = []
+	for id: Variant in setup.fights:
+		var map: Dictionary = setup.fights[id]
+		if not (map.get("acts", [1]) as Array).has(float(act)) and not (map.get("acts", [1]) as Array).has(act):
+			continue
+		if not bool(map.get("warlord", false)) and not bool(map.get("boss", false)) and not bool(map.get("tutorial", false)):
+			ids.append(String(id))
+	ids.sort()
+	return ids
 
 
 ## Whether a site linked to `id` is of `kind`.
@@ -1594,9 +1660,17 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 		warlord = rotated
 	# The act may change the board (032: Acts 2 and 3 hold one more enemy).
 	var board: Dictionary = rules_of(state, setup).get("board", {})
-	# 088 (A6): no map twice in an act while one not yet met is left (`fresh_maps`); still one draw.
-	var pool: Array = fresh_maps(state, ids)
-	var map_id: String = String(pool[rng.range_int(0, pool.size() - 1)])
+	# 088 (A6): the map the region dealt this site (`_deal_maps`). The fight's own stream still draws
+	# over every map as it always did, so no later roll moves. A site with none (a signal's fight) takes
+	# a map not yet met this act (`fresh_maps`), drawn from a stream of its own.
+	var map_id: String = String(ids[rng.range_int(0, ids.size() - 1)])
+	var dealt: String = String(state.sites[site_id].get("map", "")) if site_id >= 0 and site_id < state.sites.size() else ""
+	if ids.has(dealt):
+		map_id = dealt
+	else:
+		var pool: Array = fresh_maps(state, ids)
+		if not pool.has(map_id):
+			map_id = String(pool[_rng(setup, site_id, 63, state.act).range_int(0, pool.size() - 1)])
 	if kind == "boss" and not gate.is_empty():
 		return _make_gate_fight(state, setup, site_id, lay_map(state, setup, site_id, setup.fights[gate], board), rng)
 	if kind == "warlord" and not warlord.is_empty():
