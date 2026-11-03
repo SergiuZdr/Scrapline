@@ -57,9 +57,12 @@ const SLAG_POOL := Color("d8843a")
 ## saturation a texel needs to count as hot]. "ember" (the default, the user's pick) is about two
 ## thirds of the way from "umber" (8f6338, the review's) to the old glow: warm orange pools. A redder
 ## ember (dc7430 / da5d27) came out red anyway -- the print pass's misregistration fringes a bright
-## warm pool in red -- so the orange is pushed toward yellow. "dark" and "pale" were the first sheet's.
+## warm pool in red -- so the orange is pushed toward yellow. The user then took it brighter (value
+## 0.9 -> 1.1, hatch 0.22 -> 0.15); "ember_dim" keeps the first ember for comparison. "dark" and
+## "pale" were the first sheet's.
 const SLAG_LOOKS: Dictionary = {
-	"ember": [Color("d88a3c"), 0.9, Color("1e150d"), 0.22, 0.3],
+	"ember": [Color("d88a3c"), 1.1, Color("1e150d"), 0.15, 0.3],
+	"ember_dim": [Color("d88a3c"), 0.9, Color("1e150d"), 0.22, 0.3],
 	"umber": [Color("8f6338"), 1.0, Color("1e150d"), 0.3, 0.3],
 	"dark": [Color("6b5034"), 0.78, Color("14110f"), 0.3, 0.3],
 	"pale": [Color("7a5e3c"), 0.9, Color("d2bb8c"), 0.08, 0.3],
