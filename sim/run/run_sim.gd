@@ -1660,17 +1660,17 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 		warlord = rotated
 	# The act may change the board (032: Acts 2 and 3 hold one more enemy).
 	var board: Dictionary = rules_of(state, setup).get("board", {})
-	# 088 (A6): the map the region dealt this site (`_deal_maps`). The fight's own stream still draws
-	# over every map as it always did, so no later roll moves. A site with none (a signal's fight) takes
-	# a map not yet met this act (`fresh_maps`), drawn from a stream of its own.
+	# 088 (A6): the map the region dealt this site (`_deal_maps`), unless the crew has met it already
+	# this act and another is fresh (`fresh_maps`): then a fresh one, from a stream of its own -- the
+	# site's card shows it from that moment, so the card still never differs from the fight. The fight's
+	# own stream still draws over every map as it always did, so no later roll moves.
 	var map_id: String = String(ids[rng.range_int(0, ids.size() - 1)])
 	var dealt: String = String(state.sites[site_id].get("map", "")) if site_id >= 0 and site_id < state.sites.size() else ""
-	if ids.has(dealt):
+	var pool: Array = fresh_maps(state, ids)
+	if ids.has(dealt) and pool.has(dealt):
 		map_id = dealt
-	else:
-		var pool: Array = fresh_maps(state, ids)
-		if not pool.has(map_id):
-			map_id = String(pool[_rng(setup, site_id, 63, state.act).range_int(0, pool.size() - 1)])
+	elif not pool.has(map_id):
+		map_id = String(pool[_rng(setup, site_id, 63, state.act).range_int(0, pool.size() - 1)])
 	if kind == "boss" and not gate.is_empty():
 		return _make_gate_fight(state, setup, site_id, lay_map(state, setup, site_id, setup.fights[gate], board), rng)
 	if kind == "warlord" and not warlord.is_empty():
