@@ -84,8 +84,8 @@ var block_damage: int = 2
 ## 087 (A4b): rules.json `ground_after_hit` (a fight may lay its own): which shapes, of which side,
 ## leave the hex they land on hot -- `{shapes, teams, rounds, heat}`; empty for none.
 var ground_after_hit: Dictionary = {}
-## 087 (A3): escorts that come in as an ordinary fight's REINFORCEMENTS hold their fire on the
-## round they land (ref -> true).
+## 087 (A3; the user: a boss's escorts too): every escort or reinforcement that comes in holds its
+## fire on the round it lands (ref -> true).
 var hold_fire: Dictionary = {}
 var errors: PackedStringArray = []
 
@@ -294,7 +294,7 @@ static func _keepers_and_escorts(setup: CombatSetup, fight: Dictionary, specs: A
 		var given: Array = (w as Dictionary).get("enemy", [])
 		var count: int = given.size() if not given.is_empty() else int((w as Dictionary).get("count", 0))
 		if round >= 2 and count > 0:
-			waves.append({"round": round, "count": count, "enemy": given, "hold_fire": bool((w as Dictionary).get("hold_fire", false))})
+			waves.append({"round": round, "count": count, "enemy": given, "hold_fire": true})   # 087 (the user): every escort holds fire the round it lands
 	waves.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["round"]) < int(b["round"]))
 	var slot: int = specs.size()
 	var next_copy: int = 0

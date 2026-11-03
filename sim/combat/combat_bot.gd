@@ -74,13 +74,13 @@ static func plan_unit(state: CombatState, ref: int, apply: bool) -> Array:
 		return out
 	if use_abilities:
 		_flush(state, u, out, false)
-	var ctx: Dictionary = context(state)
+	var ctx: Dictionary = context(state, ref)
 	var plan: Dictionary = IntentAI.plan(state, u, ctx)
 	var dest: Vector2i = plan["dest"]
 	if dest != Vector2i(u.x, u.y):
 		_do(state, out, [CombatSim.ACT_MOVE, ref, dest.x, dest.y])
 	var w: int = int(plan["w"])
-	var pick: Array = _best_ability(state, u, context(state)) if use_abilities else []
+	var pick: Array = _best_ability(state, u, context(state, ref)) if use_abilities else []
 	if not pick.is_empty() and int(pick[2]) > (int(plan.get("attack", 0)) if w >= 0 else 0):
 		if String(u.abilities[int(pick[0])]["kind"]) == "charge":
 			_boost(state, u, out)
@@ -168,7 +168,7 @@ static func _dash(state: CombatState, u: GridUnit, out: Array) -> void:
 	for i: int in u.abilities.size():
 		if String(u.abilities[i]["kind"]) != "dash" or not CombatAbilities.usable(state, u, i):
 			continue
-		var ctx: Dictionary = context(state)
+		var ctx: Dictionary = context(state, u.ref)
 		var here := Vector2i(u.x, u.y)
 		var paths: Dictionary = CombatSim.paths_from(state, u, int(u.abilities[i].get("range", 2)))
 		var cells: Array = paths.keys()
@@ -231,8 +231,10 @@ static func _harm(state: CombatState) -> int:
 	return harm
 
 
-## Danger and shield maps from the enemy intents as they stand.
-static func context(state: CombatState) -> Dictionary:
+## Danger and shield maps from the enemy intents as they stand. `for_ref` (087): the crew machine being
+## planned -- a tracker locked on it fires wherever it goes, so every hex it could stand on that the
+## tracker's shot still reaches is danger to it (`_locked_danger`), not only the hex it stands on now.
+static func context(state: CombatState, for_ref: int = -1) -> Dictionary:
 	var danger: Dictionary = {}
 	var shield: Dictionary = {}
 	var all: Dictionary = CombatSim.threats(state)
@@ -263,7 +265,45 @@ static func context(state: CombatState) -> Dictionary:
 		var pulse: int = int((state.setup.kinds.get(keeper.kind, {}) as Dictionary).get("pulse_damage", 4))
 		for cell: Vector2i in state.pulse_marks:
 			danger[cell] = int(danger.get(cell, 0)) + pulse
+	if for_ref >= 0:
+		_locked_danger(state, for_ref, danger)
 	var ctx: Dictionary = {"danger": danger, "shield": shield}
 	if use_abilities:
 		ctx["guard"] = true
 	return ctx
+
+
+## 087 (the user): a tracker's shot follows the machine it is locked on. For every hex `ref` could
+## stand on this turn (its moves, a dash's reach and where it stands), the locked shot is played out
+## from there (`strike_plan` at that hex): where it would still hit `ref`, that hit is danger. The hex
+## it stands on now is already in the map (the shot's own tiles).
+static func _locked_danger(state: CombatState, ref: int, danger: Dictionary) -> void:
+	var me: GridUnit = state.unit(ref)
+	if me == null or not me.alive:
+		return
+	var locks: Array = []
+	for intent: Dictionary in state.intents:
+		if int(intent.get("lock", -1)) != ref or intent.has("lost") or intent.has("fired"):
+			continue
+		var shooter: GridUnit = state.unit(int(intent["ref"]))
+		if shooter != null and shooter.alive and shooter.can_fire(int(intent["w"])):
+			locks.append([shooter, int(intent["w"])])
+	if locks.is_empty():
+		return
+	var here := Vector2i(me.x, me.y)
+	var cells: Array = CombatSim.paths_from(state, me, me.move + 2).keys()
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
+	for cell: Vector2i in cells:
+		if cell == here:
+			continue
+		me.x = cell.x
+		me.y = cell.y
+		for lock: Array in locks:
+			var plan: Dictionary = CombatSim.strike_plan(state, lock[0], int(lock[1]), cell)
+			if not bool(plan["legal"]):
+				continue
+			for hit: Dictionary in (plan["hits"] as Array):
+				if int(hit["ref"]) == ref:
+					danger[cell] = int(danger.get(cell, 0)) + int(hit["damage"])
+	me.x = here.x
+	me.y = here.y

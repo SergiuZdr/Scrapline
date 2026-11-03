@@ -240,6 +240,10 @@ func _test_keepers_083() -> void:
 		if int(e[GridEv.F_KIND]) == GridEv.SPAWN_BLOCKED and int(e[GridEv.F_TARGET]) == a:
 			blocked_events += 1
 	_check("the escort under Relay is blocked", blocked_events == 1 and g.unit(a) == null)
+	var set_by_b: bool = false
+	for i: int in range(since_block, g.events.size()):
+		set_by_b = set_by_b or (int(g.events[i][GridEv.F_KIND]) == GridEv.INTENT_SET and int(g.events[i][GridEv.F_ACTOR]) == b)
+	_check("087 (the user): the escort that landed holds its fire that round", g.unit(b) != null and g.unit(b).acted and not set_by_b)
 	_check("the blocker took block_damage (%d)" % wsetup.block_damage, g.unit(2).hp <= blocker_hp - wsetup.block_damage)
 	_check("the blocked escort is marked again, on a new hex", g.wave_refs.has(a) and not g.wave_marks.has(blocked_cell))
 	for i: int in 3:
@@ -2066,6 +2070,22 @@ func _test_enemy_kinds() -> void:
 	var hp: int = state.unit(0).hp
 	CombatSim.apply(state, [CombatSim.ACT_END, -1, 0, 0])
 	_check("tracker: stepping aside does not dodge a locked shot", state.unit(0).hp < hp)
+	# 087 (the user): the bot reads the lock -- the hex beside it is danger to the locked machine,
+	# out of the tracker's reach is not, and to another crew machine the side hex is safe.
+	var read: CombatState = _fight(_rows(), [_unit(HAMMER, victim), _unit(HAMMER, Vector2i(8, 8))],
+		[{"parts": LANCE, "x": tracker.x, "y": tracker.y, "hp": 30, "kind": "tracker"}])
+	_place(read, 0, victim)
+	_place(read, 1, Vector2i(8, 8))
+	_place(read, 10, tracker)
+	read.intents = [{"ref": 10, "w": 1, "x": victim.x, "y": victim.y, "order": 1, "lock": 0}]
+	var locked_map: Dictionary = CombatBot.context(read, 0)["danger"]
+	var theirs: Dictionary = CombatBot.context(read, 1)["danger"]
+	var far_off: Vector2i = victim
+	for cell: Variant in CombatSim.paths_from(read, read.unit(0), read.unit(0).move).keys():
+		if Hex.distance(cell, tracker) > CombatSim.aim_reach(read, read.unit(10), 1) + 1:
+			far_off = cell
+	_check("the bot: a tracker's lock makes the hexes it can still reach danger to its target",
+		int(locked_map.get(step, 0)) > 0 and int(theirs.get(step, 0)) == 0 and (far_off == victim or int(locked_map.get(far_off, 0)) == 0))
 
 	var gen: CombatState = _fight(_rows(), [_unit(HAMMER, victim)], [{"parts": LANCE, "x": tracker.x, "y": tracker.y, "hp": 30, "kind": "tracker"}])
 	_check("tracker: its intent is locked onto a machine", gen.intents.is_empty() or int(gen.intents[0].get("lock", -1)) == 0)
