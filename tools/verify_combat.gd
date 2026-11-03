@@ -76,6 +76,8 @@ func _initialize() -> void:
 	_timed(_test_rules_086)
 	_timed(_test_damage_steps_087)
 	_timed(_test_intent_lost_087)
+	_timed(_test_hot_ground_087)
+	_timed(_test_reinforcements_087)
 	for id: String in ["proto_yard", "slag_pit", "container_row", "pit_row", "crane_legs", "slag_channel", "sorting_gate", "shakedown",
 			"slag_lake", "pipe_forest", "cooling_flats", "the_pour", "casting_floor", "ladle_line", "furnace_mouths", "the_core",
 		"warlord_grinder", "warlord_magnet", "warlord_twins"]:
@@ -2480,6 +2482,122 @@ func _test_intent_lost_087() -> void:
 						wrong += 1
 						print("    wrong missing %s/%d: %s then %s" % [id, seed, GridEv.describe(e), GridEv.describe(st.events[mini(i + 1, st.events.size() - 1)])])
 	_check("bot fights: INTENT_LOST exactly when an intent is cancelled (%d lost, %d wrong)" % [lost_n, wrong], lost_n > 5 and wrong == 0)
+
+
+## 087 (A4b): an enemy lob leaves the hex it lands on hot for the crew's next turn: +heat to a crew
+## machine that walks onto or through it; equal routes go round it; it cools at the end of that turn.
+func _test_hot_ground_087() -> void:
+	var rule: Dictionary = _db.combat_rules.get("ground_after_hit", {})
+	var far: Vector2i = _off(C, 3, -3, 0)
+	var s: CombatState = _fight(_rows(), [_unit(HAMMER, C, 40)], [_unit(MORTAR, far, 40)])
+	_place(s, 0, C)
+	_place(s, 10, far)
+	s.unit(10).moved = true
+	s.intents = [{"ref": 10, "w": _shape_index(s.unit(10), "lob"), "x": C.x, "y": C.y, "order": 1}]
+	var peek: Dictionary = CombatSim.incoming(s)
+	_check("a preview of the volley leaves the real board cool", s.hot_ground.is_empty() and not peek.is_empty())
+	var since: int = s.events.size()
+	# The volley fires at the end of the turn; check it before the next round's enemies move.
+	var copy: CombatState = s.clone()
+	CombatSim._end_turn(copy)
+	var set: Array = _events_of(copy, since, GridEv.GROUND_SET)
+	_check("the lob that lands leaves its hex hot: GROUND_SET (rounds %d, heat %d)" % [int(rule.get("rounds", 0)), int(rule.get("heat", 0))],
+		set.size() == 1 and Vector2i(int(set[0][GridEv.F_X]), int(set[0][GridEv.F_Y])) == C and int(set[0][GridEv.F_ACTOR]) == 10
+		and int(set[0][GridEv.F_V1]) == int(rule["rounds"]) and int(set[0][GridEv.F_V2]) == int(rule["heat"])
+		and copy.hot_ground.has(C) and int(copy.hot_ground[C]["heat"]) == int(rule["heat"]))
+	CombatSim.apply(copy, [CombatSim.ACT_END, 0, 0, 0])
+	_check("and it cools when the crew's next turn ends", not copy.hot_ground.has(C) or _events_of(copy, since, GridEv.GROUND_SET).size() > 1)
+	# A crew lob leaves nothing (the rule is the enemy's).
+	var mine: CombatState = _fight(_rows(), [_unit(MORTAR, C, 40)], [_unit(HAMMER, far, 40)])
+	_place(mine, 0, C)
+	_place(mine, 10, far)
+	_attack(mine, 0, _shape_index(mine.unit(0), "lob"), far)
+	_check("a crew machine's own lob leaves no hot ground", mine.hot_ground.is_empty())
+	# Walking: onto a hot hex, +heat; the preview says so first.
+	var n: Vector2i = Hex.neighbor(C, 0)
+	var walk: CombatState = _fight(_rows(), [_unit(HAMMER, C, 40)], [_unit(HAMMER, Vector2i(0, 0), 40)])
+	_place(walk, 0, C)
+	_place(walk, 10, Vector2i(0, 0))
+	walk.hot_ground[n] = {"rounds": 1, "heat": 2}
+	var said: int = CombatSim.move_heat(walk, 0, n)
+	var before: int = walk.unit(0).heat
+	CombatSim.apply(walk, [CombatSim.ACT_MOVE, 0, n.x, n.y])
+	_check("a machine that ends its move on hot ground takes its heat (%d, the preview said %d)" % [walk.unit(0).heat - before, said],
+		walk.unit(0).heat - before == 2 and said == 2)
+	# Of two equally short routes, the one round the hot hex.
+	var dest: Vector2i = _off(C, 2, -1, -1)
+	var route: CombatState = _fight(_rows(), [_unit(HAMMER, C, 40)], [_unit(HAMMER, Vector2i(0, 0), 40)])
+	_place(route, 0, C)
+	_place(route, 10, Vector2i(0, 0))
+	var first: Array = CombatSim.reachable(route, 0)[dest]
+	route.hot_ground[first[0]] = {"rounds": 1, "heat": 2}
+	var second: Array = CombatSim.reachable(route, 0)[dest]
+	_check("of two equal routes the walk takes the one round the hot hex", first.size() == 2 and second.size() == 2
+		and second[0] != first[0] and CombatSim.move_heat(route, 0, dest) == 0)
+	# A route must cross it: heat on the way through.
+	var through: Vector2i = Hex.neighbor(n, 0)
+	var cross: CombatState = _fight(_rows(), [_unit(HAMMER, C, 40)], [_unit(HAMMER, Vector2i(0, 0), 40)])
+	_place(cross, 0, C)
+	_place(cross, 10, Vector2i(0, 0))
+	cross.hot_ground[n] = {"rounds": 1, "heat": 2}
+	_check("crossing a hot hex on the only short route costs its heat", CombatSim.move_heat(cross, 0, through) == 2)
+	_check("the bot weighs it: a hot route is worth less than a cool one",
+		IntentAI.heat_value(cross, cross.unit(0), [n, through]) < IntentAI.heat_value(cross, cross.unit(0), [through]))
+	_check("an enemy takes no heat from it", CombatSim.path_heat(cross, cross.unit(10), [n]) == 0)
+
+
+## 087 (A3): an ordinary fight's reinforcements: marked a round ahead, they land on their round and
+## hold their fire that round; a crew machine on a mark blocks it (block_damage) and it comes a round
+## later; the objective counts the waves down; killing every enemy on the board still wins.
+func _test_reinforcements_087() -> void:
+	var spec: Dictionary = _unit(HAMMER, Vector2i(0, 0), 20)
+	var fight: Dictionary = {"id": "test", "rows": _rows(), "player": [_unit(HAMMER, Vector2i(4, 7), 60)],
+		"enemy": [_unit(HAMMER, Vector2i(8, 0), 30)], "reinforcements": {"from_round": 3, "every": 2, "waves": [[spec], [spec, spec]]}}
+	var setup: CombatSetup = CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 5)
+	_check("two waves, rounds 3 and 5, of 1 and 2, held in reserve and holding fire",
+		setup.escort_waves.size() == 2 and int(setup.escort_waves[0]["round"]) == 3 and int(setup.escort_waves[1]["round"]) == 5
+		and (setup.escort_waves[1]["refs"] as Array).size() == 2 and setup.reserves.size() == 3 and setup.hold_fire.size() == 3)
+	var s: CombatState = CombatSim.start(setup)
+	var status: Dictionary = CombatSim.objective_status(s)
+	_check("the objective counts the waves: %s" % status["text"], int(status["waves_left"]) == 2
+		and String(status["text"]).contains("2 WAVES LEFT") and int(status["next_wave_in"]) == 2)
+	CombatSim.apply(s, [CombatSim.ACT_END, 0, 0, 0])
+	var marked: Array = _events_of(s, 0, GridEv.WAVE_MARKED)
+	_check("round 2 marks the round-3 arrival on the enemy's half", s.round_number == 2 and marked.size() == 1
+		and int(marked[0][GridEv.F_TARGET]) == int(setup.escort_waves[0]["refs"][0]) and int(marked[0][GridEv.F_Y]) < s.height / 2
+		and int(CombatSim.objective_status(s)["next_wave_in"]) == 1)
+	var since: int = s.events.size()
+	CombatSim.apply(s, [CombatSim.ACT_END, 0, 0, 0])
+	var ref: int = int(setup.escort_waves[0]["refs"][0])
+	var landed: GridUnit = s.unit(ref)
+	var fired: bool = false
+	for e: Array in _events_of(s, since, GridEv.INTENT_SET):
+		fired = fired or int(e[GridEv.F_ACTOR]) == ref
+	_check("round 3: it lands and sets no intent that round", s.round_number == 3 and landed != null and landed.alive
+		and landed.acted and not fired and int(CombatSim.objective_status(s)["waves_left"]) == 1)
+	# Blocking: the crew machine stands on the next wave's marks when the round ends.
+	CombatSim.apply(s, [CombatSim.ACT_END, 0, 0, 0])
+	var marks: Array = s.wave_marks.duplicate()
+	var knuckles: GridUnit = s.unit(0)
+	knuckles.x = (marks[0] as Vector2i).x
+	knuckles.y = (marks[0] as Vector2i).y
+	var hp: int = knuckles.hp
+	s.intents.clear()
+	since = s.events.size()
+	CombatSim.apply(s, [CombatSim.ACT_END, 0, 0, 0])
+	_check("a crew machine on a mark blocks it and takes block_damage (%d)" % s.setup.block_damage,
+		_events_of(s, since, GridEv.SPAWN_BLOCKED).size() == 1 and knuckles.hp == hp - s.setup.block_damage
+		and s.wave_refs.size() == 1)
+	# A strong opening: everything on the board dead before a wave lands wins.
+	var quick: CombatState = CombatSim.start(CombatSetup.build(fight, _db.combat_rules, _db.parts, _db.tiles, _db.effectiveness, 5))
+	var lone: GridUnit = quick.unit(10)
+	lone.hp = 1
+	var k: GridUnit = quick.unit(0)
+	var spot: Vector2i = Hex.neighbor(Vector2i(lone.x, lone.y), 3)
+	k.x = spot.x
+	k.y = spot.y
+	_attack(quick, 0, 0, Vector2i(lone.x, lone.y))
+	_check("killing every enemy on the board before a wave lands wins the fight", quick.outcome == CombatState.WON)
 
 
 func _events_of(state: CombatState, since: int, kind: int) -> Array:

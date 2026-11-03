@@ -178,7 +178,7 @@ static func _dash(state: CombatState, u: GridUnit, out: Array) -> void:
 		for cell: Vector2i in cells:
 			if cell == here:
 				continue
-			var value: int = _stand_value(state, u, cell, (paths[cell] as Array).size(), ctx)
+			var value: int = _stand_value(state, u, cell, (paths[cell] as Array).size(), ctx) + IntentAI.heat_value(state, u, paths[cell])
 			if value > best_value:
 				best_value = value
 				best = cell

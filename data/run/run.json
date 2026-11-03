@@ -119,6 +119,9 @@
     "_elite_086": "086 (A5): an elite is a different problem, not a bigger number: its veteran carries one affix from `elite_affixes` (ids in data/combat/enemy_kinds.json `elite_affixes`), picked by its own SimRNG stream; an empty list gives none. elite_hp_bonus 3/4/5 -> 2 in every act.",
     "_boss": "013: the gate is its own map (data/fights/sorting_gate.json): the Sorter, its pylons, and `boss_escorts` rolled escorts. boss_count / boss_hp_bonus apply only if no gate map exists."
   },
+  "reinforcements": {"_comment": "087 (A3, the user): ordinary fights get marked REINFORCEMENTS: from `from_round`, one wave every `every` rounds, `waves_by_act` waves (counted down on the objective line), each `count_by_column` machines rolled from the act's pool. Marked a round ahead on the enemy's half; a crew machine on a mark blocks it and takes `block_damage` (rules.json), the machine comes a round later. They hold their fire on the round they land. Killing every enemy on the board still wins: the waves not yet landed never come. Not on SURVIVE (it has its own waves).",
+    "kinds": ["skirmish", "elite", "arena"], "not_objectives": ["survive"],
+    "from_round": 3, "every": 2, "waves_by_act": [1, 2, 2], "count_by_column": [1, 1, 1, 2, 2, 2, 2, 2, 2]},
   "rewards": {
     "skirmish_scrap": 10,
     "elite_scrap": 14,
@@ -250,7 +253,7 @@
       "_comment": "021. Laid over the run's rules one level deep while the crew is in Act 2. `arrive` is what breaking the gate before it gives.",
       "arrive": {"repair": 6, "scrap": 15},
       "enemies": {"count_by_column": [4, 4, 4, 4, 4, 5, 5, 5, 5], "rarity_cap_by_column": [2, 2, 2, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 2, "hp_all": 5, "boss_escorts": 4, "warlord_escorts": 3, "boss_late_waves": [{"round": 6, "count": 2}], "bonus": {"damage": 1}},
-      "kinds": {"chance_by_column": [40, 50, 50, 60, 60, 70, 70, 80, 80], "weights": {"tracker": 20, "bomber": 20, "warden": 15, "hive": 15, "sentinel": 30}},
+      "kinds": {"chance_by_column": [40, 50, 50, 60, 60, 70, 70, 80, 80], "weights": {"tracker": 40, "bomber": 20, "warden": 15, "hive": 15, "sentinel": 30}, "_087": "087 (A4a): trackers weighted 30 / 40 / 45 by act (was 30 / 20 / 15)"},
       "terrain": {"slag": [1, 3]},
       "rewards": {"rarity_weights": [55, 38, 7], "elite_min_rarity": 2, "choices": 3, "spoils_max_rarity": 3, "_086": "086 (A9, the user): both keepers' hoards always hold a legendary (two offered a run)"},
       "board": {"enemies": 1}
@@ -260,7 +263,7 @@
       "_comment": "025. The furnace-city, the run's last act: bigger squads of rare parts that hit harder, conduits, furnace flues on every board, and the Core at its gate.",
       "arrive": {"repair": 6, "scrap": 20},
       "enemies": {"count_by_column": [4, 4, 5, 5, 5, 5, 6, 6, 6], "rarity_cap_by_column": [3, 3, 3, 3, 3, 3, 3, 3, 3], "elite_hp_bonus": 2, "hp_all": 5, "boss_escorts": 4, "warlord_escorts": 3, "boss_late_waves": [{"round": 6, "count": 2}], "bonus": {"damage": 2}},
-      "kinds": {"chance_by_column": [50, 50, 60, 60, 70, 70, 80, 80, 90], "weights": {"tracker": 15, "bomber": 15, "warden": 10, "hive": 10, "sentinel": 20, "conduit": 30}},
+      "kinds": {"chance_by_column": [50, 50, 60, 60, 70, 70, 80, 80, 90], "weights": {"tracker": 45, "bomber": 15, "warden": 10, "hive": 10, "sentinel": 20, "conduit": 30}, "_087": "087 (A4a): trackers weighted 30 / 40 / 45 by act"},
       "terrain": {"flues": [2, 4], "slag": [0, 2]},
       "rewards": {"rarity_weights": [35, 48, 17], "elite_min_rarity": 2, "choices": 3, "spoils_max_rarity": 3, "_032": "play-test 10: most parts were rare+ by Act 3 (031: 10/42/42/6, elites always rare)", "_086": "086 (A9): no legendary in Act 3 salvage (was 2 of 100): legendaries come only from gate keepers"},
       "board": {"enemies": 1}

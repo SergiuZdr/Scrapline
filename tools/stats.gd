@@ -151,8 +151,21 @@ static func override(db: ContentDB, setting: String, quiet: bool = false) -> voi
 	elif keys[0] == "fight":
 		node = db.fights[keys[1]]
 		first = 2
-	for k: int in range(first, keys.size() - 1):
-		node = node[keys[k]]
+	# 087: a number after a list's key indexes it (`acts.1.kinds.weights.tracker=20`).
+	var k: int = first
+	while k < keys.size() - 1:
+		if not node.has(keys[k]):
+			push_error("override %s: no such key %s" % [pair[0], keys[k]])
+			return
+		var next: Variant = node[keys[k]]
+		if next is Array:
+			k += 1
+			if k >= keys.size() - 1 or not keys[k].is_valid_int():
+				push_error("override %s: %s is a list; give an index" % [pair[0], keys[k - 1]])
+				return
+			next = (next as Array)[keys[k].to_int()]
+		node = next
+		k += 1
 	var last: String = keys[keys.size() - 1]
 	if not node.has(last):
 		push_error("override %s: no such number (a typo would change nothing)" % pair[0])

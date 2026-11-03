@@ -43,6 +43,8 @@ const REFINE: int = 6
 ## 028: standing on HOLD's zone (both sides), and on a terminal not yet taken (the crew).
 const SCORE_ZONE: int = 45
 const SCORE_TERMINAL: int = 80
+## 087 (A4b): per point of heat a crew machine would take walking over hot ground.
+const SCORE_HOT_HEAT: int = -10
 
 
 ## Returns `{ "dest", "path", "w" (-1 = no attack), "target": Vector2i, "score", "attack" }` --
@@ -74,7 +76,8 @@ static func plan(state: CombatState, u: GridUnit, ctx: Dictionary) -> Dictionary
 	var best_attack: int = 0
 	var candidates: Array = []
 	for cell: Vector2i in cells:
-		var base: int = _tile_value(state, cell, (options[cell] as Array).size(), danger, shield) + _objective_value(state, u, cell)
+		var base: int = _tile_value(state, cell, (options[cell] as Array).size(), danger, shield) + _objective_value(state, u, cell) \
+			+ heat_value(state, u, options[cell])
 		# Evaluate from the destination by standing there for the length of the loop.
 		u.x = cell.x
 		u.y = cell.y
@@ -126,7 +129,7 @@ static func plan(state: CombatState, u: GridUnit, ctx: Dictionary) -> Dictionary
 	for cell: Vector2i in cells:
 		var gap: int = _nearest_target_distance(state, u, cell)
 		var score: int = -absi(gap - want) * 10 + _tile_value(state, cell, (options[cell] as Array).size(), danger, shield) \
-			+ _objective_value(state, u, cell)
+			+ _objective_value(state, u, cell) + heat_value(state, u, options[cell])
 		var tie: int = mix(state.setup.rng_seed, u.ref * 131 + state.round_number, cell.x * 17 + cell.y, 99)
 		if score > best_score or (score == best_score and tie < best_tie):
 			best_score = score
@@ -400,6 +403,15 @@ static func _tile_value(state: CombatState, cell: Vector2i, steps: int, danger: 
 	if not state.wave_refs.is_empty() and state.wave_marks.has(cell):
 		value += SCORE_PAD
 	return value
+
+
+## 087 (A4b): what walking `path` over hot ground costs a crew machine: its heat, and an overheat
+## (no attack next round) if it would reach the cap. 0 for enemies (they have no heat).
+static func heat_value(state: CombatState, u: GridUnit, path: Array) -> int:
+	var heat: int = CombatSim.path_heat(state, u, path)
+	if heat <= 0:
+		return 0
+	return SCORE_HOT_HEAT * heat + (SCORE_OVERHEAT * 2 if u.heat + heat >= u.heat_cap else 0)
 
 
 static func _preferred_distance(u: GridUnit) -> int:

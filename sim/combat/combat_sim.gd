@@ -124,6 +124,9 @@ static func paths_from(state: CombatState, u: GridUnit, budget: int) -> Dictiona
 	# Scrap picked up on the way (an objective takes none), then hexes walked: the tie-breaks.
 	var scrap: Dictionary = {start: 0}
 	var steps: Dictionary = {start: 0}
+	# 087 (A4b): hot hexes entered, for a crew machine (fewer is better; it costs heat).
+	var hot: Dictionary = {start: 0}
+	var minds_heat: bool = not state.hot_ground.is_empty() and u.team == GridUnit.TEAM_PLAYER and not u.objective
 	var came_from: Dictionary = {start: start}
 	var open: Array[Vector2i] = [start]
 	var done: Dictionary = {}
@@ -146,13 +149,19 @@ static func paths_from(state: CombatState, u: GridUnit, budget: int) -> Dictiona
 			var c: int = int(cost[cell]) + state.move_cost(n.x, n.y)
 			var taken: int = int(scrap[cell]) + (0 if u.objective else int(state.piles.get(n, 0)))
 			var walked: int = int(steps[cell]) + 1
+			var burnt: int = int(hot[cell]) + (1 if minds_heat and state.hot_ground.has(n) else 0)
 			if c > budget or done.has(n):
 				continue
-			if cost.has(n) and not _better(c, taken, walked, int(cost[n]), int(scrap[n]), int(steps[n])):
-				continue
+			if cost.has(n):
+				if c == int(cost[n]) and burnt != int(hot[n]):
+					if burnt > int(hot[n]):
+						continue
+				elif not _better(c, taken, walked, int(cost[n]), int(scrap[n]), int(steps[n])):
+					continue
 			cost[n] = c
 			scrap[n] = taken
 			steps[n] = walked
+			hot[n] = burnt
 			came_from[n] = cell
 			open.append(n)
 	var result: Dictionary = {}
@@ -990,6 +999,10 @@ static func objective_status(state: CombatState) -> Dictionary:
 	var status: Dictionary = {"type": kind, "caches": state.caches().size(), "caches_total": total,
 		"piles": state.piles_collected, "need": int(o.get("need", 0)),
 		"rounds_left": maxi(0, int(o.get("rounds", 0)) - state.round_number + 1)}
+	# 087 (A3): marked waves still to come (a boss's escorts or an ordinary fight's reinforcements),
+	# and the rounds until the next one lands (1: its marks are on the board now; 0: none to come).
+	status["waves_left"] = escort_waves_left(state)
+	status["next_wave_in"] = next_wave_in(state)
 	match kind:
 		"defend":
 			status["text"] = "DEFEND  ·  %d of %d caches standing  ·  hold %d more round%s, or destroy every enemy" % [
@@ -1039,7 +1052,22 @@ static func objective_status(state: CombatState) -> Dictionary:
 				var left: int = state.setup.max_rounds - state.round_number + 1
 				status["text"] += "  ·  %d round%s left" % [left, "" if left == 1 else "s"]
 				status["rounds_left"] = left
+	if state.setup.keepers.is_empty() and int(status["waves_left"]) > 0:
+		status["text"] += "  ·  %d WAVE%s LEFT" % [status["waves_left"], "" if int(status["waves_left"]) == 1 else "S"]
 	return status
+
+
+## 087 (A3): rounds until the next marked wave lands: 1 when its marks are on the board (or an escort
+## whose mark was blocked waits for a new one), else the rounds to the next wave's round; 0 for none.
+static func next_wave_in(state: CombatState) -> int:
+	if not state.wave_refs.is_empty() or not state.held_escorts.is_empty():
+		return 1
+	var best: int = 0
+	for wave: Dictionary in state.setup.escort_waves:
+		var r: int = int(wave["round"])
+		if r > state.round_number and (best == 0 or r - state.round_number < best):
+			best = r - state.round_number
+	return best
 
 
 # --- Actions -----------------------------------------------------------------
@@ -1152,6 +1180,7 @@ static func _execute_attack(state: CombatState, u: GridUnit, w: int, target: Vec
 				throw_wreck(state, u.ref, victim, dir)
 	for prop: Dictionary in (plan.get("props", []) as Array):
 		damage_prop(state, u.ref, prop["cell"], int(prop["damage"]))
+	_set_ground(state, u, weapon, target)
 	# 033, thorns: a melee blow on a machine that carries them costs the attacker.
 	if String(weapon["shape"]) == "melee":
 		for hit: Dictionary in hits:
@@ -1358,6 +1387,73 @@ static func collect_path(state: CombatState, u: GridUnit, path: Array) -> void:
 	for cell: Variant in path:
 		collect_at(state, u, cell)
 	collect(state, u)
+	_ground_heat(state, u, path)
+
+
+## 087 (A4b): the heat a crew machine takes walking `path` (every hex it enters, the last one
+## included): each hot hex on it adds its `heat`. Enemies have no heat; 0 for them.
+static func path_heat(state: CombatState, u: GridUnit, path: Array) -> int:
+	if state.hot_ground.is_empty() or u.team != GridUnit.TEAM_PLAYER or u.objective:
+		return 0
+	var heat: int = 0
+	for cell: Variant in path:
+		if state.hot_ground.has(cell):
+			heat += int((state.hot_ground[cell] as Dictionary)["heat"])
+	return heat
+
+
+## 087 (A4b): what moving `ref` to `dest` would add to its heat on the way (the HUD's move preview).
+static func move_heat(state: CombatState, ref: int, dest: Vector2i) -> int:
+	var options: Dictionary = reachable(state, ref)
+	if not options.has(dest):
+		return 0
+	return path_heat(state, state.unit(ref), options[dest])
+
+
+static func _ground_heat(state: CombatState, u: GridUnit, path: Array) -> void:
+	var heat: int = path_heat(state, u, path)
+	if heat <= 0 or not u.alive:
+		return
+	u.heat += heat
+	state.emit(GridEv.HEAT, u.ref, -1, u.x, u.y, u.heat, u.heat_cap)
+	if u.heat >= u.heat_cap and not u.overheated:
+		u.overheated = true
+		state.emit(GridEv.OVERHEAT, u.ref, -1, u.x, u.y)
+		if u.meltdown > 0:
+			state.emit(GridEv.MELTDOWN, u.ref, -1, u.x, u.y, u.meltdown)
+			explode(state, u.ref, Vector2i(u.x, u.y), u.meltdown)
+
+
+## 087 (A4b): a lob of a side named in rules.json `ground_after_hit` leaves the hex it landed on hot
+## for `rounds` of the crew's turns: GROUND_SET. Not on a pit or a blocking hex.
+static func _set_ground(state: CombatState, u: GridUnit, weapon: Dictionary, cell: Vector2i) -> void:
+	var rule: Dictionary = state.setup.ground_after_hit
+	if rule.is_empty() or not (rule.get("shapes", []) as Array).has(String(weapon["shape"])):
+		return
+	if not (rule.get("teams", []) as Array).has("enemy" if u.team == GridUnit.TEAM_ENEMY else "crew"):
+		return
+	if not state.inside(cell) or state.solid(cell) or state.is_pit(cell):
+		return
+	var rounds: int = int(rule.get("rounds", 1))
+	var heat: int = int(rule.get("heat", 2))
+	if rounds <= 0 or heat <= 0:
+		return
+	state.hot_ground[cell] = {"rounds": rounds, "heat": heat}
+	state.emit(GridEv.GROUND_SET, u.ref, -1, cell.x, cell.y, rounds, heat)
+
+
+## 087 (A4b): the crew's turn is over: hot ground cools by one turn, and goes when it reaches 0.
+static func _cool_ground(state: CombatState) -> void:
+	if state.hot_ground.is_empty():
+		return
+	var cells: Array = state.hot_ground.keys()
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
+	for cell: Variant in cells:
+		var left: int = int((state.hot_ground[cell] as Dictionary)["rounds"]) - 1
+		if left <= 0:
+			state.hot_ground.erase(cell)
+		else:
+			state.hot_ground[cell]["rounds"] = left
 
 
 ## Takes the pile at `cell` for `u` (Magnet reaches one without stepping on it).
@@ -1545,6 +1641,7 @@ static func _end_turn(state: CombatState) -> void:
 		if u.team == GridUnit.TEAM_PLAYER:
 			u.snared = false
 			u.rooted = maxi(0, u.rooted - 1)
+	_cool_ground(state)
 	if _fire_intents(state):
 		return
 	state.intents.clear()
@@ -2515,6 +2612,9 @@ static func _escort_arrivals(state: CombatState) -> void:
 		var escort: GridUnit = held.copy()
 		escort.x = cell.x
 		escort.y = cell.y
+		# 087 (A3): a reinforcement holds its fire on the round it lands (it may still move).
+		if state.setup.hold_fire.has(escort.ref):
+			escort.acted = true
 		state.units.append(escort)
 		state.units.sort_custom(func(a: GridUnit, b: GridUnit) -> bool: return a.ref < b.ref)
 		state.emit(GridEv.SPAWNED, -2, escort.ref, cell.x, cell.y)
