@@ -4,7 +4,7 @@
   "acts": [
     3
   ],
-  "_comment": "088 (A6), Act 3, built around HACK: the blower controls stand at the two far ends of the house and one in the middle of the engine floor; the engines (flues) blow every other round between them. Taking three means splitting the crew across the floor.",
+  "_comment": "088 (A6), Act 3, built around HACK: the blower controls stand at the two far ends of the house and one in the middle of the engine floor, two more deep by the far wall among the enemy's own starts; the engines (flues) blow every other round between them. Four of five are needed: the crew splits across the floor and goes deep. Measured (balance_fights --maps, Act 3 enemy bonus): the first layout (four terminals, need 3) won 100% in 4.1 rounds against 90-97% and 6.4-8.3 for the other Act 3 maps; need 4 of 5 takes 4.3 (the objective ends fights early by nature).",
   "rows": [
     "..f..f..",
     "........",
@@ -130,6 +130,6 @@
       "y": 1
     }
   ],
-  "objective": {"type": "hack", "need": 3, "cells": [{"x": 0, "y": 3}, {"x": 7, "y": 3}, {"x": 4, "y": 5}, {"x": 3, "y": 1}]},
+  "objective": {"type": "hack", "need": 4, "cells": [{"x": 0, "y": 3}, {"x": 7, "y": 3}, {"x": 4, "y": 5}, {"x": 3, "y": 1}, {"x": 1, "y": 0}]},
   "own_objective": true
 }
