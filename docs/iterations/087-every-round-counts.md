@@ -41,6 +41,15 @@ From round 3 on every round brings a new problem, dodging is no longer free, and
 - The other reds on the board (a yard container, crate trim, the fuel drum, the SCRAP BLAST label, the Core's
   props) **stay** as they are.
 
+## The user's answers on the sim numbers (2026-11-03)
+The first full build (waves 1/2/2 from round 3, trackers 30/40/45, hot ground from lobs) took the bot's run
+win rate from ~56% to **30.0%** (150 runs; Act 2 lost 44.6%, Act 3 41.6%).
+- Waves keep their sizes but **start at round 4**.
+- **Boss escorts hold fire the round they land**, like reinforcements: one rule.
+- Hot ground comes from enemy **lob, cone and sweep** (lobs alone almost never happened: one rare arm).
+- **Fix the bot's tracker read**: a locked shot follows its target; the bot treated it as dodgeable. Every
+  number after this is measured with the fixed bot.
+
 ## Work split (parallel agents, disjoint files)
 - **S, the sim:** A3, A4 (a, b), A12 `damage_steps`, A17 `INTENT_LOST`; run.json, enemy_kinds, verify_combat,
   verify_run, balance_fights/byround measurements.
