@@ -1536,6 +1536,7 @@ func _test_front_pace() -> void:
 ## seeds x 3 acts), on a hashed route that damages and wrecks the crew and lets the front move.
 func _test_fight_preview() -> void:
 	var compared: int = 0
+	var swaps: int = 0
 	var mismatch: String = ""
 	var hidden_ok: bool = true
 	var conditions_ok: bool = true
@@ -1570,6 +1571,11 @@ func _test_fight_preview() -> void:
 				if options.is_empty():
 					break
 				var to: int = options[IntentAI.mix(seed_value, act, steps, 77) % options.size()]
+				# 088 (A6): the card the map shows the moment the crew chooses (it may have changed since
+				# the act began: a site whose dealt map was met elsewhere this act shows a fresh one).
+				var card_now: Dictionary = RunSim.fight_preview(state, setup, to) if RunSim.revealed(state, to) else {}
+				var met_names: Array = state.maps.filter(func(m: Array) -> bool: return int(m[0]) == state.act).map(
+					func(m: Array) -> String: return String((setup.fights[String(m[1])] as Dictionary).get("name", "")))
 				RunSim.apply(state, setup, [RunSim.TRAVEL, to])
 				if String(state.pending.get("kind", "")) == "fight":
 					var kind: String = String(state.pending["site_type"])
@@ -1577,8 +1583,15 @@ func _test_fight_preview() -> void:
 					var got: Dictionary = RunSim.fight_summary(setup, fight, kind)
 					var made: String = var_to_str([fight["enemy"], fight["objective"], fight["rows"], fight.get("modifiers", [])])
 					compared += 1
-					if got != cards.get(to, {}) or made != full.get(to, ""):
-						mismatch = "seed %d act %d site %d: %s vs %s" % [seed_value, act, to, got, cards.get(to, {})]
+					var start_card: Dictionary = cards.get(to, {})
+					var swapped: bool = not start_card.is_empty() and String(start_card.get("name", "")) != String(got.get("name", "")) \
+						and met_names.has(String(start_card.get("name", "")))
+					if swapped:
+						swaps += 1
+					if not card_now.is_empty() and got != card_now:
+						mismatch = "seed %d act %d site %d (card just before travel): %s vs %s" % [seed_value, act, to, got, card_now]
+					elif not swapped and (got != start_card or made != full.get(to, "")):
+						mismatch = "seed %d act %d site %d: %s vs %s" % [seed_value, act, to, got, start_card]
 					var cond: String = RunSim.act_condition(state, setup, act)
 					if kind != "boss" and kind != "warlord" and String(got["condition"]) != cond:
 						conditions_ok = false
@@ -1592,8 +1605,8 @@ func _test_fight_preview() -> void:
 				state.pending = {}
 			state.pending = {}
 	_check("unscouted fight sites show no card", hidden_ok)
-	_check("every card equals the fight made after travel: %d fights over 300 regions %s" % [compared, mismatch],
-		mismatch.is_empty() and compared > 600)
+	_check("every card equals the fight made after travel: %d fights over 300 regions (%d shown a fresh map since the act began, their dealt one met elsewhere) %s" % [compared, swaps, mismatch],
+		mismatch.is_empty() and compared > 600 and swaps * 5 < compared)
 	_check("every fight of an act (not the gate or warlord) carries the act's condition", conditions_ok)
 	# The card's shape: what the map shows.
 	var setup2: RunSetup = _setup(5)
@@ -2457,6 +2470,7 @@ func _test_act3_variety_088() -> void:
 	_check("and mirrored at %d of 40 (about half)" % mirrored, mirrored >= 10 and mirrored <= 30)
 
 	# A map's own objective comes with it, widened (and mirrored) with the board.
+	state.maps = []
 	var kept: int = 0
 	var checked: int = 0
 	var errors: PackedStringArray = []
