@@ -1002,7 +1002,7 @@ func _test_wreck_recovery() -> void:
 	for seed_value: int in range(1, 400):
 		var hard: RunSetup = _setup(seed_value)
 		hard.rules = hard.rules.duplicate(true)
-		hard.rules["enemies"]["bonus"] = {"damage": 4}
+		hard.rules["enemies"]["bonus"] = {"damage": 6}
 		var run: RunState = RunSim.start(hard)
 		var site: int = RunSim.destinations(run)[0]
 		# 084: a site as generated, never retyped -- the replay below regenerates the region.

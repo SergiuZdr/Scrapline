@@ -2,6 +2,22 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [087] Every round counts — done ([detail](iterations/087-every-round-counts.md))
+
+### Added
+- Reinforcements in skirmishes, elites and arenas: marked a round ahead from round 4, waves 1/2/2 by act; "N WAVES
+  LEFT" on the objective line; a landing machine (and every escort) holds fire that round.
+- Hot ground: an enemy lob, cone or sweep leaves its aimed hex hot one round (+2 heat to enter or cross).
+- Damage that explains itself (`CombatSim.damage_steps`, per-hit `steps`); the CANCELLED beat (`INTENT_LOST`, its
+  own sound); push ghosts and RE-AIMS / WILL MISS lines while aiming.
+- Glossary LOCKED, KO, CANCELLED, HOT GROUND, REINFORCEMENTS. `docs/plans/hud-budget.md`. `tools/byround.gd`,
+  `tools/shot_red.gd`, a red census in `measure_contrast`.
+
+### Changed
+- Red means danger: slag is ember orange (no red glow), damage dealt floats in its damage type's colour, SEIZED is
+  copper, the Core's empty ring hexes are a red dashed zone.
+- Trackers weigh 30/40/45 by act. The bot reads a tracker's lock (it no longer walks into locked shots).
+
 ## [086] Builds that change rules — done ([detail](iterations/086-builds-that-change-rules.md))
 
 ### Added

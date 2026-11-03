@@ -114,3 +114,10 @@ Drawn 1.75x in crimson (warlords 1.4x, gunmetal) with a boss bar (`CombatHUD.set
 Act 1's `kinds.chance_by_column` starts at 20% (was 0%), so early fights have a tracker, bomber,
 warden or hive sometimes. Enemies roll the new arms by the usual rarity caps: the flail from the
 first column, snares and mines from column 3 (`rarity_cap_by_column` 2).
+
+## Trackers and the bot (087)
+- Trackers weigh 30/40/45 by act. The bot reads a lock: `CombatBot.context(state, for_ref)` re-runs a tracker's
+  locked shot (`strike_plan`) from every hex the planned machine can reach (move + 2 for Dash) and marks every hex
+  it still hits as danger; IntentAI shares the map. This fix alone was worth +22 points of run wins to the bot.
+- Reinforcements roll from the act's pool on their own SimRNG stream (`_rng(..., 59, act)`); copies skip affixed
+  enemies. Enemies weigh hot ground at -10 a heat point (they have none, so 0 today).

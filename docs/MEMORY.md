@@ -192,6 +192,11 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-11-02 | **Rule traits are not tied to a slot**: CINDER's 3-piece tears and Rending Grip tear on every weapon that hits; AP Rounds pierces on shots and gives other weapons +1; rule perks have no `needs` and are drawn **build-weighted** (a perk adding to a trait the machine carries, or to a set its makers build, has its roll halved) | 086, the user ("more versatile, not tied to a slot, focused on the current build") |
 | 2026-11-02 | **The torn part is a FOURTH salvage card** (`spoils_slot` -2), not in place of the last; **both gate keepers' hoards always hold a legendary** (two offered a run); BULWARK's plate 3, RIGGED also anchored; Act 1 elites roll volatile or rigged only | 086, the user |
 | 2026-11-02 | Legendary supply: warlord hoards 0, refinery stops at rare, auction 0, no Act 3 salvage legendary | 086 (A9) |
+| 2026-11-03 | **087 reinforcements**: waves 1/2/2 by act **from round 4** (from round 3 the bot fell to 30%), every 2 rounds, never in SURVIVE; **every landing machine holds fire that round, boss escorts too** (one rule) | 087, the user |
+| 2026-11-03 | **Hot ground** comes from enemy lob, cone and sweep, on the aimed hex only, +2 heat for one round (lobs alone almost never happened) | 087, the user |
+| 2026-11-03 | **Red means danger**: slag is a brighter ember (d88a3c) with its small contrast drop accepted (2.10 -> 2.07 on slag_pit); damage dealt floats in its damage type's colour (kinetic steel-white, thermal copper, EMP teal, corrosive acid green); OVERHEATED stays red, SEIZED copper; the Core's empty ring hexes a red dashed zone; other board reds (containers, crate trim, drum, labels) stay | 087, the user |
+| 2026-11-03 | **087 screens**: hot ground has ember cracks; push ghosts are see-through copies of the machine's model; CANCELLED is lettered beside the cloud; wording "REINFORCEMENT NEXT ROUND · block it: -N HP", "N WAVES LEFT", "RE-AIMS" / "WILL MISS" | 087, the user |
+| 2026-11-03 | **The bot reads a tracker's lock** (CombatBot.context re-runs the locked shot from every reachable hex) | 087, the user |
 
 ## Lessons carried over from the old codebase
 
@@ -355,6 +360,9 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-10-30 | measure_contrast drifts between sessions (the same build gave 2.19, then 2.12 an hour later): compare a look INTERLEAVED with its baseline (A B A B ...), never against a number from earlier. About one run in six measures a blank board (400k "machine" pixels): retry those |
 | 2026-11-02 | A pacing gauge on one bot fight moves with content: 086's data changed slag_pit's first enemy turn (a crate breaks a hit earlier, a longer walk) 1594 -> 1836 ms at 2x while 086's code on 085's data played 1586. Swap data and code separately before calling it a beat regression |
 | 2026-11-02 | A dry-run bot that plays whole fights per choice made runs ~3x slower; 3 rounds is the budget, and it undervalues rule perks (39% taken) -- read its perk numbers with that in mind |
+| 2026-11-03 | A bot that misreads a rule hides its cost: fixing the tracker read alone took the base from 55% to 77.5% (40 runs), more than any 087 content dial. Fix the bot's reading before tuning content against it |
+| 2026-11-03 | A straight colour mix toward a red-orange glow still reads red on screen (the print pass fringes bright warm pools red); move the hue toward yellow to remove red and keep warmth |
+| 2026-11-03 | A test that hunts seeds for a rare event slows down when the game gets kinder (verify_run's wreck search hit check.sh's 900 s limit); make the test's own setup harsher rather than widening the search |
 
 ## Open questions
 

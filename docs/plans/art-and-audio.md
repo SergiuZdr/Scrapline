@@ -113,6 +113,14 @@ A signal colour means one thing everywhere, or it stops meaning anything.
 Known overlaps, deliberate: red is one family (the enemy, its fire and the Reclaimer are
 all *danger*); blue covers "yours" and "you can go there" (both are the player's agency).
 
+### Red means danger (087)
+- Red is for harm to the crew: threats, the crew's own damage, OVERHEATED, the Core ring under a machine (solid)
+  and around it (dashed zone). Damage dealt floats in its damage type's colour (kinetic e4ecf0, thermal copper
+  d68b52, EMP 3ee6c8, corrosive b8e04a); SEIZED copper.
+- Slag is ember d88a3c (`Ink.SLAG_LOOKS`, `--slag old|umber|ember_dim|ember`), cooled in `ink_toon` (`hot_remap`,
+  `hot_sat`); a straight mix toward the old glow still read red through the print pass.
+- `measure_contrast` prints a red census (per mille: world, machines, danger, hud); world should fall, never grow.
+
 ## Read contracts
 
 | Element | The question it answers |
