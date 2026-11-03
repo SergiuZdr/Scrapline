@@ -33,6 +33,10 @@ pointed out the first time it appears. Act 3's openers can no longer be learned 
 - Shakedown: 12 steps, skippable.
 - Objectives: only a coach callout on the board, no comic strip.
 - Act 3: 3 new maps.
+- On the built shakedown:
+  - SKIP jumps to the last card over a dimmed board.
+  - A first-time callout is added for REINFORCEMENT marks, besides defend, salvage, hold, hack and survive.
+  - A fuel drum stays on the shakedown board with no coached step.
 
 ## Work split (parallel agents, disjoint files)
 - **O, onboarding:**
