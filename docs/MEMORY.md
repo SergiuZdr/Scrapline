@@ -197,6 +197,8 @@ than deleting it, and add the new entry with its date. Record **why** as well as
 | 2026-11-03 | **Red means danger**: slag is a brighter ember (d88a3c) with its small contrast drop accepted (2.10 -> 2.07 on slag_pit); damage dealt floats in its damage type's colour (kinetic steel-white, thermal copper, EMP teal, corrosive acid green); OVERHEATED stays red, SEIZED copper; the Core's empty ring hexes a red dashed zone; other board reds (containers, crate trim, drum, labels) stay | 087, the user |
 | 2026-11-03 | **087 screens**: hot ground has ember cracks; push ghosts are see-through copies of the machine's model; CANCELLED is lettered beside the cloud; wording "REINFORCEMENT NEXT ROUND · block it: -N HP", "N WAVES LEFT", "RE-AIMS" / "WILL MISS" | 087, the user |
 | 2026-11-03 | **The bot reads a tracker's lock** (CombatBot.context re-runs the locked shot from every reachable hex) | 087, the user |
+| 2026-11-04 | **088 shakedown**: 12 steps built on the signature verbs, skippable (SKIP shows the last card); a drum on the board with no step; objectives get a coach callout (no strip), once per profile, reinforcements too; rout and bosses none | 088, the user |
+| 2026-11-04 | **Act 3 variety**: maps are dealt to sites when the region is made and a map met this act is swapped for a fresh one (the card changes then); every Act 3 map mirrors half the time, the Core included; 3 new objective maps; **the run win rate of 45.3% is accepted** (Act 3 is the hard act) | 088, the user |
 
 ## Lessons carried over from the old codebase
 
@@ -363,6 +365,9 @@ The old `CLAUDE.md` holds hard-won lessons. These still apply:
 | 2026-11-03 | A bot that misreads a rule hides its cost: fixing the tracker read alone took the base from 55% to 77.5% (40 runs), more than any 087 content dial. Fix the bot's reading before tuning content against it |
 | 2026-11-03 | A straight colour mix toward a red-orange glow still reads red on screen (the print pass fringes bright warm pools red); move the hue toward yellow to remove red and keep warmth |
 | 2026-11-03 | A test that hunts seeds for a rare event slows down when the game gets kinder (verify_run's wreck search hit check.sh's 900 s limit); make the test's own setup harsher rather than widening the search |
+| 2026-11-04 | Random squads (balance_fights) win ~95% on every Act 3 map and cannot rank them; replaying the bot's real Act 3 fights on every map (`map_census --swap`) can |
+| 2026-11-04 | Matching a new map's single-fight win rate is not enough: more enemies and more rounds cost HP the next fight inherits (088's maps at the old rate still took Act 3 losses from 27% to 47%) |
+| 2026-11-04 | Cap an agent's measuring: 088's maps agent built in 30 minutes and measured in series for 12+ hours. One run_bot 150 plus one confirmation, then options for the user |
 
 ## Open questions
 

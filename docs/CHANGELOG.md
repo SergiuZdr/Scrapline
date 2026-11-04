@@ -2,6 +2,20 @@
 
 Newest first. One entry per iteration; link to the iteration file for detail.
 
+## [088] First five minutes and Act 3 — done ([detail](iterations/088-first-five-minutes.md))
+
+### Added
+- The shakedown rebuilt: 12 coached steps through a real threat, a CANCELLED shot, a pit fall, heat paid for a
+  tear and an arm torn off; SKIP on its first card.
+- A first-time coach callout on the board for each objective (defend, salvage, hold, hack, survive) and for
+  reinforcement marks, once per profile.
+- Three Act 3 maps: The Blowing House (HACK), The Taphole (HOLD), The Skull Cracker (SALVAGE).
+- `prop_slots` and `"mirror": true` in fight files; maps dealt to a region's sites when it is made, with no map
+  met twice in an act. `tools/map_census.gd`, `balance_fights --maps`.
+
+### Changed
+- The Core's drums stand on one of five pairs of hexes; every Act 3 map mirrors half the time.
+
 ## [087] Every round counts — done ([detail](iterations/087-every-round-counts.md))
 
 ### Added

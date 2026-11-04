@@ -239,3 +239,9 @@ minus the site's column -- brings more Reclaimer drones, sooner (`reclaimer_reac
 round_per_linger, round_min). Every revealed fight shows its objective, condition and enemies
 (`RunSim.fight_preview`). Each act carries one condition (`modifiers.per_act`); warlords rotate by seed.
 Seed codes (`RunSetup.seed_code`) replay a run; seeded runs bank nothing; the profile keeps 50 runs.
+
+## Maps dealt to sites (088)
+- A region deals each fight site its map when it is made: the map least used among the sites within 6 links, by
+  SimRNG order. If the crew has already met that map this act, the site switches to a fresh one, and its card
+  shows the new map from then on (084's "the card is the fight" holds at the moment of travel).
+- Act 3 runs with a repeated map: 93/107 -> 2/128 (map_census, 150 bot runs).
