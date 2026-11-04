@@ -131,6 +131,8 @@
       "y": 1
     }
   ],
-  "objective": {"type": "hold", "need": 3, "cells": [{"x": 4, "y": 4}, {"x": 3, "y": 4}, {"x": 4, "y": 3}]},
-  "own_objective": true
+  "objective": {"type": "hold", "need": 4, "cells": [{"x": 4, "y": 4}, {"x": 3, "y": 4}, {"x": 4, "y": 3}]},
+  "own_objective": true,
+  "extra_enemies": 2,
+  "_balance": "088, map_census --swap (377 Act 3 fights on every map): as first built (need 3) 89% in 8.4 rounds; need 4 and 2 more machines 82%, 10.1 rounds (the old Act 3 maps 78-81%, 6.5-6.8)."
 }
