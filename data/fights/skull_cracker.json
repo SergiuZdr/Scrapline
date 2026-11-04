@@ -130,6 +130,8 @@
       "y": 1
     }
   ],
-  "objective": {"type": "salvage", "need": 3, "piles": [{"x": 1, "y": 2}, {"x": 6, "y": 2}, {"x": 2, "y": 4}, {"x": 4, "y": 5}]},
-  "own_objective": true
+  "objective": {"type": "salvage", "need": 4, "piles": [{"x": 1, "y": 2}, {"x": 6, "y": 2}, {"x": 2, "y": 4}, {"x": 4, "y": 5}]},
+  "own_objective": true,
+  "extra_enemies": 3,
+  "_balance": "088, map_census --swap (377 Act 3 fights on every map): as first built (need 3) 93% in 6.3 rounds; need 4 (all four piles) and 3 more machines 79%, 9.2 rounds (the old Act 3 maps 78-81%, 6.5-6.8)."
 }

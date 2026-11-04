@@ -2494,6 +2494,14 @@ func _test_act3_variety_088() -> void:
 					if String((fight["rows"] as Array)[y])[x] != ".":
 						errors.append("%s: objective hex (%d,%d) is '%s'" % [id, x, y, String((fight["rows"] as Array)[y])[x]])
 	_check("the new maps keep their own objective in the run (%d of %d)" % [kept, checked], kept == checked)
+	# `extra_enemies`: the map fields that many more machines than another map at the same site.
+	var site0: int = int(fights[0])
+	state.sites[site0]["map"] = "casting_floor"
+	var plain: int = (RunSim._make_fight(state, setup, site0, "skirmish")["enemy"] as Array).size()
+	state.sites[site0]["map"] = "skull_cracker"
+	var more: int = (RunSim._make_fight(state, setup, site0, "skirmish")["enemy"] as Array).size()
+	_check("the Skull Cracker fields its 3 extra machines (%d against %d)" % [more, plain],
+		more == plain + int(setup.fights["skull_cracker"]["extra_enemies"]))
 	_check("and build with every objective hex on open ground %s" % [errors.slice(0, 2)], errors.is_empty())
 	# The Taphole's zone stays in one piece on the bigger board (`widen_cut`).
 	var tap: Dictionary = RunSim.widen(setup.fights["the_taphole"], board)

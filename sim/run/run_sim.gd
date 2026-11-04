@@ -1682,6 +1682,10 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 	var caps: Array = enemies_rules.get("rarity_cap_by_column", [3])
 	# 032: the bigger board (`board.enemies`) holds this many more.
 	var count: int = int(counts[mini(col, counts.size() - 1)]) + int(board.get("enemies", 0))
+	# 088 (A6): a map built around an objective may field more machines (`extra_enemies`): an objective
+	# gives a second way to win, and the bot won those maps 91-95% against 77-81% on the rout-or-rolled
+	# Act 3 maps, on the same crews (map_census --swap).
+	count += maxi(0, int(template.get("extra_enemies", 0)))
 	var cap: int = int(caps[mini(col, caps.size() - 1)])
 	var hp_bonus: int = 0
 	# Play-test 10 ("the arena did not feel hard"): `enemies.arena` -- `extra` machines over an

@@ -4,7 +4,7 @@
   "acts": [
     3
   ],
-  "_comment": "088 (A6), Act 3, built around HACK: the blower controls stand at the two far ends of the house and one in the middle of the engine floor, two more deep by the far wall among the enemy's own starts; the engines (flues) blow every other round between them. Four of five are needed: the crew splits across the floor and goes deep. Measured (balance_fights --maps, Act 3 enemy bonus): the first layout (four terminals, need 3) won 100% in 4.1 rounds against 90-97% and 6.4-8.3 for the other Act 3 maps; need 4 of 5 takes 4.3 (the objective ends fights early by nature).",
+  "_comment": "088 (A6), Act 3, built around HACK: the blower controls stand at the two far ends of the house and one in the middle of the engine floor, two more deep by the far wall among the enemy's own starts; the engines (flues) blow every other round between them. All five are needed: the crew splits across the floor and goes deep. Measured (balance_fights --maps, Act 3 enemy bonus): the first layout (four terminals, need 3) won 100% in 4.1 rounds against 90-97% and 6.4-8.3 for the other Act 3 maps; need 4 of 5 takes 4.3 (the objective ends fights early by nature).",
   "rows": [
     "..f..f..",
     "........",
@@ -130,6 +130,8 @@
       "y": 1
     }
   ],
-  "objective": {"type": "hack", "need": 4, "cells": [{"x": 0, "y": 3}, {"x": 7, "y": 3}, {"x": 4, "y": 5}, {"x": 3, "y": 1}, {"x": 1, "y": 0}]},
-  "own_objective": true
+  "objective": {"type": "hack", "need": 5, "cells": [{"x": 0, "y": 3}, {"x": 7, "y": 3}, {"x": 4, "y": 5}, {"x": 3, "y": 1}, {"x": 1, "y": 0}]},
+  "own_objective": true,
+  "extra_enemies": 2,
+  "_balance": "088, map_census --swap (the same 377 Act 3 fights of 120 bot runs replayed on every Act 3 map): as first built (need 4) won 93% in 5.4 rounds against 78-81% / 6.5-6.8 for the Casting Floor, Furnace Mouths and Ladle Line; need 5 and 2 more machines (`extra_enemies`, RunSim) 82%, 7.7 rounds. Need alone or machines alone moved it 1-4 points: the objective is a second road to a win."
 }
