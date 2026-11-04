@@ -157,3 +157,11 @@ and width both fit.
 Reached from the title (SETTINGS replaced SOUND), the map's top bar and the fight's gear. Playback sets
 `Engine.time_scale` only while events play: the enemy turn at the chosen speed, the player's actions at
 most 2x, 3x while SPACE or a board press is held; 1x during hit-stop, menus and the opening card.
+
+## The shakedown and objective callouts (088)
+- The shakedown (`data/fights/shakedown.json`, `data/tutorial.json`) is 12 coached steps built on the signature
+  verbs: a real threat, a CANCELLED shot, a pit fall, heat paid for a tear, an arm torn off. SKIP on the first card
+  marks it played and shows the last card. A drum stands on the board with no step.
+- `scripts/combat/objective_callout.gd`: the first time an objective (defend, salvage, hold, hack, survive) or a
+  reinforcement mark appears, a ring on its first piece and a balloon with GOT IT; once per profile
+  (`obj_<kind>` in `tutorial.hints`, text in `story.json objectives`). No callout for rout or bosses.

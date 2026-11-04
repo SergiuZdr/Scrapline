@@ -248,3 +248,9 @@ total is made of; `diff` reports damage to props that stand. Charge stops on the
   strike_plan hit carries `steps` summing to its damage.
 - **INTENT_LOST**: a kill, a fall or tearing the arm in use cancels the intent; v1 is what the cloud showed.
 - The screen's layers and what yields to what: `hud-budget.md`.
+
+## Variety in a fight file (088)
+- `prop_slots`: a list of groups of candidate hexes per prop entry; SimRNG picks one group per fight.
+- `"mirror": true`: an odd-r left-right reflection (`k-1-x` with the row's parity), applied after the run widens
+  the board; `CombatSetup.mirrored` says it happened. The view gets mirrored coordinates and needs no hook.
+- Per map: `own_objective` (a map built round its objective keeps it in a run), `extra_enemies`, `widen_cut`.
