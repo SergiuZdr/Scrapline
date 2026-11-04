@@ -528,6 +528,8 @@ static func move_preview(state: RunState, setup: RunSetup, to: int) -> Dictionar
 		var rules: Dictionary = rules_of(state, setup).get("enemies", {})
 		var counts: Array = rules.get("count_by_column", [3])
 		enemies = int(counts[mini(int(site["col"]), counts.size() - 1)]) + int((rules_of(state, setup).get("board", {}) as Dictionary).get("enemies", 0))
+		if kind == "skirmish" or kind == "elite" or kind == "arena":
+			enemies += map_extra_enemies(state, setup, to)
 		if kind == "elite" or kind == "arena":
 			enemies += int(rules.get("elite_extra", 1)) + (int((rules.get("arena", {}) as Dictionary).get("extra", 0)) if kind == "arena" else 0)
 		elif kind == "boss":
@@ -1576,6 +1578,27 @@ static func _deal_maps(state: RunState, setup: RunSetup) -> void:
 		order.push_back(order.pop_front())
 
 
+## 088 (A6): the map a fight at `site_id` is played on, from `drawn` (the fight stream's first draw).
+static func _pick_map(state: RunState, setup: RunSetup, site_id: int, ids: Array, drawn: String) -> String:
+	var dealt: String = String(state.sites[site_id].get("map", "")) if site_id >= 0 and site_id < state.sites.size() else ""
+	var pool: Array = fresh_maps(state, ids)
+	if ids.has(dealt) and pool.has(dealt):
+		return dealt
+	if pool.has(drawn):
+		return drawn
+	return String(pool[_rng(setup, site_id, 63, state.act).range_int(0, pool.size() - 1)])
+
+
+## 088 (A6): the machines a map adds over the act's count (`extra_enemies`) at an ordinary fight at
+## `site_id`, the same map `_make_fight` would play there now (the map's move preview counts them).
+static func map_extra_enemies(state: RunState, setup: RunSetup, site_id: int) -> int:
+	var ids: Array = act_maps(setup, state.act)
+	if ids.is_empty():
+		return 0
+	var drawn: String = String(ids[_rng(setup, site_id, 2, state.act).range_int(0, ids.size() - 1)])
+	return maxi(0, int((setup.fights[_pick_map(state, setup, site_id, ids, drawn)] as Dictionary).get("extra_enemies", 0)))
+
+
 ## 088 (A6): the ordinary maps of act `act` (not a gate, a warlord or the tutorial), sorted.
 static func act_maps(setup: RunSetup, act: int) -> Array:
 	var ids: Array = []
@@ -1664,13 +1687,7 @@ static func _make_fight(state: RunState, setup: RunSetup, site_id: int, kind: St
 	# this act and another is fresh (`fresh_maps`): then a fresh one, from a stream of its own -- the
 	# site's card shows it from that moment, so the card still never differs from the fight. The fight's
 	# own stream still draws over every map as it always did, so no later roll moves.
-	var map_id: String = String(ids[rng.range_int(0, ids.size() - 1)])
-	var dealt: String = String(state.sites[site_id].get("map", "")) if site_id >= 0 and site_id < state.sites.size() else ""
-	var pool: Array = fresh_maps(state, ids)
-	if ids.has(dealt) and pool.has(dealt):
-		map_id = dealt
-	elif not pool.has(map_id):
-		map_id = String(pool[_rng(setup, site_id, 63, state.act).range_int(0, pool.size() - 1)])
+	var map_id: String = _pick_map(state, setup, site_id, ids, String(ids[rng.range_int(0, ids.size() - 1)]))
 	if kind == "boss" and not gate.is_empty():
 		return _make_gate_fight(state, setup, site_id, lay_map(state, setup, site_id, setup.fights[gate], board), rng)
 	if kind == "warlord" and not warlord.is_empty():
