@@ -93,6 +93,10 @@ const TILE_MODELS: Dictionary = {
 ## tiles (`tr_floor_<n>`) by a hash of its cell, turned a hashed sixth, and darkened to stay under the
 ## machines in value.
 const FLOOR_VARIANTS: int = 5
+## The yard ground beyond the board: a photographed texture, tinted dark, repeating every few metres.
+const GROUND_TEXTURE: String = "res://art/thirdparty/polyhaven/textures/rock_ground/rock_ground_diff_1k.jpg"
+const GROUND_TINT := Color(0.3, 0.32, 0.4)
+const GROUND_TILE: float = 5.0
 const FLOOR_TINT: float = 0.6
 ## Each floor tile's walking surface above its base (measured on the meshes): sunk to the ground's top.
 const FLOOR_PLATE: Array[float] = [0.27, 0.26, 0.25, 0.24, 0.21]
@@ -888,6 +892,10 @@ func _build_board() -> void:
 			var tile: Node3D = _generated_tile("heap" if blocks else String(def.get("id", "open")), x, y, top)
 			if tile != null:
 				_board.add_child(tile)
+				# The old flat slab shared the tile's top plane and showed through it (z-fight): sink it
+				# just under the generated plate. It stays for picking.
+				slab.mesh = _hex_mesh(HEX * 0.96, 0.3 + top - 0.06)
+				slab.position.y -= 0.03
 				if String(def.get("id", "")) == "ridge":
 					slab.mesh = _hex_mesh(HEX * 0.96, 0.32)
 					slab.position.y = -0.14
@@ -1232,10 +1240,22 @@ func _build_surroundings() -> void:
 	var ground := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(_origin.x * 2.0 + 60.0, _origin.y * 2.0 + 60.0)
-	ground.mesh = plane
+	# Tile the photographed ground over the plane (one repeat per GROUND_TILE metres).
+	var arrays: Array = plane.get_mesh_arrays()
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	for i: int in uvs.size():
+		uvs[i] = uvs[i] * (plane.size / GROUND_TILE)
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	var ground_mesh := ArrayMesh.new()
+	ground_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	ground.mesh = ground_mesh
 	ground.position = Vector3(0, -0.31, 0)
-	# The yard beyond the board: night ground with a faint drawn grain.
-	ground.material_override = Ink.patterned(Color("1b1e27"), 2, Color("171a22"), 2.5, 0.18)
+	# The yard beyond the board: night asphalt, textured (kept dark, under the machines in value).
+	var ground_tex: Texture2D = load(GROUND_TEXTURE) as Texture2D
+	if ground_tex != null:
+		ground.material_override = Ink.textured(ground_tex, GROUND_TINT, "matte")
+	else:
+		ground.material_override = Ink.patterned(Color("1b1e27"), 2, Color("171a22"), 2.5, 0.18)
 	_board.add_child(ground)
 	# 081, the user: a working yard, but not a drill line -- clusters along each side (two containers
 	# stacked off true, a lone one turned end-on, wrecks with tyres at their feet; the red container
