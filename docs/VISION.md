@@ -54,12 +54,12 @@ numbers are bigger. See [plans/meta-progression.md](plans/meta-progression.md).
 The previous direction was a free-to-play live-service game: 6v6 real-time battles with an
 order pause, async PvP, ranked seasons, guilds, a co-op boss, crates, a season pass and a
 Nakama server. **All of that is out of scope.** The code that survives the pivot is listed
-in [plans/salvage-audit.md](plans/salvage-audit.md).
+in plans/salvage-audit.md.
 
 ## Settled details
 
 3 machines per crew, always. A **hex** board with free aim. No escort unit: the run's
 health is the crew's HP, which carries between fights. Destroyed machines leave scrap
 piles. The closing front is the Reclaimer swarm. Light story through text. 3D with a
-tilted camera. A tutorial first fight explains the jargon. See [MEMORY.md](MEMORY.md),
+tilted camera. A tutorial first fight explains the jargon. See MEMORY.md,
 including play-test 1, which changed most of this on 2026-09-24.

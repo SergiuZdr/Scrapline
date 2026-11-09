@@ -71,7 +71,7 @@ increase. All sound effects are synthesised in code.
 | `tools/` | Headless test suites, bots, balance and measurement tools |
 | `tools/blender/` | Blender Python model generators, rigging and checks |
 | `art/` | Part models (`.glb`), effects, thumbnails, fonts (SIL OFL), third-party textures |
-| `docs/` | Vision, roadmap, changelog, design plans, one file per iteration, play-test notes |
+| `docs/` | The vision and one design plan per system |
 
 ## Running it
 
@@ -107,8 +107,7 @@ driven by synthetic clicks), `verify_run`, `verify_run_ui`, `verify_save`,
 
 ## Documentation
 
-The design and its history are in [docs/](docs/README.md): the vision, the roadmap with
-every iteration, the changelog, one design plan per system, and notes from each play-test.
+The design is in [docs/](docs/README.md): the vision and one design plan per system.
 
 ## Licence
 

@@ -37,7 +37,7 @@ adds power.
 - The player profile stores unlocked ids, pressure tier per crew, run history, codex
   seen-flags and settings. It stays small, offline and local.
 - The old `ProfileStore`/command pattern is adapted for this (see
-  [salvage-audit.md](salvage-audit.md)). All writes go through commands, so saving
+  salvage-audit.md). All writes go through commands, so saving
   cannot silently drop a change.
 
 ## Missions (034)
